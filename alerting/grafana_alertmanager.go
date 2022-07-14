@@ -33,7 +33,6 @@ import (
 
 	pb "github.com/prometheus/alertmanager/silence/silencepb"
 
-	"github.com/grafana/grafana/pkg/infra/kvstore"
 	"github.com/grafana/grafana/pkg/infra/log"
 	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
 	"github.com/grafana/grafana/pkg/services/ngalert/metrics"
@@ -96,7 +95,6 @@ type GrafanaAlertmanager struct {
 
 	Settings            *setting.Cfg
 	Store               AlertingStore
-	fileStore           *FileStore
 	Metrics             *metrics.Alertmanager
 	NotificationService notifications.Service
 
@@ -133,7 +131,19 @@ type GrafanaAlertmanager struct {
 	decryptFn channels.GetDecryptedValueFn
 }
 
-func newAlertmanager(ctx context.Context, orgID int64, cfg *setting.Cfg, store AlertingStore, kvStore kvstore.KVStore,
+type MaintenanceOptions interface {
+	Filepath() string
+	Retention() time.Duration
+	MaintenanceFrequency() time.Duration
+	MaintenanceFunc() (int64, error)
+}
+
+type GrafanaAlertmanagerConfig struct {
+	Silences MaintenanceOptions
+	Nflog    MaintenanceOptions
+}
+
+func NewGrafanaAlertmanager(ctx context.Context, orgID int64, cfg *setting.Cfg, store AlertingStore, config *GrafanaAlertmanagerConfig,
 	peer ClusterPeer, decryptFn channels.GetDecryptedValueFn, ns notifications.Service, m *metrics.Alertmanager) (*GrafanaAlertmanager, error) {
 	am := &GrafanaAlertmanager{
 		Settings:            cfg,
@@ -151,24 +161,16 @@ func newAlertmanager(ctx context.Context, orgID int64, cfg *setting.Cfg, store A
 		decryptFn:           decryptFn,
 	}
 
-	am.fileStore = NewFileStore(am.orgID, kvStore, am.WorkingDirPath())
-
-	nflogFilepath, err := am.fileStore.FilepathFor(ctx, notificationLogFilename)
-	if err != nil {
-		return nil, err
-	}
-	silencesFilePath, err := am.fileStore.FilepathFor(ctx, silencesFilename)
-	if err != nil {
-		return nil, err
-	}
+	var err error
 
 	// Initialize the notification log
 	am.wg.Add(1)
 	am.notificationLog, err = nflog.New(
-		nflog.WithRetention(retentionNotificationsAndSilences),
-		nflog.WithSnapshot(nflogFilepath),
-		nflog.WithMaintenance(maintenanceNotificationAndSilences, am.stopc, am.wg.Done, func() (int64, error) {
-			return am.fileStore.Persist(ctx, notificationLogFilename, am.notificationLog)
+		nflog.WithRetention(config.Nflog.Retention()),
+		nflog.WithSnapshot(config.Nflog.Filepath()),
+		nflog.WithMaintenance(config.Nflog.MaintenanceFrequency(), am.stopc, am.wg.Done, func() (int64, error) {
+			//TODO: There's a bug here, we need to call GC to ensure we cleanup old entries: https://github.com/grafana/alerting/issues/3
+			return config.Nflog.MaintenanceFunc()
 		}),
 	)
 	if err != nil {
@@ -180,8 +182,8 @@ func newAlertmanager(ctx context.Context, orgID int64, cfg *setting.Cfg, store A
 	// Initialize silences
 	am.silences, err = silence.New(silence.Options{
 		Metrics:      m.Registerer,
-		SnapshotFile: silencesFilePath,
-		Retention:    retentionNotificationsAndSilences,
+		SnapshotFile: config.Silences.Filepath(),
+		Retention:    config.Silences.Retention(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the silencing component of alerting: %w", err)
@@ -192,7 +194,7 @@ func newAlertmanager(ctx context.Context, orgID int64, cfg *setting.Cfg, store A
 
 	am.wg.Add(1)
 	go func() {
-		am.silences.Maintenance(silenceMaintenanceInterval, silencesFilePath, am.stopc, func() (int64, error) {
+		am.silences.Maintenance(config.Silences.MaintenanceFrequency(), config.Silences.Filepath(), am.stopc, func() (int64, error) {
 			// Delete silences older than the retention period.
 			if _, err := am.silences.GC(); err != nil {
 				am.logger.Error("silence garbage collection", "err", err)
@@ -200,7 +202,7 @@ func newAlertmanager(ctx context.Context, orgID int64, cfg *setting.Cfg, store A
 			}
 
 			// Snapshot our silences to the Grafana KV store
-			return am.fileStore.Persist(ctx, silencesFilename, am.silences)
+			return config.Silences.MaintenanceFunc()
 		})
 		am.wg.Done()
 	}()
