@@ -1,4 +1,4 @@
-package notifier
+package alerting
 
 import (
 	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"

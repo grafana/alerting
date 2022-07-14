@@ -1,4 +1,4 @@
-package notifier
+package alerting
 
 import (
 	"github.com/grafana/grafana/pkg/services/alerting"
