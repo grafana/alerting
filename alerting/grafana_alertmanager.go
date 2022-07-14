@@ -145,6 +145,7 @@ type GrafanaAlertmanagerConfig struct {
 
 func NewGrafanaAlertmanager(ctx context.Context, orgID int64, cfg *setting.Cfg, store AlertingStore, config *GrafanaAlertmanagerConfig,
 	peer ClusterPeer, decryptFn channels.GetDecryptedValueFn, ns notifications.Service, m *metrics.Alertmanager) (*GrafanaAlertmanager, error) {
+
 	am := &GrafanaAlertmanager{
 		Settings:            cfg,
 		stopc:               make(chan struct{}),
