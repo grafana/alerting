@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strconv"
 	"sync"
@@ -142,16 +141,6 @@ type MaintenanceOptions interface {
 type GrafanaAlertmanagerConfig struct {
 	Silences MaintenanceOptions
 	Nflog    MaintenanceOptions
-}
-
-func IsInterfaceEmpty(i interface{}) bool {
-	v := reflect.ValueOf(i)
-
-	if v.IsValid() || v.IsZero() {
-		return true
-	}
-
-	return false
 }
 
 func (c *GrafanaAlertmanagerConfig) Validate() error {
