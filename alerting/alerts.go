@@ -21,7 +21,7 @@ var (
 	ErrGetAlertGroupsBadPayload = fmt.Errorf("unable to retrieve alerts groups")
 )
 
-func (am *Alertmanager) GetAlerts(active, silenced, inhibited bool, filter []string, receivers string) (apimodels.GettableAlerts, error) {
+func (am *GrafanaAlertmanager) GetAlerts(active, silenced, inhibited bool, filter []string, receivers string) (apimodels.GettableAlerts, error) {
 	var (
 		// Initialize result slice to prevent api returning `null` when there
 		// are no alerts present
@@ -87,7 +87,7 @@ func (am *Alertmanager) GetAlerts(active, silenced, inhibited bool, filter []str
 	return res, nil
 }
 
-func (am *Alertmanager) GetAlertGroups(active, silenced, inhibited bool, filter []string, receivers string) (apimodels.AlertGroups, error) {
+func (am *GrafanaAlertmanager) GetAlertGroups(active, silenced, inhibited bool, filter []string, receivers string) (apimodels.AlertGroups, error) {
 	matchers, err := parseFilter(filter)
 	if err != nil {
 		am.logger.Error("msg", "failed to parse matchers", "err", err)
@@ -135,7 +135,7 @@ func (am *Alertmanager) GetAlertGroups(active, silenced, inhibited bool, filter 
 	return res, nil
 }
 
-func (am *Alertmanager) alertFilter(matchers []*labels.Matcher, silenced, inhibited, active bool) func(a *types.Alert, now time.Time) bool {
+func (am *GrafanaAlertmanager) alertFilter(matchers []*labels.Matcher, silenced, inhibited, active bool) func(a *types.Alert, now time.Time) bool {
 	return func(a *types.Alert, now time.Time) bool {
 		if !a.EndsAt.IsZero() && a.EndsAt.Before(now) {
 			return false
