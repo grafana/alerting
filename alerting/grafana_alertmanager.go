@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"sync"
@@ -143,6 +144,28 @@ type GrafanaAlertmanagerConfig struct {
 	Nflog    MaintenanceOptions
 }
 
+func IsInterfaceEmpty(i interface{}) bool {
+	v := reflect.ValueOf(i)
+
+	if v.IsValid() || v.IsZero() {
+		return true
+	}
+
+	return false
+}
+
+func (c *GrafanaAlertmanagerConfig) Validate() error {
+	if c.Silences == nil {
+		return errors.New("silence maintenance options must be present")
+	}
+
+	if c.Nflog == nil {
+		return errors.New("notification log maintenance options must be present")
+	}
+
+	return nil
+}
+
 func NewGrafanaAlertmanager(ctx context.Context, orgID int64, cfg *setting.Cfg, store AlertingStore, config *GrafanaAlertmanagerConfig,
 	peer ClusterPeer, decryptFn channels.GetDecryptedValueFn, ns notifications.Service, m *metrics.Alertmanager) (*GrafanaAlertmanager, error) {
 
@@ -160,6 +183,10 @@ func NewGrafanaAlertmanager(ctx context.Context, orgID int64, cfg *setting.Cfg, 
 		NotificationService: ns,
 		orgID:               orgID,
 		decryptFn:           decryptFn,
+	}
+
+	if err := config.Validate(); err != nil {
+		return nil, err
 	}
 
 	var err error

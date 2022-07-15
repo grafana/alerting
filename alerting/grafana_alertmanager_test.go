@@ -27,7 +27,7 @@ import (
 	"github.com/grafana/grafana/pkg/setting"
 )
 
-func setupAMTest(t *testing.T) *Alertmanager {
+func setupAMTest(t *testing.T) *GrafanaAlertmanager {
 	dir := t.TempDir()
 	cfg := &setting.Cfg{
 		DataPath: dir,
@@ -43,10 +43,9 @@ func setupAMTest(t *testing.T) *Alertmanager {
 		DashboardService: dashboards.NewFakeDashboardService(t),
 	}
 
-	kvStore := NewFakeKVStore(t)
 	secretsService := secretsManager.SetupTestService(t, database.ProvideSecretsStore(sqlStore))
 	decryptFn := secretsService.GetDecryptedValue
-	am, err := newAlertmanager(context.Background(), 1, cfg, s, kvStore, &NilPeer{}, decryptFn, nil, m)
+	am, err := NewGrafanaAlertmanager(context.Background(), 1, cfg, s, &GrafanaAlertmanagerConfig{}, &NilPeer{}, decryptFn, nil, m)
 	require.NoError(t, err)
 	return am
 }

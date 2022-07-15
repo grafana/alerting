@@ -59,7 +59,7 @@ func (e ReceiverTimeoutError) Error() string {
 	return fmt.Sprintf("the receiver timed out: %s", e.Err)
 }
 
-func (am *Alertmanager) TestReceivers(ctx context.Context, c apimodels.TestReceiversConfigBodyParams) (*TestReceiversResult, error) {
+func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c apimodels.TestReceiversConfigBodyParams) (*TestReceiversResult, error) {
 	// now represents the start time of the test
 	now := time.Now()
 	testAlert := newTestAlert(c, now, now)
