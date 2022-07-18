@@ -44,22 +44,13 @@ import (
 )
 
 const (
-	notificationLogFilename = "notifications"
-	silencesFilename        = "silences"
-
 	workingDir = "alerting"
-	// maintenanceNotificationAndSilences how often should we flush and gargabe collect notifications and silences
-	maintenanceNotificationAndSilences = 15 * time.Minute
 	// defaultResolveTimeout is the default timeout used for resolving an alert
 	// if the end time is not specified.
 	defaultResolveTimeout = 5 * time.Minute
 	// memoryAlertsGCInterval is the interval at which we'll remove resolved alerts from memory.
 	memoryAlertsGCInterval = 30 * time.Minute
 )
-
-// How long should we keep silences and notification entries on-disk after they've served their purpose.
-var retentionNotificationsAndSilences = 5 * 24 * time.Hour
-var silenceMaintenanceInterval = 15 * time.Minute
 
 func init() {
 	silence.ValidateMatcher = func(m *pb.Matcher) error {
@@ -131,10 +122,16 @@ type GrafanaAlertmanager struct {
 	decryptFn channels.GetDecryptedValueFn
 }
 
+// MaintenanceOptions represent the configuration options available for executing maintenance of Silences and the Notification log that the Alertmanager uses.
 type MaintenanceOptions interface {
+	// Filepath returns the string representation of the filesystem path of the file to do maintenance on.
 	Filepath() string
+	// Retention represents for how long should we keep the artefacts under maintenance.
 	Retention() time.Duration
+	// MaintenanceFrequency represents how often should we execute the maintenance.
 	MaintenanceFrequency() time.Duration
+	// MaintenanceFunc returns the function to execute as part of the maintenance process.
+	// It returns the size of the file in bytes or an error if the maintenance fails.
 	MaintenanceFunc() (int64, error)
 }
 
