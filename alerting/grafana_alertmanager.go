@@ -52,10 +52,6 @@ const (
 	memoryAlertsGCInterval = 30 * time.Minute
 )
 
-// How long should we keep silences and notification entries on-disk after they've served their purpose.
-var retentionNotificationsAndSilences = 5 * 24 * time.Hour
-var silenceMaintenanceInterval = 15 * time.Minute
-
 func init() {
 	silence.ValidateMatcher = func(m *pb.Matcher) error {
 		switch m.Type {
