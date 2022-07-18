@@ -200,15 +200,3 @@ func (fkv *FakeKVStore) Keys(ctx context.Context, orgID int64, namespace string,
 	}
 	return keys, nil
 }
-
-func (fkv *FakeKVStore) GetAll(ctx context.Context, orgId int64, namespace string) (map[int64]map[string]string, error) {
-	return nil, nil
-}
-
-type fakeState struct {
-	data string
-}
-
-func (fs *fakeState) MarshalBinary() ([]byte, error) {
-	return []byte(fs.data), nil
-}
