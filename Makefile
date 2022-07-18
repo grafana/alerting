@@ -1,3 +1,6 @@
+# Put tools at the root of the folder.
+PATH := $(CURDIR)/.tools/bin:$(PATH)
+
 .PHONY: clean
 clean:
 	@# go mod makes the modules read-only, so before deletion we need to make them deleteable
