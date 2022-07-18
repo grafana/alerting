@@ -1,0 +1,28 @@
+---
+{
+   "kind": "pipeline",
+   "name": "validate-pull-request",
+   "steps": [
+      {
+         "commands": [
+            "make mod-check"
+         ],
+         "image": "golang:1.18.4",
+         "name": "make-mod-check"
+      },
+      {
+         "commands": [
+            "make lint"
+         ],
+         "image": "golang:1.18.4",
+         "name": "make-lint"
+      },
+      {
+         "commands": [
+            "make test"
+         ],
+         "image": "golang:1.18.4",
+         "name": "make-test"
+      }
+   ]
+}

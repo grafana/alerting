@@ -8,3 +8,7 @@ mod-check:
 	GO111MODULE=on go mod verify
 	GO111MODULE=on go mod tidy
 	@git diff --exit-code -- go.sum go.mod
+
+.drone/drone.yml: .drone/drone.jsonnet
+	drone jsonnet --source $< --target $@ --stream --format=false
+	drone lint --trusted $@
