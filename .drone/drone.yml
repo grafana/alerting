@@ -26,3 +26,8 @@
       }
    ]
 }
+---
+kind: signature
+hmac: 29948fb9c32942894cb6995d0660e4003124e7f0cec5f71f0da7fd51a3749404
+
+...

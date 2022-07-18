@@ -25,10 +25,15 @@ mod-check:
 	GO111MODULE=on go mod tidy
 	@git diff --exit-code -- go.sum go.mod
 
+.PHONY: drone
+drone: .drone/drone.yml
+
 # Drone.
 .drone/drone.yml: .drone/drone.jsonnet
-	drone jsonnet --source $< --target $@ --stream --format=false
-	drone lint --trusted $@
+	drone jsonnet --source $< --target $@.tmp --stream --format=false
+	drone sign --save grafana/alerting $@.tmp
+	drone lint --trusted $@.tmp
+	mv $@.tmp $@
 
 # Tools needed to run linting.
 .tools:
