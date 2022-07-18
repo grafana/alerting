@@ -43,9 +43,14 @@ func setupAMTest(t *testing.T) *GrafanaAlertmanager {
 		DashboardService: dashboards.NewFakeDashboardService(t),
 	}
 
+	grafanaConfig := &GrafanaAlertmanagerConfig{
+		Silences: newFakeMaintanenceOptions(t),
+		Nflog:    newFakeMaintanenceOptions(t),
+	}
+
 	secretsService := secretsManager.SetupTestService(t, database.ProvideSecretsStore(sqlStore))
 	decryptFn := secretsService.GetDecryptedValue
-	am, err := NewGrafanaAlertmanager(context.Background(), 1, cfg, s, &GrafanaAlertmanagerConfig{}, &NilPeer{}, decryptFn, nil, m)
+	am, err := NewGrafanaAlertmanager(context.Background(), 1, cfg, s, grafanaConfig, &NilPeer{}, decryptFn, nil, m)
 	require.NoError(t, err)
 	return am
 }
@@ -348,17 +353,6 @@ func TestPutAlert(t *testing.T) {
 // our data differently, so we test that functionality.
 func TestSilenceCleanup(t *testing.T) {
 	require := require.New(t)
-
-	oldRetention := retentionNotificationsAndSilences
-	retentionNotificationsAndSilences = 30 * time.Millisecond
-	oldMaintenance := silenceMaintenanceInterval
-	silenceMaintenanceInterval = 15 * time.Millisecond
-	t.Cleanup(
-		func() {
-			retentionNotificationsAndSilences = oldRetention
-			silenceMaintenanceInterval = oldMaintenance
-		})
-
 	am := setupAMTest(t)
 	now := time.Now()
 	dt := func(t time.Time) strfmt.DateTime { return strfmt.DateTime(t) }
