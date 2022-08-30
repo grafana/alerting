@@ -156,7 +156,7 @@ func CreateNotificationService(t *testing.T) *notifications.NotificationService 
 	bus := bus.ProvideBus(tracer)
 
 	cfg := setting.NewCfg()
-	cfg.StaticRootPath = "../../../../../public/"
+	cfg.StaticRootPath = "../../templates/"
 	cfg.BuildVersion = "4.0.0"
 	cfg.Smtp.Enabled = true
 	cfg.Smtp.TemplatesPatterns = []string{"emails/*.html", "emails/*.txt"}
