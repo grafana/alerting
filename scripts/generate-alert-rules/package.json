@@ -1,0 +1,9 @@
+{
+  "name": "@grafana/alerting-dev",
+  "type": "module",
+  "devDependencies": {
+    "axios": "^0.27.2",
+    "inquirer": "^9.1.2",
+    "p-all": "^4.0.0"
+  }
+}
