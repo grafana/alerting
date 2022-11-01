@@ -8,7 +8,6 @@ import (
 	"sort"
 	"time"
 
-	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -42,8 +41,36 @@ type TestReceiverConfigResult struct {
 }
 
 type InvalidReceiverError struct {
-	Receiver *apimodels.PostableGrafanaReceiver
+	Receiver *GrafanaReceiver
 	Err      error
+}
+
+type GrafanaReceiver struct {
+	UID                   string            `json:"uid"`
+	Name                  string            `json:"name"`
+	Type                  string            `json:"type"`
+	DisableResolveMessage bool              `json:"disableResolveMessage"`
+	Settings              map[string]string `json:"settings"` //TODO: This used to be simpleJSON but I'm not even sure we need it.
+	SecureSettings        map[string]string `json:"secureSettings"`
+}
+
+type APIReceiver struct {
+	Receiver         `yaml:",inline"`
+	GrafanaReceivers `yaml:",inline"`
+}
+
+type GrafanaReceivers struct {
+	Receivers []*GrafanaReceiver `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
+}
+
+type TestReceiversConfigBodyParams struct {
+	Alert     *TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
+	Receivers []*APIReceiver                  `yaml:"receivers,omitempty" json:"receivers,omitempty"`
+}
+
+type TestReceiversConfigAlertParams struct {
+	Annotations model.LabelSet `yaml:"annotations,omitempty" json:"annotations,omitempty"`
+	Labels      model.LabelSet `yaml:"labels,omitempty" json:"labels,omitempty"`
 }
 
 func (e InvalidReceiverError) Error() string {
@@ -51,7 +78,7 @@ func (e InvalidReceiverError) Error() string {
 }
 
 type ReceiverTimeoutError struct {
-	Receiver *apimodels.PostableGrafanaReceiver
+	Receiver *GrafanaReceiver
 	Err      error
 }
 
@@ -59,7 +86,7 @@ func (e ReceiverTimeoutError) Error() string {
 	return fmt.Sprintf("the receiver timed out: %s", e.Err)
 }
 
-func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c apimodels.TestReceiversConfigBodyParams) (*TestReceiversResult, error) {
+func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiversConfigBodyParams) (*TestReceiversResult, error) {
 	// now represents the start time of the test
 	now := time.Now()
 	testAlert := newTestAlert(c, now, now)
@@ -74,14 +101,14 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c apimodels.Te
 
 	// job contains all metadata required to test a receiver
 	type job struct {
-		Config       *apimodels.PostableGrafanaReceiver
+		Config       *GrafanaReceiver
 		ReceiverName string
 		Notifier     notify.Notifier
 	}
 
 	// result contains the receiver that was tested and an error that is non-nil if the test failed
 	type result struct {
-		Config       *apimodels.PostableGrafanaReceiver
+		Config       *GrafanaReceiver
 		ReceiverName string
 		Error        error
 	}
@@ -93,7 +120,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c apimodels.Te
 			m[receiver.Name] = TestReceiverResult{
 				Name: receiver.Name,
 				// A Grafana receiver can have multiple nested receivers
-				Configs: make([]TestReceiverConfigResult, 0, len(receiver.GrafanaManagedReceivers)),
+				Configs: make([]TestReceiverConfigResult, 0, len(receiver.Receivers)),
 			}
 		}
 		for _, next := range results {
@@ -132,7 +159,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c apimodels.Te
 	jobs := make([]job, 0, len(c.Receivers))
 
 	for _, receiver := range c.Receivers {
-		for _, next := range receiver.GrafanaManagedReceivers {
+		for _, next := range receiver.Receivers {
 			n, err := am.buildReceiverIntegration(next, tmpl)
 			if err != nil {
 				invalid = append(invalid, result{
@@ -186,8 +213,12 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c apimodels.Te
 			return nil
 		})
 	}
-	g.Wait() // nolint
+	err = g.Wait() // nolint
 	close(resultCh)
+
+	if err != nil {
+		return nil, err
+	}
 
 	results := make([]result, 0, len(jobs))
 	for next := range resultCh {
@@ -197,7 +228,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c apimodels.Te
 	return newTestReceiversResult(testAlert, append(invalid, results...), now), nil
 }
 
-func newTestAlert(c apimodels.TestReceiversConfigBodyParams, startsAt, updatedAt time.Time) types.Alert {
+func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time) types.Alert {
 	var (
 		defaultAnnotations = model.LabelSet{
 			"summary":          "Notification test",
@@ -234,7 +265,7 @@ func newTestAlert(c apimodels.TestReceiversConfigBodyParams, startsAt, updatedAt
 	return alert
 }
 
-func processNotifierError(config *apimodels.PostableGrafanaReceiver, err error) error {
+func processNotifierError(config *GrafanaReceiver, err error) error {
 	if err == nil {
 		return nil
 	}

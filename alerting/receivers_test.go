@@ -7,13 +7,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
 )
 
 func TestInvalidReceiverError_Error(t *testing.T) {
 	e := InvalidReceiverError{
-		Receiver: &definitions.PostableGrafanaReceiver{
+		Receiver: &GrafanaReceiver{
 			Name: "test",
 			UID:  "uid",
 		},
@@ -24,7 +22,7 @@ func TestInvalidReceiverError_Error(t *testing.T) {
 
 func TestReceiverTimeoutError_Error(t *testing.T) {
 	e := ReceiverTimeoutError{
-		Receiver: &definitions.PostableGrafanaReceiver{
+		Receiver: &GrafanaReceiver{
 			Name: "test",
 			UID:  "uid",
 		},
@@ -45,7 +43,7 @@ func (e timeoutError) Timeout() bool {
 
 func TestProcessNotifierError(t *testing.T) {
 	t.Run("assert ReceiverTimeoutError is returned for context deadline exceeded", func(t *testing.T) {
-		r := &definitions.PostableGrafanaReceiver{
+		r := &GrafanaReceiver{
 			Name: "test",
 			UID:  "uid",
 		}
@@ -56,7 +54,7 @@ func TestProcessNotifierError(t *testing.T) {
 	})
 
 	t.Run("assert ReceiverTimeoutError is returned for *url.Error timeout", func(t *testing.T) {
-		r := &definitions.PostableGrafanaReceiver{
+		r := &GrafanaReceiver{
 			Name: "test",
 			UID:  "uid",
 		}
@@ -72,7 +70,7 @@ func TestProcessNotifierError(t *testing.T) {
 	})
 
 	t.Run("assert unknown error is returned unmodified", func(t *testing.T) {
-		r := &definitions.PostableGrafanaReceiver{
+		r := &GrafanaReceiver{
 			Name: "test",
 			UID:  "uid",
 		}
