@@ -3,6 +3,7 @@ module github.com/grafana/alerting
 go 1.18
 
 require (
+	github.com/go-kit/log v0.2.1
 	github.com/go-openapi/strfmt v0.20.2
 	github.com/grafana/grafana v1.9.2-0.20220715111003-10b9830cece0
 	github.com/pkg/errors v0.9.1
@@ -46,7 +47,6 @@ require (
 	github.com/getkin/kin-openapi v0.94.0 // indirect
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32 // indirect
 	github.com/go-kit/kit v0.11.0 // indirect
-	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
