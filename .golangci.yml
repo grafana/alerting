@@ -9,6 +9,9 @@ linters:
     - misspell
     - errorlint
 
+skip-dirs:
+    - alerting/channels/ # TODO(gotjosh): remove this once we get to aligning the notifiers.
+
 linters-settings:
   errcheck:
     # path to a file containing a list of functions to exclude from checking
