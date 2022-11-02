@@ -7,50 +7,28 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grafana/grafana/pkg/services/dashboards"
-	"github.com/grafana/grafana/pkg/services/secrets/database"
-
+	"github.com/go-kit/log"
 	"github.com/go-openapi/strfmt"
 	"github.com/prometheus/alertmanager/api/v2/models"
+	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/alertmanager/provider/mem"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/grafana/pkg/infra/log"
 	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
-	"github.com/grafana/grafana/pkg/services/ngalert/metrics"
-	"github.com/grafana/grafana/pkg/services/ngalert/store"
-	secretsManager "github.com/grafana/grafana/pkg/services/secrets/manager"
-	"github.com/grafana/grafana/pkg/services/sqlstore"
-	"github.com/grafana/grafana/pkg/setting"
 )
 
 func setupAMTest(t *testing.T) *GrafanaAlertmanager {
-	dir := t.TempDir()
-	cfg := &setting.Cfg{
-		DataPath: dir,
-	}
-
-	m := metrics.NewAlertmanagerMetrics(prometheus.NewRegistry())
-	sqlStore := sqlstore.InitTestDB(t)
-	s := &store.DBstore{
-		BaseInterval:     10 * time.Second,
-		DefaultInterval:  60 * time.Second,
-		SQLStore:         sqlStore,
-		Logger:           log.New("alertmanager-test"),
-		DashboardService: dashboards.NewFakeDashboardService(t),
-	}
+	m := NewGrafanaAlertmanagerMetrics(prometheus.NewPedanticRegistry())
 
 	grafanaConfig := &GrafanaAlertmanagerConfig{
 		Silences: newFakeMaintanenceOptions(t),
 		Nflog:    newFakeMaintanenceOptions(t),
 	}
 
-	secretsService := secretsManager.SetupTestService(t, database.ProvideSecretsStore(sqlStore))
-	decryptFn := secretsService.GetDecryptedValue
-	am, err := NewGrafanaAlertmanager(context.Background(), 1, cfg, s, grafanaConfig, &NilPeer{}, decryptFn, nil, m)
+	am, err := NewGrafanaAlertmanager("org", 1, grafanaConfig, &NilPeer{}, log.NewNopLogger(), m)
 	require.NoError(t, err)
 	return am
 }
@@ -63,47 +41,45 @@ func TestPutAlert(t *testing.T) {
 
 	cases := []struct {
 		title          string
-		postableAlerts apimodels.PostableAlerts
+		postableAlerts amv2.PostableAlerts
 		expAlerts      func(now time.Time) []*types.Alert
 		expError       *AlertValidationError
 	}{
 		{
 			title: "Valid alerts with different start/end set",
-			postableAlerts: apimodels.PostableAlerts{
-				PostableAlerts: []models.PostableAlert{
-					{ // Start and end set.
-						Annotations: models.LabelSet{"msg": "Alert1 annotation"},
-						Alert: models.Alert{
-							Labels:       models.LabelSet{"alertname": "Alert1"},
-							GeneratorURL: "http://localhost/url1",
-						},
-						StartsAt: strfmt.DateTime(startTime),
-						EndsAt:   strfmt.DateTime(endTime),
-					}, { // Only end is set.
-						Annotations: models.LabelSet{"msg": "Alert2 annotation"},
-						Alert: models.Alert{
-							Labels:       models.LabelSet{"alertname": "Alert2"},
-							GeneratorURL: "http://localhost/url2",
-						},
-						StartsAt: strfmt.DateTime{},
-						EndsAt:   strfmt.DateTime(endTime),
-					}, { // Only start is set.
-						Annotations: models.LabelSet{"msg": "Alert3 annotation"},
-						Alert: models.Alert{
-							Labels:       models.LabelSet{"alertname": "Alert3"},
-							GeneratorURL: "http://localhost/url3",
-						},
-						StartsAt: strfmt.DateTime(startTime),
-						EndsAt:   strfmt.DateTime{},
-					}, { // Both start and end are not set.
-						Annotations: models.LabelSet{"msg": "Alert4 annotation"},
-						Alert: models.Alert{
-							Labels:       models.LabelSet{"alertname": "Alert4"},
-							GeneratorURL: "http://localhost/url4",
-						},
-						StartsAt: strfmt.DateTime{},
-						EndsAt:   strfmt.DateTime{},
+			postableAlerts: amv2.PostableAlerts{
+				{ // Start and end set.
+					Annotations: models.LabelSet{"msg": "Alert1 annotation"},
+					Alert: models.Alert{
+						Labels:       models.LabelSet{"alertname": "Alert1"},
+						GeneratorURL: "http://localhost/url1",
 					},
+					StartsAt: strfmt.DateTime(startTime),
+					EndsAt:   strfmt.DateTime(endTime),
+				}, { // Only end is set.
+					Annotations: models.LabelSet{"msg": "Alert2 annotation"},
+					Alert: models.Alert{
+						Labels:       models.LabelSet{"alertname": "Alert2"},
+						GeneratorURL: "http://localhost/url2",
+					},
+					StartsAt: strfmt.DateTime{},
+					EndsAt:   strfmt.DateTime(endTime),
+				}, { // Only start is set.
+					Annotations: models.LabelSet{"msg": "Alert3 annotation"},
+					Alert: models.Alert{
+						Labels:       models.LabelSet{"alertname": "Alert3"},
+						GeneratorURL: "http://localhost/url3",
+					},
+					StartsAt: strfmt.DateTime(startTime),
+					EndsAt:   strfmt.DateTime{},
+				}, { // Both start and end are not set.
+					Annotations: models.LabelSet{"msg": "Alert4 annotation"},
+					Alert: models.Alert{
+						Labels:       models.LabelSet{"alertname": "Alert4"},
+						GeneratorURL: "http://localhost/url4",
+					},
+					StartsAt: strfmt.DateTime{},
+					EndsAt:   strfmt.DateTime{},
 				},
 			},
 			expAlerts: func(now time.Time) []*types.Alert {
@@ -151,17 +127,15 @@ func TestPutAlert(t *testing.T) {
 			},
 		}, {
 			title: "Removing empty labels and annotations",
-			postableAlerts: apimodels.PostableAlerts{
-				PostableAlerts: []models.PostableAlert{
-					{
-						Annotations: models.LabelSet{"msg": "Alert4 annotation", "empty": ""},
-						Alert: models.Alert{
-							Labels:       models.LabelSet{"alertname": "Alert4", "emptylabel": ""},
-							GeneratorURL: "http://localhost/url1",
-						},
-						StartsAt: strfmt.DateTime{},
-						EndsAt:   strfmt.DateTime{},
+			postableAlerts: amv2.PostableAlerts{
+				{
+					Annotations: models.LabelSet{"msg": "Alert4 annotation", "empty": ""},
+					Alert: models.Alert{
+						Labels:       models.LabelSet{"alertname": "Alert4", "emptylabel": ""},
+						GeneratorURL: "http://localhost/url1",
 					},
+					StartsAt: strfmt.DateTime{},
+					EndsAt:   strfmt.DateTime{},
 				},
 			},
 			expAlerts: func(now time.Time) []*types.Alert {
@@ -181,17 +155,15 @@ func TestPutAlert(t *testing.T) {
 			},
 		}, {
 			title: "Allow spaces in label and annotation name",
-			postableAlerts: apimodels.PostableAlerts{
-				PostableAlerts: []models.PostableAlert{
-					{
-						Annotations: models.LabelSet{"Dashboard URL": "http://localhost:3000"},
-						Alert: models.Alert{
-							Labels:       models.LabelSet{"alertname": "Alert4", "Spaced Label": "works"},
-							GeneratorURL: "http://localhost/url1",
-						},
-						StartsAt: strfmt.DateTime{},
-						EndsAt:   strfmt.DateTime{},
+			postableAlerts: amv2.PostableAlerts{
+				{
+					Annotations: models.LabelSet{"Dashboard URL": "http://localhost:3000"},
+					Alert: models.Alert{
+						Labels:       models.LabelSet{"alertname": "Alert4", "Spaced Label": "works"},
+						GeneratorURL: "http://localhost/url1",
 					},
+					StartsAt: strfmt.DateTime{},
+					EndsAt:   strfmt.DateTime{},
 				},
 			},
 			expAlerts: func(now time.Time) []*types.Alert {
@@ -211,12 +183,10 @@ func TestPutAlert(t *testing.T) {
 			},
 		}, {
 			title: "Special characters in labels",
-			postableAlerts: apimodels.PostableAlerts{
-				PostableAlerts: []models.PostableAlert{
-					{
-						Alert: models.Alert{
-							Labels: models.LabelSet{"alertname$": "Alert1", "az3-- __...++!!!£@@312312": "1"},
-						},
+			postableAlerts: amv2.PostableAlerts{
+				{
+					Alert: models.Alert{
+						Labels: models.LabelSet{"alertname$": "Alert1", "az3-- __...++!!!£@@312312": "1"},
 					},
 				},
 			},
@@ -237,13 +207,11 @@ func TestPutAlert(t *testing.T) {
 			},
 		}, {
 			title: "Special characters in annotations",
-			postableAlerts: apimodels.PostableAlerts{
-				PostableAlerts: []models.PostableAlert{
-					{
-						Annotations: models.LabelSet{"az3-- __...++!!!£@@312312": "Alert4 annotation"},
-						Alert: models.Alert{
-							Labels: models.LabelSet{"alertname": "Alert4"},
-						},
+			postableAlerts: amv2.PostableAlerts{
+				{
+					Annotations: models.LabelSet{"az3-- __...++!!!£@@312312": "Alert4 annotation"},
+					Alert: models.Alert{
+						Labels: models.LabelSet{"alertname": "Alert4"},
 					},
 				},
 			},
@@ -264,17 +232,15 @@ func TestPutAlert(t *testing.T) {
 			},
 		}, {
 			title: "No labels after removing empty",
-			postableAlerts: apimodels.PostableAlerts{
-				PostableAlerts: []models.PostableAlert{
-					{
-						Alert: models.Alert{
-							Labels: models.LabelSet{"alertname": ""},
-						},
+			postableAlerts: amv2.PostableAlerts{
+				{
+					Alert: models.Alert{
+						Labels: models.LabelSet{"alertname": ""},
 					},
 				},
 			},
 			expError: &AlertValidationError{
-				Alerts: []models.PostableAlert{
+				Alerts: amv2.PostableAlerts{
 					{
 						Alert: models.Alert{
 							Labels: models.LabelSet{"alertname": ""},
@@ -285,19 +251,17 @@ func TestPutAlert(t *testing.T) {
 			},
 		}, {
 			title: "Start should be before end",
-			postableAlerts: apimodels.PostableAlerts{
-				PostableAlerts: []models.PostableAlert{
-					{
-						Alert: models.Alert{
-							Labels: models.LabelSet{"alertname": ""},
-						},
-						StartsAt: strfmt.DateTime(endTime),
-						EndsAt:   strfmt.DateTime(startTime),
+			postableAlerts: amv2.PostableAlerts{
+				{
+					Alert: models.Alert{
+						Labels: models.LabelSet{"alertname": ""},
 					},
+					StartsAt: strfmt.DateTime(endTime),
+					EndsAt:   strfmt.DateTime(startTime),
 				},
 			},
 			expError: &AlertValidationError{
-				Alerts: []models.PostableAlert{
+				Alerts: amv2.PostableAlerts{
 					{
 						Alert: models.Alert{
 							Labels: models.LabelSet{"alertname": ""},
@@ -352,7 +316,6 @@ func TestPutAlert(t *testing.T) {
 // implement a custom maintenance function for silences, because we snapshot
 // our data differently, so we test that functionality.
 func TestSilenceCleanup(t *testing.T) {
-	require := require.New(t)
 	am := setupAMTest(t)
 	now := time.Now()
 	dt := func(t time.Time) strfmt.DateTime { return strfmt.DateTime(t) }
@@ -389,21 +352,63 @@ func TestSilenceCleanup(t *testing.T) {
 
 	for _, s := range silences {
 		_, err := am.CreateSilence(s)
-		require.NoError(err)
+		require.NoError(t, err)
 	}
 
 	// Let enough time pass for the maintenance window to run.
-	require.Eventually(func() bool {
+	require.Eventually(t, func() bool {
 		// So, what silences do we have now?
 		found, err := am.ListSilences(nil)
-		require.NoError(err)
+		require.NoError(t, err)
 		return len(found) == 3
 	}, 3*time.Second, 150*time.Millisecond)
 
 	// Wait again for another silence to expire.
-	require.Eventually(func() bool {
+	require.Eventually(t, func() bool {
 		found, err := am.ListSilences(nil)
-		require.NoError(err)
+		require.NoError(t, err)
 		return len(found) == 2
 	}, 6*time.Second, 150*time.Millisecond)
+}
+
+type FakeConfig struct {
+}
+
+func (f *FakeConfig) DispatcherLimits() DispatcherLimits {
+	panic("implement me")
+}
+
+func (f *FakeConfig) InhibitRules() []*InhibitRule {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (f *FakeConfig) MuteTimeIntervals() []MuteTimeInterval {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (f *FakeConfig) ReceiverIntegrations() (map[string][]Integration, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (f *FakeConfig) RoutingTree() *Route {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (f *FakeConfig) Templates() *Template {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (f *FakeConfig) Hash() [16]byte {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (f *FakeConfig) Raw() []byte {
+	//TODO implement me
+	panic("implement me")
 }

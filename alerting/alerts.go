@@ -6,8 +6,9 @@ import (
 	"sort"
 	"time"
 
-	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
+	"github.com/go-kit/log/level"
 	v2 "github.com/prometheus/alertmanager/api/v2"
+	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/prometheus/alertmanager/types"
@@ -21,11 +22,17 @@ var (
 	ErrGetAlertGroupsBadPayload = fmt.Errorf("unable to retrieve alerts groups")
 )
 
-func (am *GrafanaAlertmanager) GetAlerts(active, silenced, inhibited bool, filter []string, receivers string) (apimodels.GettableAlerts, error) {
+type GettableAlerts = amv2.GettableAlerts
+type GettableAlert = amv2.GettableAlert
+type AlertGroups = amv2.AlertGroups
+type AlertGroup = amv2.AlertGroup
+type Receiver = amv2.Receiver
+
+func (am *GrafanaAlertmanager) GetAlerts(active, silenced, inhibited bool, filter []string, receivers string) (GettableAlerts, error) {
 	var (
 		// Initialize result slice to prevent api returning `null` when there
 		// are no alerts present
-		res = apimodels.GettableAlerts{}
+		res = GettableAlerts{}
 	)
 
 	if !am.Ready() {
@@ -34,13 +41,13 @@ func (am *GrafanaAlertmanager) GetAlerts(active, silenced, inhibited bool, filte
 
 	matchers, err := parseFilter(filter)
 	if err != nil {
-		am.logger.Error("failed to parse matchers", "err", err)
+		level.Error(am.logger).Log("msg", "failed to parse matchers", "err", err)
 		return nil, fmt.Errorf("%s: %w", err.Error(), ErrGetAlertsBadPayload)
 	}
 
 	receiverFilter, err := parseReceivers(receivers)
 	if err != nil {
-		am.logger.Error("failed to parse receiver regex", "err", err)
+		level.Error(am.logger).Log("msg", "failed to parse receiver regex", "err", err)
 		return nil, fmt.Errorf("%s: %w", err.Error(), ErrGetAlertsBadPayload)
 	}
 
@@ -77,7 +84,7 @@ func (am *GrafanaAlertmanager) GetAlerts(active, silenced, inhibited bool, filte
 	am.reloadConfigMtx.RUnlock()
 
 	if err != nil {
-		am.logger.Error("failed to iterate through the alerts", "err", err)
+		level.Error(am.logger).Log("failed to iterate through the alerts", "err", err)
 		return nil, fmt.Errorf("%s: %w", err.Error(), ErrGetAlertsInternal)
 	}
 	sort.Slice(res, func(i, j int) bool {
@@ -87,16 +94,16 @@ func (am *GrafanaAlertmanager) GetAlerts(active, silenced, inhibited bool, filte
 	return res, nil
 }
 
-func (am *GrafanaAlertmanager) GetAlertGroups(active, silenced, inhibited bool, filter []string, receivers string) (apimodels.AlertGroups, error) {
+func (am *GrafanaAlertmanager) GetAlertGroups(active, silenced, inhibited bool, filter []string, receivers string) (AlertGroups, error) {
 	matchers, err := parseFilter(filter)
 	if err != nil {
-		am.logger.Error("msg", "failed to parse matchers", "err", err)
+		level.Error(am.logger).Log("msg", "failed to parse matchers", "err", err)
 		return nil, fmt.Errorf("%s: %w", err.Error(), ErrGetAlertGroupsBadPayload)
 	}
 
 	receiverFilter, err := parseReceivers(receivers)
 	if err != nil {
-		am.logger.Error("msg", "failed to compile receiver regex", "err", err)
+		level.Error(am.logger).Log("msg", "failed to compile receiver regex", "err", err)
 		return nil, fmt.Errorf("%s: %w", err.Error(), ErrGetAlertGroupsBadPayload)
 	}
 
@@ -113,13 +120,13 @@ func (am *GrafanaAlertmanager) GetAlertGroups(active, silenced, inhibited bool, 
 	af := am.alertFilter(matchers, silenced, inhibited, active)
 	alertGroups, allReceivers := am.dispatcher.Groups(rf, af)
 
-	res := make(apimodels.AlertGroups, 0, len(alertGroups))
+	res := make(AlertGroups, 0, len(alertGroups))
 
 	for _, alertGroup := range alertGroups {
-		ag := &apimodels.AlertGroup{
-			Receiver: &apimodels.Receiver{Name: &alertGroup.Receiver},
+		ag := &AlertGroup{
+			Receiver: &Receiver{Name: &alertGroup.Receiver},
 			Labels:   v2.ModelLabelSetToAPILabelSet(alertGroup.Labels),
-			Alerts:   make([]*apimodels.GettableAlert, 0, len(alertGroup.Alerts)),
+			Alerts:   make([]*GettableAlert, 0, len(alertGroup.Alerts)),
 		}
 
 		for _, alert := range alertGroup.Alerts {

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -54,8 +55,10 @@ type GrafanaReceiver struct {
 	SecureSettings        map[string]string `json:"secureSettings"`
 }
 
+type ConfigReceiver = config.Receiver
+
 type APIReceiver struct {
-	Receiver         `yaml:",inline"`
+	ConfigReceiver   `yaml:",inline"`
 	GrafanaReceivers `yaml:",inline"`
 }
 

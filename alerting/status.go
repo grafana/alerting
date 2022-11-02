@@ -1,16 +1,13 @@
 package alerting
 
-import (
-	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
-)
-
-func (am *GrafanaAlertmanager) GetStatus() apimodels.GettableStatus {
+// TODO(gotjosh): I don't think this is right, make sure you evaluate it.
+func (am *GrafanaAlertmanager) GetStatus() []byte {
 	am.reloadConfigMtx.RLock()
 	defer am.reloadConfigMtx.RUnlock()
 
-	config := apimodels.PostableApiAlertingConfig{}
 	if am.ready() {
-		config = am.config.AlertmanagerConfig
+		return am.config
 	}
-	return *apimodels.NewGettableStatus(&config)
+
+	return nil
 }
