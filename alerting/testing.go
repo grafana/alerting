@@ -127,10 +127,10 @@ func NewFakeKVStore(t *testing.T) *FakeKVStore {
 	}
 }
 
-func (fkv *FakeKVStore) Get(_ context.Context, orgId int64, namespace string, key string) (string, bool, error) {
+func (fkv *FakeKVStore) Get(_ context.Context, orgID int64, namespace string, key string) (string, bool, error) {
 	fkv.mtx.Lock()
 	defer fkv.mtx.Unlock()
-	org, ok := fkv.store[orgId]
+	org, ok := fkv.store[orgID]
 	if !ok {
 		return "", false, nil
 	}
@@ -146,26 +146,26 @@ func (fkv *FakeKVStore) Get(_ context.Context, orgId int64, namespace string, ke
 
 	return v, true, nil
 }
-func (fkv *FakeKVStore) Set(_ context.Context, orgId int64, namespace string, key string, value string) error {
+func (fkv *FakeKVStore) Set(_ context.Context, orgID int64, namespace string, key string, value string) error {
 	fkv.mtx.Lock()
 	defer fkv.mtx.Unlock()
-	org, ok := fkv.store[orgId]
+	org, ok := fkv.store[orgID]
 	if !ok {
-		fkv.store[orgId] = map[string]map[string]string{}
+		fkv.store[orgID] = map[string]map[string]string{}
 	}
 	_, ok = org[namespace]
 	if !ok {
-		fkv.store[orgId][namespace] = map[string]string{}
+		fkv.store[orgID][namespace] = map[string]string{}
 	}
 
-	fkv.store[orgId][namespace][key] = value
+	fkv.store[orgID][namespace][key] = value
 
 	return nil
 }
-func (fkv *FakeKVStore) Del(_ context.Context, orgId int64, namespace string, key string) error {
+func (fkv *FakeKVStore) Del(_ context.Context, orgID int64, namespace string, key string) error {
 	fkv.mtx.Lock()
 	defer fkv.mtx.Unlock()
-	org, ok := fkv.store[orgId]
+	org, ok := fkv.store[orgID]
 	if !ok {
 		return nil
 	}
@@ -174,7 +174,7 @@ func (fkv *FakeKVStore) Del(_ context.Context, orgId int64, namespace string, ke
 		return nil
 	}
 
-	delete(fkv.store[orgId][namespace], key)
+	delete(fkv.store[orgID][namespace], key)
 
 	return nil
 }
