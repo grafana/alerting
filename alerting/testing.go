@@ -223,6 +223,6 @@ func (f *fakeMaintenanceOptions) MaintenanceFrequency() time.Duration {
 	return 15 * time.Millisecond
 }
 
-func (f *fakeMaintenanceOptions) MaintenanceFunc() (int64, error) {
+func (f *fakeMaintenanceOptions) MaintenanceFunc(_ State) (int64, error) {
 	return 0, nil
 }

@@ -30,6 +30,10 @@ import (
 	"github.com/prometheus/common/model"
 )
 
+// TODO: Move me
+var NewIntegration = notify.NewIntegration
+var FromGlobs = template.FromGlobs
+
 const (
 	// defaultResolveTimeout is the default timeout used for resolving an alert
 	// if the end time is not specified.
@@ -97,6 +101,13 @@ type GrafanaAlertmanager struct {
 	reloadConfigMtx sync.RWMutex
 	configHash      [16]byte
 	config          []byte
+	receivers       []*notify.Receiver
+}
+
+// State represents any of the two 'states' of the alertmanager. Notification log or Silences.
+// MarshalBinary returns the binary representation of this internal state based on the protobuf.
+type State interface {
+	MarshalBinary() ([]byte, error)
 }
 
 // MaintenanceOptions represent the configuration options available for executing maintenance of Silences and the Notification log that the Alertmanager uses.
@@ -109,12 +120,13 @@ type MaintenanceOptions interface {
 	MaintenanceFrequency() time.Duration
 	// MaintenanceFunc returns the function to execute as part of the maintenance process.
 	// It returns the size of the file in bytes or an error if the maintenance fails.
-	MaintenanceFunc() (int64, error)
+	MaintenanceFunc(state State) (int64, error)
 }
 
 type Template = template.Template
 type InhibitRule = config.InhibitRule
 type MuteTimeInterval = config.MuteTimeInterval
+type TimeInterval = timeinterval.TimeInterval
 type Route = config.Route
 type Integration = notify.Integration
 type DispatcherLimits = dispatch.Limits
@@ -125,7 +137,7 @@ type Configuration interface {
 	DispatcherLimits() DispatcherLimits
 	InhibitRules() []*InhibitRule
 	MuteTimeIntervals() []MuteTimeInterval
-	ReceiverIntegrations() (map[string][]Integration, error)
+	ReceiverIntegrations() (map[string][]*Integration, error)
 	RoutingTree() *Route
 	Templates() *Template
 
@@ -182,7 +194,7 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		nflog.WithSnapshot(config.Nflog.Filepath()),
 		nflog.WithMaintenance(config.Nflog.MaintenanceFrequency(), am.stopc, am.wg.Done, func() (int64, error) {
 			//TODO: There's a bug here, we need to call GC to ensure we cleanup old entries: https://github.com/grafana/alerting/issues/3
-			return config.Nflog.MaintenanceFunc()
+			return config.Nflog.MaintenanceFunc(am.silences) // this is wrong, we need the notification log.
 		}),
 	)
 	if err != nil {
@@ -214,13 +226,13 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 			}
 
 			// Snapshot our silences to the Grafana KV store
-			return config.Silences.MaintenanceFunc()
+			return config.Silences.MaintenanceFunc(am.silences)
 		})
 		am.wg.Done()
 	}()
 
 	// Initialize in-memory alerts
-	am.alerts, err = mem.NewAlerts(context.Background(), am.marker, memoryAlertsGCInterval, config.AlertStoreCallback, am.logger)
+	am.alerts, err = mem.NewAlerts(context.Background(), am.marker, memoryAlertsGCInterval, config.AlertStoreCallback, am.logger, m.Registerer)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
 	}
@@ -300,7 +312,6 @@ func (am *GrafanaAlertmanager) buildMuteTimesMap(muteTimeIntervals []config.Mute
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	// Finally, build the integrations map using the receiver configuration and templates.
-
 	integrationsMap, err := cfg.ReceiverIntegrations()
 	if err != nil {
 		return fmt.Errorf("failed to build integration map: %w", err)
@@ -324,13 +335,21 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	inhibitionStage := notify.NewMuteStage(am.inhibitor)
 	timeMuteStage := notify.NewTimeMuteStage(am.muteTimes)
 	silencingStage := notify.NewMuteStage(am.silencer)
-	for name := range integrationsMap {
-		stage := am.createReceiverStage(name, integrationsMap[name], am.waitFunc, am.notificationLog)
-		routingStage[name] = notify.MultiStage{meshStage, silencingStage, timeMuteStage, inhibitionStage, stage}
-	}
 
 	am.route = dispatch.NewRoute(cfg.RoutingTree(), nil)
 	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.DispatcherLimits(), am.logger, am.dispatcherMetrics)
+
+	//TODO: This has not been upstreamed yet. Should be aligned when https://github.com/prometheus/alertmanager/pull/3016 is merged.
+	var receivers []*notify.Receiver
+	activeReceivers := am.getActiveReceiversMap(am.route)
+	for name := range integrationsMap {
+		stage := am.createReceiverStage(name, integrationsMap[name], am.waitFunc, am.notificationLog)
+		routingStage[name] = notify.MultiStage{meshStage, silencingStage, timeMuteStage, inhibitionStage, stage}
+		_, isActive := activeReceivers[name]
+
+		receivers = append(receivers, notify.NewReceiver(name, isActive, integrationsMap[name]))
+	}
+	am.receivers = receivers
 
 	am.wg.Add(1)
 	go func() {
@@ -492,7 +511,7 @@ func (e AlertValidationError) Error() string {
 }
 
 // createReceiverStage creates a pipeline of stages for a receiver.
-func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []notify.Integration, wait func() time.Duration, notificationLog notify.NotificationLog) notify.Stage {
+func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*notify.Integration, wait func() time.Duration, notificationLog notify.NotificationLog) notify.Stage {
 	var fs notify.FanoutStage
 	for i := range integrations {
 		recv := &nflogpb.Receiver{
@@ -502,13 +521,24 @@ func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []n
 		}
 		var s notify.MultiStage
 		s = append(s, notify.NewWaitStage(wait))
-		s = append(s, notify.NewDedupStage(&integrations[i], notificationLog, recv))
+		s = append(s, notify.NewDedupStage(integrations[i], notificationLog, recv))
 		s = append(s, notify.NewRetryStage(integrations[i], name, am.stageMetrics))
 		s = append(s, notify.NewSetNotifiesStage(notificationLog, recv))
 
 		fs = append(fs, s)
 	}
 	return fs
+}
+
+// getActiveReceiversMap returns all receivers that are in use by a route.
+func (am *GrafanaAlertmanager) getActiveReceiversMap(r *dispatch.Route) map[string]struct{} {
+	receiversMap := make(map[string]struct{})
+	visitFunc := func(r *dispatch.Route) {
+		receiversMap[r.RouteOpts.Receiver] = struct{}{}
+	}
+	r.Walk(visitFunc)
+
+	return receiversMap
 }
 
 func (am *GrafanaAlertmanager) waitFunc() time.Duration {
