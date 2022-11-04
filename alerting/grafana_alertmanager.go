@@ -30,10 +30,6 @@ import (
 	"github.com/prometheus/common/model"
 )
 
-// TODO: Move me
-var NewIntegration = notify.NewIntegration
-var FromGlobs = template.FromGlobs
-
 const (
 	// defaultResolveTimeout is the default timeout used for resolving an alert
 	// if the end time is not specified.
@@ -122,6 +118,9 @@ type MaintenanceOptions interface {
 	// It returns the size of the file in bytes or an error if the maintenance fails.
 	MaintenanceFunc(state State) (int64, error)
 }
+
+var NewIntegration = notify.NewIntegration
+var FromGlobs = template.FromGlobs
 
 type Template = template.Template
 type InhibitRule = config.InhibitRule
