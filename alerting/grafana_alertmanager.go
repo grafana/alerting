@@ -186,6 +186,16 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 
 	var err error
 
+	// Initialize silences
+	am.silences, err = silence.New(silence.Options{
+		Metrics:      m.Registerer,
+		SnapshotFile: config.Silences.Filepath(),
+		Retention:    config.Silences.Retention(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to initialize the silencing component of alerting: %w", err)
+	}
+
 	// Initialize the notification log
 	am.wg.Add(1)
 	am.notificationLog, err = nflog.New(
@@ -201,16 +211,6 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 	}
 	c := am.peer.AddState(fmt.Sprintf("notificationlog:%d", am.tenantID), am.notificationLog, m.Registerer)
 	am.notificationLog.SetBroadcast(c.Broadcast)
-
-	// Initialize silences
-	am.silences, err = silence.New(silence.Options{
-		Metrics:      m.Registerer,
-		SnapshotFile: config.Silences.Filepath(),
-		Retention:    config.Silences.Retention(),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("unable to initialize the silencing component of alerting: %w", err)
-	}
 
 	c = am.peer.AddState(fmt.Sprintf("silences:%d", am.tenantID), am.silences, m.Registerer)
 	am.silences.SetBroadcast(c.Broadcast)
