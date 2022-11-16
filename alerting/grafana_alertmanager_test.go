@@ -16,8 +16,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
-
-	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
 )
 
 func setupAMTest(t *testing.T) *GrafanaAlertmanager {
@@ -321,8 +319,8 @@ func TestSilenceCleanup(t *testing.T) {
 	dt := func(t time.Time) strfmt.DateTime { return strfmt.DateTime(t) }
 
 	makeSilence := func(comment string, createdBy string,
-		startsAt, endsAt strfmt.DateTime, matchers models.Matchers) *apimodels.PostableSilence {
-		return &apimodels.PostableSilence{
+		startsAt, endsAt strfmt.DateTime, matchers models.Matchers) *PostableSilence {
+		return &PostableSilence{
 			ID: "",
 			Silence: models.Silence{
 				Comment:   &comment,
@@ -339,7 +337,7 @@ func TestSilenceCleanup(t *testing.T) {
 	matchers := models.Matchers{&models.Matcher{Name: &testString, IsEqual: &tru, IsRegex: &tru, Value: &testString}}
 	// Create silences - one in the future, one currently active, one expired but
 	// retained, one expired and not retained.
-	silences := []*apimodels.PostableSilence{
+	silences := []*PostableSilence{
 		// Active in future
 		makeSilence("", "tests", dt(now.Add(5*time.Hour)), dt(now.Add(6*time.Hour)), matchers),
 		// Active now
