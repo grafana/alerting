@@ -18,9 +18,6 @@ lint: .tools/bin/misspell .tools/bin/faillint .tools/bin/golangci-lint
 	# Configured via .golangci.yml.
 	golangci-lint run
 
-	# Ensure no blocklisted package is imported.
-	# faillint -paths "github.com/grafana/grafana/...,github.com/grafana/mimir/..."  ./... # We should not have circular dependencies.
-
 .PHONY: mod-check
 mod-check:
 	GO111MODULE=on go mod download
