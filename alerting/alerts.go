@@ -27,6 +27,8 @@ type GettableAlert = amv2.GettableAlert
 type AlertGroups = amv2.AlertGroups
 type AlertGroup = amv2.AlertGroup
 type Receiver = amv2.Receiver
+type PostableAlerts = amv2.PostableAlerts
+type PostableAlert = amv2.PostableAlert
 
 func (am *GrafanaAlertmanager) GetAlerts(active, silenced, inhibited bool, filter []string, receivers string) (GettableAlerts, error) {
 	var (
