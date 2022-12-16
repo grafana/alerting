@@ -319,7 +319,7 @@ func (tn *TeamsNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		Actions: []AdaptiveCardActionItem{
 			AdaptiveCardOpenURLActionItem{
 				Title: "View URL",
-				URL:   joinUrlPath(tn.tmpl.ExternalURL.String(), "/alerting/list", tn.log),
+				URL:   joinURLPath(tn.tmpl.ExternalURL.String(), "/alerting/list", tn.log),
 			},
 		},
 	})
@@ -344,7 +344,7 @@ func (tn *TeamsNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		return false, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	cmd := &SendWebhookSettings{Url: u, Body: string(b)}
+	cmd := &SendWebhookSettings{URL: u, Body: string(b)}
 	// Teams sometimes does not use status codes to show when a request has failed. Instead, the
 	// response can contain an error message, irrespective of status code (i.e. https://docs.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/connectors-using?tabs=cURL#rate-limiting-for-connectors)
 	cmd.Validation = validateResponse

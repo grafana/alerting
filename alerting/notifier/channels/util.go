@@ -251,7 +251,7 @@ var sendHTTPRequest = func(ctx context.Context, url *url.URL, cfg httpCfg, logge
 	return respBody, nil
 }
 
-func joinUrlPath(base, additionalPath string, logger Logger) string {
+func joinURLPath(base, additionalPath string, logger Logger) string {
 	u, err := url.Parse(base)
 	if err != nil {
 		logger.Debug("failed to parse URL while joining URL", "url", base, "error", err.Error())

@@ -113,10 +113,10 @@ func (tn *ThreemaNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 	data.Set("text", tn.buildMessage(ctx, as...))
 
 	cmd := &SendWebhookSettings{
-		Url:        ThreemaGwBaseURL,
+		URL:        ThreemaGwBaseURL,
 		Body:       data.Encode(),
-		HttpMethod: "POST",
-		HttpHeader: map[string]string{
+		HTTPMethod: "POST",
+		HTTPHeader: map[string]string{
 			"Content-Type": "application/x-www-form-urlencoded",
 		},
 	}

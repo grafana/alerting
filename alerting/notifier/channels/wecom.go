@@ -174,7 +174,7 @@ func (w *WeComNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 	}
 
 	cmd := &SendWebhookSettings{
-		Url:  url,
+		URL:  url,
 		Body: string(body),
 	}
 

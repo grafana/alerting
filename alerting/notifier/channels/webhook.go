@@ -194,12 +194,12 @@ func (wn *WebhookNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 	}
 
 	cmd := &SendWebhookSettings{
-		Url:        parsedURL,
+		URL:        parsedURL,
 		User:       wn.settings.User,
 		Password:   wn.settings.Password,
 		Body:       string(body),
-		HttpMethod: wn.settings.HTTPMethod,
-		HttpHeader: headers,
+		HTTPMethod: wn.settings.HTTPMethod,
+		HTTPHeader: headers,
 	}
 
 	if err := wn.ns.SendWebhook(ctx, cmd); err != nil {

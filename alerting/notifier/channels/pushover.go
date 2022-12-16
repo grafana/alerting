@@ -162,9 +162,9 @@ func (pn *PushoverNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 	}
 
 	cmd := &SendWebhookSettings{
-		Url:        PushoverEndpoint,
-		HttpMethod: "POST",
-		HttpHeader: headers,
+		URL:        PushoverEndpoint,
+		HTTPMethod: "POST",
+		HTTPHeader: headers,
 		Body:       uploadBody.String(),
 	}
 
@@ -222,7 +222,7 @@ func (pn *PushoverNotifier) genPushoverBody(ctx context.Context, as ...*types.Al
 		message = "(no details)"
 	}
 
-	supplementaryURL := joinUrlPath(pn.tmpl.ExternalURL.String(), "/alerting/list", pn.log)
+	supplementaryURL := joinURLPath(pn.tmpl.ExternalURL.String(), "/alerting/list", pn.log)
 	supplementaryURL, truncated = TruncateInRunes(supplementaryURL, pushoverMaxURLLenRunes)
 	if truncated {
 		pn.log.Warn("Truncated URL", "incident", key, "max_runes", pushoverMaxURLLenRunes)

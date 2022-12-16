@@ -79,33 +79,33 @@ func extendAlert(alert template.Alert, externalURL string, logger Logger) *Exten
 		return extended
 	}
 	externalPath := u.Path
-	dashboardUid := alert.Annotations[models.DashboardUIDAnnotation]
-	if len(dashboardUid) > 0 {
-		u.Path = path.Join(externalPath, "/d/", dashboardUid)
+	dashboardUID := alert.Annotations[models.DashboardUIDAnnotation]
+	if len(dashboardUID) > 0 {
+		u.Path = path.Join(externalPath, "/d/", dashboardUID)
 		extended.DashboardURL = u.String()
-		panelId := alert.Annotations[models.PanelIDAnnotation]
-		if len(panelId) > 0 {
-			u.RawQuery = "viewPanel=" + panelId
+		panelID := alert.Annotations[models.PanelIDAnnotation]
+		if len(panelID) > 0 {
+			u.RawQuery = "viewPanel=" + panelID
 			extended.PanelURL = u.String()
 		}
 
-		generatorUrl, err := url.Parse(extended.GeneratorURL)
+		generatorURL, err := url.Parse(extended.GeneratorURL)
 		if err != nil {
 			logger.Debug("failed to parse generator URL while extending template data", "url", extended.GeneratorURL, "err", err.Error())
 			return extended
 		}
 
-		dashboardUrl, err := url.Parse(extended.DashboardURL)
+		dashboardURL, err := url.Parse(extended.DashboardURL)
 		if err != nil {
 			logger.Debug("failed to parse dashboard URL while extending template data", "url", extended.DashboardURL, "err", err.Error())
 			return extended
 		}
 
-		orgId := alert.Annotations[models.OrgIDAnnotation]
-		if len(orgId) > 0 {
-			extended.DashboardURL = setOrgIdQueryParam(dashboardUrl, orgId)
-			extended.PanelURL = setOrgIdQueryParam(u, orgId)
-			extended.GeneratorURL = setOrgIdQueryParam(generatorUrl, orgId)
+		orgID := alert.Annotations[models.OrgIDAnnotation]
+		if len(orgID) > 0 {
+			extended.DashboardURL = setOrgIDQueryParam(dashboardURL, orgID)
+			extended.PanelURL = setOrgIDQueryParam(u, orgID)
+			extended.GeneratorURL = setOrgIDQueryParam(generatorURL, orgID)
 		}
 	}
 
@@ -141,9 +141,9 @@ func extendAlert(alert template.Alert, externalURL string, logger Logger) *Exten
 	return extended
 }
 
-func setOrgIdQueryParam(url *url.URL, orgId string) string {
+func setOrgIDQueryParam(url *url.URL, orgID string) string {
 	q := url.Query()
-	q.Set("orgId", orgId)
+	q.Set("orgId", orgID)
 	url.RawQuery = q.Encode()
 
 	return url.String()

@@ -127,7 +127,7 @@ func (sn *SensuGoNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 			return nil
 		}, as...)
 
-	ruleURL := joinUrlPath(sn.tmpl.ExternalURL.String(), "/alerting/list", sn.log)
+	ruleURL := joinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", sn.log)
 	labels["ruleURL"] = ruleURL
 
 	bodyMsgType := map[string]interface{}{
@@ -161,10 +161,10 @@ func (sn *SensuGoNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 	}
 
 	cmd := &SendWebhookSettings{
-		Url:        fmt.Sprintf("%s/api/core/v2/namespaces/%s/events", strings.TrimSuffix(sn.settings.URL, "/"), namespace),
+		URL:        fmt.Sprintf("%s/api/core/v2/namespaces/%s/events", strings.TrimSuffix(sn.settings.URL, "/"), namespace),
 		Body:       string(body),
-		HttpMethod: "POST",
-		HttpHeader: map[string]string{
+		HTTPMethod: "POST",
+		HTTPHeader: map[string]string{
 			"Content-Type":  "application/json",
 			"Authorization": fmt.Sprintf("Key %s", sn.settings.APIKey),
 		},

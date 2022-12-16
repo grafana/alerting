@@ -156,10 +156,10 @@ func (pn *PagerdutyNotifier) Notify(ctx context.Context, as ...*types.Alert) (bo
 
 	pn.log.Info("notifying Pagerduty", "event_type", eventType)
 	cmd := &SendWebhookSettings{
-		Url:        PagerdutyEventAPIURL,
+		URL:        PagerdutyEventAPIURL,
 		Body:       string(body),
-		HttpMethod: "POST",
-		HttpHeader: map[string]string{
+		HTTPMethod: "POST",
+		HTTPHeader: map[string]string{
 			"Content-Type": "application/json",
 		},
 	}

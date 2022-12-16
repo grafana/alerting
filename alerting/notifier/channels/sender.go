@@ -3,12 +3,12 @@ package channels
 import "context"
 
 type SendWebhookSettings struct {
-	Url         string
+	URL         string
 	User        string
 	Password    string
 	Body        string
-	HttpMethod  string
-	HttpHeader  map[string]string
+	HTTPMethod  string
+	HTTPHeader  map[string]string
 	ContentType string
 	Validation  func(body []byte, statusCode int) error
 }

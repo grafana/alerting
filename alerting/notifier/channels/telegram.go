@@ -224,10 +224,10 @@ func (tn *TelegramNotifier) newWebhookSyncCmd(action string, fn func(writer *mul
 	}
 
 	cmd := &SendWebhookSettings{
-		Url:        fmt.Sprintf(TelegramAPIURL, tn.settings.BotToken, action),
+		URL:        fmt.Sprintf(TelegramAPIURL, tn.settings.BotToken, action),
 		Body:       b.String(),
-		HttpMethod: "POST",
-		HttpHeader: map[string]string{
+		HTTPMethod: "POST",
+		HTTPHeader: map[string]string{
 			"Content-Type": w.FormDataContentType(),
 		},
 	}
