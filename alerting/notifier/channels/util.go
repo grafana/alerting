@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -187,12 +186,6 @@ type httpCfg struct {
 	password string
 }
 
-// GetBasicAuthHeader returns a base64 encoded string from user and password.
-func GetBasicAuthHeader(user string, password string) string {
-	var userAndPass = user + ":" + password
-	return "Basic " + base64.StdEncoding.EncodeToString([]byte(userAndPass))
-}
-
 // sendHTTPRequest sends an HTTP request.
 // Stubbable by tests.
 //
@@ -207,7 +200,7 @@ var sendHTTPRequest = func(ctx context.Context, url *url.URL, cfg httpCfg, logge
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 	if cfg.user != "" && cfg.password != "" {
-		request.Header.Set("Authorization", GetBasicAuthHeader(cfg.user, cfg.password))
+		request.SetBasicAuth(cfg.user, cfg.password)
 	}
 
 	request.Header.Set("Content-Type", "application/json")
