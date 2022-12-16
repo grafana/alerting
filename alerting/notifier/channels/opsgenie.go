@@ -13,7 +13,6 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-	ptr "github.com/xorcare/pointer"
 )
 
 const (
@@ -87,10 +86,12 @@ func buildOpsgenieSettings(fc FactoryConfig) (*opsgenieSettings, error) {
 	}
 
 	if raw.AutoClose == nil {
-		raw.AutoClose = ptr.Bool(true)
+		autoClose := true
+		raw.AutoClose = &autoClose
 	}
 	if raw.OverridePriority == nil {
-		raw.OverridePriority = ptr.Bool(true)
+		overridePriority := true
+		raw.OverridePriority = &overridePriority
 	}
 
 	return &opsgenieSettings{

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,14 +23,18 @@ import (
 	"github.com/prometheus/common/model"
 	"gopkg.in/yaml.v3"
 
-	"github.com/grafana/grafana/pkg/services/ngalert/models"
-	"github.com/grafana/grafana/pkg/util"
+	"github.com/grafana/alerting/alerting/models"
 )
+
+type AlertStateType string
 
 const (
 	FooterIconURL      = "https://grafana.com/static/assets/img/fav32.png"
 	ColorAlertFiring   = "#D63232"
 	ColorAlertResolved = "#36a64f"
+
+	AlertStateAlerting AlertStateType = "alerting"
+	AlertStateOK       AlertStateType = "ok"
 
 	// ImageStoreTimeout should be used by all callers for calles to `Images`
 	ImageStoreTimeout time.Duration = 500 * time.Millisecond
@@ -182,6 +187,12 @@ type httpCfg struct {
 	password string
 }
 
+// GetBasicAuthHeader returns a base64 encoded string from user and password.
+func GetBasicAuthHeader(user string, password string) string {
+	var userAndPass = user + ":" + password
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(userAndPass))
+}
+
 // sendHTTPRequest sends an HTTP request.
 // Stubbable by tests.
 var sendHTTPRequest = func(ctx context.Context, url *url.URL, cfg httpCfg, logger Logger) ([]byte, error) {
@@ -194,7 +205,7 @@ var sendHTTPRequest = func(ctx context.Context, url *url.URL, cfg httpCfg, logge
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 	if cfg.user != "" && cfg.password != "" {
-		request.Header.Set("Authorization", util.GetBasicAuthHeader(cfg.user, cfg.password))
+		request.Header.Set("Authorization", GetBasicAuthHeader(cfg.user, cfg.password))
 	}
 
 	request.Header.Set("Content-Type", "application/json")

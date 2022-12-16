@@ -1,11 +1,15 @@
 package channels
 
 import (
+	"context"
 	"errors"
-	"strings"
 
 	"github.com/prometheus/alertmanager/template"
 )
+
+// GetDecryptedValueFn is a function that returns the decrypted value of
+// the given key. If the key is not present, then it returns the fallback value.
+type GetDecryptedValueFn func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string
 
 type FactoryConfig struct {
 	Config              *NotificationChannelConfig
@@ -39,32 +43,4 @@ func NewFactoryConfig(config *NotificationChannelConfig, notificationService Not
 		ImageStore:          imageStore,
 		Logger:              loggerFactory("ngalert.notifier." + config.Type),
 	}, nil
-}
-
-var receiverFactories = map[string]func(FactoryConfig) (NotificationChannel, error){
-	"prometheus-alertmanager": AlertmanagerFactory,
-	"dingding":                DingDingFactory,
-	"discord":                 DiscordFactory,
-	"email":                   EmailFactory,
-	"googlechat":              GoogleChatFactory,
-	"kafka":                   KafkaFactory,
-	"line":                    LineFactory,
-	"opsgenie":                OpsgenieFactory,
-	"pagerduty":               PagerdutyFactory,
-	"pushover":                PushoverFactory,
-	"sensugo":                 SensuGoFactory,
-	"slack":                   SlackFactory,
-	"teams":                   TeamsFactory,
-	"telegram":                TelegramFactory,
-	"threema":                 ThreemaFactory,
-	"victorops":               VictorOpsFactory,
-	"webhook":                 WebHookFactory,
-	"wecom":                   WeComFactory,
-	"webex":                   WebexFactory,
-}
-
-func Factory(receiverType string) (func(FactoryConfig) (NotificationChannel, error), bool) {
-	receiverType = strings.ToLower(receiverType)
-	factory, exists := receiverFactories[receiverType]
-	return factory, exists
 }

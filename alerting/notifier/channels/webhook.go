@@ -12,8 +12,6 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-
-	"github.com/grafana/grafana/pkg/models"
 )
 
 // WebhookNotifier is responsible for sending
@@ -170,9 +168,9 @@ func (wn *WebhookNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 		Message:         tmpl(wn.settings.Message),
 	}
 	if types.Alerts(as...).Status() == model.AlertFiring {
-		msg.State = string(models.AlertStateAlerting)
+		msg.State = string(AlertStateAlerting)
 	} else {
-		msg.State = string(models.AlertStateOK)
+		msg.State = string(AlertStateOK)
 	}
 
 	if tmplErr != nil {

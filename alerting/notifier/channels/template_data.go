@@ -14,7 +14,7 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
-	ngmodels "github.com/grafana/grafana/pkg/services/ngalert/models"
+	"github.com/grafana/alerting/alerting/models"
 )
 
 type ExtendedAlert struct {
@@ -79,11 +79,11 @@ func extendAlert(alert template.Alert, externalURL string, logger Logger) *Exten
 		return extended
 	}
 	externalPath := u.Path
-	dashboardUid := alert.Annotations[ngmodels.DashboardUIDAnnotation]
+	dashboardUid := alert.Annotations[models.DashboardUIDAnnotation]
 	if len(dashboardUid) > 0 {
 		u.Path = path.Join(externalPath, "/d/", dashboardUid)
 		extended.DashboardURL = u.String()
-		panelId := alert.Annotations[ngmodels.PanelIDAnnotation]
+		panelId := alert.Annotations[models.PanelIDAnnotation]
 		if len(panelId) > 0 {
 			u.RawQuery = "viewPanel=" + panelId
 			extended.PanelURL = u.String()
@@ -101,7 +101,7 @@ func extendAlert(alert template.Alert, externalURL string, logger Logger) *Exten
 			return extended
 		}
 
-		orgId := alert.Annotations[ngmodels.OrgIDAnnotation]
+		orgId := alert.Annotations[models.OrgIDAnnotation]
 		if len(orgId) > 0 {
 			extended.DashboardURL = setOrgIdQueryParam(dashboardUrl, orgId)
 			extended.PanelURL = setOrgIdQueryParam(u, orgId)
@@ -110,13 +110,13 @@ func extendAlert(alert template.Alert, externalURL string, logger Logger) *Exten
 	}
 
 	if alert.Annotations != nil {
-		if s, ok := alert.Annotations[ngmodels.ValuesAnnotation]; ok {
+		if s, ok := alert.Annotations[models.ValuesAnnotation]; ok {
 			if err := json.Unmarshal([]byte(s), &extended.Values); err != nil {
 				logger.Warn("failed to unmarshal values annotation", "error", err)
 			}
 		}
 		// TODO: Remove in Grafana 10
-		extended.ValueString = alert.Annotations[ngmodels.ValueStringAnnotation]
+		extended.ValueString = alert.Annotations[models.ValueStringAnnotation]
 	}
 
 	matchers := make([]string, 0)
