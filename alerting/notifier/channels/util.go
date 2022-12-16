@@ -104,7 +104,7 @@ func withStoredImages(ctx context.Context, l Logger, imageStore ImageStore, forE
 // The path argument here comes from reading internal image storage, not user
 // input, so we ignore the security check here.
 //
-//nolint:gosec
+//nolint:gosec, unused, deadcode //TODO yuri. Remove unused and deadcode after migration is done
 func openImage(path string) (io.ReadCloser, error) {
 	fp := filepath.Clean(path)
 	_, err := os.Stat(fp)
@@ -195,6 +195,8 @@ func GetBasicAuthHeader(user string, password string) string {
 
 // sendHTTPRequest sends an HTTP request.
 // Stubbable by tests.
+//
+//nolint:deadcode, unused, varcheck //TODO yuri. Remove after migration is done
 var sendHTTPRequest = func(ctx context.Context, url *url.URL, cfg httpCfg, logger Logger) ([]byte, error) {
 	var reader io.Reader
 	if len(cfg.body) > 0 {
