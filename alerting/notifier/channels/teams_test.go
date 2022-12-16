@@ -289,7 +289,7 @@ func TestTeamsNotifier(t *testing.T) {
 			require.NotNil(t, webhookSender.Webhook)
 			lastRequest := webhookSender.Webhook
 
-			require.NotEmpty(t, lastRequest.Url)
+			require.NotEmpty(t, lastRequest.URL)
 
 			expBody, err := json.Marshal(c.expMsg)
 			require.NoError(t, err)

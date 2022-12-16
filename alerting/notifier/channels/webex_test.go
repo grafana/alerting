@@ -138,7 +138,7 @@ func TestWebexNotifier(t *testing.T) {
 			require.True(t, ok)
 
 			require.NoError(t, err)
-			require.Equal(t, c.expHeaders, notificationService.Webhook.HttpHeader)
+			require.Equal(t, c.expHeaders, notificationService.Webhook.HTTPHeader)
 			require.JSONEq(t, c.expMsg, notificationService.Webhook.Body)
 		})
 	}

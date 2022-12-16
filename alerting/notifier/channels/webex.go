@@ -140,15 +140,15 @@ func (wn *WebexNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 	}
 
 	cmd := &SendWebhookSettings{
-		Url:        parsedURL,
+		URL:        parsedURL,
 		Body:       string(body),
-		HttpMethod: http.MethodPost,
+		HTTPMethod: http.MethodPost,
 	}
 
 	if wn.settings.Token != "" {
 		headers := make(map[string]string)
 		headers["Authorization"] = fmt.Sprintf("Bearer %s", wn.settings.Token)
-		cmd.HttpHeader = headers
+		cmd.HTTPHeader = headers
 	}
 
 	if err := wn.ns.SendWebhook(ctx, cmd); err != nil {

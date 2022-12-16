@@ -154,10 +154,10 @@ func (on *OpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 	}
 
 	cmd := &SendWebhookSettings{
-		Url:        url,
+		URL:        url,
 		Body:       string(body),
-		HttpMethod: http.MethodPost,
-		HttpHeader: map[string]string{
+		HTTPMethod: http.MethodPost,
+		HTTPHeader: map[string]string{
 			"Content-Type":  "application/json",
 			"Authorization": fmt.Sprintf("GenieKey %s", on.settings.APIKey),
 		},
@@ -190,7 +190,7 @@ func (on *OpsgenieNotifier) buildOpsgenieMessage(ctx context.Context, alerts mod
 		return data, apiURL, err
 	}
 
-	ruleURL := joinUrlPath(on.tmpl.ExternalURL.String(), "/alerting/list", on.log)
+	ruleURL := joinURLPath(on.tmpl.ExternalURL.String(), "/alerting/list", on.log)
 
 	var tmplErr error
 	tmpl, data := TmplText(ctx, on.tmpl, as, on.log, &tmplErr)

@@ -29,11 +29,11 @@ func TestWebhookNotifier(t *testing.T) {
 		alerts   []*types.Alert
 
 		expMsg        *WebhookMessage
-		expUrl        string
+		expURL        string
 		expUsername   string
 		expPassword   string
 		expHeaders    map[string]string
-		expHttpMethod string
+		expHTTPMethod string
 		expInitError  string
 		expMsgError   error
 	}{
@@ -48,8 +48,8 @@ func TestWebhookNotifier(t *testing.T) {
 					},
 				},
 			},
-			expUrl:        "http://localhost/test",
-			expHttpMethod: "POST",
+			expURL:        "http://localhost/test",
+			expHTTPMethod: "POST",
 			expMsg: &WebhookMessage{
 				ExtendedData: &ExtendedData{
 					Receiver: "my_receiver",
@@ -120,8 +120,8 @@ func TestWebhookNotifier(t *testing.T) {
 					},
 				},
 			},
-			expUrl:        "http://localhost/test1",
-			expHttpMethod: "PUT",
+			expURL:        "http://localhost/test1",
+			expHTTPMethod: "PUT",
 			expUsername:   "user1",
 			expPassword:   "mysecret",
 			expMsg: &WebhookMessage{
@@ -189,8 +189,8 @@ func TestWebhookNotifier(t *testing.T) {
 					},
 				},
 			},
-			expUrl:        "http://localhost/test?numAlerts=2&status=firing",
-			expHttpMethod: "POST",
+			expURL:        "http://localhost/test?numAlerts=2&status=firing",
+			expHTTPMethod: "POST",
 			expMsg: &WebhookMessage{
 				ExtendedData: &ExtendedData{
 					Receiver: "my_receiver",
@@ -295,8 +295,8 @@ func TestWebhookNotifier(t *testing.T) {
 				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				OrgID:    orgID,
 			},
-			expUrl:        "http://localhost/test1",
-			expHttpMethod: "POST",
+			expURL:        "http://localhost/test1",
+			expHTTPMethod: "POST",
 			expHeaders:    map[string]string{"Authorization": "Bearer mysecret"},
 		},
 		{
@@ -382,11 +382,11 @@ func TestWebhookNotifier(t *testing.T) {
 			require.NoError(t, err)
 
 			require.JSONEq(t, string(expBody), webhookSender.Webhook.Body)
-			require.Equal(t, c.expUrl, webhookSender.Webhook.Url)
+			require.Equal(t, c.expURL, webhookSender.Webhook.URL)
 			require.Equal(t, c.expUsername, webhookSender.Webhook.User)
 			require.Equal(t, c.expPassword, webhookSender.Webhook.Password)
-			require.Equal(t, c.expHttpMethod, webhookSender.Webhook.HttpMethod)
-			require.Equal(t, c.expHeaders, webhookSender.Webhook.HttpHeader)
+			require.Equal(t, c.expHTTPMethod, webhookSender.Webhook.HTTPMethod)
+			require.Equal(t, c.expHeaders, webhookSender.Webhook.HTTPHeader)
 		})
 	}
 }
