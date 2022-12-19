@@ -138,7 +138,7 @@ func (vn *VictoropsNotifier) Notify(ctx context.Context, as ...*types.Alert) (bo
 			return nil
 		}, as...)
 
-	ruleURL := joinUrlPath(vn.tmpl.ExternalURL.String(), "/alerting/list", vn.log)
+	ruleURL := joinURLPath(vn.tmpl.ExternalURL.String(), "/alerting/list", vn.log)
 	bodyJSON["alert_url"] = ruleURL
 
 	u := tmpl(vn.settings.URL)
@@ -152,7 +152,7 @@ func (vn *VictoropsNotifier) Notify(ctx context.Context, as ...*types.Alert) (bo
 		return false, err
 	}
 	cmd := &SendWebhookSettings{
-		Url:  u,
+		URL:  u,
 		Body: string(b),
 	}
 
