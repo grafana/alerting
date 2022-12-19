@@ -12,8 +12,6 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-
-	"github.com/grafana/grafana/pkg/setting"
 )
 
 // https://help.victorops.com/knowledge-base/incident-fields-glossary/ - 20480 characters.
@@ -74,12 +72,13 @@ func NewVictoropsNotifier(fc FactoryConfig) (*VictoropsNotifier, error) {
 		return nil, err
 	}
 	return &VictoropsNotifier{
-		Base:     NewBase(fc.Config),
-		log:      fc.Logger,
-		images:   fc.ImageStore,
-		ns:       fc.NotificationService,
-		tmpl:     fc.Template,
-		settings: settings,
+		Base:       NewBase(fc.Config),
+		log:        fc.Logger,
+		images:     fc.ImageStore,
+		ns:         fc.NotificationService,
+		tmpl:       fc.Template,
+		settings:   settings,
+		appVersion: fc.GrafanaBuildVersion,
 	}, nil
 }
 
@@ -88,11 +87,12 @@ func NewVictoropsNotifier(fc FactoryConfig) (*VictoropsNotifier, error) {
 // Victorops specifications (http://victorops.force.com/knowledgebase/articles/Integration/Alert-Ingestion-API-Documentation/)
 type VictoropsNotifier struct {
 	*Base
-	log      Logger
-	images   ImageStore
-	ns       WebhookSender
-	tmpl     *template.Template
-	settings victorOpsSettings
+	log        Logger
+	images     ImageStore
+	ns         WebhookSender
+	tmpl       *template.Template
+	settings   victorOpsSettings
+	appVersion string
 }
 
 // Notify sends notification to Victorops via POST to URL endpoint
@@ -120,7 +120,7 @@ func (vn *VictoropsNotifier) Notify(ctx context.Context, as ...*types.Alert) (bo
 		"entity_display_name": tmpl(vn.settings.Title),
 		"timestamp":           time.Now().Unix(),
 		"state_message":       stateMessage,
-		"monitoring_tool":     "Grafana v" + setting.BuildVersion,
+		"monitoring_tool":     "Grafana v" + vn.appVersion,
 	}
 
 	if tmplErr != nil {

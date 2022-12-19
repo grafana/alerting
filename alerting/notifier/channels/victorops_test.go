@@ -3,6 +3,8 @@ package channels
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/url"
 	"testing"
 
@@ -10,8 +12,6 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
-
-	"github.com/grafana/grafana/pkg/setting"
 )
 
 func TestVictoropsNotifier(t *testing.T) {
@@ -22,6 +22,7 @@ func TestVictoropsNotifier(t *testing.T) {
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
+	version := fmt.Sprintf("%d.0.0", rand.Uint64())
 
 	cases := []struct {
 		name         string
@@ -48,7 +49,7 @@ func TestVictoropsNotifier(t *testing.T) {
 				"entity_id":           "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
 				"image_url":           "https://www.example.com/test-image-1.jpg",
 				"message_type":        "CRITICAL",
-				"monitoring_tool":     "Grafana v" + setting.BuildVersion,
+				"monitoring_tool":     "Grafana v" + version,
 				"state_message":       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 			},
 			expMsgError: nil,
@@ -74,7 +75,7 @@ func TestVictoropsNotifier(t *testing.T) {
 				"entity_id":           "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
 				"image_url":           "https://www.example.com/test-image-1.jpg",
 				"message_type":        "CRITICAL",
-				"monitoring_tool":     "Grafana v" + setting.BuildVersion,
+				"monitoring_tool":     "Grafana v" + version,
 				"state_message":       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
 			},
 			expMsgError: nil,
@@ -99,7 +100,7 @@ func TestVictoropsNotifier(t *testing.T) {
 				"entity_display_name": "[FIRING:2]  ",
 				"entity_id":           "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
 				"message_type":        "ALERTS FIRING: 2",
-				"monitoring_tool":     "Grafana v" + setting.BuildVersion,
+				"monitoring_tool":     "Grafana v" + version,
 				"state_message":       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
 			},
 			expMsgError: nil,
@@ -124,7 +125,7 @@ func TestVictoropsNotifier(t *testing.T) {
 				"entity_display_name": "Alerts firing: 2",
 				"entity_id":           "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
 				"message_type":        "CRITICAL",
-				"monitoring_tool":     "Grafana v" + setting.BuildVersion,
+				"monitoring_tool":     "Grafana v" + version,
 				"state_message":       "customDescription",
 			},
 			expMsgError: nil,
@@ -149,7 +150,7 @@ func TestVictoropsNotifier(t *testing.T) {
 				"entity_display_name": "",
 				"entity_id":           "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
 				"message_type":        "CUSTOM TEMPLATE ",
-				"monitoring_tool":     "Grafana v" + setting.BuildVersion,
+				"monitoring_tool":     "Grafana v" + version,
 				"state_message":       "",
 			},
 			expMsgError: nil,
@@ -174,7 +175,7 @@ func TestVictoropsNotifier(t *testing.T) {
 				"entity_display_name": "",
 				"entity_id":           "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
 				"message_type":        "CRITICAL",
-				"monitoring_tool":     "Grafana v" + setting.BuildVersion,
+				"monitoring_tool":     "Grafana v" + version,
 				"state_message":       "",
 			},
 			expMsgError: nil,
@@ -203,6 +204,7 @@ func TestVictoropsNotifier(t *testing.T) {
 				ImageStore:          images,
 				Template:            tmpl,
 				Logger:              &FakeLogger{},
+				GrafanaBuildVersion: version,
 			}
 
 			pn, err := NewVictoropsNotifier(fc)
