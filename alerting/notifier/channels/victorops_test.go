@@ -225,7 +225,7 @@ func TestVictoropsNotifier(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, ok)
 
-			require.NotEmpty(t, webhookSender.Webhook.Url)
+			require.NotEmpty(t, webhookSender.Webhook.URL)
 
 			// Remove the non-constant timestamp
 			data := make(map[string]interface{})
@@ -236,9 +236,9 @@ func TestVictoropsNotifier(t *testing.T) {
 			require.NoError(t, err)
 			body := string(b)
 
-			expJson, err := json.Marshal(c.expMsg)
+			expJSON, err := json.Marshal(c.expMsg)
 			require.NoError(t, err)
-			require.JSONEq(t, string(expJson), body)
+			require.JSONEq(t, string(expJSON), body)
 		})
 	}
 }
