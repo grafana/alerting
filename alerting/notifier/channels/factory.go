@@ -12,7 +12,9 @@ import (
 type GetDecryptedValueFn func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string
 
 type FactoryConfig struct {
-	Config              *NotificationChannelConfig
+	Config *NotificationChannelConfig
+	// Used by some receivers to include as part of the source
+	GrafanaBuildVersion string
 	NotificationService NotificationSender
 	DecryptFunc         GetDecryptedValueFn
 	ImageStore          ImageStore
@@ -22,7 +24,7 @@ type FactoryConfig struct {
 }
 
 func NewFactoryConfig(config *NotificationChannelConfig, notificationService NotificationSender,
-	decryptFunc GetDecryptedValueFn, template *template.Template, imageStore ImageStore, loggerFactory LoggerFactory) (FactoryConfig, error) {
+	decryptFunc GetDecryptedValueFn, template *template.Template, imageStore ImageStore, loggerFactory LoggerFactory, buildVersion string) (FactoryConfig, error) {
 	if config.Settings == nil {
 		return FactoryConfig{}, errors.New("no settings supplied")
 	}
@@ -38,6 +40,7 @@ func NewFactoryConfig(config *NotificationChannelConfig, notificationService Not
 	return FactoryConfig{
 		Config:              config,
 		NotificationService: notificationService,
+		GrafanaBuildVersion: buildVersion,
 		DecryptFunc:         decryptFunc,
 		Template:            template,
 		ImageStore:          imageStore,
