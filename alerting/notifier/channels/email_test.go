@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/grafana/alerting/alerting/notifier/channels"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -37,7 +36,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 					"somedev@example.com",
 				},
 				Message: "",
-				Subject: channels.DefaultMessageTitleEmbed,
+				Subject: DefaultMessageTitleEmbed,
 			},
 		},
 		{
@@ -52,7 +51,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 					"somedev@example.com",
 				},
 				Message: "",
-				Subject: channels.DefaultMessageTitleEmbed,
+				Subject: DefaultMessageTitleEmbed,
 			},
 		},
 		{
@@ -67,7 +66,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 					"somedev@example.com",
 				},
 				Message: "",
-				Subject: channels.DefaultMessageTitleEmbed,
+				Subject: DefaultMessageTitleEmbed,
 			},
 		},
 		{
@@ -84,7 +83,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 					"somedev3@example.com",
 				},
 				Message: "",
-				Subject: channels.DefaultMessageTitleEmbed,
+				Subject: DefaultMessageTitleEmbed,
 			},
 		},
 		{
@@ -101,7 +100,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 					"somedev3@example.com",
 				},
 				Message: "",
-				Subject: channels.DefaultMessageTitleEmbed,
+				Subject: DefaultMessageTitleEmbed,
 			},
 		},
 		{
@@ -125,12 +124,12 @@ func TestEmailNotifier_Init(t *testing.T) {
 
 	for _, test := range testCase {
 		t.Run(test.Name, func(t *testing.T) {
-			cfg := &channels.NotificationChannelConfig{
+			cfg := &NotificationChannelConfig{
 				Name:     "ops",
 				Type:     "email",
 				Settings: test.Config,
 			}
-			settings, err := buildEmailSettings(channels.FactoryConfig{Config: cfg})
+			settings, err := buildEmailSettings(FactoryConfig{Config: cfg})
 			if test.ExpectedError != "" {
 				require.ErrorContains(t, err, test.ExpectedError)
 			} else {
@@ -155,8 +154,8 @@ func TestEmailNotifier_Notify(t *testing.T) {
 
 		emailSender := mockNotificationService()
 
-		fc := channels.FactoryConfig{
-			Config: &channels.NotificationChannelConfig{
+		fc := FactoryConfig{
+			Config: &NotificationChannelConfig{
 				Name:     "ops",
 				Type:     "email",
 				Settings: json.RawMessage(jsonData),
@@ -165,9 +164,9 @@ func TestEmailNotifier_Notify(t *testing.T) {
 			DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
 				return fallback
 			},
-			ImageStore: &channels.UnavailableImageStore{},
+			ImageStore: &UnavailableImageStore{},
 			Template:   tmpl,
-			Logger:     &channels.FakeLogger{},
+			Logger:     &FakeLogger{},
 		}
 
 		emailNotifier, err := EmailFactory(fc)
@@ -202,8 +201,8 @@ func TestEmailNotifier_Notify(t *testing.T) {
 				"Title":   "[FIRING:1]  (AlwaysFiring warning)",
 				"Message": "[FIRING:1]  (AlwaysFiring warning)",
 				"Status":  "firing",
-				"Alerts": channels.ExtendedAlerts{
-					channels.ExtendedAlert{
+				"Alerts": ExtendedAlerts{
+					ExtendedAlert{
 						Status:       "firing",
 						Labels:       template.KV{"alertname": "AlwaysFiring", "severity": "warning"},
 						Annotations:  template.KV{"runbook_url": "http://fix.me"},
