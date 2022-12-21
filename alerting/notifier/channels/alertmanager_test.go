@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/grafana/alerting/alerting/notifier/channels"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -69,7 +68,7 @@ func TestNewAlertmanagerNotifier(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			secureSettings := make(map[string][]byte)
 
-			m := &channels.NotificationChannelConfig{
+			m := &NotificationChannelConfig{
 				Name:           c.receiverName,
 				Type:           "prometheus-alertmanager",
 				Settings:       json.RawMessage(c.settings),
@@ -80,12 +79,12 @@ func TestNewAlertmanagerNotifier(t *testing.T) {
 				return fallback
 			}
 
-			fc := channels.FactoryConfig{
+			fc := FactoryConfig{
 				Config:      m,
 				DecryptFunc: decryptFn,
-				ImageStore:  &channels.UnavailableImageStore{},
+				ImageStore:  &UnavailableImageStore{},
 				Template:    tmpl,
-				Logger:      &channels.FakeLogger{},
+				Logger:      &FakeLogger{},
 			}
 			sn, err := buildAlertmanagerNotifier(fc)
 			if c.expectedInitError != "" {
@@ -173,7 +172,7 @@ func TestAlertmanagerNotifier_Notify(t *testing.T) {
 			require.NoError(t, err)
 			secureSettings := make(map[string][]byte)
 
-			m := &channels.NotificationChannelConfig{
+			m := &NotificationChannelConfig{
 				Name:           c.receiverName,
 				Type:           "prometheus-alertmanager",
 				Settings:       settingsJSON,
@@ -183,12 +182,12 @@ func TestAlertmanagerNotifier_Notify(t *testing.T) {
 			decryptFn := func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
 				return fallback
 			}
-			fc := channels.FactoryConfig{
+			fc := FactoryConfig{
 				Config:      m,
 				DecryptFunc: decryptFn,
 				ImageStore:  images,
 				Template:    tmpl,
-				Logger:      &channels.FakeLogger{},
+				Logger:      &FakeLogger{},
 			}
 			sn, err := buildAlertmanagerNotifier(fc)
 			require.NoError(t, err)
@@ -198,7 +197,7 @@ func TestAlertmanagerNotifier_Notify(t *testing.T) {
 			t.Cleanup(func() {
 				sendHTTPRequest = origSendHTTPRequest
 			})
-			sendHTTPRequest = func(ctx context.Context, url *url.URL, cfg httpCfg, logger channels.Logger) ([]byte, error) {
+			sendHTTPRequest = func(ctx context.Context, url *url.URL, cfg httpCfg, logger Logger) ([]byte, error) {
 				body = cfg.body
 				return nil, c.sendHTTPRequestError
 			}

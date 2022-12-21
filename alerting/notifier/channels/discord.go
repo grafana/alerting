@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/grafana/alerting/alerting/notifier/channels"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
@@ -61,10 +60,10 @@ type discordImage struct {
 }
 
 type DiscordNotifier struct {
-	*channels.Base
-	log        channels.Logger
-	ns         channels.WebhookSender
-	images     channels.ImageStore
+	*Base
+	log        Logger
+	ns         WebhookSender
+	images     ImageStore
 	tmpl       *template.Template
 	settings   *discordSettings
 	appVersion string
@@ -78,7 +77,7 @@ type discordSettings struct {
 	UseDiscordUsername bool   `json:"use_discord_username,omitempty" yaml:"use_discord_username,omitempty"`
 }
 
-func buildDiscordSettings(fc channels.FactoryConfig) (*discordSettings, error) {
+func buildDiscordSettings(fc FactoryConfig) (*discordSettings, error) {
 	var settings discordSettings
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
@@ -88,10 +87,10 @@ func buildDiscordSettings(fc channels.FactoryConfig) (*discordSettings, error) {
 		return nil, errors.New("could not find webhook url property in settings")
 	}
 	if settings.Title == "" {
-		settings.Title = channels.DefaultMessageTitleEmbed
+		settings.Title = DefaultMessageTitleEmbed
 	}
 	if settings.Message == "" {
-		settings.Message = channels.DefaultMessageEmbed
+		settings.Message = DefaultMessageEmbed
 	}
 	return &settings, nil
 }
@@ -104,7 +103,7 @@ type discordAttachment struct {
 	state     model.AlertStatus
 }
 
-func DiscordFactory(fc channels.FactoryConfig) (channels.NotificationChannel, error) {
+func DiscordFactory(fc FactoryConfig) (NotificationChannel, error) {
 	dn, err := newDiscordNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -115,13 +114,13 @@ func DiscordFactory(fc channels.FactoryConfig) (channels.NotificationChannel, er
 	return dn, nil
 }
 
-func newDiscordNotifier(fc channels.FactoryConfig) (*DiscordNotifier, error) {
+func newDiscordNotifier(fc FactoryConfig) (*DiscordNotifier, error) {
 	settings, err := buildDiscordSettings(fc)
 	if err != nil {
 		return nil, err
 	}
 	return &DiscordNotifier{
-		Base:       channels.NewBase(fc.Config),
+		Base:       NewBase(fc.Config),
 		log:        fc.Logger,
 		ns:         fc.NotificationService,
 		images:     fc.ImageStore,
@@ -141,7 +140,7 @@ func (d DiscordNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 	}
 
 	var tmplErr error
-	tmpl, _ := channels.TmplText(ctx, d.tmpl, as, d.log, &tmplErr)
+	tmpl, _ := TmplText(ctx, d.tmpl, as, d.log, &tmplErr)
 
 	msg.Content = tmpl(d.settings.Message)
 	if tmplErr != nil {
@@ -149,7 +148,7 @@ func (d DiscordNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		// Reset tmplErr for templating other fields.
 		tmplErr = nil
 	}
-	truncatedMsg, truncated := channels.TruncateInRunes(msg.Content, discordMaxMessageLen)
+	truncatedMsg, truncated := TruncateInRunes(msg.Content, discordMaxMessageLen)
 	if truncated {
 		key, err := notify.ExtractGroupKey(ctx)
 		if err != nil {
@@ -187,7 +186,7 @@ func (d DiscordNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 	color, _ := strconv.ParseInt(strings.TrimLeft(getAlertStatusColor(alerts.Status()), "#"), 16, 0)
 	linkEmbed.Color = color
 
-	ruleURL := joinUrlPath(d.tmpl.ExternalURL.String(), "/alerting/list", d.log)
+	ruleURL := joinURLPath(d.tmpl.ExternalURL.String(), "/alerting/list", d.log)
 	linkEmbed.URL = ruleURL
 
 	embeds := []discordLinkEmbed{linkEmbed}
@@ -243,9 +242,9 @@ func (d DiscordNotifier) constructAttachments(ctx context.Context, as []*types.A
 	attachments := make([]discordAttachment, 0)
 
 	_ = withStoredImages(ctx, d.log, d.images,
-		func(index int, image channels.Image) error {
+		func(index int, image Image) error {
 			if embedQuota < 1 {
-				return channels.ErrImagesDone
+				return ErrImagesDone
 			}
 
 			if len(image.URL) > 0 {
@@ -263,7 +262,7 @@ func (d DiscordNotifier) constructAttachments(ctx context.Context, as []*types.A
 				base := filepath.Base(image.Path)
 				url := fmt.Sprintf("attachment://%s", base)
 				reader, err := openImage(image.Path)
-				if err != nil && !errors.Is(err, channels.ErrImageNotFound) {
+				if err != nil && !errors.Is(err, ErrImageNotFound) {
 					d.log.Warn("failed to retrieve image data from store", "error", err)
 					return nil
 				}
@@ -285,8 +284,8 @@ func (d DiscordNotifier) constructAttachments(ctx context.Context, as []*types.A
 	return attachments
 }
 
-func (d DiscordNotifier) buildRequest(url string, body []byte, attachments []discordAttachment) (*channels.SendWebhookSettings, error) {
-	cmd := &channels.SendWebhookSettings{
+func (d DiscordNotifier) buildRequest(url string, body []byte, attachments []discordAttachment) (*SendWebhookSettings, error) {
+	cmd := &SendWebhookSettings{
 		URL:        url,
 		HTTPMethod: "POST",
 	}

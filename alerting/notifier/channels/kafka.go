@@ -11,10 +11,6 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-
-	"github.com/grafana/alerting/alerting/notifier/channels"
-
-	"github.com/grafana/grafana/pkg/models"
 )
 
 type kafkaBody struct {
@@ -26,13 +22,13 @@ type kafkaRecordEnvelope struct {
 }
 
 type kafkaRecord struct {
-	Description string                `json:"description"`
-	Client      string                `json:"client,omitempty"`
-	Details     string                `json:"details,omitempty"`
-	AlertState  models.AlertStateType `json:"alert_state,omitempty"`
-	ClientURL   string                `json:"client_url,omitempty"`
-	Contexts    []kafkaContext        `json:"contexts,omitempty"`
-	IncidentKey string                `json:"incident_key,omitempty"`
+	Description string         `json:"description"`
+	Client      string         `json:"client,omitempty"`
+	Details     string         `json:"details,omitempty"`
+	AlertState  AlertStateType `json:"alert_state,omitempty"`
+	ClientURL   string         `json:"client_url,omitempty"`
+	Contexts    []kafkaContext `json:"contexts,omitempty"`
+	IncidentKey string         `json:"incident_key,omitempty"`
 }
 
 type kafkaContext struct {
@@ -43,10 +39,10 @@ type kafkaContext struct {
 // KafkaNotifier is responsible for sending
 // alert notifications to Kafka.
 type KafkaNotifier struct {
-	*channels.Base
-	log      channels.Logger
-	images   channels.ImageStore
-	ns       channels.WebhookSender
+	*Base
+	log      Logger
+	images   ImageStore
+	ns       WebhookSender
 	tmpl     *template.Template
 	settings *kafkaSettings
 }
@@ -58,7 +54,7 @@ type kafkaSettings struct {
 	Details     string `json:"details,omitempty" yaml:"details,omitempty"`
 }
 
-func buildKafkaSettings(fc channels.FactoryConfig) (*kafkaSettings, error) {
+func buildKafkaSettings(fc FactoryConfig) (*kafkaSettings, error) {
 	var settings kafkaSettings
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
@@ -72,15 +68,15 @@ func buildKafkaSettings(fc channels.FactoryConfig) (*kafkaSettings, error) {
 		return nil, errors.New("could not find kafka topic property in settings")
 	}
 	if settings.Description == "" {
-		settings.Description = channels.DefaultMessageTitleEmbed
+		settings.Description = DefaultMessageTitleEmbed
 	}
 	if settings.Details == "" {
-		settings.Details = channels.DefaultMessageEmbed
+		settings.Details = DefaultMessageEmbed
 	}
 	return &settings, nil
 }
 
-func KafkaFactory(fc channels.FactoryConfig) (channels.NotificationChannel, error) {
+func KafkaFactory(fc FactoryConfig) (NotificationChannel, error) {
 	ch, err := newKafkaNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -92,14 +88,14 @@ func KafkaFactory(fc channels.FactoryConfig) (channels.NotificationChannel, erro
 }
 
 // newKafkaNotifier is the constructor function for the Kafka notifier.
-func newKafkaNotifier(fc channels.FactoryConfig) (*KafkaNotifier, error) {
+func newKafkaNotifier(fc FactoryConfig) (*KafkaNotifier, error) {
 	settings, err := buildKafkaSettings(fc)
 	if err != nil {
 		return nil, err
 	}
 
 	return &KafkaNotifier{
-		Base:     channels.NewBase(fc.Config),
+		Base:     NewBase(fc.Config),
 		log:      fc.Logger,
 		images:   fc.ImageStore,
 		ns:       fc.NotificationService,
@@ -111,7 +107,7 @@ func newKafkaNotifier(fc channels.FactoryConfig) (*KafkaNotifier, error) {
 // Notify sends the alert notification.
 func (kn *KafkaNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var tmplErr error
-	tmpl, _ := channels.TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
+	tmpl, _ := TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
 
 	topicURL := strings.TrimRight(kn.settings.Endpoint, "/") + "/topics/" + tmpl(kn.settings.Topic)
 
@@ -124,7 +120,7 @@ func (kn *KafkaNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		kn.log.Warn("failed to template Kafka message", "error", tmplErr.Error())
 	}
 
-	cmd := &channels.SendWebhookSettings{
+	cmd := &SendWebhookSettings{
 		URL:        topicURL,
 		Body:       body,
 		HTTPMethod: "POST",
@@ -156,7 +152,7 @@ func (kn *KafkaNotifier) buildBody(ctx context.Context, tmpl func(string) string
 	kn.log.Debug("notifying Kafka", "alert_state", state)
 	record.AlertState = state
 
-	ruleURL := joinUrlPath(kn.tmpl.ExternalURL.String(), "/alerting/list", kn.log)
+	ruleURL := joinURLPath(kn.tmpl.ExternalURL.String(), "/alerting/list", kn.log)
 	record.ClientURL = ruleURL
 
 	contexts := buildContextImages(ctx, kn.log, kn.images, as...)
@@ -183,19 +179,19 @@ func (kn *KafkaNotifier) buildBody(ctx context.Context, tmpl func(string) string
 	return string(body), nil
 }
 
-func buildState(as ...*types.Alert) models.AlertStateType {
+func buildState(as ...*types.Alert) AlertStateType {
 	// We are using the state from 7.x to not break kafka.
 	// TODO: should we switch to the new ones?
 	if types.Alerts(as...).Status() == model.AlertResolved {
-		return models.AlertStateOK
+		return AlertStateOK
 	}
-	return models.AlertStateAlerting
+	return AlertStateAlerting
 }
 
-func buildContextImages(ctx context.Context, l channels.Logger, imageStore channels.ImageStore, as ...*types.Alert) []kafkaContext {
+func buildContextImages(ctx context.Context, l Logger, imageStore ImageStore, as ...*types.Alert) []kafkaContext {
 	var contexts []kafkaContext
 	_ = withStoredImages(ctx, l, imageStore,
-		func(_ int, image channels.Image) error {
+		func(_ int, image Image) error {
 			if image.URL != "" {
 				contexts = append(contexts, kafkaContext{
 					Type:   "image",

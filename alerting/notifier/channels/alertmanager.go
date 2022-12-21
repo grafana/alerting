@@ -8,13 +8,12 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/grafana/alerting/alerting/notifier/channels"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 )
 
 type AlertmanagerConfig struct {
-	*channels.NotificationChannelConfig
+	*NotificationChannelConfig
 	URLs              []*url.URL
 	BasicAuthUser     string
 	BasicAuthPassword string
@@ -26,7 +25,7 @@ type alertmanagerSettings struct {
 	Password string
 }
 
-func AlertmanagerFactory(fc channels.FactoryConfig) (channels.NotificationChannel, error) {
+func AlertmanagerFactory(fc FactoryConfig) (NotificationChannel, error) {
 	ch, err := buildAlertmanagerNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -37,11 +36,11 @@ func AlertmanagerFactory(fc channels.FactoryConfig) (channels.NotificationChanne
 	return ch, nil
 }
 
-func buildAlertmanagerNotifier(fc channels.FactoryConfig) (*AlertmanagerNotifier, error) {
+func buildAlertmanagerNotifier(fc FactoryConfig) (*AlertmanagerNotifier, error) {
 	var settings struct {
-		URL      channels.CommaSeparatedStrings `json:"url,omitempty" yaml:"url,omitempty"`
-		User     string                         `json:"basicAuthUser,omitempty" yaml:"basicAuthUser,omitempty"`
-		Password string                         `json:"basicAuthPassword,omitempty" yaml:"basicAuthPassword,omitempty"`
+		URL      CommaSeparatedStrings `json:"url,omitempty" yaml:"url,omitempty"`
+		User     string                `json:"basicAuthUser,omitempty" yaml:"basicAuthUser,omitempty"`
+		Password string                `json:"basicAuthPassword,omitempty" yaml:"basicAuthPassword,omitempty"`
 	}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
@@ -67,7 +66,7 @@ func buildAlertmanagerNotifier(fc channels.FactoryConfig) (*AlertmanagerNotifier
 	settings.Password = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "basicAuthPassword", settings.Password)
 
 	return &AlertmanagerNotifier{
-		Base:   channels.NewBase(fc.Config),
+		Base:   NewBase(fc.Config),
 		images: fc.ImageStore,
 		settings: alertmanagerSettings{
 			URLs:     urls,
@@ -80,10 +79,10 @@ func buildAlertmanagerNotifier(fc channels.FactoryConfig) (*AlertmanagerNotifier
 
 // AlertmanagerNotifier sends alert notifications to the alert manager
 type AlertmanagerNotifier struct {
-	*channels.Base
-	images   channels.ImageStore
+	*Base
+	images   ImageStore
 	settings alertmanagerSettings
-	logger   channels.Logger
+	logger   Logger
 }
 
 // Notify sends alert notifications to Alertmanager.
@@ -94,7 +93,7 @@ func (n *AlertmanagerNotifier) Notify(ctx context.Context, as ...*types.Alert) (
 	}
 
 	_ = withStoredImages(ctx, n.logger, n.images,
-		func(index int, image channels.Image) error {
+		func(index int, image Image) error {
 			// If there is an image for this alert and the image has been uploaded
 			// to a public URL then include it as an annotation
 			if image.URL != "" {

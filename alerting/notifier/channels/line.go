@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"path"
 
-	"github.com/grafana/alerting/alerting/notifier/channels"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 )
@@ -20,9 +19,9 @@ var (
 // LineNotifier is responsible for sending
 // alert notifications to LINE.
 type LineNotifier struct {
-	*channels.Base
-	log      channels.Logger
-	ns       channels.WebhookSender
+	*Base
+	log      Logger
+	ns       WebhookSender
 	tmpl     *template.Template
 	settings *lineSettings
 }
@@ -33,7 +32,7 @@ type lineSettings struct {
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 }
 
-func buildLineSettings(fc channels.FactoryConfig) (*lineSettings, error) {
+func buildLineSettings(fc FactoryConfig) (*lineSettings, error) {
 	var settings lineSettings
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
@@ -44,15 +43,15 @@ func buildLineSettings(fc channels.FactoryConfig) (*lineSettings, error) {
 		return nil, errors.New("could not find token in settings")
 	}
 	if settings.Title == "" {
-		settings.Title = channels.DefaultMessageTitleEmbed
+		settings.Title = DefaultMessageTitleEmbed
 	}
 	if settings.Description == "" {
-		settings.Description = channels.DefaultMessageEmbed
+		settings.Description = DefaultMessageEmbed
 	}
 	return &settings, nil
 }
 
-func LineFactory(fc channels.FactoryConfig) (channels.NotificationChannel, error) {
+func LineFactory(fc FactoryConfig) (NotificationChannel, error) {
 	n, err := newLineNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -64,14 +63,14 @@ func LineFactory(fc channels.FactoryConfig) (channels.NotificationChannel, error
 }
 
 // newLineNotifier is the constructor for the LINE notifier
-func newLineNotifier(fc channels.FactoryConfig) (*LineNotifier, error) {
+func newLineNotifier(fc FactoryConfig) (*LineNotifier, error) {
 	settings, err := buildLineSettings(fc)
 	if err != nil {
 		return nil, err
 	}
 
 	return &LineNotifier{
-		Base:     channels.NewBase(fc.Config),
+		Base:     NewBase(fc.Config),
 		log:      fc.Logger,
 		ns:       fc.NotificationService,
 		tmpl:     fc.Template,
@@ -88,7 +87,7 @@ func (ln *LineNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 	form := url.Values{}
 	form.Add("message", body)
 
-	cmd := &channels.SendWebhookSettings{
+	cmd := &SendWebhookSettings{
 		URL:        LineNotifyURL,
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{
@@ -114,7 +113,7 @@ func (ln *LineNotifier) buildMessage(ctx context.Context, as ...*types.Alert) st
 	ruleURL := path.Join(ln.tmpl.ExternalURL.String(), "/alerting/list")
 
 	var tmplErr error
-	tmpl, _ := channels.TmplText(ctx, ln.tmpl, as, ln.log, &tmplErr)
+	tmpl, _ := TmplText(ctx, ln.tmpl, as, ln.log, &tmplErr)
 
 	body := fmt.Sprintf(
 		"%s\n%s\n\n%s",

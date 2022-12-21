@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/grafana/alerting/alerting/notifier/channels"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -166,8 +165,8 @@ func TestDingdingNotifier(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			webhookSender := mockNotificationService()
-			fc := channels.FactoryConfig{
-				Config: &channels.NotificationChannelConfig{
+			fc := FactoryConfig{
+				Config: &NotificationChannelConfig{
 					Name:     "dingding_testing",
 					Type:     "dingding",
 					Settings: json.RawMessage(c.settings),
@@ -175,7 +174,7 @@ func TestDingdingNotifier(t *testing.T) {
 				// TODO: allow changing the associated values for different tests.
 				NotificationService: webhookSender,
 				Template:            tmpl,
-				Logger:              &channels.FakeLogger{},
+				Logger:              &FakeLogger{},
 			}
 			pn, err := newDingDingNotifier(fc)
 			if c.expInitError != "" {

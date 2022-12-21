@@ -13,17 +13,15 @@ import (
 
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
-
-	"github.com/grafana/alerting/alerting/notifier/channels"
 )
 
 // EmailNotifier is responsible for sending
 // alert notifications over email.
 type EmailNotifier struct {
-	*channels.Base
-	log      channels.Logger
-	ns       channels.EmailSender
-	images   channels.ImageStore
+	*Base
+	log      Logger
+	ns       EmailSender
+	images   ImageStore
 	tmpl     *template.Template
 	settings *emailSettings
 }
@@ -35,7 +33,7 @@ type emailSettings struct {
 	Subject     string
 }
 
-func EmailFactory(fc channels.FactoryConfig) (channels.NotificationChannel, error) {
+func EmailFactory(fc FactoryConfig) (NotificationChannel, error) {
 	notifier, err := buildEmailNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -46,7 +44,7 @@ func EmailFactory(fc channels.FactoryConfig) (channels.NotificationChannel, erro
 	return notifier, nil
 }
 
-func buildEmailSettings(fc channels.FactoryConfig) (*emailSettings, error) {
+func buildEmailSettings(fc FactoryConfig) (*emailSettings, error) {
 	type emailSettingsRaw struct {
 		SingleEmail bool   `json:"singleEmail,omitempty"`
 		Addresses   string `json:"addresses,omitempty"`
@@ -66,7 +64,7 @@ func buildEmailSettings(fc channels.FactoryConfig) (*emailSettings, error) {
 	addresses := splitEmails(settings.Addresses)
 
 	if settings.Subject == "" {
-		settings.Subject = channels.DefaultMessageTitleEmbed
+		settings.Subject = DefaultMessageTitleEmbed
 	}
 
 	return &emailSettings{
@@ -77,13 +75,13 @@ func buildEmailSettings(fc channels.FactoryConfig) (*emailSettings, error) {
 	}, nil
 }
 
-func buildEmailNotifier(fc channels.FactoryConfig) (*EmailNotifier, error) {
+func buildEmailNotifier(fc FactoryConfig) (*EmailNotifier, error) {
 	settings, err := buildEmailSettings(fc)
 	if err != nil {
 		return nil, err
 	}
 	return &EmailNotifier{
-		Base:     channels.NewBase(fc.Config),
+		Base:     NewBase(fc.Config),
 		log:      fc.Logger,
 		ns:       fc.NotificationService,
 		images:   fc.ImageStore,
@@ -95,7 +93,7 @@ func buildEmailNotifier(fc channels.FactoryConfig) (*EmailNotifier, error) {
 // Notify sends the alert notification.
 func (en *EmailNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
 	var tmplErr error
-	tmpl, data := channels.TmplText(ctx, en.tmpl, alerts, en.log, &tmplErr)
+	tmpl, data := TmplText(ctx, en.tmpl, alerts, en.log, &tmplErr)
 
 	subject := tmpl(en.settings.Subject)
 	alertPageURL := en.tmpl.ExternalURL.String()
@@ -114,7 +112,7 @@ func (en *EmailNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bo
 	// Extend alerts data with images, if available.
 	var embeddedFiles []string
 	_ = withStoredImages(ctx, en.log, en.images,
-		func(index int, image channels.Image) error {
+		func(index int, image Image) error {
 			if len(image.URL) != 0 {
 				data.Alerts[index].ImageURL = image.URL
 			} else if len(image.Path) != 0 {
@@ -129,7 +127,7 @@ func (en *EmailNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bo
 			return nil
 		}, alerts...)
 
-	cmd := &channels.SendEmailSettings{
+	cmd := &SendEmailSettings{
 		Subject: subject,
 		Data: map[string]interface{}{
 			"Title":             subject,
