@@ -97,7 +97,7 @@ func (gcn *GoogleChatNotifier) Notify(ctx context.Context, as ...*types.Alert) (
 	}
 
 	ruleURL := joinURLPath(gcn.tmpl.ExternalURL.String(), "/alerting/list", gcn.log)
-	if gcn.isUrlAbsolute(ruleURL) {
+	if gcn.isURLAbsolute(ruleURL) {
 		// Add a button widget (link to Grafana).
 		widgets = append(widgets, buttonWidget{
 			Buttons: []button{
@@ -179,7 +179,7 @@ func (gcn *GoogleChatNotifier) SendResolved() bool {
 	return !gcn.GetDisableResolveMessage()
 }
 
-func (gcn *GoogleChatNotifier) isUrlAbsolute(urlToCheck string) bool {
+func (gcn *GoogleChatNotifier) isURLAbsolute(urlToCheck string) bool {
 	parsed, err := url.Parse(urlToCheck)
 	if err != nil {
 		gcn.log.Warn("could not parse URL", "urlToCheck", urlToCheck)

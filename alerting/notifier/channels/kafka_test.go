@@ -25,7 +25,7 @@ func TestKafkaNotifier(t *testing.T) {
 		name           string
 		settings       string
 		alerts         []*types.Alert
-		expUrl, expMsg string
+		expURL, expMsg string
 		expInitError   string
 		expMsgError    error
 	}{
@@ -45,7 +45,7 @@ func TestKafkaNotifier(t *testing.T) {
 					},
 				},
 			},
-			expUrl: "http://localhost/topics/sometopic",
+			expURL: "http://localhost/topics/sometopic",
 			expMsg: `{
 				  "records": [
 					{
@@ -81,7 +81,7 @@ func TestKafkaNotifier(t *testing.T) {
 					},
 				},
 			},
-			expUrl: "http://localhost/topics/sometopic",
+			expURL: "http://localhost/topics/sometopic",
 			expMsg: `{
 				  "records": [
 					{
@@ -148,7 +148,7 @@ func TestKafkaNotifier(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, ok)
 
-			require.Equal(t, c.expUrl, webhookSender.Webhook.URL)
+			require.Equal(t, c.expURL, webhookSender.Webhook.URL)
 			require.JSONEq(t, c.expMsg, webhookSender.Webhook.Body)
 		})
 	}

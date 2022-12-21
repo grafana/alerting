@@ -80,7 +80,7 @@ type DingDingNotifier struct {
 func (dd *DingDingNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	dd.log.Info("sending dingding")
 
-	msgUrl := buildDingDingURL(dd)
+	dingDingURL := buildDingDingURL(dd)
 
 	var tmplErr error
 	tmpl, _ := TmplText(ctx, dd.tmpl, as, dd.log, &tmplErr)
@@ -89,7 +89,7 @@ func (dd *DingDingNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 	title := tmpl(dd.settings.Title)
 
 	msgType := tmpl(dd.settings.MessageType)
-	b, err := buildBody(msgUrl, msgType, title, message)
+	b, err := buildBody(dingDingURL, msgType, title, message)
 	if err != nil {
 		return false, err
 	}
@@ -129,7 +129,7 @@ func buildDingDingURL(dd *DingDingNotifier) string {
 	return "dingtalk://dingtalkclient/page/link?" + q.Encode()
 }
 
-func buildBody(msgUrl string, msgType string, title string, msg string) (string, error) {
+func buildBody(url string, msgType string, title string, msg string) (string, error) {
 	var bodyMsg map[string]interface{}
 	if msgType == "actionCard" {
 		bodyMsg = map[string]interface{}{
@@ -138,7 +138,7 @@ func buildBody(msgUrl string, msgType string, title string, msg string) (string,
 				"text":        msg,
 				"title":       title,
 				"singleTitle": "More",
-				"singleURL":   msgUrl,
+				"singleURL":   url,
 			},
 		}
 	} else {
@@ -147,7 +147,7 @@ func buildBody(msgUrl string, msgType string, title string, msg string) (string,
 			"link": map[string]string{
 				"text":       msg,
 				"title":      title,
-				"messageUrl": msgUrl,
+				"messageUrl": url,
 			},
 		}
 	}
