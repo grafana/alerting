@@ -203,7 +203,7 @@ func (sn *SlackNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bo
 		return false, fmt.Errorf("failed to create Slack message: %w", err)
 	}
 
-	thread_ts, err := sn.sendSlackMessage(ctx, m)
+	threadTs, err := sn.sendSlackMessage(ctx, m)
 	if err != nil {
 		sn.log.Error("Failed to send Slack message", "err", err)
 		return false, fmt.Errorf("failed to send Slack message: %w", err)
@@ -212,20 +212,20 @@ func (sn *SlackNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bo
 	// Do not upload images if using an incoming webhook as incoming webhooks cannot upload files
 	if !isIncomingWebhook(sn.settings) {
 		if err := withStoredImages(ctx, sn.log, sn.images, func(index int, image Image) error {
-			// If we have exceeded the maximum number of images for this thread_ts
+			// If we have exceeded the maximum number of images for this threadTs
 			// then tell the recipient and stop iterating subsequent images
 			if index >= maxImagesPerThreadTs {
 				if _, err := sn.sendSlackMessage(ctx, &slackMessage{
 					Channel:  sn.settings.Recipient,
 					Text:     maxImagesPerThreadTsMessage,
-					ThreadTs: thread_ts,
+					ThreadTs: threadTs,
 				}); err != nil {
 					sn.log.Error("Failed to send Slack message", "err", err)
 				}
 				return ErrImagesDone
 			}
 			comment := initialCommentForImage(alerts[index])
-			return sn.uploadImage(ctx, image, sn.settings.Recipient, comment, thread_ts)
+			return sn.uploadImage(ctx, image, sn.settings.Recipient, comment, threadTs)
 		}, alerts...); err != nil {
 			// Do not return an error here as we might have exceeded the rate limit for uploading files
 			sn.log.Error("Failed to upload image", "err", err)
@@ -264,9 +264,8 @@ var sendSlackRequest = func(ctx context.Context, req *http.Request, logger Logge
 	// If the response is text/html it could be the response to an incoming webhook
 	if strings.HasPrefix(content, "text/html") {
 		return handleSlackIncomingWebhookResponse(resp, logger)
-	} else {
-		return handleSlackJSONResponse(resp, logger)
 	}
+	return handleSlackJSONResponse(resp, logger)
 }
 
 func handleSlackIncomingWebhookResponse(resp *http.Response, logger Logger) (string, error) {
@@ -456,18 +455,18 @@ func (sn *SlackNotifier) sendSlackMessage(ctx context.Context, m *slackMessage) 
 		request.Header.Set("Authorization", "Bearer "+sn.settings.Token)
 	}
 
-	thread_ts, err := sn.sendFn(ctx, request, sn.log)
+	threadTs, err := sn.sendFn(ctx, request, sn.log)
 	if err != nil {
 		return "", err
 	}
 
-	return thread_ts, nil
+	return threadTs, nil
 }
 
 // createImageMultipart returns the mutlipart/form-data request and headers for files.upload.
 // It returns an error if the image does not exist or there was an error preparing the
 // multipart form.
-func (sn *SlackNotifier) createImageMultipart(image Image, channel, comment, thread_ts string) (http.Header, []byte, error) {
+func (sn *SlackNotifier) createImageMultipart(image Image, channel, comment, threadTs string) (http.Header, []byte, error) {
 	buf := bytes.Buffer{}
 	w := multipart.NewWriter(&buf)
 	defer func() {
@@ -503,7 +502,7 @@ func (sn *SlackNotifier) createImageMultipart(image Image, channel, comment, thr
 		return nil, nil, fmt.Errorf("failed to write initial_comment to form: %w", err)
 	}
 
-	if err := w.WriteField("thread_ts", thread_ts); err != nil {
+	if err := w.WriteField("thread_ts", threadTs); err != nil {
 		return nil, nil, fmt.Errorf("failed to write thread_ts to form: %w", err)
 	}
 
@@ -544,9 +543,9 @@ func (sn *SlackNotifier) sendMultipart(ctx context.Context, headers http.Header,
 // uploadImage shares the image to the channel names or IDs. It returns an error if the file
 // does not exist, or if there was an error either preparing or sending the multipart/form-data
 // request.
-func (sn *SlackNotifier) uploadImage(ctx context.Context, image Image, channel, comment, thread_ts string) error {
+func (sn *SlackNotifier) uploadImage(ctx context.Context, image Image, channel, comment, threadTs string) error {
 	sn.log.Debug("Uploadimg image", "image", image.Token)
-	headers, data, err := sn.createImageMultipart(image, channel, comment, thread_ts)
+	headers, data, err := sn.createImageMultipart(image, channel, comment, threadTs)
 	if err != nil {
 		return fmt.Errorf("failed to create multipart form: %w", err)
 	}
@@ -587,7 +586,7 @@ func initialCommentForImage(alert *types.Alert) string {
 		sb.WriteString(string(v))
 		if n < len(alert.Labels)-1 {
 			sb.WriteString(", ")
-			n += 1
+			n++
 		}
 	}
 
