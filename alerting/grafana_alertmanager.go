@@ -287,7 +287,7 @@ func (am *GrafanaAlertmanager) WithLock(fn func()) {
 
 // TemplateFromPaths returns a set of *Templates based on the paths given.
 func (am *GrafanaAlertmanager) TemplateFromPaths(u string, paths ...string) (*Template, error) {
-	tmpl, err := template.FromGlobs(paths...)
+	tmpl, err := template.FromGlobs(paths)
 	if err != nil {
 		return nil, err
 	}
