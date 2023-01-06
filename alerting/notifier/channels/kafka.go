@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/prometheus/alertmanager/notify"
@@ -48,10 +49,14 @@ type KafkaNotifier struct {
 }
 
 type kafkaSettings struct {
-	Endpoint    string `json:"kafkaRestProxy,omitempty" yaml:"kafkaRestProxy,omitempty"`
-	Topic       string `json:"kafkaTopic,omitempty" yaml:"kafkaTopic,omitempty"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-	Details     string `json:"details,omitempty" yaml:"details,omitempty"`
+	Endpoint     string `json:"kafkaRestProxy,omitempty" yaml:"kafkaRestProxy,omitempty"`
+	Topic        string `json:"kafkaTopic,omitempty" yaml:"kafkaTopic,omitempty"`
+	Description  string `json:"description,omitempty" yaml:"description,omitempty"`
+	Details      string `json:"details,omitempty" yaml:"details,omitempty"`
+	BasicAuth    bool   `json:"basicAuth,omitempty" yaml:"basicAuth,omitempty"`
+	PassFilePath string `json:"passwordFilePath,omitempty" yaml:"passwordFilePath,omitempty"`
+	AuthUser     string `json:"user,omitempty" yaml:"user,omitempty"`
+	AuthPass     string `json:"password,omitempty" yaml:"password,omitempty"`
 }
 
 func buildKafkaSettings(fc FactoryConfig) (*kafkaSettings, error) {
@@ -73,7 +78,25 @@ func buildKafkaSettings(fc FactoryConfig) (*kafkaSettings, error) {
 	if settings.Details == "" {
 		settings.Details = DefaultMessageEmbed
 	}
+	if settings.BasicAuth {
+		if settings.AuthUser == "" {
+			return nil, errors.New("if basic auth is enabled, user must be provided")
+		}
+		if settings.PassFilePath == "" {
+			return nil, errors.New("if basic auth is enabled, password file path must be provided")
+		}
+		settings.RefreshPassword()
+	}
 	return &settings, nil
+}
+
+func (ks *kafkaSettings) RefreshPassword() error {
+	passwordBytes, err := os.ReadFile(ks.PassFilePath)
+	if err != nil {
+		return fmt.Errorf("Failed to read password from file: %w", err)
+	}
+	ks.AuthPass = string(passwordBytes)
+	return nil
 }
 
 func KafkaFactory(fc FactoryConfig) (NotificationChannel, error) {
@@ -130,11 +153,27 @@ func (kn *KafkaNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		},
 	}
 
-	if err = kn.ns.SendWebhook(ctx, cmd); err != nil {
-		kn.log.Error("Failed to send notification to Kafka", "error", err, "body", body)
-		return false, err
+	retryOnFailure := false
+	if kn.settings.BasicAuth {
+		cmd.User = kn.settings.AuthUser
+		cmd.Password = kn.settings.AuthPass
+		retryOnFailure = true
 	}
 
+	return kn.sendWebhookWithRetry(ctx, cmd, retryOnFailure)
+}
+
+func (kn *KafkaNotifier) sendWebhookWithRetry(ctx context.Context, cmd *SendWebhookSettings, retry bool) (bool, error) {
+	if err := kn.ns.SendWebhook(ctx, cmd); err != nil {
+		kn.log.Error("Failed to send notification to Kafka", "error", err, "body", cmd.Body)
+		// No way to check if this was an auth error. Retry with a refreshed password
+		if retry {
+			kn.log.Debug("Retrying with a refreshed password")
+			kn.settings.RefreshPassword()
+			return kn.sendWebhookWithRetry(ctx, cmd, false)
+		}
+		return false, err
+	}
 	return true, nil
 }
 
