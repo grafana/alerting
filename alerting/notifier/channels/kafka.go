@@ -85,7 +85,9 @@ func buildKafkaSettings(fc FactoryConfig) (*kafkaSettings, error) {
 		if settings.PassFilePath == "" {
 			return nil, errors.New("if basic auth is enabled, password file path must be provided")
 		}
-		settings.RefreshPassword()
+		if err := settings.RefreshPassword(); err != nil {
+			return nil, err
+		}
 	}
 	return &settings, nil
 }
@@ -93,7 +95,7 @@ func buildKafkaSettings(fc FactoryConfig) (*kafkaSettings, error) {
 func (ks *kafkaSettings) RefreshPassword() error {
 	passwordBytes, err := os.ReadFile(ks.PassFilePath)
 	if err != nil {
-		return fmt.Errorf("Failed to read password from file: %w", err)
+		return fmt.Errorf("failed to read password from file: %w", err)
 	}
 	ks.AuthPass = string(passwordBytes)
 	return nil
@@ -169,7 +171,9 @@ func (kn *KafkaNotifier) sendWebhookWithRetry(ctx context.Context, cmd *SendWebh
 		// No way to check if this was an auth error. Retry with a refreshed password
 		if retry {
 			kn.log.Debug("Retrying with a refreshed password")
-			kn.settings.RefreshPassword()
+			if err := kn.settings.RefreshPassword(); err != nil {
+				return false, err
+			}
 			return kn.sendWebhookWithRetry(ctx, cmd, false)
 		}
 		return false, err
