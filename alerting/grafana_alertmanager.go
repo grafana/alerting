@@ -130,6 +130,7 @@ type Route = config.Route
 type Integration = notify.Integration
 type DispatcherLimits = dispatch.Limits
 type Notifier = notify.Notifier
+type NotifyReceiver = notify.Receiver
 
 // Configuration is an interface for accessing Alertmanager configuration.
 type Configuration interface {
@@ -271,7 +272,7 @@ func (am *GrafanaAlertmanager) StopAndWait() {
 
 // GetReceivers returns the receivers configured as part of the current configuration.
 // It is safe to call concurrently.
-func (am *GrafanaAlertmanager) GetReceivers() []*notify.Receiver {
+func (am *GrafanaAlertmanager) GetReceivers() []*NotifyReceiver {
 	am.reloadConfigMtx.RLock()
 	defer am.reloadConfigMtx.RUnlock()
 
