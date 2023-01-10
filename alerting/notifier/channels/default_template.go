@@ -16,8 +16,8 @@ const (
 var DefaultTemplateString = `
 {{ define "__subject" }}[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ if gt (.Alerts.Resolved | len) 0 }}, RESOLVED:{{ .Alerts.Resolved | len }}{{ end }}{{ end }}] {{ .GroupLabels.SortedPairs.Values | join " " }} {{ if gt (len .CommonLabels) (len .GroupLabels) }}({{ with .CommonLabels.Remove .GroupLabels.Names }}{{ .Values | join " " }}{{ end }}){{ end }}{{ end }}
 
-{{ define "__text_values_list" }}{{ $exprs := .Exprs }}{{ $numValues := len .Values }}{{ if $numValues }}{{ $first := gt $numValues 1 }}{{ range $refID, $value := .Values -}}
-{{ $refID }}={{ $value }}{{ if $expr := index $exprs $refID }} {{ $expr }}{{ end }}{{ if $first }}, {{ end }}{{ $first = false }}{{ end -}}
+{{ define "__text_values_list" }}{{ $exprs := .Exprs }}{{ $numValues := len .Values }}{{ if $numValues }}{{ $first := true }}{{ range $refID, $value := .Values -}}
+{{ if $first }}{{ $first = false }}{{ else }}, {{ end }}{{ $refID }}={{ $value }}{{ if $expr := index $exprs $refID }} {{ $expr }}{{ end }}{{ end -}}
 {{ else }}[no value]{{ end }}{{ end }}
 
 {{ define "__text_alert_list" }}{{ range . }}
