@@ -17,7 +17,7 @@ require (
 require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
-	github.com/aws/aws-sdk-go v1.44.166 // indirect
+	github.com/aws/aws-sdk-go v1.44.171 // indirect
 	github.com/benbjohnson/clock v1.3.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
@@ -66,7 +66,7 @@ require (
 	github.com/prometheus/common/sigv4 v0.1.0 // indirect
 	github.com/prometheus/exporter-toolkit v0.8.2 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
-	github.com/rs/cors v1.8.2 // indirect
+	github.com/rs/cors v1.8.3 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/shurcooL/vfsgen v0.0.0-20200824052919-0d455de96546 // indirect
@@ -83,7 +83,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.24.1-0.20221223152405-14ee77b330f2
+replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.25.1-0.20230109182643-002d8ba820f6
 
 replace github.com/Unknwon/com v1.0.1 => github.com/unknwon/com v1.0.1
 
