@@ -17,9 +17,18 @@ func TestDefaultTemplateString(t *testing.T) {
 	alerts := []*types.Alert{
 		{ // Firing with dashboard and panel ID.
 			Alert: model.Alert{
-				Labels: model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Labels: model.LabelSet{
+					"alertname": "alert1",
+					"lbl1":      "val1",
+				},
 				Annotations: model.LabelSet{
-					"ann1": "annv1", "__orgId__": "1", "__dashboardUid__": "dbuid123", "__panelId__": "puid123", "__values__": "{\"A\": 1234}", "__value_string__": "1234",
+					"ann1":             "annv1",
+					"__orgId__":        "1",
+					"__dashboardUid__": "dbuid123",
+					"__panelId__":      "puid123",
+					"__exprs__":        "{\"A\": \"rate(metric[5m])\"}",
+					"__values__":       "{\"A\": 1234}",
+					"__value_string__": "1234",
 				},
 				StartsAt:     time.Now(),
 				EndsAt:       time.Now().Add(1 * time.Hour),
@@ -27,17 +36,32 @@ func TestDefaultTemplateString(t *testing.T) {
 			},
 		}, { // Firing without dashboard and panel ID.
 			Alert: model.Alert{
-				Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
-				Annotations:  model.LabelSet{"ann1": "annv2", "__values__": "{\"A\": 1234}", "__value_string__": "1234"},
+				Labels: model.LabelSet{
+					"alertname": "alert1",
+					"lbl1":      "val2",
+				},
+				Annotations: model.LabelSet{
+					"ann1":             "annv2",
+					"__values__":       "{\"A\": 1234}",
+					"__value_string__": "1234",
+				},
 				StartsAt:     time.Now(),
 				EndsAt:       time.Now().Add(2 * time.Hour),
 				GeneratorURL: "http://localhost/alert2",
 			},
 		}, { // Resolved with dashboard and panel ID.
 			Alert: model.Alert{
-				Labels: model.LabelSet{"alertname": "alert1", "lbl1": "val3"},
+				Labels: model.LabelSet{
+					"alertname": "alert1",
+					"lbl1":      "val3",
+				},
 				Annotations: model.LabelSet{
-					"ann1": "annv3", "__orgId__": "1", "__dashboardUid__": "dbuid456", "__panelId__": "puid456", "__values__": "{\"A\": 1234}", "__value_string__": "1234",
+					"ann1":             "annv3",
+					"__orgId__":        "1",
+					"__dashboardUid__": "dbuid456",
+					"__panelId__":      "puid456",
+					"__values__":       "{\"A\": 1234}",
+					"__value_string__": "1234",
 				},
 				StartsAt:     time.Now().Add(-1 * time.Hour),
 				EndsAt:       time.Now().Add(-30 * time.Minute),
@@ -45,8 +69,15 @@ func TestDefaultTemplateString(t *testing.T) {
 			},
 		}, { // Resolved without dashboard and panel ID.
 			Alert: model.Alert{
-				Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val4"},
-				Annotations:  model.LabelSet{"ann1": "annv4", "__values__": "{\"A\": 1234}", "__value_string__": "1234"},
+				Labels: model.LabelSet{
+					"alertname": "alert1",
+					"lbl1":      "val4",
+				},
+				Annotations: model.LabelSet{
+					"ann1":             "annv4",
+					"__values__":       "{\"A\": 1234}",
+					"__value_string__": "1234",
+				},
 				StartsAt:     time.Now().Add(-2 * time.Hour),
 				EndsAt:       time.Now().Add(-3 * time.Hour),
 				GeneratorURL: "http://localhost/alert4",
@@ -90,7 +121,7 @@ func TestDefaultTemplateString(t *testing.T) {
 			templateString: DefaultMessageEmbed,
 			expected: `**Firing**
 
-Value: A=1234
+Value: A=1234 rate(metric[5m])
 Labels:
  - alertname = alert1
  - lbl1 = val1
@@ -138,7 +169,7 @@ Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matc
 			templateString: `{{ template "teams.default.message" .}}`,
 			expected: `**Firing**
 
-Value: A=1234
+Value: A=1234 rate(metric[5m])
 Labels:
  - alertname = alert1
  - lbl1 = val1
