@@ -94,10 +94,11 @@ type GrafanaAlertmanager struct {
 	stageMetrics      *notify.Metrics
 	dispatcherMetrics *dispatch.DispatcherMetrics
 
-	reloadConfigMtx sync.RWMutex
-	configHash      [16]byte
-	config          []byte
-	receivers       []*notify.Receiver
+	reloadConfigMtx              sync.RWMutex
+	configHash                   [16]byte
+	config                       []byte
+	receivers                    []*notify.Receiver
+	buildReceiverIntegrationFunc func(next *GrafanaReceiver, tmpl *Template) (Notifier, error)
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -138,6 +139,8 @@ type Configuration interface {
 	InhibitRules() []*InhibitRule
 	MuteTimeIntervals() []MuteTimeInterval
 	ReceiverIntegrations() (map[string][]*Integration, error)
+	BuildReceiverIntegrationsFunc() func(next *GrafanaReceiver, tmpl *Template) (Notifier, error)
+
 	RoutingTree() *Route
 	Templates() *Template
 
@@ -361,6 +364,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 		receivers = append(receivers, notify.NewReceiver(name, isActive, integrationsMap[name]))
 	}
 	am.receivers = receivers
+	am.buildReceiverIntegrationFunc = cfg.BuildReceiverIntegrationsFunc()
 
 	am.wg.Add(1)
 	go func() {
@@ -575,7 +579,6 @@ func (am *GrafanaAlertmanager) getTemplate() (*template.Template, error) {
 	return am.templates, nil
 }
 
-// TODO: This needs an implementation
 func (am *GrafanaAlertmanager) buildReceiverIntegration(next *GrafanaReceiver, tmpl *template.Template) (Notifier, error) {
-	return nil, nil
+	return am.buildReceiverIntegrationFunc(next, tmpl)
 }
