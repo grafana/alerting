@@ -28,6 +28,7 @@ type ExtendedAlert struct {
 	SilenceURL    string             `json:"silenceURL"`
 	DashboardURL  string             `json:"dashboardURL"`
 	PanelURL      string             `json:"panelURL"`
+	Exprs         map[string]string  `json:"exprs"`
 	Values        map[string]float64 `json:"values"`
 	ValueString   string             `json:"valueString"` // TODO: Remove in Grafana 10
 	ImageURL      string             `json:"imageURL,omitempty"`
@@ -110,11 +111,18 @@ func extendAlert(alert template.Alert, externalURL string, logger Logger) *Exten
 	}
 
 	if alert.Annotations != nil {
+		if s, ok := alert.Annotations[models.ExprsAnnotation]; ok {
+			if err := json.Unmarshal([]byte(s), &extended.Exprs); err != nil {
+				logger.Warn("failed to unmarshal exprs annotation", "error", err)
+			}
+		}
+
 		if s, ok := alert.Annotations[models.ValuesAnnotation]; ok {
 			if err := json.Unmarshal([]byte(s), &extended.Values); err != nil {
 				logger.Warn("failed to unmarshal values annotation", "error", err)
 			}
 		}
+
 		// TODO: Remove in Grafana 10
 		extended.ValueString = alert.Annotations[models.ValueStringAnnotation]
 	}
