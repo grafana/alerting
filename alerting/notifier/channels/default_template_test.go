@@ -42,7 +42,7 @@ func TestDefaultTemplateString(t *testing.T) {
 				},
 				Annotations: model.LabelSet{
 					"ann1":             "annv2",
-					"__values__":       "{\"A\": 1234}",
+					"__values__":       "{\"A\": 1234, \"B\": 5678, \"C\": 9}",
 					"__value_string__": "1234",
 				},
 				StartsAt:     time.Now(),
@@ -132,7 +132,7 @@ Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matc
 Dashboard: http://localhost/grafana/d/dbuid123?orgId=1
 Panel: http://localhost/grafana/d/dbuid123?orgId=1&viewPanel=puid123
 
-Value: A=1234
+Value: A=1234, B=5678, C=9
 Labels:
  - alertname = alert1
  - lbl1 = val2
@@ -187,7 +187,7 @@ Panel: [http://localhost/grafana/d/dbuid123?orgId=1&viewPanel=puid123](http://lo
 
 
 
-Value: A=1234
+Value: A=1234, B=5678, C=9
 Labels:
  - alertname = alert1
  - lbl1 = val2
