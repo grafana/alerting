@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/grafana/alerting/alerting/models"
 	"net/url"
 	"regexp"
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/grafana/alerting/alerting/models"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
