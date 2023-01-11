@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/grafana/alerting/alerting/models"
 	"net/url"
 	"regexp"
 	"sync"
@@ -403,7 +404,7 @@ func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) err
 		}
 
 		for k, v := range a.Labels {
-			if len(v) == 0 { // Skip empty labels.
+			if len(v) == 0 || k == models.NamespaceUIDLabel { // Skip empty and namespace UID labels.
 				continue
 			}
 
