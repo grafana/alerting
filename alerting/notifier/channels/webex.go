@@ -1,28 +1,20 @@
 package channels
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	"io"
 	"net/url"
 
-	"github.com/prometheus/alertmanager/template"
+	"github.com/prometheus/alertmanager/config"
+	"github.com/prometheus/alertmanager/notify/webex"
 	"github.com/prometheus/alertmanager/types"
+	config2 "github.com/prometheus/common/config"
 )
 
 const webexAPIURL = "https://webexapis.com/v1/messages"
-
-// WebexNotifier is responsible for sending alert notifications as webex messages.
-type WebexNotifier struct {
-	*Base
-	ns       WebhookSender
-	log      Logger
-	images   ImageStore
-	tmpl     *template.Template
-	orgID    int64
-	settings *webexSettings
-}
 
 // PLEASE do not touch these settings without taking a look at what we support as part of
 // https://github.com/prometheus/alertmanager/blob/main/notify/webex/webex.go
@@ -34,7 +26,7 @@ type webexSettings struct {
 	Token   string `json:"bot_token" yaml:"bot_token"`
 }
 
-func buildWebexSettings(factoryConfig FactoryConfig) (*webexSettings, error) {
+func buildWebexSettings(factoryConfig FactoryConfig) (*config.WebexConfig, error) {
 	settings := &webexSettings{}
 	err := factoryConfig.Config.unmarshalSettings(&settings)
 	if err != nil {
@@ -57,10 +49,23 @@ func buildWebexSettings(factoryConfig FactoryConfig) (*webexSettings, error) {
 	}
 	settings.APIURL = u.String()
 
-	return settings, err
+	return &config.WebexConfig{
+		NotifierConfig: config.NotifierConfig{
+			VSendResolved: !factoryConfig.Config.DisableResolveMessage,
+		},
+		HTTPConfig: &config2.HTTPClientConfig{
+			Authorization: &config2.Authorization{
+				Type:        "Bearer",
+				Credentials: config2.Secret(settings.Token),
+			},
+		},
+		APIURL:  &config.URL{URL: u},
+		Message: settings.Message,
+		RoomID:  settings.RoomID,
+	}, err
 }
 
-func WebexFactory(fc FactoryConfig) (NotificationChannel, error) {
+func WebexFactory(fc FactoryConfig) (*webex.Notifier, error) {
 	notifier, err := buildWebexNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -71,93 +76,44 @@ func WebexFactory(fc FactoryConfig) (NotificationChannel, error) {
 	return notifier, nil
 }
 
+func withImages(imageStore ImageStore, logger Logger) webex.PreSendHookFunc {
+	return func(ctx context.Context, payload webex.Payload, alerts []*types.Alert) (io.Reader, error) {
+		extended := WebexMessage{
+			Payload: payload,
+			Files:   nil,
+		}
+		// Augment our Alert data with ImageURLs if available.
+		_ = withStoredImages(ctx, logger, imageStore, func(index int, image Image) error {
+			// Cisco Webex only supports a single image per request: https://developer.webex.com/docs/basics#message-attachments
+			if image.HasURL() {
+				extended.Files = append(extended.Files, image.URL)
+				return ErrImagesDone
+			}
+
+			return nil
+		}, alerts...)
+
+		var buffer bytes.Buffer
+		if err := json.NewEncoder(&buffer).Encode(payload); err != nil {
+			return nil, err
+		}
+		return &buffer, nil
+	}
+}
+
 // buildWebexSettings is the constructor for the Webex notifier.
-func buildWebexNotifier(factoryConfig FactoryConfig) (*WebexNotifier, error) {
+func buildWebexNotifier(factoryConfig FactoryConfig) (*webex.Notifier, error) {
 	settings, err := buildWebexSettings(factoryConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	return &WebexNotifier{
-		Base:     NewBase(factoryConfig.Config),
-		orgID:    factoryConfig.Config.OrgID,
-		log:      factoryConfig.Logger,
-		ns:       factoryConfig.NotificationService,
-		images:   factoryConfig.ImageStore,
-		tmpl:     factoryConfig.Template,
-		settings: settings,
-	}, nil
+	var options []config2.HTTPClientOption
+	return webex.WithPreSendHook(webex.New(settings, factoryConfig.Template, factoryConfig.Logger, options...))(withImages(factoryConfig.ImageStore, factoryConfig.Logger))
 }
 
 // WebexMessage defines the JSON object to send to Webex endpoints.
 type WebexMessage struct {
-	RoomID  string   `json:"roomId,omitempty"`
-	Message string   `json:"markdown"`
-	Files   []string `json:"files,omitempty"`
-}
-
-// Notify implements the Notifier interface.
-func (wn *WebexNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	var tmplErr error
-	tmpl, data := TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
-
-	message, truncated := TruncateInBytes(tmpl(wn.settings.Message), 4096)
-	if truncated {
-		wn.log.Warn("Webex message too long, truncating message", "OriginalMessage", wn.settings.Message)
-	}
-
-	if tmplErr != nil {
-		wn.log.Warn("Failed to template webex message", "Error", tmplErr.Error())
-		tmplErr = nil
-	}
-
-	msg := &WebexMessage{
-		RoomID:  wn.settings.RoomID,
-		Message: message,
-		Files:   []string{},
-	}
-
-	// Augment our Alert data with ImageURLs if available.
-	_ = withStoredImages(ctx, wn.log, wn.images, func(index int, image Image) error {
-		// Cisco Webex only supports a single image per request: https://developer.webex.com/docs/basics#message-attachments
-		if image.HasURL() {
-			data.Alerts[index].ImageURL = image.URL
-			msg.Files = append(msg.Files, image.URL)
-			return ErrImagesDone
-		}
-
-		return nil
-	}, as...)
-
-	body, err := json.Marshal(msg)
-	if err != nil {
-		return false, err
-	}
-
-	parsedURL := tmpl(wn.settings.APIURL)
-	if tmplErr != nil {
-		return false, tmplErr
-	}
-
-	cmd := &SendWebhookSettings{
-		URL:        parsedURL,
-		Body:       string(body),
-		HTTPMethod: http.MethodPost,
-	}
-
-	if wn.settings.Token != "" {
-		headers := make(map[string]string)
-		headers["Authorization"] = fmt.Sprintf("Bearer %s", wn.settings.Token)
-		cmd.HTTPHeader = headers
-	}
-
-	if err := wn.ns.SendWebhook(ctx, cmd); err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
-func (wn *WebexNotifier) SendResolved() bool {
-	return !wn.GetDisableResolveMessage()
+	webex.Payload
+	Files []string `json:"files,omitempty"`
 }
