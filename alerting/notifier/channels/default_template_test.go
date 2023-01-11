@@ -121,7 +121,9 @@ func TestDefaultTemplateString(t *testing.T) {
 			templateString: DefaultMessageEmbed,
 			expected: `**Firing**
 
-Value: A=1234 rate(metric[5m])
+Exprs:
+ - A = rate(metric[5m])
+Value: A=1234
 Labels:
  - alertname = alert1
  - lbl1 = val1
@@ -169,7 +171,9 @@ Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matc
 			templateString: `{{ template "teams.default.message" .}}`,
 			expected: `**Firing**
 
-Value: A=1234 rate(metric[5m])
+Exprs:
+ - A = rate(metric[5m])
+Value: A=1234
 Labels:
  - alertname = alert1
  - lbl1 = val1

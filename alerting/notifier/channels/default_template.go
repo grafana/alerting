@@ -16,12 +16,14 @@ const (
 var DefaultTemplateString = `
 {{ define "__subject" }}[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ if gt (.Alerts.Resolved | len) 0 }}, RESOLVED:{{ .Alerts.Resolved | len }}{{ end }}{{ end }}] {{ .GroupLabels.SortedPairs.Values | join " " }} {{ if gt (len .CommonLabels) (len .GroupLabels) }}({{ with .CommonLabels.Remove .GroupLabels.Names }}{{ .Values | join " " }}{{ end }}){{ end }}{{ end }}
 
-{{ define "__text_values_list" }}{{ $exprs := .Exprs }}{{ $numValues := len .Values }}{{ if $numValues }}{{ $first := true }}{{ range $refID, $value := .Values -}}
-{{ if $first }}{{ $first = false }}{{ else }}, {{ end }}{{ $refID }}={{ $value }}{{ if $expr := index $exprs $refID }} {{ $expr }}{{ end }}{{ end -}}
+{{ define "__text_values_list" }}{{ if len .Values }}{{ $first := true }}{{ range $refID, $value := .Values -}}
+{{ if $first }}{{ $first = false }}{{ else }}, {{ end }}{{ $refID }}={{ $value }}{{ end -}}
 {{ else }}[no value]{{ end }}{{ end }}
 
 {{ define "__text_alert_list" }}{{ range . }}
-Value: {{ template "__text_values_list" . }}
+{{ if .Exprs }}Exprs:
+{{ range $refID, $expr := .Exprs }} - {{ $refID }} = {{ $expr }}
+{{ end }}{{ end }}Value: {{ template "__text_values_list" . }}
 Labels:
 {{ range .Labels.SortedPairs }} - {{ .Name }} = {{ .Value }}
 {{ end }}Annotations:
@@ -42,7 +44,9 @@ Labels:
 
 
 {{ define "__teams_text_alert_list" }}{{ range . }}
-Value: {{ template "__text_values_list" . }}
+{{ if .Exprs }}Exprs:
+{{ range $refID, $expr := .Exprs }} - {{ $refID }} = {{ $expr }}
+{{ end }}{{end }}Value: {{ template "__text_values_list" . }}
 Labels:
 {{ range .Labels.SortedPairs }} - {{ .Name }} = {{ .Value }}
 {{ end }}
