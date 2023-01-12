@@ -79,7 +79,7 @@ func TestKafkaNotifier(t *testing.T) {
 				"kafkaTopic": "sometopic",
 				"description": "customDescription",
 				"details": "customDetails",
-				"basicAuthUser": "batman",
+				"username": "batman",
 				"password": "BruceWayne"
 			}`,
 			alerts: []*types.Alert{
@@ -303,7 +303,7 @@ func TestKafkaNotifier(t *testing.T) {
 				"kafkaTopic": "myTopic",
 				"apiVersion": "v3",
 				"kafkaClusterId": "lkc-abcd",
-				"basicAuthUser": "batman",
+				"username": "batman",
 				"password": "BruceWayne"
 			}
 			`,

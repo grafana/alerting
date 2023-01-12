@@ -57,7 +57,7 @@ type kafkaSettings struct {
 	Topic          string `json:"kafkaTopic,omitempty" yaml:"kafkaTopic,omitempty"`
 	Description    string `json:"description,omitempty" yaml:"description,omitempty"`
 	Details        string `json:"details,omitempty" yaml:"details,omitempty"`
-	BasicAuthUser  string `json:"basicAuthUser,omitempty" yaml:"user,omitempty"`
+	Username       string `json:"username,omitempty" yaml:"username,omitempty"`
 	Password       string `json:"password,omitempty" yaml:"password,omitempty"`
 	APIVersion     string `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
 	KafkaClusterID string `json:"kafkaClusterId,omitempty" yaml:"kafkaClusterId,omitempty"`
@@ -166,7 +166,7 @@ func (kn *KafkaNotifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert
 			"Content-Type": "application/vnd.kafka.json.v2+json",
 			"Accept":       "application/vnd.kafka.v2+json",
 		},
-		User:     kn.settings.BasicAuthUser,
+		User:     kn.settings.Username,
 		Password: kn.settings.Password,
 	}
 
@@ -206,7 +206,7 @@ func (kn *KafkaNotifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert
 			"Accept":       "application/json",
 		},
 		Validation: validateKafkaV3Response,
-		User:       kn.settings.BasicAuthUser,
+		User:       kn.settings.Username,
 		Password:   kn.settings.Password,
 	}
 
