@@ -63,14 +63,6 @@ type kafkaSettings struct {
 	KafkaClusterID string `json:"kafkaClusterId,omitempty" yaml:"kafkaClusterId,omitempty"`
 }
 
-// The user can either enter the password in the Grafana UI
-// or provide a file path from which to read the password.
-// These values represent the two options.
-const (
-	PasswordSourceFromInput = "password"
-	PasswordSourceFromFile  = "passwordFile"
-)
-
 // The user can choose which API version to use when sending
 // messages to Kafka. The default is v2.
 // Details on how these versions differ can be found here:
@@ -154,12 +146,14 @@ func (kn *KafkaNotifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert
 	tmpl, _ := TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
 
 	topicURL := strings.TrimRight(kn.settings.Endpoint, "/") + "/topics/" + tmpl(kn.settings.Topic)
+	if tmplErr != nil {
+		kn.log.Warn("failed to template Kafka url", "error", tmplErr.Error())
+	}
 
 	body, err := kn.buildBody(ctx, tmpl, as...)
 	if err != nil {
 		return false, err
 	}
-
 	if tmplErr != nil {
 		kn.log.Warn("failed to template Kafka message", "error", tmplErr.Error())
 	}
@@ -177,7 +171,7 @@ func (kn *KafkaNotifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert
 	}
 
 	if err := kn.ns.SendWebhook(ctx, cmd); err != nil {
-		kn.log.Error("Failed to send notification to Kafka", "error", err, "body", cmd.Body)
+		kn.log.Error("Failed to send notification to Kafka", "error", err, "body", body)
 		return false, err
 	}
 	return true, nil
@@ -191,6 +185,9 @@ func (kn *KafkaNotifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert
 	// For v3 the Produce URL is like this,
 	// <Endpoint>/kafka/v3/clusters/<Cluster ID>/topics/<Topic Name>/records
 	topicURL := strings.TrimRight(kn.settings.Endpoint, "/") + "/kafka/v3/clusters/" + tmpl(kn.settings.KafkaClusterID) + "/topics/" + tmpl(kn.settings.Topic) + "/records"
+	if tmplErr != nil {
+		kn.log.Warn("failed to template Kafka url", "error", tmplErr.Error())
+	}
 
 	body, err := kn.buildV3Body(ctx, tmpl, as...)
 	if err != nil {
@@ -218,7 +215,7 @@ func (kn *KafkaNotifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert
 	// by setting “Transfer-Encoding: chunked” header.
 	// For as long as the connection is kept open, the server will keep accepting records.
 	if err := kn.ns.SendWebhook(ctx, cmd); err != nil {
-		kn.log.Error("Failed to send notification to Kafka", "error", err, "body", cmd.Body)
+		kn.log.Error("Failed to send notification to Kafka", "error", err, "body", body)
 		return false, err
 	}
 	return true, nil
