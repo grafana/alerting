@@ -26,7 +26,6 @@ func TestDefaultTemplateString(t *testing.T) {
 					"__orgId__":        "1",
 					"__dashboardUid__": "dbuid123",
 					"__panelId__":      "puid123",
-					"__exprs__":        "{\"A\": \"rate(metric[5m])\"}",
 					"__values__":       "{\"A\": 1234}",
 					"__value_string__": "1234",
 				},
@@ -121,8 +120,6 @@ func TestDefaultTemplateString(t *testing.T) {
 			templateString: DefaultMessageEmbed,
 			expected: `**Firing**
 
-Exprs:
- - A = rate(metric[5m])
 Value: A=1234
 Labels:
  - alertname = alert1
@@ -171,8 +168,6 @@ Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matc
 			templateString: `{{ template "teams.default.message" .}}`,
 			expected: `**Firing**
 
-Exprs:
- - A = rate(metric[5m])
 Value: A=1234
 Labels:
  - alertname = alert1

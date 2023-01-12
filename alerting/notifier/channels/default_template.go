@@ -21,9 +21,7 @@ var DefaultTemplateString = `
 {{ else }}[no value]{{ end }}{{ end }}
 
 {{ define "__text_alert_list" }}{{ range . }}
-{{ if .Exprs }}Exprs:
-{{ range $refID, $expr := .Exprs }} - {{ $refID }} = {{ $expr }}
-{{ end }}{{ end }}Value: {{ template "__text_values_list" . }}
+Value: {{ template "__text_values_list" . }}
 Labels:
 {{ range .Labels.SortedPairs }} - {{ .Name }} = {{ .Value }}
 {{ end }}Annotations:
@@ -44,9 +42,7 @@ Labels:
 
 
 {{ define "__teams_text_alert_list" }}{{ range . }}
-{{ if .Exprs }}Exprs:
-{{ range $refID, $expr := .Exprs }} - {{ $refID }} = {{ $expr }}
-{{ end }}{{end }}Value: {{ template "__text_values_list" . }}
+Value: {{ template "__text_values_list" . }}
 Labels:
 {{ range .Labels.SortedPairs }} - {{ .Name }} = {{ .Value }}
 {{ end }}
