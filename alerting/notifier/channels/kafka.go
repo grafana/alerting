@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/prometheus/alertmanager/notify"
@@ -58,11 +57,8 @@ type kafkaSettings struct {
 	Topic          string `json:"kafkaTopic,omitempty" yaml:"kafkaTopic,omitempty"`
 	Description    string `json:"description,omitempty" yaml:"description,omitempty"`
 	Details        string `json:"details,omitempty" yaml:"details,omitempty"`
-	BasicAuth      bool   `json:"basicAuth,omitempty" yaml:"basicAuth,omitempty"`
 	BasicAuthUser  string `json:"basicAuthUser,omitempty" yaml:"user,omitempty"`
-	PasswordSource string `json:"passwordSource,omitempty" yaml:"passwordSource,omitempty"`
-	PassFilePath   string `json:"passwordFilePath,omitempty" yaml:"passwordFilePath,omitempty"`
-	AuthPass       string `json:"password,omitempty" yaml:"password,omitempty"`
+	Password       string `json:"password,omitempty" yaml:"password,omitempty"`
 	APIVersion     string `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
 	KafkaClusterID string `json:"kafkaClusterId,omitempty" yaml:"kafkaClusterId,omitempty"`
 }
@@ -113,36 +109,7 @@ func buildKafkaSettings(fc FactoryConfig) (*kafkaSettings, error) {
 	} else if settings.APIVersion != APIVersionV2 && settings.APIVersion != APIVersionV3 {
 		return nil, fmt.Errorf("unsupported api version: %s", settings.APIVersion)
 	}
-
-	if settings.BasicAuth {
-		if settings.BasicAuthUser == "" {
-			return nil, errors.New("if basic auth is enabled, user must be provided")
-		}
-		if settings.PasswordSource == PasswordSourceFromFile {
-			if settings.PassFilePath == "" {
-				return nil, errors.New("password file path must be provided")
-			}
-			if err := settings.RefreshPassword(); err != nil {
-				return nil, err
-			}
-		} else if settings.PasswordSource == PasswordSourceFromInput {
-			if settings.AuthPass == "" {
-				return nil, errors.New("password must be provided")
-			}
-		} else {
-			return nil, fmt.Errorf("invalid password source: %s", settings.PasswordSource)
-		}
-	}
 	return &settings, nil
-}
-
-func (ks *kafkaSettings) RefreshPassword() error {
-	passwordBytes, err := os.ReadFile(ks.PassFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to read password from file: %w", err)
-	}
-	ks.AuthPass = string(passwordBytes)
-	return nil
 }
 
 func KafkaFactory(fc FactoryConfig) (NotificationChannel, error) {
@@ -205,18 +172,15 @@ func (kn *KafkaNotifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert
 			"Content-Type": "application/vnd.kafka.json.v2+json",
 			"Accept":       "application/vnd.kafka.v2+json",
 		},
+		User:     kn.settings.BasicAuthUser,
+		Password: kn.settings.Password,
 	}
 
-	retryOnFailure := false
-	if kn.settings.BasicAuth {
-		cmd.User = kn.settings.BasicAuthUser
-		cmd.Password = kn.settings.AuthPass
-
-		// Only retry if the password is read from a file becase the password could have changed.
-		retryOnFailure = kn.settings.PasswordSource == PasswordSourceFromFile
+	if err := kn.ns.SendWebhook(ctx, cmd); err != nil {
+		kn.log.Error("Failed to send notification to Kafka", "error", err, "body", cmd.Body)
+		return false, err
 	}
-
-	return kn.sendWebhookWithRetry(ctx, cmd, retryOnFailure)
+	return true, nil
 }
 
 // Use the v3 API to send the alert notification.
@@ -245,22 +209,19 @@ func (kn *KafkaNotifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert
 			"Accept":       "application/json",
 		},
 		Validation: validateKafkaV3Response,
-	}
-
-	retryOnFailure := false
-	if kn.settings.BasicAuth {
-		cmd.User = kn.settings.BasicAuthUser
-		cmd.Password = kn.settings.AuthPass
-
-		// Only retry if the password is read from a file becase the password could have changed.
-		retryOnFailure = kn.settings.PasswordSource == PasswordSourceFromFile
+		User:       kn.settings.BasicAuthUser,
+		Password:   kn.settings.Password,
 	}
 
 	// TODO: Convert to a stream - keep a single connection open and send records on it.
 	// Can be implemented nicely using channels. The v3 API can be used in streaming mode
 	// by setting “Transfer-Encoding: chunked” header.
 	// For as long as the connection is kept open, the server will keep accepting records.
-	return kn.sendWebhookWithRetry(ctx, cmd, retryOnFailure)
+	if err := kn.ns.SendWebhook(ctx, cmd); err != nil {
+		kn.log.Error("Failed to send notification to Kafka", "error", err, "body", cmd.Body)
+		return false, err
+	}
+	return true, nil
 }
 
 /*
@@ -294,22 +255,6 @@ func validateKafkaV3Response(rawResponse []byte, statusCode int) error {
 		return fmt.Errorf("failed to publish message to Kafka. response: %s", string(rawResponse))
 	}
 	return nil
-}
-
-func (kn *KafkaNotifier) sendWebhookWithRetry(ctx context.Context, cmd *SendWebhookSettings, retry bool) (bool, error) {
-	if err := kn.ns.SendWebhook(ctx, cmd); err != nil {
-		kn.log.Error("Failed to send notification to Kafka", "error", err, "body", cmd.Body)
-		// No clean way to check if this was an auth error. Retry with a refreshed password
-		if retry {
-			kn.log.Debug("Retrying with a refreshed password.")
-			if err := kn.settings.RefreshPassword(); err != nil {
-				return false, err
-			}
-			return kn.sendWebhookWithRetry(ctx, cmd, false)
-		}
-		return false, err
-	}
-	return true, nil
 }
 
 func (kn *KafkaNotifier) SendResolved() bool {

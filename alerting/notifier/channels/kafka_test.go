@@ -79,10 +79,8 @@ func TestKafkaNotifier(t *testing.T) {
 				"kafkaTopic": "sometopic",
 				"description": "customDescription",
 				"details": "customDetails",
-				"basicAuth": true,
 				"basicAuthUser": "batman",
-				"password": "BruceWayne",
-				"passwordSource": "password"
+				"password": "BruceWayne"
 			}`,
 			alerts: []*types.Alert{
 				{
@@ -159,63 +157,6 @@ func TestKafkaNotifier(t *testing.T) {
 			name:         "Topic missing",
 			settings:     `{"kafkaRestProxy": "http://localhost"}`,
 			expInitError: `could not find kafka topic property in settings`,
-		}, {
-			name: "Basic auth missing username",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost",
-				"kafkaTopic": "myTopic",
-				"basicAuth": true
-			}
-			`,
-			expInitError: `if basic auth is enabled, user must be provided`,
-		}, {
-			name: "Basic auth missing password source",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost",
-				"kafkaTopic": "myTopic",
-				"basicAuth": true,
-				"basicAuthUser": "myUser"
-			}
-			`,
-			expInitError: `invalid password source: `,
-		}, {
-			name: "Basic auth invalid password source",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost",
-				"kafkaTopic": "myTopic",
-				"basicAuth": true,
-				"basicAuthUser": "myUser",
-				"passwordSource": "invalid"
-			}
-			`,
-			expInitError: `invalid password source: invalid`,
-		}, {
-			name: "Basic auth missing password",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost",
-				"kafkaTopic": "myTopic",
-				"basicAuth": true,
-				"basicAuthUser": "myUser",
-				"passwordSource": "password"
-			}
-			`,
-			expInitError: `password must be provided`,
-		}, {
-			name: "Basic auth missing password file",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost",
-				"kafkaTopic": "myTopic",
-				"basicAuth": true,
-				"basicAuthUser": "myUser",
-				"passwordSource": "passwordFile"
-			}
-			`,
-			expInitError: `password file path must be provided`,
 		}, {
 			name: "Bad API version",
 			settings: `
@@ -362,14 +303,14 @@ func TestKafkaNotifier(t *testing.T) {
 				"kafkaTopic": "myTopic",
 				"apiVersion": "v3",
 				"kafkaClusterId": "lkc-abcd",
-				"basicAuth": true,
 				"basicAuthUser": "batman",
-				"password": "BruceWayne",
-				"passwordSource": "password"
+				"password": "BruceWayne"
 			}
 			`,
 			expURL:      `http://localhost:882/kafka/v3/clusters/lkc-abcd/topics/myTopic/records`,
 			expMsgError: nil,
+			expUsername: "batman",
+			expPassword: "BruceWayne",
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -446,13 +387,8 @@ func TestKafkaNotifier(t *testing.T) {
 
 			require.Equal(t, c.expURL, webhookSender.Webhook.URL)
 			require.JSONEq(t, c.expMsg, webhookSender.Webhook.Body)
-
-			if c.expUsername != "" {
-				require.Equal(t, c.expUsername, webhookSender.Webhook.User)
-			}
-			if c.expPassword != "" {
-				require.Equal(t, c.expPassword, webhookSender.Webhook.Password)
-			}
+			require.Equal(t, c.expUsername, webhookSender.Webhook.User)
+			require.Equal(t, c.expPassword, webhookSender.Webhook.Password)
 			if c.expHTTPHeader != nil {
 				// As of go 1.12 maps are printed in key-sorted order to ease testing
 				// Ref: https://tip.golang.org/doc/go1.12#fmt
