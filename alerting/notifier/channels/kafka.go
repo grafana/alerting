@@ -91,6 +91,7 @@ func buildKafkaSettings(fc FactoryConfig) (*kafkaSettings, error) {
 	if settings.Details == "" {
 		settings.Details = DefaultMessageEmbed
 	}
+	settings.Password = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "password", settings.Password)
 
 	if settings.APIVersion == "" {
 		settings.APIVersion = APIVersionV2

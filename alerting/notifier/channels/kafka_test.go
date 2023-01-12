@@ -359,9 +359,11 @@ func TestKafkaNotifier(t *testing.T) {
 				ImageStore: images,
 				// TODO: allow changing the associated values for different tests.
 				NotificationService: webhookSender,
-				DecryptFunc:         nil,
-				Template:            tmpl,
-				Logger:              &FakeLogger{},
+				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
+					return fallback
+				},
+				Template: tmpl,
+				Logger:   &FakeLogger{},
 			}
 
 			pn, err := newKafkaNotifier(fc)
