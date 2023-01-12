@@ -24,7 +24,6 @@ const (
 	// StateReasonAnnotation is the name of the annotation that explains the difference between evaluation state and alert state (i.e. changing state when NoData or Error).
 	StateReasonAnnotation = GrafanaReservedLabelPrefix + "state_reason"
 
-	ExprsAnnotation       = "__exprs__"
 	ValuesAnnotation      = "__values__"
 	ValueStringAnnotation = "__value_string__"
 )
