@@ -61,7 +61,6 @@ type kafkaSettings struct {
 	Password       string `json:"password,omitempty" yaml:"password,omitempty"`
 	APIVersion     string `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
 	KafkaClusterID string `json:"kafkaClusterId,omitempty" yaml:"kafkaClusterId,omitempty"`
-	V3APIHost      string `json:"v3ApiHost,omitempty" yaml:"v3ApiHost,omitempty"`
 }
 
 // The user can choose which API version to use when sending
@@ -71,15 +70,6 @@ type kafkaSettings struct {
 const (
 	APIVersionV2 = "v2"
 	APIVersionV3 = "v3"
-)
-
-// The kafka REST v3 APIs can either be used directly on a Confluent Kafka
-// Cluster or via a proxy. The user can tell us what he's using.
-// By default, we will assume that the user is using a proxy - because
-// the name of the channel is "kafka Rest Proxy".
-const (
-	V3APIHostProxy     = "proxy"
-	V3APIHostCfltKafka = "confluentKafka"
 )
 
 func buildKafkaSettings(fc FactoryConfig) (*kafkaSettings, error) {
@@ -108,17 +98,9 @@ func buildKafkaSettings(fc FactoryConfig) (*kafkaSettings, error) {
 	if settings.APIVersion == "" {
 		settings.APIVersion = APIVersionV2
 	} else if settings.APIVersion == APIVersionV3 {
-
 		if settings.KafkaClusterID == "" {
 			return nil, errors.New("kafka cluster id must be provided when using api version 3")
 		}
-
-		if settings.V3APIHost == "" {
-			settings.V3APIHost = V3APIHostProxy
-		} else if settings.V3APIHost != V3APIHostProxy && settings.V3APIHost != V3APIHostCfltKafka {
-			return nil, fmt.Errorf("unsupported v3 api host: %s", settings.V3APIHost)
-		}
-
 	} else if settings.APIVersion != APIVersionV2 && settings.APIVersion != APIVersionV3 {
 		return nil, fmt.Errorf("unsupported api version: %s", settings.APIVersion)
 	}
@@ -203,15 +185,9 @@ func (kn *KafkaNotifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert
 	var tmplErr error
 	tmpl, _ := TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
 
-	// When using v3 APIs on a Confluent Kafka Server, all paths should be
-	// prefixed with /kafka. For example, the path to produce:
-	//   - Confluent Server: /kafka/v3/clusters/{cluster_id}/topics/{topic_name}/records
-	//   - Kafka REST Proxy:       /v3/clusters/{cluster_id}/topics/{topic_name}/records
-	var pathPrefix = ""
-	if kn.settings.V3APIHost == V3APIHostCfltKafka {
-		pathPrefix = "/kafka"
-	}
-	topicURL := kn.settings.Endpoint + pathPrefix + "/v3/clusters/" + tmpl(kn.settings.KafkaClusterID) + "/topics/" + tmpl(kn.settings.Topic) + "/records"
+	// For v3 the Produce URL is like this,
+	// <Endpoint>/v3/clusters/<KafkaClusterID>/topics/<Topic>/records
+	topicURL := kn.settings.Endpoint + "/v3/clusters/" + tmpl(kn.settings.KafkaClusterID) + "/topics/" + tmpl(kn.settings.Topic) + "/records"
 	if tmplErr != nil {
 		kn.log.Warn("failed to template Kafka url", "error", tmplErr.Error())
 	}
