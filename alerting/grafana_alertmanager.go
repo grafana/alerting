@@ -10,6 +10,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/grafana/alerting/alerting/models"
+
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
@@ -94,10 +96,11 @@ type GrafanaAlertmanager struct {
 	stageMetrics      *notify.Metrics
 	dispatcherMetrics *dispatch.DispatcherMetrics
 
-	reloadConfigMtx sync.RWMutex
-	configHash      [16]byte
-	config          []byte
-	receivers       []*notify.Receiver
+	reloadConfigMtx              sync.RWMutex
+	configHash                   [16]byte
+	config                       []byte
+	receivers                    []*notify.Receiver
+	buildReceiverIntegrationFunc func(next *GrafanaReceiver, tmpl *Template) (Notifier, error)
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -130,6 +133,7 @@ type Route = config.Route
 type Integration = notify.Integration
 type DispatcherLimits = dispatch.Limits
 type Notifier = notify.Notifier
+type NotifyReceiver = notify.Receiver
 
 // Configuration is an interface for accessing Alertmanager configuration.
 type Configuration interface {
@@ -137,6 +141,8 @@ type Configuration interface {
 	InhibitRules() []*InhibitRule
 	MuteTimeIntervals() []MuteTimeInterval
 	ReceiverIntegrations() (map[string][]*Integration, error)
+	BuildReceiverIntegrationsFunc() func(next *GrafanaReceiver, tmpl *Template) (Notifier, error)
+
 	RoutingTree() *Route
 	Templates() *Template
 
@@ -269,6 +275,17 @@ func (am *GrafanaAlertmanager) StopAndWait() {
 	am.wg.Wait()
 }
 
+// GetReceivers returns the receivers configured as part of the current configuration.
+// It is safe to call concurrently.
+func (am *GrafanaAlertmanager) GetReceivers() []*NotifyReceiver {
+	am.reloadConfigMtx.RLock()
+	defer am.reloadConfigMtx.RUnlock()
+
+	return am.receivers
+}
+
+// ConfigHash returns the hash of the current running configuration.
+// It is not safe to call without a lock.
 func (am *GrafanaAlertmanager) ConfigHash() [16]byte {
 	return am.configHash
 }
@@ -349,6 +366,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 		receivers = append(receivers, notify.NewReceiver(name, isActive, integrationsMap[name]))
 	}
 	am.receivers = receivers
+	am.buildReceiverIntegrationFunc = cfg.BuildReceiverIntegrationsFunc()
 
 	am.wg.Add(1)
 	go func() {
@@ -387,7 +405,7 @@ func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) err
 		}
 
 		for k, v := range a.Labels {
-			if len(v) == 0 { // Skip empty labels.
+			if len(v) == 0 || k == models.NamespaceUIDLabel { // Skip empty and namespace UID labels.
 				continue
 			}
 
@@ -563,7 +581,6 @@ func (am *GrafanaAlertmanager) getTemplate() (*template.Template, error) {
 	return am.templates, nil
 }
 
-// TODO: This needs an implementation
 func (am *GrafanaAlertmanager) buildReceiverIntegration(next *GrafanaReceiver, tmpl *template.Template) (Notifier, error) {
-	return nil, nil
+	return am.buildReceiverIntegrationFunc(next, tmpl)
 }

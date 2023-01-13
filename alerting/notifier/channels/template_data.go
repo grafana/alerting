@@ -115,6 +115,7 @@ func extendAlert(alert template.Alert, externalURL string, logger Logger) *Exten
 				logger.Warn("failed to unmarshal values annotation", "error", err)
 			}
 		}
+
 		// TODO: Remove in Grafana 10
 		extended.ValueString = alert.Annotations[models.ValueStringAnnotation]
 	}
