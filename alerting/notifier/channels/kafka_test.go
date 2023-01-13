@@ -11,10 +11,14 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestKafkaNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	images := newFakeImageStore(2)
 
@@ -386,8 +390,8 @@ func TestKafkaNotifier(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			webhookSender := mockNotificationService()
 
-			fc := FactoryConfig{
-				Config: &NotificationChannelConfig{
+			fc := config.FactoryConfig{
+				Config: &config.NotificationChannelConfig{
 					Name:     "kafka_testing",
 					Type:     "kafka",
 					Settings: json.RawMessage(c.settings),
@@ -399,7 +403,7 @@ func TestKafkaNotifier(t *testing.T) {
 					return fallback
 				},
 				Template: tmpl,
-				Logger:   &FakeLogger{},
+				Logger:   &log.FakeLogger{},
 			}
 
 			pn, err := newKafkaNotifier(fc)

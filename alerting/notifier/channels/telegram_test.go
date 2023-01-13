@@ -11,10 +11,14 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestTelegramNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 	images := newFakeImageStoreWithFile(t, 2)
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -119,8 +123,8 @@ func TestTelegramNotifier(t *testing.T) {
 
 			notificationService := mockNotificationService()
 
-			fc := FactoryConfig{
-				Config: &NotificationChannelConfig{
+			fc := config.FactoryConfig{
+				Config: &config.NotificationChannelConfig{
 					Name:           "telegram_tests",
 					Type:           "telegram",
 					Settings:       settingsJSON,
@@ -132,7 +136,7 @@ func TestTelegramNotifier(t *testing.T) {
 					return fallback
 				},
 				Template: tmpl,
-				Logger:   &FakeLogger{},
+				Logger:   &log.FakeLogger{},
 			}
 
 			n, err := NewTelegramNotifier(fc)

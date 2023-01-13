@@ -2,38 +2,33 @@ package channels
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
 	"net/url"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/sender"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
 // EmailNotifier is responsible for sending
 // alert notifications over email.
 type EmailNotifier struct {
 	*Base
-	log      Logger
-	ns       EmailSender
-	images   ImageStore
+	log      log.Logger
+	ns       sender.EmailSender
+	images   images.ImageStore
 	tmpl     *template.Template
-	settings *emailSettings
+	settings *config.EmailSettings
 }
 
-type emailSettings struct {
-	SingleEmail bool
-	Addresses   []string
-	Message     string
-	Subject     string
-}
-
-func EmailFactory(fc FactoryConfig) (NotificationChannel, error) {
+func EmailFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	notifier, err := buildEmailNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -44,39 +39,8 @@ func EmailFactory(fc FactoryConfig) (NotificationChannel, error) {
 	return notifier, nil
 }
 
-func buildEmailSettings(fc FactoryConfig) (*emailSettings, error) {
-	type emailSettingsRaw struct {
-		SingleEmail bool   `json:"singleEmail,omitempty"`
-		Addresses   string `json:"addresses,omitempty"`
-		Message     string `json:"message,omitempty"`
-		Subject     string `json:"subject,omitempty"`
-	}
-
-	var settings emailSettingsRaw
-	err := json.Unmarshal(fc.Config.Settings, &settings)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
-	}
-	if settings.Addresses == "" {
-		return nil, errors.New("could not find addresses in settings")
-	}
-	// split addresses with a few different ways
-	addresses := splitEmails(settings.Addresses)
-
-	if settings.Subject == "" {
-		settings.Subject = DefaultMessageTitleEmbed
-	}
-
-	return &emailSettings{
-		SingleEmail: settings.SingleEmail,
-		Message:     settings.Message,
-		Subject:     settings.Subject,
-		Addresses:   addresses,
-	}, nil
-}
-
-func buildEmailNotifier(fc FactoryConfig) (*EmailNotifier, error) {
-	settings, err := buildEmailSettings(fc)
+func buildEmailNotifier(fc config.FactoryConfig) (*EmailNotifier, error) {
+	settings, err := config.BuildEmailSettings(fc)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +57,7 @@ func buildEmailNotifier(fc FactoryConfig) (*EmailNotifier, error) {
 // Notify sends the alert notification.
 func (en *EmailNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
 	var tmplErr error
-	tmpl, data := TmplText(ctx, en.tmpl, alerts, en.log, &tmplErr)
+	tmpl, data := template2.TmplText(ctx, en.tmpl, alerts, en.log, &tmplErr)
 
 	subject := tmpl(en.settings.Subject)
 	alertPageURL := en.tmpl.ExternalURL.String()
@@ -112,7 +76,7 @@ func (en *EmailNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bo
 	// Extend alerts data with images, if available.
 	var embeddedFiles []string
 	_ = withStoredImages(ctx, en.log, en.images,
-		func(index int, image Image) error {
+		func(index int, image images.Image) error {
 			if len(image.URL) != 0 {
 				data.Alerts[index].ImageURL = image.URL
 			} else if len(image.Path) != 0 {
@@ -127,7 +91,7 @@ func (en *EmailNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bo
 			return nil
 		}, alerts...)
 
-	cmd := &SendEmailSettings{
+	cmd := &sender.SendEmailSettings{
 		Subject: subject,
 		Data: map[string]interface{}{
 			"Title":             subject,
@@ -160,14 +124,4 @@ func (en *EmailNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bo
 
 func (en *EmailNotifier) SendResolved() bool {
 	return !en.GetDisableResolveMessage()
-}
-
-func splitEmails(emails string) []string {
-	return strings.FieldsFunc(emails, func(r rune) bool {
-		switch r {
-		case ',', ';', '\n':
-			return true
-		}
-		return false
-	})
 }

@@ -11,10 +11,15 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestNewAlertmanagerNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -68,7 +73,7 @@ func TestNewAlertmanagerNotifier(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			secureSettings := make(map[string][]byte)
 
-			m := &NotificationChannelConfig{
+			m := &config.NotificationChannelConfig{
 				Name:           c.receiverName,
 				Type:           "prometheus-alertmanager",
 				Settings:       json.RawMessage(c.settings),
@@ -79,12 +84,12 @@ func TestNewAlertmanagerNotifier(t *testing.T) {
 				return fallback
 			}
 
-			fc := FactoryConfig{
+			fc := config.FactoryConfig{
 				Config:      m,
 				DecryptFunc: decryptFn,
-				ImageStore:  &UnavailableImageStore{},
+				ImageStore:  &images.UnavailableImageStore{},
 				Template:    tmpl,
-				Logger:      &FakeLogger{},
+				Logger:      &log.FakeLogger{},
 			}
 			sn, err := buildAlertmanagerNotifier(fc)
 			if c.expectedInitError != "" {
@@ -97,7 +102,7 @@ func TestNewAlertmanagerNotifier(t *testing.T) {
 }
 
 func TestAlertmanagerNotifier_Notify(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	images := newFakeImageStore(1)
 
@@ -172,7 +177,7 @@ func TestAlertmanagerNotifier_Notify(t *testing.T) {
 			require.NoError(t, err)
 			secureSettings := make(map[string][]byte)
 
-			m := &NotificationChannelConfig{
+			m := &config.NotificationChannelConfig{
 				Name:           c.receiverName,
 				Type:           "prometheus-alertmanager",
 				Settings:       settingsJSON,
@@ -182,12 +187,12 @@ func TestAlertmanagerNotifier_Notify(t *testing.T) {
 			decryptFn := func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
 				return fallback
 			}
-			fc := FactoryConfig{
+			fc := config.FactoryConfig{
 				Config:      m,
 				DecryptFunc: decryptFn,
 				ImageStore:  images,
 				Template:    tmpl,
-				Logger:      &FakeLogger{},
+				Logger:      &log.FakeLogger{},
 			}
 			sn, err := buildAlertmanagerNotifier(fc)
 			require.NoError(t, err)
@@ -197,7 +202,7 @@ func TestAlertmanagerNotifier_Notify(t *testing.T) {
 			t.Cleanup(func() {
 				sendHTTPRequest = origSendHTTPRequest
 			})
-			sendHTTPRequest = func(ctx context.Context, url *url.URL, cfg httpCfg, logger Logger) ([]byte, error) {
+			sendHTTPRequest = func(ctx context.Context, url *url.URL, cfg httpCfg, logger log.Logger) ([]byte, error) {
 				body = cfg.body
 				return nil, c.sendHTTPRequestError
 			}

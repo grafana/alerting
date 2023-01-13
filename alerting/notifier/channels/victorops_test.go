@@ -12,10 +12,14 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestVictoropsNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	images := newFakeImageStore(2)
 
@@ -190,7 +194,7 @@ func TestVictoropsNotifier(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			settingsJSON := json.RawMessage(c.settings)
 
-			m := &NotificationChannelConfig{
+			m := &config.NotificationChannelConfig{
 				Name:     "victorops_testing",
 				Type:     "victorops",
 				Settings: settingsJSON,
@@ -198,12 +202,12 @@ func TestVictoropsNotifier(t *testing.T) {
 
 			webhookSender := mockNotificationService()
 
-			fc := FactoryConfig{
+			fc := config.FactoryConfig{
 				Config:              m,
 				NotificationService: webhookSender,
 				ImageStore:          images,
 				Template:            tmpl,
-				Logger:              &FakeLogger{},
+				Logger:              &log.FakeLogger{},
 				GrafanaBuildVersion: version,
 			}
 

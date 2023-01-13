@@ -3,45 +3,19 @@ package channels
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/sender"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
-const defaultDingdingMsgType = "link"
-
-type dingDingSettings struct {
-	URL         string `json:"url,omitempty" yaml:"url,omitempty"`
-	MessageType string `json:"msgType,omitempty" yaml:"msgType,omitempty"`
-	Title       string `json:"title,omitempty" yaml:"title,omitempty"`
-	Message     string `json:"message,omitempty" yaml:"message,omitempty"`
-}
-
-func buildDingDingSettings(fc FactoryConfig) (*dingDingSettings, error) {
-	var settings dingDingSettings
-	err := json.Unmarshal(fc.Config.Settings, &settings)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
-	}
-	if settings.URL == "" {
-		return nil, errors.New("could not find url property in settings")
-	}
-	if settings.MessageType == "" {
-		settings.MessageType = defaultDingdingMsgType
-	}
-	if settings.Title == "" {
-		settings.Title = DefaultMessageTitleEmbed
-	}
-	if settings.Message == "" {
-		settings.Message = DefaultMessageEmbed
-	}
-	return &settings, nil
-}
-
-func DingDingFactory(fc FactoryConfig) (NotificationChannel, error) {
+func DingDingFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	n, err := newDingDingNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -53,8 +27,8 @@ func DingDingFactory(fc FactoryConfig) (NotificationChannel, error) {
 }
 
 // newDingDingNotifier is the constructor for the Dingding notifier
-func newDingDingNotifier(fc FactoryConfig) (*DingDingNotifier, error) {
-	settings, err := buildDingDingSettings(fc)
+func newDingDingNotifier(fc config.FactoryConfig) (*DingDingNotifier, error) {
+	settings, err := config.BuildDingDingSettings(fc)
 	if err != nil {
 		return nil, err
 	}
@@ -70,10 +44,10 @@ func newDingDingNotifier(fc FactoryConfig) (*DingDingNotifier, error) {
 // DingDingNotifier is responsible for sending alert notifications to ding ding.
 type DingDingNotifier struct {
 	*Base
-	log      Logger
-	ns       WebhookSender
+	log      log.Logger
+	ns       sender.WebhookSender
 	tmpl     *template.Template
-	settings dingDingSettings
+	settings config.DingDingConfig
 }
 
 // Notify sends the alert notification to dingding.
@@ -83,7 +57,7 @@ func (dd *DingDingNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 	dingDingURL := buildDingDingURL(dd)
 
 	var tmplErr error
-	tmpl, _ := TmplText(ctx, dd.tmpl, as, dd.log, &tmplErr)
+	tmpl, _ := template2.TmplText(ctx, dd.tmpl, as, dd.log, &tmplErr)
 
 	message := tmpl(dd.settings.Message)
 	title := tmpl(dd.settings.Title)
@@ -105,7 +79,7 @@ func (dd *DingDingNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 		u = dd.settings.URL
 	}
 
-	cmd := &SendWebhookSettings{URL: u, Body: b}
+	cmd := &sender.SendWebhookSettings{URL: u, Body: b}
 
 	if err := dd.ns.SendWebhook(ctx, cmd); err != nil {
 		return false, fmt.Errorf("send notification to dingding: %w", err)

@@ -20,6 +20,11 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 var appVersion = fmt.Sprintf("%d.0.0", rand.Uint32())
@@ -377,7 +382,7 @@ type slackRequestRecorder struct {
 	requests []*http.Request
 }
 
-func (s *slackRequestRecorder) fn(_ context.Context, r *http.Request, _ Logger) (string, error) {
+func (s *slackRequestRecorder) fn(_ context.Context, r *http.Request, _ log.Logger) (string, error) {
 	s.requests = append(s.requests, r)
 	return "", nil
 }
@@ -398,7 +403,7 @@ func checkMultipart(t *testing.T, expected map[string]struct{}, r io.Reader, bou
 }
 
 func setupSlackForTests(t *testing.T, settings string) (*SlackNotifier, *slackRequestRecorder, error) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
@@ -413,7 +418,7 @@ func setupSlackForTests(t *testing.T, settings string) (*SlackNotifier, *slackRe
 	})
 
 	images := &fakeImageStore{
-		Images: []*Image{{
+		Images: []*images.Image{{
 			Token: "image-on-disk",
 			Path:  f.Name(),
 		}, {
@@ -423,8 +428,8 @@ func setupSlackForTests(t *testing.T, settings string) (*SlackNotifier, *slackRe
 	}
 	notificationService := mockNotificationService()
 
-	c := FactoryConfig{
-		Config: &NotificationChannelConfig{
+	c := config.FactoryConfig{
+		Config: &config.NotificationChannelConfig{
 			Name:           "slack_testing",
 			Type:           "slack",
 			Settings:       json.RawMessage(settings),
@@ -436,7 +441,7 @@ func setupSlackForTests(t *testing.T, settings string) (*SlackNotifier, *slackRe
 			return fallback
 		},
 		Template:            tmpl,
-		Logger:              &FakeLogger{},
+		Logger:              &log.FakeLogger{},
 		GrafanaBuildVersion: appVersion,
 	}
 
@@ -565,7 +570,7 @@ func TestSendSlackRequest(t *testing.T) {
 			req, err := http.NewRequest(http.MethodGet, server.URL, nil)
 			require.NoError(tt, err)
 
-			_, err = sendSlackRequest(context.Background(), req, &FakeLogger{})
+			_, err = sendSlackRequest(context.Background(), req, &log.FakeLogger{})
 			if !test.expectError {
 				require.NoError(tt, err)
 			} else {

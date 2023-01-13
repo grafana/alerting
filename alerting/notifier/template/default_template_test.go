@@ -1,4 +1,4 @@
-package channels
+package template
 
 import (
 	"context"
@@ -11,6 +11,8 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
 )
 
 func TestDefaultTemplateString(t *testing.T) {
@@ -105,7 +107,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	tmpl.ExternalURL = externalURL
 
 	var tmplErr error
-	l := &FakeLogger{}
+	l := &log.FakeLogger{}
 	expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
 
 	cases := []struct {

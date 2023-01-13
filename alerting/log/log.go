@@ -1,4 +1,4 @@
-package channels
+package log
 
 type LoggerFactory func(ctx ...interface{}) Logger
 

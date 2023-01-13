@@ -2,14 +2,17 @@ package channels
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"path"
 
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/sender"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
 var (
@@ -20,38 +23,13 @@ var (
 // alert notifications to LINE.
 type LineNotifier struct {
 	*Base
-	log      Logger
-	ns       WebhookSender
+	log      log.Logger
+	ns       sender.WebhookSender
 	tmpl     *template.Template
-	settings *lineSettings
+	settings *config.LineSettings
 }
 
-type lineSettings struct {
-	Token       string `json:"token,omitempty" yaml:"token,omitempty"`
-	Title       string `json:"title,omitempty" yaml:"title,omitempty"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-}
-
-func buildLineSettings(fc FactoryConfig) (*lineSettings, error) {
-	var settings lineSettings
-	err := json.Unmarshal(fc.Config.Settings, &settings)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
-	}
-	settings.Token = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "token", settings.Token)
-	if settings.Token == "" {
-		return nil, errors.New("could not find token in settings")
-	}
-	if settings.Title == "" {
-		settings.Title = DefaultMessageTitleEmbed
-	}
-	if settings.Description == "" {
-		settings.Description = DefaultMessageEmbed
-	}
-	return &settings, nil
-}
-
-func LineFactory(fc FactoryConfig) (NotificationChannel, error) {
+func LineFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	n, err := newLineNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -63,8 +41,8 @@ func LineFactory(fc FactoryConfig) (NotificationChannel, error) {
 }
 
 // newLineNotifier is the constructor for the LINE notifier
-func newLineNotifier(fc FactoryConfig) (*LineNotifier, error) {
-	settings, err := buildLineSettings(fc)
+func newLineNotifier(fc config.FactoryConfig) (*LineNotifier, error) {
+	settings, err := config.BuildLineSettings(fc)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +65,7 @@ func (ln *LineNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 	form := url.Values{}
 	form.Add("message", body)
 
-	cmd := &SendWebhookSettings{
+	cmd := &sender.SendWebhookSettings{
 		URL:        LineNotifyURL,
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{
@@ -113,7 +91,7 @@ func (ln *LineNotifier) buildMessage(ctx context.Context, as ...*types.Alert) st
 	ruleURL := path.Join(ln.tmpl.ExternalURL.String(), "/alerting/list")
 
 	var tmplErr error
-	tmpl, _ := TmplText(ctx, ln.tmpl, as, ln.log, &tmplErr)
+	tmpl, _ := template2.TmplText(ctx, ln.tmpl, as, ln.log, &tmplErr)
 
 	body := fmt.Sprintf(
 		"%s\n%s\n\n%s",

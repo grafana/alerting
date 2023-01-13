@@ -12,10 +12,15 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestWebhookNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template2.TemplateForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -51,10 +56,10 @@ func TestWebhookNotifier(t *testing.T) {
 			expURL:        "http://localhost/test",
 			expHTTPMethod: "POST",
 			expMsg: &WebhookMessage{
-				ExtendedData: &ExtendedData{
+				ExtendedData: &template2.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
-					Alerts: ExtendedAlerts{
+					Alerts: template2.ExtendedAlerts{
 						{
 							Status: "firing",
 							Labels: template.KV{
@@ -125,10 +130,10 @@ func TestWebhookNotifier(t *testing.T) {
 			expUsername:   "user1",
 			expPassword:   "mysecret",
 			expMsg: &WebhookMessage{
-				ExtendedData: &ExtendedData{
+				ExtendedData: &template2.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
-					Alerts: ExtendedAlerts{
+					Alerts: template2.ExtendedAlerts{
 						{
 							Status: "firing",
 							Labels: template.KV{
@@ -192,10 +197,10 @@ func TestWebhookNotifier(t *testing.T) {
 			expURL:        "http://localhost/test?numAlerts=2&status=firing",
 			expHTTPMethod: "POST",
 			expMsg: &WebhookMessage{
-				ExtendedData: &ExtendedData{
+				ExtendedData: &template2.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
-					Alerts: ExtendedAlerts{
+					Alerts: template2.ExtendedAlerts{
 						{
 							Status: "firing",
 							Labels: template.KV{
@@ -257,10 +262,10 @@ func TestWebhookNotifier(t *testing.T) {
 				},
 			},
 			expMsg: &WebhookMessage{
-				ExtendedData: &ExtendedData{
+				ExtendedData: &template2.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
-					Alerts: ExtendedAlerts{
+					Alerts: template2.ExtendedAlerts{
 						{
 							Status: "firing",
 							Labels: template.KV{
@@ -336,7 +341,7 @@ func TestWebhookNotifier(t *testing.T) {
 			settingsJSON := json.RawMessage(c.settings)
 			secureSettings := make(map[string][]byte)
 
-			m := &NotificationChannelConfig{
+			m := &config.NotificationChannelConfig{
 				OrgID:          orgID,
 				Name:           "webhook_testing",
 				Type:           "webhook",
@@ -346,15 +351,15 @@ func TestWebhookNotifier(t *testing.T) {
 
 			webhookSender := mockNotificationService()
 
-			fc := FactoryConfig{
+			fc := config.FactoryConfig{
 				Config:              m,
 				NotificationService: webhookSender,
 				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
 					return fallback
 				},
-				ImageStore: &UnavailableImageStore{},
+				ImageStore: &images.UnavailableImageStore{},
 				Template:   tmpl,
-				Logger:     &FakeLogger{},
+				Logger:     &log.FakeLogger{},
 			}
 
 			pn, err := buildWebhookNotifier(fc)

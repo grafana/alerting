@@ -3,7 +3,6 @@ package channels
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -11,86 +10,14 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"golang.org/x/sync/singleflight"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/sender"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
-var weComEndpoint = "https://qyapi.weixin.qq.com"
-
-const defaultWeComChannelType = "groupRobot"
-const defaultWeComMsgType = WeComMsgTypeMarkdown
-const defaultWeComToUser = "@all"
-
-type WeComMsgType string
-
-const WeComMsgTypeMarkdown WeComMsgType = "markdown" // use these in available_channels.go too
-const WeComMsgTypeText WeComMsgType = "text"
-
-// IsValid checks wecom message type
-func (mt WeComMsgType) IsValid() bool {
-	return mt == WeComMsgTypeMarkdown || mt == WeComMsgTypeText
-}
-
-type wecomSettings struct {
-	channel     string
-	EndpointURL string       `json:"endpointUrl,omitempty" yaml:"endpointUrl,omitempty"`
-	URL         string       `json:"url" yaml:"url"`
-	AgentID     string       `json:"agent_id,omitempty" yaml:"agent_id,omitempty"`
-	CorpID      string       `json:"corp_id,omitempty" yaml:"corp_id,omitempty"`
-	Secret      string       `json:"secret,omitempty" yaml:"secret,omitempty"`
-	MsgType     WeComMsgType `json:"msgtype,omitempty" yaml:"msgtype,omitempty"`
-	Message     string       `json:"message,omitempty" yaml:"message,omitempty"`
-	Title       string       `json:"title,omitempty" yaml:"title,omitempty"`
-	ToUser      string       `json:"touser,omitempty" yaml:"touser,omitempty"`
-}
-
-func buildWecomSettings(factoryConfig FactoryConfig) (wecomSettings, error) {
-	var settings = wecomSettings{
-		channel: defaultWeComChannelType,
-	}
-
-	err := factoryConfig.Config.unmarshalSettings(&settings)
-	if err != nil {
-		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
-	}
-
-	if len(settings.EndpointURL) == 0 {
-		settings.EndpointURL = weComEndpoint
-	}
-
-	if !settings.MsgType.IsValid() {
-		settings.MsgType = defaultWeComMsgType
-	}
-
-	if len(settings.Message) == 0 {
-		settings.Message = DefaultMessageEmbed
-	}
-	if len(settings.Title) == 0 {
-		settings.Title = DefaultMessageTitleEmbed
-	}
-	if len(settings.ToUser) == 0 {
-		settings.ToUser = defaultWeComToUser
-	}
-
-	settings.URL = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "url", settings.URL)
-	settings.Secret = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "secret", settings.Secret)
-
-	if len(settings.URL) == 0 && len(settings.Secret) == 0 {
-		return settings, errors.New("either url or secret is required")
-	}
-
-	if len(settings.URL) == 0 {
-		settings.channel = "apiapp"
-		if len(settings.AgentID) == 0 {
-			return settings, errors.New("could not find AgentID in settings")
-		}
-		if len(settings.CorpID) == 0 {
-			return settings, errors.New("could not find CorpID in settings")
-		}
-	}
-
-	return settings, nil
-}
-
-func WeComFactory(fc FactoryConfig) (NotificationChannel, error) {
+func WeComFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	ch, err := buildWecomNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -101,8 +28,8 @@ func WeComFactory(fc FactoryConfig) (NotificationChannel, error) {
 	return ch, nil
 }
 
-func buildWecomNotifier(factoryConfig FactoryConfig) (*WeComNotifier, error) {
-	settings, err := buildWecomSettings(factoryConfig)
+func buildWecomNotifier(factoryConfig config.FactoryConfig) (*WeComNotifier, error) {
+	settings, err := config.BuildWecomSettings(factoryConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -119,9 +46,9 @@ func buildWecomNotifier(factoryConfig FactoryConfig) (*WeComNotifier, error) {
 type WeComNotifier struct {
 	*Base
 	tmpl        *template.Template
-	log         Logger
-	ns          WebhookSender
-	settings    wecomSettings
+	log         log.Logger
+	ns          sender.WebhookSender
+	settings    config.WecomSettings
 	tok         *WeComAccessToken
 	tokExpireAt time.Time
 	group       singleflight.Group
@@ -132,7 +59,7 @@ func (w *WeComNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 	w.log.Info("executing WeCom notification", "notification", w.Name)
 
 	var tmplErr error
-	tmpl, _ := TmplText(ctx, w.tmpl, as, w.log, &tmplErr)
+	tmpl, _ := template2.TmplText(ctx, w.tmpl, as, w.log, &tmplErr)
 
 	bodyMsg := map[string]interface{}{
 		"msgtype": w.settings.MsgType,
@@ -141,7 +68,7 @@ func (w *WeComNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 		tmpl(w.settings.Title),
 		tmpl(w.settings.Message),
 	)
-	if w.settings.MsgType != defaultWeComMsgType {
+	if w.settings.MsgType != config.DefaultWeComMsgType {
 		content = fmt.Sprintf("%s\n%s\n",
 			tmpl(w.settings.Title),
 			tmpl(w.settings.Message),
@@ -154,7 +81,7 @@ func (w *WeComNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 	}
 
 	url := w.settings.URL
-	if w.settings.channel != defaultWeComChannelType {
+	if w.settings.Channel != config.DefaultWeComChannelType {
 		bodyMsg["agentid"] = w.settings.AgentID
 		bodyMsg["touser"] = w.settings.ToUser
 		token, err := w.GetAccessToken(ctx)
@@ -173,7 +100,7 @@ func (w *WeComNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 		w.log.Warn("failed to template WeCom message", "error", tmplErr.Error())
 	}
 
-	cmd := &SendWebhookSettings{
+	cmd := &sender.SendWebhookSettings{
 		URL:  url,
 		Body: string(body),
 	}

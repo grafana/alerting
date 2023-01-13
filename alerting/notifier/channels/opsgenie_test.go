@@ -11,10 +11,15 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestOpsgenieNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -233,8 +238,8 @@ func TestOpsgenieNotifier(t *testing.T) {
 			webhookSender := mockNotificationService()
 			webhookSender.Webhook.Body = "<not-sent>"
 
-			fc := FactoryConfig{
-				Config: &NotificationChannelConfig{
+			fc := config.FactoryConfig{
+				Config: &config.NotificationChannelConfig{
 					Name:           "opsgenie_testing",
 					Type:           "opsgenie",
 					Settings:       settingsJSON,
@@ -244,9 +249,9 @@ func TestOpsgenieNotifier(t *testing.T) {
 				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
 					return fallback
 				},
-				ImageStore: &UnavailableImageStore{},
+				ImageStore: &images.UnavailableImageStore{},
 				Template:   tmpl,
-				Logger:     &FakeLogger{},
+				Logger:     &log.FakeLogger{},
 			}
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")

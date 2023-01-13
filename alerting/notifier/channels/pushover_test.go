@@ -17,10 +17,14 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestPushoverNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	images := newFakeImageStoreWithFile(t, 2)
 
@@ -212,8 +216,8 @@ func TestPushoverNotifier(t *testing.T) {
 
 			webhookSender := mockNotificationService()
 
-			fc := FactoryConfig{
-				Config: &NotificationChannelConfig{
+			fc := config.FactoryConfig{
+				Config: &config.NotificationChannelConfig{
 					Name:           "pushover_testing",
 					Type:           "pushover",
 					Settings:       settingsJSON,
@@ -225,7 +229,7 @@ func TestPushoverNotifier(t *testing.T) {
 					return fallback
 				},
 				Template: tmpl,
-				Logger:   &FakeLogger{},
+				Logger:   &log.FakeLogger{},
 			}
 
 			pn, err := NewPushoverNotifier(fc)

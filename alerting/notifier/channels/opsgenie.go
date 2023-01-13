@@ -3,7 +3,6 @@ package channels
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -13,99 +12,34 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/sender"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
 const (
-	OpsgenieSendTags    = "tags"
-	OpsgenieSendDetails = "details"
-	OpsgenieSendBoth    = "both"
 	// https://docs.opsgenie.com/docs/alert-api - 130 characters meaning runes.
 	opsGenieMaxMessageLenRunes = 130
 )
 
 var (
-	OpsgenieAlertURL = "https://api.opsgenie.com/v2/alerts"
-	ValidPriorities  = map[string]bool{"P1": true, "P2": true, "P3": true, "P4": true, "P5": true}
+	ValidPriorities = map[string]bool{"P1": true, "P2": true, "P3": true, "P4": true, "P5": true}
 )
 
 // OpsgenieNotifier is responsible for sending alert notifications to Opsgenie.
 type OpsgenieNotifier struct {
 	*Base
 	tmpl     *template.Template
-	log      Logger
-	ns       WebhookSender
-	images   ImageStore
-	settings *opsgenieSettings
+	log      log.Logger
+	ns       sender.WebhookSender
+	images   images.ImageStore
+	settings *config.OpsgenieSettings
 }
 
-type opsgenieSettings struct {
-	APIKey           string
-	APIUrl           string
-	Message          string
-	Description      string
-	AutoClose        bool
-	OverridePriority bool
-	SendTagsAs       string
-}
-
-func buildOpsgenieSettings(fc FactoryConfig) (*opsgenieSettings, error) {
-	type rawSettings struct {
-		APIKey           string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
-		APIUrl           string `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`
-		Message          string `json:"message,omitempty" yaml:"message,omitempty"`
-		Description      string `json:"description,omitempty" yaml:"description,omitempty"`
-		AutoClose        *bool  `json:"autoClose,omitempty" yaml:"autoClose,omitempty"`
-		OverridePriority *bool  `json:"overridePriority,omitempty" yaml:"overridePriority,omitempty"`
-		SendTagsAs       string `json:"sendTagsAs,omitempty" yaml:"sendTagsAs,omitempty"`
-	}
-
-	raw := rawSettings{}
-	err := fc.Config.unmarshalSettings(&raw)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
-	}
-
-	raw.APIKey = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "apiKey", raw.APIKey)
-	if raw.APIKey == "" {
-		return nil, errors.New("could not find api key property in settings")
-	}
-	if raw.APIUrl == "" {
-		raw.APIUrl = OpsgenieAlertURL
-	}
-
-	if strings.TrimSpace(raw.Message) == "" {
-		raw.Message = DefaultMessageTitleEmbed
-	}
-
-	switch raw.SendTagsAs {
-	case OpsgenieSendTags, OpsgenieSendDetails, OpsgenieSendBoth:
-	case "":
-		raw.SendTagsAs = OpsgenieSendTags
-	default:
-		return nil, fmt.Errorf("invalid value for sendTagsAs: %q", raw.SendTagsAs)
-	}
-
-	if raw.AutoClose == nil {
-		autoClose := true
-		raw.AutoClose = &autoClose
-	}
-	if raw.OverridePriority == nil {
-		overridePriority := true
-		raw.OverridePriority = &overridePriority
-	}
-
-	return &opsgenieSettings{
-		APIKey:           raw.APIKey,
-		APIUrl:           raw.APIUrl,
-		Message:          raw.Message,
-		Description:      raw.Description,
-		AutoClose:        *raw.AutoClose,
-		OverridePriority: *raw.OverridePriority,
-		SendTagsAs:       raw.SendTagsAs,
-	}, nil
-}
-
-func OpsgenieFactory(fc FactoryConfig) (NotificationChannel, error) {
+func OpsgenieFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	notifier, err := NewOpsgenieNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -117,8 +51,8 @@ func OpsgenieFactory(fc FactoryConfig) (NotificationChannel, error) {
 }
 
 // NewOpsgenieNotifier is the constructor for the Opsgenie notifier
-func NewOpsgenieNotifier(fc FactoryConfig) (*OpsgenieNotifier, error) {
-	settings, err := buildOpsgenieSettings(fc)
+func NewOpsgenieNotifier(fc config.FactoryConfig) (*OpsgenieNotifier, error) {
+	settings, err := config.BuildOpsgenieSettings(fc)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +87,7 @@ func (on *OpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 		return true, nil
 	}
 
-	cmd := &SendWebhookSettings{
+	cmd := &sender.SendWebhookSettings{
 		URL:        url,
 		Body:       string(body),
 		HTTPMethod: http.MethodPost,
@@ -193,7 +127,7 @@ func (on *OpsgenieNotifier) buildOpsgenieMessage(ctx context.Context, alerts mod
 	ruleURL := joinURLPath(on.tmpl.ExternalURL.String(), "/alerting/list", on.log)
 
 	var tmplErr error
-	tmpl, data := TmplText(ctx, on.tmpl, as, on.log, &tmplErr)
+	tmpl, data := template2.TmplText(ctx, on.tmpl, as, on.log, &tmplErr)
 
 	message, truncated := TruncateInRunes(tmpl(on.settings.Message), opsGenieMaxMessageLenRunes)
 	if truncated {
@@ -204,9 +138,9 @@ func (on *OpsgenieNotifier) buildOpsgenieMessage(ctx context.Context, alerts mod
 	if strings.TrimSpace(description) == "" {
 		description = fmt.Sprintf(
 			"%s\n%s\n\n%s",
-			tmpl(DefaultMessageTitleEmbed),
+			tmpl(template2.DefaultMessageTitleEmbed),
 			ruleURL,
-			tmpl(DefaultMessageEmbed),
+			tmpl(template2.DefaultMessageEmbed),
 		)
 	}
 
@@ -235,19 +169,19 @@ func (on *OpsgenieNotifier) buildOpsgenieMessage(ctx context.Context, alerts mod
 		for k, v := range lbls {
 			details[k] = v
 		}
-		var images []string
+		var imageUrls []string
 		_ = withStoredImages(ctx, on.log, on.images,
-			func(_ int, image Image) error {
+			func(_ int, image images.Image) error {
 				if len(image.URL) == 0 {
 					return nil
 				}
-				images = append(images, image.URL)
+				imageUrls = append(imageUrls, image.URL)
 				return nil
 			},
 			as...)
 
-		if len(images) != 0 {
-			details["image_urls"] = images
+		if len(imageUrls) != 0 {
+			details["image_urls"] = imageUrls
 		}
 	}
 
@@ -284,11 +218,11 @@ func (on *OpsgenieNotifier) SendResolved() bool {
 }
 
 func (on *OpsgenieNotifier) sendDetails() bool {
-	return on.settings.SendTagsAs == OpsgenieSendDetails || on.settings.SendTagsAs == OpsgenieSendBoth
+	return on.settings.SendTagsAs == config.OpsgenieSendDetails || on.settings.SendTagsAs == config.OpsgenieSendBoth
 }
 
 func (on *OpsgenieNotifier) sendTags() bool {
-	return on.settings.SendTagsAs == OpsgenieSendTags || on.settings.SendTagsAs == OpsgenieSendBoth
+	return on.settings.SendTagsAs == config.OpsgenieSendTags || on.settings.SendTagsAs == config.OpsgenieSendBoth
 }
 
 type opsGenieCreateMessage struct {

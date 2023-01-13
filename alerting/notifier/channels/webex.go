@@ -5,62 +5,29 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
-)
 
-const webexAPIURL = "https://webexapis.com/v1/messages"
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/sender"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
+)
 
 // WebexNotifier is responsible for sending alert notifications as webex messages.
 type WebexNotifier struct {
 	*Base
-	ns       WebhookSender
-	log      Logger
-	images   ImageStore
+	ns       sender.WebhookSender
+	log      log.Logger
+	images   images.ImageStore
 	tmpl     *template.Template
 	orgID    int64
-	settings *webexSettings
+	settings *config.WebexSettings
 }
 
-// PLEASE do not touch these settings without taking a look at what we support as part of
-// https://github.com/prometheus/alertmanager/blob/main/notify/webex/webex.go
-// Currently, the Alerting team is unifying channels and (upstream) receivers - any discrepancy is detrimental to that.
-type webexSettings struct {
-	Message string `json:"message,omitempty" yaml:"message,omitempty"`
-	RoomID  string `json:"room_id,omitempty" yaml:"room_id,omitempty"`
-	APIURL  string `json:"api_url,omitempty" yaml:"api_url,omitempty"`
-	Token   string `json:"bot_token" yaml:"bot_token"`
-}
-
-func buildWebexSettings(factoryConfig FactoryConfig) (*webexSettings, error) {
-	settings := &webexSettings{}
-	err := factoryConfig.Config.unmarshalSettings(&settings)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
-	}
-
-	if settings.APIURL == "" {
-		settings.APIURL = webexAPIURL
-	}
-
-	if settings.Message == "" {
-		settings.Message = DefaultMessageEmbed
-	}
-
-	settings.Token = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "bot_token", settings.Token)
-
-	u, err := url.Parse(settings.APIURL)
-	if err != nil {
-		return nil, fmt.Errorf("invalid URL %q", settings.APIURL)
-	}
-	settings.APIURL = u.String()
-
-	return settings, err
-}
-
-func WebexFactory(fc FactoryConfig) (NotificationChannel, error) {
+func WebexFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	notifier, err := buildWebexNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -71,9 +38,8 @@ func WebexFactory(fc FactoryConfig) (NotificationChannel, error) {
 	return notifier, nil
 }
 
-// buildWebexSettings is the constructor for the Webex notifier.
-func buildWebexNotifier(factoryConfig FactoryConfig) (*WebexNotifier, error) {
-	settings, err := buildWebexSettings(factoryConfig)
+func buildWebexNotifier(factoryConfig config.FactoryConfig) (*WebexNotifier, error) {
+	settings, err := config.BuildWebexSettings(factoryConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +65,7 @@ type WebexMessage struct {
 // Notify implements the Notifier interface.
 func (wn *WebexNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var tmplErr error
-	tmpl, data := TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
+	tmpl, data := template2.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
 
 	message, truncated := TruncateInBytes(tmpl(wn.settings.Message), 4096)
 	if truncated {
@@ -118,12 +84,12 @@ func (wn *WebexNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 	}
 
 	// Augment our Alert data with ImageURLs if available.
-	_ = withStoredImages(ctx, wn.log, wn.images, func(index int, image Image) error {
+	_ = withStoredImages(ctx, wn.log, wn.images, func(index int, image images.Image) error {
 		// Cisco Webex only supports a single image per request: https://developer.webex.com/docs/basics#message-attachments
 		if image.HasURL() {
 			data.Alerts[index].ImageURL = image.URL
 			msg.Files = append(msg.Files, image.URL)
-			return ErrImagesDone
+			return images.ErrImagesDone
 		}
 
 		return nil
@@ -139,7 +105,7 @@ func (wn *WebexNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		return false, tmplErr
 	}
 
-	cmd := &SendWebhookSettings{
+	cmd := &sender.SendWebhookSettings{
 		URL:        parsedURL,
 		Body:       string(body),
 		HTTPMethod: http.MethodPost,

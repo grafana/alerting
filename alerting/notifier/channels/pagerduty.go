@@ -3,15 +3,19 @@ package channels
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/sender"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
 const (
@@ -22,15 +26,10 @@ const (
 const (
 	pagerDutyEventTrigger = "trigger"
 	pagerDutyEventResolve = "resolve"
-
-	defaultSeverity = "critical"
-	defaultClass    = "default"
-	defaultGroup    = "default"
-	defaultClient   = "Grafana"
 )
 
 var (
-	knownSeverity        = map[string]struct{}{defaultSeverity: {}, "error": {}, "warning": {}, "info": {}}
+	knownSeverity        = map[string]struct{}{config.DefaultPagerDutySeverity: {}, "error": {}, "warning": {}, "info": {}}
 	PagerdutyEventAPIURL = "https://events.pagerduty.com/v2/enqueue"
 )
 
@@ -39,76 +38,13 @@ var (
 type PagerdutyNotifier struct {
 	*Base
 	tmpl     *template.Template
-	log      Logger
-	ns       WebhookSender
-	images   ImageStore
-	settings *pagerdutySettings
+	log      log.Logger
+	ns       sender.WebhookSender
+	images   images.ImageStore
+	settings *config.PagerdutySettings
 }
 
-type pagerdutySettings struct {
-	Key           string `json:"integrationKey,omitempty" yaml:"integrationKey,omitempty"`
-	Severity      string `json:"severity,omitempty" yaml:"severity,omitempty"`
-	customDetails map[string]string
-	Class         string `json:"class,omitempty" yaml:"class,omitempty"`
-	Component     string `json:"component,omitempty" yaml:"component,omitempty"`
-	Group         string `json:"group,omitempty" yaml:"group,omitempty"`
-	Summary       string `json:"summary,omitempty" yaml:"summary,omitempty"`
-	Source        string `json:"source,omitempty" yaml:"source,omitempty"`
-	Client        string `json:"client,omitempty" yaml:"client,omitempty"`
-	ClientURL     string `json:"client_url,omitempty" yaml:"client_url,omitempty"`
-}
-
-func buildPagerdutySettings(fc FactoryConfig) (*pagerdutySettings, error) {
-	settings := pagerdutySettings{}
-	err := fc.Config.unmarshalSettings(&settings)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
-	}
-
-	settings.Key = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "integrationKey", settings.Key)
-	if settings.Key == "" {
-		return nil, errors.New("could not find integration key property in settings")
-	}
-
-	settings.customDetails = map[string]string{
-		"firing":       `{{ template "__text_alert_list" .Alerts.Firing }}`,
-		"resolved":     `{{ template "__text_alert_list" .Alerts.Resolved }}`,
-		"num_firing":   `{{ .Alerts.Firing | len }}`,
-		"num_resolved": `{{ .Alerts.Resolved | len }}`,
-	}
-
-	if settings.Severity == "" {
-		settings.Severity = defaultSeverity
-	}
-	if settings.Class == "" {
-		settings.Class = defaultClass
-	}
-	if settings.Component == "" {
-		settings.Component = "Grafana"
-	}
-	if settings.Group == "" {
-		settings.Group = defaultGroup
-	}
-	if settings.Summary == "" {
-		settings.Summary = DefaultMessageTitleEmbed
-	}
-	if settings.Client == "" {
-		settings.Client = defaultClient
-	}
-	if settings.ClientURL == "" {
-		settings.ClientURL = "{{ .ExternalURL }}"
-	}
-	if settings.Source == "" {
-		source, err := os.Hostname()
-		if err != nil {
-			source = settings.Client
-		}
-		settings.Source = source
-	}
-	return &settings, nil
-}
-
-func PagerdutyFactory(fc FactoryConfig) (NotificationChannel, error) {
+func PagerdutyFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	pdn, err := newPagerdutyNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -120,8 +56,8 @@ func PagerdutyFactory(fc FactoryConfig) (NotificationChannel, error) {
 }
 
 // NewPagerdutyNotifier is the constructor for the PagerDuty notifier
-func newPagerdutyNotifier(fc FactoryConfig) (*PagerdutyNotifier, error) {
-	settings, err := buildPagerdutySettings(fc)
+func newPagerdutyNotifier(fc config.FactoryConfig) (*PagerdutyNotifier, error) {
+	settings, err := config.BuildPagerdutySettings(fc)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +91,7 @@ func (pn *PagerdutyNotifier) Notify(ctx context.Context, as ...*types.Alert) (bo
 	}
 
 	pn.log.Info("notifying Pagerduty", "event_type", eventType)
-	cmd := &SendWebhookSettings{
+	cmd := &sender.SendWebhookSettings{
 		URL:        PagerdutyEventAPIURL,
 		Body:       string(body),
 		HTTPMethod: "POST",
@@ -182,10 +118,10 @@ func (pn *PagerdutyNotifier) buildPagerdutyMessage(ctx context.Context, alerts m
 	}
 
 	var tmplErr error
-	tmpl, data := TmplText(ctx, pn.tmpl, as, pn.log, &tmplErr)
+	tmpl, data := template2.TmplText(ctx, pn.tmpl, as, pn.log, &tmplErr)
 
-	details := make(map[string]string, len(pn.settings.customDetails))
-	for k, v := range pn.settings.customDetails {
+	details := make(map[string]string, len(pn.settings.CustomDetails))
+	for k, v := range pn.settings.CustomDetails {
 		detail, err := pn.tmpl.ExecuteTextString(v, data)
 		if err != nil {
 			return nil, "", fmt.Errorf("%q: failed to template %q: %w", k, v, err)
@@ -195,8 +131,8 @@ func (pn *PagerdutyNotifier) buildPagerdutyMessage(ctx context.Context, alerts m
 
 	severity := strings.ToLower(tmpl(pn.settings.Severity))
 	if _, ok := knownSeverity[severity]; !ok {
-		pn.log.Warn("Severity is not in the list of known values - using default severity", "actualSeverity", severity, "defaultSeverity", defaultSeverity)
-		severity = defaultSeverity
+		pn.log.Warn("Severity is not in the list of known values - using default severity", "actualSeverity", severity, "defaultSeverity", config.DefaultPagerDutySeverity)
+		severity = config.DefaultPagerDutySeverity
 	}
 
 	msg := &pagerDutyMessage{
@@ -221,7 +157,7 @@ func (pn *PagerdutyNotifier) buildPagerdutyMessage(ctx context.Context, alerts m
 	}
 
 	_ = withStoredImages(ctx, pn.log, pn.images,
-		func(_ int, image Image) error {
+		func(_ int, image images.Image) error {
 			if len(image.URL) != 0 {
 				msg.Images = append(msg.Images, pagerDutyImage{Src: image.URL})
 			}

@@ -17,10 +17,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/prometheus/alertmanager/config"
+	amConfig "github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/sender"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
 const (
@@ -49,7 +55,7 @@ var (
 
 var SlackAPIEndpoint = "https://slack.com/api/chat.postMessage"
 
-type sendFunc func(ctx context.Context, req *http.Request, logger Logger) (string, error)
+type sendFunc func(ctx context.Context, req *http.Request, logger log.Logger) (string, error)
 
 // https://api.slack.com/reference/messaging/attachments#legacy_fields - 1024, no units given, assuming runes or characters.
 const slackMaxTitleLenRunes = 1024
@@ -58,37 +64,22 @@ const slackMaxTitleLenRunes = 1024
 // alert notification to Slack.
 type SlackNotifier struct {
 	*Base
-	log           Logger
+	log           log.Logger
 	tmpl          *template.Template
-	images        ImageStore
-	webhookSender WebhookSender
+	images        images.ImageStore
+	webhookSender sender.WebhookSender
 	sendFn        sendFunc
-	settings      slackSettings
+	settings      config.SlackSettings
 	appVersion    string
 }
 
-type slackSettings struct {
-	EndpointURL    string                `json:"endpointUrl,omitempty" yaml:"endpointUrl,omitempty"`
-	URL            string                `json:"url,omitempty" yaml:"url,omitempty"`
-	Token          string                `json:"token,omitempty" yaml:"token,omitempty"`
-	Recipient      string                `json:"recipient,omitempty" yaml:"recipient,omitempty"`
-	Text           string                `json:"text,omitempty" yaml:"text,omitempty"`
-	Title          string                `json:"title,omitempty" yaml:"title,omitempty"`
-	Username       string                `json:"username,omitempty" yaml:"username,omitempty"`
-	IconEmoji      string                `json:"icon_emoji,omitempty" yaml:"icon_emoji,omitempty"`
-	IconURL        string                `json:"icon_url,omitempty" yaml:"icon_url,omitempty"`
-	MentionChannel string                `json:"mentionChannel,omitempty" yaml:"mentionChannel,omitempty"`
-	MentionUsers   CommaSeparatedStrings `json:"mentionUsers,omitempty" yaml:"mentionUsers,omitempty"`
-	MentionGroups  CommaSeparatedStrings `json:"mentionGroups,omitempty" yaml:"mentionGroups,omitempty"`
-}
-
 // isIncomingWebhook returns true if the settings are for an incoming webhook.
-func isIncomingWebhook(s slackSettings) bool {
+func isIncomingWebhook(s config.SlackSettings) bool {
 	return s.Token == ""
 }
 
 // uploadURL returns the upload URL for Slack.
-func uploadURL(s slackSettings) (string, error) {
+func uploadURL(s config.SlackSettings) (string, error) {
 	u, err := url.Parse(s.URL)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse URL: %w", err)
@@ -99,7 +90,7 @@ func uploadURL(s slackSettings) (string, error) {
 }
 
 // SlackFactory creates a new NotificationChannel that sends notifications to Slack.
-func SlackFactory(fc FactoryConfig) (NotificationChannel, error) {
+func SlackFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	ch, err := buildSlackNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -110,9 +101,9 @@ func SlackFactory(fc FactoryConfig) (NotificationChannel, error) {
 	return ch, nil
 }
 
-func buildSlackNotifier(factoryConfig FactoryConfig) (*SlackNotifier, error) {
+func buildSlackNotifier(factoryConfig config.FactoryConfig) (*SlackNotifier, error) {
 	decryptFunc := factoryConfig.DecryptFunc
-	var settings slackSettings
+	var settings config.SlackSettings
 	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
@@ -147,10 +138,10 @@ func buildSlackNotifier(factoryConfig FactoryConfig) (*SlackNotifier, error) {
 		settings.Username = "Grafana"
 	}
 	if settings.Text == "" {
-		settings.Text = DefaultMessageEmbed
+		settings.Text = template2.DefaultMessageEmbed
 	}
 	if settings.Title == "" {
-		settings.Title = DefaultMessageTitleEmbed
+		settings.Title = template2.DefaultMessageTitleEmbed
 	}
 	return &SlackNotifier{
 		Base:     NewBase(factoryConfig.Config),
@@ -179,18 +170,18 @@ type slackMessage struct {
 
 // attachment is used to display a richly-formatted message block.
 type attachment struct {
-	Title      string              `json:"title,omitempty"`
-	TitleLink  string              `json:"title_link,omitempty"`
-	Text       string              `json:"text"`
-	ImageURL   string              `json:"image_url,omitempty"`
-	Fallback   string              `json:"fallback"`
-	Fields     []config.SlackField `json:"fields,omitempty"`
-	Footer     string              `json:"footer"`
-	FooterIcon string              `json:"footer_icon"`
-	Color      string              `json:"color,omitempty"`
-	Ts         int64               `json:"ts,omitempty"`
-	Pretext    string              `json:"pretext,omitempty"`
-	MrkdwnIn   []string            `json:"mrkdwn_in,omitempty"`
+	Title      string                `json:"title,omitempty"`
+	TitleLink  string                `json:"title_link,omitempty"`
+	Text       string                `json:"text"`
+	ImageURL   string                `json:"image_url,omitempty"`
+	Fallback   string                `json:"fallback"`
+	Fields     []amConfig.SlackField `json:"fields,omitempty"`
+	Footer     string                `json:"footer"`
+	FooterIcon string                `json:"footer_icon"`
+	Color      string                `json:"color,omitempty"`
+	Ts         int64                 `json:"ts,omitempty"`
+	Pretext    string                `json:"pretext,omitempty"`
+	MrkdwnIn   []string              `json:"mrkdwn_in,omitempty"`
 }
 
 // Notify sends an alert notification to Slack.
@@ -211,7 +202,7 @@ func (sn *SlackNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bo
 
 	// Do not upload images if using an incoming webhook as incoming webhooks cannot upload files
 	if !isIncomingWebhook(sn.settings) {
-		if err := withStoredImages(ctx, sn.log, sn.images, func(index int, image Image) error {
+		if err := withStoredImages(ctx, sn.log, sn.images, func(index int, image images.Image) error {
 			// If we have exceeded the maximum number of images for this threadTs
 			// then tell the recipient and stop iterating subsequent images
 			if index >= maxImagesPerThreadTs {
@@ -222,7 +213,7 @@ func (sn *SlackNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bo
 				}); err != nil {
 					sn.log.Error("Failed to send Slack message", "err", err)
 				}
-				return ErrImagesDone
+				return images.ErrImagesDone
 			}
 			comment := initialCommentForImage(alerts[index])
 			return sn.uploadImage(ctx, image, sn.settings.Recipient, comment, threadTs)
@@ -237,7 +228,7 @@ func (sn *SlackNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bo
 
 // sendSlackRequest sends a request to the Slack API.
 // Stubbable by tests.
-var sendSlackRequest = func(ctx context.Context, req *http.Request, logger Logger) (string, error) {
+var sendSlackRequest = func(ctx context.Context, req *http.Request, logger log.Logger) (string, error) {
 	resp, err := slackClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("failed to send request: %w", err)
@@ -268,7 +259,7 @@ var sendSlackRequest = func(ctx context.Context, req *http.Request, logger Logge
 	return handleSlackJSONResponse(resp, logger)
 }
 
-func handleSlackIncomingWebhookResponse(resp *http.Response, logger Logger) (string, error) {
+func handleSlackIncomingWebhookResponse(resp *http.Response, logger log.Logger) (string, error) {
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read response: %w", err)
@@ -312,7 +303,7 @@ func handleSlackIncomingWebhookResponse(resp *http.Response, logger Logger) (str
 	return "", fmt.Errorf("failed incoming webhook: %s", string(b))
 }
 
-func handleSlackJSONResponse(resp *http.Response, logger Logger) (string, error) {
+func handleSlackJSONResponse(resp *http.Response, logger log.Logger) (string, error) {
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", fmt.Errorf("failed to read response: %w", err)
@@ -346,7 +337,7 @@ func handleSlackJSONResponse(resp *http.Response, logger Logger) (string, error)
 
 func (sn *SlackNotifier) createSlackMessage(ctx context.Context, alerts []*types.Alert) (*slackMessage, error) {
 	var tmplErr error
-	tmpl, _ := TmplText(ctx, sn.tmpl, alerts, sn.log, &tmplErr)
+	tmpl, _ := template2.TmplText(ctx, sn.tmpl, alerts, sn.log, &tmplErr)
 
 	ruleURL := joinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", sn.log)
 
@@ -383,10 +374,10 @@ func (sn *SlackNotifier) createSlackMessage(ctx context.Context, alerts []*types
 
 	if isIncomingWebhook(sn.settings) {
 		// Incoming webhooks cannot upload files, instead share images via their URL
-		_ = withStoredImages(ctx, sn.log, sn.images, func(index int, image Image) error {
+		_ = withStoredImages(ctx, sn.log, sn.images, func(index int, image images.Image) error {
 			if image.URL != "" {
 				req.Attachments[0].ImageURL = image.URL
-				return ErrImagesDone
+				return images.ErrImagesDone
 			}
 			return nil
 		}, alerts...)
@@ -466,7 +457,7 @@ func (sn *SlackNotifier) sendSlackMessage(ctx context.Context, m *slackMessage) 
 // createImageMultipart returns the mutlipart/form-data request and headers for files.upload.
 // It returns an error if the image does not exist or there was an error preparing the
 // multipart form.
-func (sn *SlackNotifier) createImageMultipart(image Image, channel, comment, threadTs string) (http.Header, []byte, error) {
+func (sn *SlackNotifier) createImageMultipart(image images.Image, channel, comment, threadTs string) (http.Header, []byte, error) {
 	buf := bytes.Buffer{}
 	w := multipart.NewWriter(&buf)
 	defer func() {
@@ -543,7 +534,7 @@ func (sn *SlackNotifier) sendMultipart(ctx context.Context, headers http.Header,
 // uploadImage shares the image to the channel names or IDs. It returns an error if the file
 // does not exist, or if there was an error either preparing or sending the multipart/form-data
 // request.
-func (sn *SlackNotifier) uploadImage(ctx context.Context, image Image, channel, comment, threadTs string) error {
+func (sn *SlackNotifier) uploadImage(ctx context.Context, image images.Image, channel, comment, threadTs string) error {
 	sn.log.Debug("Uploadimg image", "image", image.Token)
 	headers, data, err := sn.createImageMultipart(image, channel, comment, threadTs)
 	if err != nil {

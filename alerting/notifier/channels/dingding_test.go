@@ -10,10 +10,14 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestDingdingNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -165,8 +169,8 @@ func TestDingdingNotifier(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			webhookSender := mockNotificationService()
-			fc := FactoryConfig{
-				Config: &NotificationChannelConfig{
+			fc := config.FactoryConfig{
+				Config: &config.NotificationChannelConfig{
 					Name:     "dingding_testing",
 					Type:     "dingding",
 					Settings: json.RawMessage(c.settings),
@@ -174,7 +178,7 @@ func TestDingdingNotifier(t *testing.T) {
 				// TODO: allow changing the associated values for different tests.
 				NotificationService: webhookSender,
 				Template:            tmpl,
-				Logger:              &FakeLogger{},
+				Logger:              &log.FakeLogger{},
 			}
 			pn, err := newDingDingNotifier(fc)
 			if c.expInitError != "" {

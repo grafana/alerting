@@ -3,54 +3,30 @@ package channels
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/sender"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
 type SensuGoNotifier struct {
 	*Base
-	log      Logger
-	images   ImageStore
-	ns       WebhookSender
+	log      log.Logger
+	images   images.ImageStore
+	ns       sender.WebhookSender
 	tmpl     *template.Template
-	settings sensuGoSettings
+	settings config.SensuGoSettings
 }
 
-type sensuGoSettings struct {
-	URL       string `json:"url,omitempty" yaml:"url,omitempty"`
-	Entity    string `json:"entity,omitempty" yaml:"entity,omitempty"`
-	Check     string `json:"check,omitempty" yaml:"check,omitempty"`
-	Namespace string `json:"namespace,omitempty" yaml:"namespace,omitempty"`
-	Handler   string `json:"handler,omitempty" yaml:"handler,omitempty"`
-	APIKey    string `json:"apikey,omitempty" yaml:"apikey,omitempty"`
-	Message   string `json:"message,omitempty" yaml:"message,omitempty"`
-}
-
-func buildSensuGoConfig(fc FactoryConfig) (sensuGoSettings, error) {
-	settings := sensuGoSettings{}
-	err := fc.Config.unmarshalSettings(&settings)
-	if err != nil {
-		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
-	}
-	if settings.URL == "" {
-		return settings, errors.New("could not find URL property in settings")
-	}
-	settings.APIKey = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "apikey", settings.APIKey)
-	if settings.APIKey == "" {
-		return settings, errors.New("could not find the API key property in settings")
-	}
-	if settings.Message == "" {
-		settings.Message = DefaultMessageEmbed
-	}
-	return settings, nil
-}
-
-func SensuGoFactory(fc FactoryConfig) (NotificationChannel, error) {
+func SensuGoFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	notifier, err := NewSensuGoNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -62,8 +38,8 @@ func SensuGoFactory(fc FactoryConfig) (NotificationChannel, error) {
 }
 
 // NewSensuGoNotifier is the constructor for the SensuGo notifier
-func NewSensuGoNotifier(fc FactoryConfig) (*SensuGoNotifier, error) {
-	settings, err := buildSensuGoConfig(fc)
+func NewSensuGoNotifier(fc config.FactoryConfig) (*SensuGoNotifier, error) {
+	settings, err := config.BuildSensuGoConfig(fc)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +58,7 @@ func (sn *SensuGoNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 	sn.log.Debug("sending Sensu Go result")
 
 	var tmplErr error
-	tmpl, _ := TmplText(ctx, sn.tmpl, as, sn.log, &tmplErr)
+	tmpl, _ := template2.TmplText(ctx, sn.tmpl, as, sn.log, &tmplErr)
 
 	// Sensu Go alerts require an entity and a check. We set it to the user-specified
 	// value (optional), else we fallback and use the grafana rule anme  and ruleID.
@@ -116,13 +92,13 @@ func (sn *SensuGoNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 	labels := make(map[string]string)
 
 	_ = withStoredImages(ctx, sn.log, sn.images,
-		func(_ int, image Image) error {
+		func(_ int, image images.Image) error {
 			// If there is an image for this alert and the image has been uploaded
 			// to a public URL then add it to the request. We cannot add more than
 			// one image per request.
 			if image.URL != "" {
 				labels["imageURL"] = image.URL
-				return ErrImagesDone
+				return images.ErrImagesDone
 			}
 			return nil
 		}, as...)
@@ -160,7 +136,7 @@ func (sn *SensuGoNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 		return false, err
 	}
 
-	cmd := &SendWebhookSettings{
+	cmd := &sender.SendWebhookSettings{
 		URL:        fmt.Sprintf("%s/api/core/v2/namespaces/%s/events", strings.TrimSuffix(sn.settings.URL, "/"), namespace),
 		Body:       string(body),
 		HTTPMethod: "POST",

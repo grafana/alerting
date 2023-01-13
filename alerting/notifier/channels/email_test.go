@@ -10,13 +10,18 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestEmailNotifier_Init(t *testing.T) {
 	testCase := []struct {
 		Name          string
 		Config        json.RawMessage
-		Expected      *emailSettings
+		Expected      *config.EmailSettings
 		ExpectedError string
 	}{
 		{
@@ -29,14 +34,14 @@ func TestEmailNotifier_Init(t *testing.T) {
 			Config: json.RawMessage(`{
 				"addresses": "someops@example.com;somedev@example.com"
 			}`),
-			Expected: &emailSettings{
+			Expected: &config.EmailSettings{
 				SingleEmail: false,
 				Addresses: []string{
 					"someops@example.com",
 					"somedev@example.com",
 				},
 				Message: "",
-				Subject: DefaultMessageTitleEmbed,
+				Subject: template2.DefaultMessageTitleEmbed,
 			},
 		},
 		{
@@ -44,14 +49,14 @@ func TestEmailNotifier_Init(t *testing.T) {
 			Config: json.RawMessage(`{
 				"addresses": "someops@example.com,somedev@example.com"
 			}`),
-			Expected: &emailSettings{
+			Expected: &config.EmailSettings{
 				SingleEmail: false,
 				Addresses: []string{
 					"someops@example.com",
 					"somedev@example.com",
 				},
 				Message: "",
-				Subject: DefaultMessageTitleEmbed,
+				Subject: template2.DefaultMessageTitleEmbed,
 			},
 		},
 		{
@@ -59,14 +64,14 @@ func TestEmailNotifier_Init(t *testing.T) {
 			Config: json.RawMessage(`{
 				"addresses": "someops@example.com\nsomedev@example.com"
 			}`),
-			Expected: &emailSettings{
+			Expected: &config.EmailSettings{
 				SingleEmail: false,
 				Addresses: []string{
 					"someops@example.com",
 					"somedev@example.com",
 				},
 				Message: "",
-				Subject: DefaultMessageTitleEmbed,
+				Subject: template2.DefaultMessageTitleEmbed,
 			},
 		},
 		{
@@ -74,7 +79,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 			Config: json.RawMessage(`{
 				"addresses": "someops@example.com\nsomedev@example.com;somedev2@example.com,somedev3@example.com"
 			}`),
-			Expected: &emailSettings{
+			Expected: &config.EmailSettings{
 				SingleEmail: false,
 				Addresses: []string{
 					"someops@example.com",
@@ -83,7 +88,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 					"somedev3@example.com",
 				},
 				Message: "",
-				Subject: DefaultMessageTitleEmbed,
+				Subject: template2.DefaultMessageTitleEmbed,
 			},
 		},
 		{
@@ -91,7 +96,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 			Config: json.RawMessage(`{
 				"addresses": "someops@example.com\nsomedev@example.com;somedev2@example.com,somedev3@example.com"
 			}`),
-			Expected: &emailSettings{
+			Expected: &config.EmailSettings{
 				SingleEmail: false,
 				Addresses: []string{
 					"someops@example.com",
@@ -100,7 +105,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 					"somedev3@example.com",
 				},
 				Message: "",
-				Subject: DefaultMessageTitleEmbed,
+				Subject: template2.DefaultMessageTitleEmbed,
 			},
 		},
 		{
@@ -111,7 +116,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 				"message": "test-message",
 				"subject": "test-subject"
 			}`),
-			Expected: &emailSettings{
+			Expected: &config.EmailSettings{
 				SingleEmail: true,
 				Addresses: []string{
 					"someops@example.com",
@@ -124,12 +129,12 @@ func TestEmailNotifier_Init(t *testing.T) {
 
 	for _, test := range testCase {
 		t.Run(test.Name, func(t *testing.T) {
-			cfg := &NotificationChannelConfig{
+			cfg := &config.NotificationChannelConfig{
 				Name:     "ops",
 				Type:     "email",
 				Settings: test.Config,
 			}
-			settings, err := buildEmailSettings(FactoryConfig{Config: cfg})
+			settings, err := config.BuildEmailSettings(config.FactoryConfig{Config: cfg})
 			if test.ExpectedError != "" {
 				require.ErrorContains(t, err, test.ExpectedError)
 			} else {
@@ -140,7 +145,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 }
 
 func TestEmailNotifier_Notify(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template2.TemplateForTests(t)
 
 	externalURL, err := url.Parse("http://localhost/base")
 	require.NoError(t, err)
@@ -154,8 +159,8 @@ func TestEmailNotifier_Notify(t *testing.T) {
 
 		emailSender := mockNotificationService()
 
-		fc := FactoryConfig{
-			Config: &NotificationChannelConfig{
+		fc := config.FactoryConfig{
+			Config: &config.NotificationChannelConfig{
 				Name:     "ops",
 				Type:     "email",
 				Settings: json.RawMessage(jsonData),
@@ -164,9 +169,9 @@ func TestEmailNotifier_Notify(t *testing.T) {
 			DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
 				return fallback
 			},
-			ImageStore: &UnavailableImageStore{},
+			ImageStore: &images.UnavailableImageStore{},
 			Template:   tmpl,
-			Logger:     &FakeLogger{},
+			Logger:     &log.FakeLogger{},
 		}
 
 		emailNotifier, err := EmailFactory(fc)
@@ -201,8 +206,8 @@ func TestEmailNotifier_Notify(t *testing.T) {
 				"Title":   "[FIRING:1]  (AlwaysFiring warning)",
 				"Message": "[FIRING:1]  (AlwaysFiring warning)",
 				"Status":  "firing",
-				"Alerts": ExtendedAlerts{
-					ExtendedAlert{
+				"Alerts": template2.ExtendedAlerts{
+					template2.ExtendedAlert{
 						Status:       "firing",
 						Labels:       template.KV{"alertname": "AlwaysFiring", "severity": "warning"},
 						Annotations:  template.KV{"runbook_url": "http://fix.me"},

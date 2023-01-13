@@ -10,10 +10,14 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestThreemaNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	images := newFakeImageStore(2)
 
@@ -119,8 +123,8 @@ func TestThreemaNotifier(t *testing.T) {
 			secureSettings := make(map[string][]byte)
 			webhookSender := mockNotificationService()
 
-			fc := FactoryConfig{
-				Config: &NotificationChannelConfig{
+			fc := config.FactoryConfig{
+				Config: &config.NotificationChannelConfig{
 					Name:           "threema_testing",
 					Type:           "threema",
 					Settings:       settingsJSON,
@@ -132,7 +136,7 @@ func TestThreemaNotifier(t *testing.T) {
 				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
 					return fallback
 				},
-				Logger: &FakeLogger{},
+				Logger: &log.FakeLogger{},
 			}
 
 			pn, err := NewThreemaNotifier(fc)

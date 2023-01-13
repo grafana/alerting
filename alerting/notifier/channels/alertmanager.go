@@ -10,10 +10,14 @@ import (
 
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
 )
 
 type AlertmanagerConfig struct {
-	*NotificationChannelConfig
+	*config.NotificationChannelConfig
 	URLs              []*url.URL
 	BasicAuthUser     string
 	BasicAuthPassword string
@@ -25,7 +29,7 @@ type alertmanagerSettings struct {
 	Password string
 }
 
-func AlertmanagerFactory(fc FactoryConfig) (NotificationChannel, error) {
+func AlertmanagerFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	ch, err := buildAlertmanagerNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -36,11 +40,11 @@ func AlertmanagerFactory(fc FactoryConfig) (NotificationChannel, error) {
 	return ch, nil
 }
 
-func buildAlertmanagerNotifier(fc FactoryConfig) (*AlertmanagerNotifier, error) {
+func buildAlertmanagerNotifier(fc config.FactoryConfig) (*AlertmanagerNotifier, error) {
 	var settings struct {
-		URL      CommaSeparatedStrings `json:"url,omitempty" yaml:"url,omitempty"`
-		User     string                `json:"basicAuthUser,omitempty" yaml:"basicAuthUser,omitempty"`
-		Password string                `json:"basicAuthPassword,omitempty" yaml:"basicAuthPassword,omitempty"`
+		URL      config.CommaSeparatedStrings `json:"url,omitempty" yaml:"url,omitempty"`
+		User     string                       `json:"basicAuthUser,omitempty" yaml:"basicAuthUser,omitempty"`
+		Password string                       `json:"basicAuthPassword,omitempty" yaml:"basicAuthPassword,omitempty"`
 	}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
@@ -80,9 +84,9 @@ func buildAlertmanagerNotifier(fc FactoryConfig) (*AlertmanagerNotifier, error) 
 // AlertmanagerNotifier sends alert notifications to the alert manager
 type AlertmanagerNotifier struct {
 	*Base
-	images   ImageStore
+	images   images.ImageStore
 	settings alertmanagerSettings
-	logger   Logger
+	logger   log.Logger
 }
 
 // Notify sends alert notifications to Alertmanager.
@@ -93,7 +97,7 @@ func (n *AlertmanagerNotifier) Notify(ctx context.Context, as ...*types.Alert) (
 	}
 
 	_ = withStoredImages(ctx, n.logger, n.images,
-		func(index int, image Image) error {
+		func(index int, image images.Image) error {
 			// If there is an image for this alert and the image has been uploaded
 			// to a public URL then include it as an annotation
 			if image.URL != "" {

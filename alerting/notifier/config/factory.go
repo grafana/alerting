@@ -1,10 +1,14 @@
-package channels
+package config
 
 import (
 	"context"
 	"errors"
 
 	"github.com/prometheus/alertmanager/template"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/sender"
 )
 
 // GetDecryptedValueFn is a function that returns the decrypted value of
@@ -15,16 +19,16 @@ type FactoryConfig struct {
 	Config *NotificationChannelConfig
 	// Used by some receivers to include as part of the source
 	GrafanaBuildVersion string
-	NotificationService NotificationSender
+	NotificationService sender.NotificationSender
 	DecryptFunc         GetDecryptedValueFn
-	ImageStore          ImageStore
+	ImageStore          images.ImageStore
 	// Used to retrieve image URLs for messages, or data for uploads.
 	Template *template.Template
-	Logger   Logger
+	Logger   log.Logger
 }
 
-func NewFactoryConfig(config *NotificationChannelConfig, notificationService NotificationSender,
-	decryptFunc GetDecryptedValueFn, template *template.Template, imageStore ImageStore, loggerFactory LoggerFactory, buildVersion string) (FactoryConfig, error) {
+func NewFactoryConfig(config *NotificationChannelConfig, notificationService sender.NotificationSender,
+	decryptFunc GetDecryptedValueFn, template *template.Template, imageStore images.ImageStore, loggerFactory log.LoggerFactory, buildVersion string) (FactoryConfig, error) {
 	if config.Settings == nil {
 		return FactoryConfig{}, errors.New("no settings supplied")
 	}
@@ -35,7 +39,7 @@ func NewFactoryConfig(config *NotificationChannelConfig, notificationService Not
 	}
 
 	if imageStore == nil {
-		imageStore = &UnavailableImageStore{}
+		imageStore = &images.UnavailableImageStore{}
 	}
 	return FactoryConfig{
 		Config:              config,

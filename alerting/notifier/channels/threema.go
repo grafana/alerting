@@ -2,15 +2,19 @@ package channels
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/url"
 	"path"
-	"strings"
 
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/sender"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
 var (
@@ -21,61 +25,14 @@ var (
 // alert notifications to Threema.
 type ThreemaNotifier struct {
 	*Base
-	log      Logger
-	images   ImageStore
-	ns       WebhookSender
+	log      log.Logger
+	images   images.ImageStore
+	ns       sender.WebhookSender
 	tmpl     *template.Template
-	settings threemaSettings
+	settings config.ThreemaSettings
 }
 
-type threemaSettings struct {
-	GatewayID   string `json:"gateway_id,omitempty" yaml:"gateway_id,omitempty"`
-	RecipientID string `json:"recipient_id,omitempty" yaml:"recipient_id,omitempty"`
-	APISecret   string `json:"api_secret,omitempty" yaml:"api_secret,omitempty"`
-	Title       string `json:"title,omitempty" yaml:"title,omitempty"`
-	Description string `json:"description,omitempty" yaml:"description,omitempty"`
-}
-
-func buildThreemaSettings(fc FactoryConfig) (threemaSettings, error) {
-	settings := threemaSettings{}
-	err := fc.Config.unmarshalSettings(&settings)
-	if err != nil {
-		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
-	}
-	// GatewayID validaiton
-	if settings.GatewayID == "" {
-		return settings, errors.New("could not find Threema Gateway ID in settings")
-	}
-	if !strings.HasPrefix(settings.GatewayID, "*") {
-		return settings, errors.New("invalid Threema Gateway ID: Must start with a *")
-	}
-	if len(settings.GatewayID) != 8 {
-		return settings, errors.New("invalid Threema Gateway ID: Must be 8 characters long")
-	}
-
-	// RecipientID validation
-	if settings.RecipientID == "" {
-		return settings, errors.New("could not find Threema Recipient ID in settings")
-	}
-	if len(settings.RecipientID) != 8 {
-		return settings, errors.New("invalid Threema Recipient ID: Must be 8 characters long")
-	}
-	settings.APISecret = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "api_secret", settings.APISecret)
-	if settings.APISecret == "" {
-		return settings, errors.New("could not find Threema API secret in settings")
-	}
-
-	if settings.Description == "" {
-		settings.Description = DefaultMessageEmbed
-	}
-	if settings.Title == "" {
-		settings.Title = DefaultMessageTitleEmbed
-	}
-
-	return settings, nil
-}
-
-func ThreemaFactory(fc FactoryConfig) (NotificationChannel, error) {
+func ThreemaFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	notifier, err := NewThreemaNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -86,8 +43,8 @@ func ThreemaFactory(fc FactoryConfig) (NotificationChannel, error) {
 	return notifier, nil
 }
 
-func NewThreemaNotifier(fc FactoryConfig) (*ThreemaNotifier, error) {
-	settings, err := buildThreemaSettings(fc)
+func NewThreemaNotifier(fc config.FactoryConfig) (*ThreemaNotifier, error) {
+	settings, err := config.BuildThreemaSettings(fc)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +69,7 @@ func (tn *ThreemaNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 	data.Set("secret", tn.settings.APISecret)
 	data.Set("text", tn.buildMessage(ctx, as...))
 
-	cmd := &SendWebhookSettings{
+	cmd := &sender.SendWebhookSettings{
 		URL:        ThreemaGwBaseURL,
 		Body:       data.Encode(),
 		HTTPMethod: "POST",
@@ -134,7 +91,7 @@ func (tn *ThreemaNotifier) SendResolved() bool {
 
 func (tn *ThreemaNotifier) buildMessage(ctx context.Context, as ...*types.Alert) string {
 	var tmplErr error
-	tmpl, _ := TmplText(ctx, tn.tmpl, as, tn.log, &tmplErr)
+	tmpl, _ := template2.TmplText(ctx, tn.tmpl, as, tn.log, &tmplErr)
 
 	message := fmt.Sprintf("%s%s\n\n*Message:*\n%s\n*URL:* %s\n",
 		selectEmoji(as...),
@@ -148,7 +105,7 @@ func (tn *ThreemaNotifier) buildMessage(ctx context.Context, as ...*types.Alert)
 	}
 
 	_ = withStoredImages(ctx, tn.log, tn.images,
-		func(_ int, image Image) error {
+		func(_ int, image images.Image) error {
 			if image.URL != "" {
 				message += fmt.Sprintf("*Image:* %s\n", image.URL)
 			}

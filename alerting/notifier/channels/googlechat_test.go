@@ -13,6 +13,11 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestGoogleChatNotifier(t *testing.T) {
@@ -456,17 +461,17 @@ func TestGoogleChatNotifier(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			tmpl := templateForTests(t)
+			tmpl := template.TemplateForTests(t)
 
 			externalURL, err := url.Parse(c.externalURL)
 			require.NoError(t, err)
 			tmpl.ExternalURL = externalURL
 
 			webhookSender := mockNotificationService()
-			imageStore := &UnavailableImageStore{}
+			imageStore := &images.UnavailableImageStore{}
 
-			fc := FactoryConfig{
-				Config: &NotificationChannelConfig{
+			fc := config.FactoryConfig{
+				Config: &config.NotificationChannelConfig{
 					Name:     "googlechat_testing",
 					Type:     "googlechat",
 					Settings: json.RawMessage(c.settings),
@@ -474,7 +479,7 @@ func TestGoogleChatNotifier(t *testing.T) {
 				ImageStore:          imageStore,
 				NotificationService: webhookSender,
 				Template:            tmpl,
-				Logger:              &FakeLogger{},
+				Logger:              &log.FakeLogger{},
 				GrafanaBuildVersion: appVersion,
 			}
 

@@ -14,10 +14,14 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestPagerdutyNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -52,7 +56,7 @@ func TestPagerdutyNotifier(t *testing.T) {
 				Payload: pagerDutyPayload{
 					Summary:   "[FIRING:1]  (val1)",
 					Source:    hostname,
-					Severity:  defaultSeverity,
+					Severity:  config.DefaultPagerDutySeverity,
 					Class:     "default",
 					Component: "Grafana",
 					Group:     "default",
@@ -87,7 +91,7 @@ func TestPagerdutyNotifier(t *testing.T) {
 				Payload: pagerDutyPayload{
 					Summary:   "[FIRING:1]  (val1 invalid-severity)",
 					Source:    hostname,
-					Severity:  defaultSeverity,
+					Severity:  config.DefaultPagerDutySeverity,
 					Class:     "default",
 					Component: "Grafana",
 					Group:     "default",
@@ -166,7 +170,7 @@ func TestPagerdutyNotifier(t *testing.T) {
 				Payload: pagerDutyPayload{
 					Summary:   "Alerts firing: 1",
 					Source:    hostname,
-					Severity:  defaultSeverity,
+					Severity:  config.DefaultPagerDutySeverity,
 					Class:     "default",
 					Component: "Grafana",
 					Group:     "default",
@@ -246,7 +250,7 @@ func TestPagerdutyNotifier(t *testing.T) {
 				Payload: pagerDutyPayload{
 					Summary:   fmt.Sprintf("%s…", strings.Repeat("1", 1023)),
 					Source:    hostname,
-					Severity:  defaultSeverity,
+					Severity:  config.DefaultPagerDutySeverity,
 					Class:     "default",
 					Component: "Grafana",
 					Group:     "default",
@@ -275,8 +279,8 @@ func TestPagerdutyNotifier(t *testing.T) {
 			settingsJSON := json.RawMessage(c.settings)
 			secureSettings := make(map[string][]byte)
 			webhookSender := mockNotificationService()
-			fc := FactoryConfig{
-				Config: &NotificationChannelConfig{
+			fc := config.FactoryConfig{
+				Config: &config.NotificationChannelConfig{
 					Name:           "pageduty_testing",
 					Type:           "pagerduty",
 					Settings:       settingsJSON,
@@ -287,7 +291,7 @@ func TestPagerdutyNotifier(t *testing.T) {
 					return fallback
 				},
 				Template: tmpl,
-				Logger:   &FakeLogger{},
+				Logger:   &log.FakeLogger{},
 			}
 			pn, err := newPagerdutyNotifier(fc)
 			if c.expInitError != "" {

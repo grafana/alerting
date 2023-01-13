@@ -10,7 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/grafana/alerting/alerting/log"
 	"github.com/grafana/alerting/alerting/models"
+	"github.com/grafana/alerting/alerting/notifier/images"
 )
 
 func TestWithStoredImages(t *testing.T) {
@@ -28,7 +30,7 @@ func TestWithStoredImages(t *testing.T) {
 			},
 		},
 	}}
-	imageStore := &fakeImageStore{Images: []*Image{{
+	imageStore := &fakeImageStore{Images: []*images.Image{{
 		Token:     "test-image-1",
 		URL:       "https://www.example.com/test-image-1.jpg",
 		CreatedAt: time.Now().UTC(),
@@ -44,7 +46,7 @@ func TestWithStoredImages(t *testing.T) {
 	)
 
 	// should iterate all images
-	err = withStoredImages(ctx, &FakeLogger{}, imageStore, func(index int, image Image) error {
+	err = withStoredImages(ctx, &log.FakeLogger{}, imageStore, func(index int, image images.Image) error {
 		i++
 		return nil
 	}, alerts...)
@@ -53,9 +55,9 @@ func TestWithStoredImages(t *testing.T) {
 
 	// should iterate just the first image
 	i = 0
-	err = withStoredImages(ctx, &FakeLogger{}, imageStore, func(index int, image Image) error {
+	err = withStoredImages(ctx, &log.FakeLogger{}, imageStore, func(index int, image images.Image) error {
 		i++
-		return ErrImagesDone
+		return images.ErrImagesDone
 	}, alerts...)
 	require.NoError(t, err)
 	assert.Equal(t, 1, i)

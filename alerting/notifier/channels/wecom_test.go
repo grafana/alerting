@@ -16,10 +16,14 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestWeComNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -156,7 +160,7 @@ func TestWeComNotifier(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			settingsJSON := json.RawMessage(c.settings)
 
-			m := &NotificationChannelConfig{
+			m := &config.NotificationChannelConfig{
 				Name:     "wecom_testing",
 				Type:     "wecom",
 				Settings: settingsJSON,
@@ -164,7 +168,7 @@ func TestWeComNotifier(t *testing.T) {
 
 			webhookSender := mockNotificationService()
 
-			fc := FactoryConfig{
+			fc := config.FactoryConfig{
 				Config:              m,
 				NotificationService: webhookSender,
 				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
@@ -172,7 +176,7 @@ func TestWeComNotifier(t *testing.T) {
 				},
 				ImageStore: nil,
 				Template:   tmpl,
-				Logger:     &FakeLogger{},
+				Logger:     &log.FakeLogger{},
 			}
 
 			pn, err := buildWecomNotifier(fc)
@@ -205,7 +209,7 @@ func TestWeComNotifier(t *testing.T) {
 
 // TestWeComNotifierAPIAPP Testing API Channels
 func TestWeComNotifierAPIAPP(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -340,7 +344,7 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 			}))
 			defer server.Close()
 
-			m := &NotificationChannelConfig{
+			m := &config.NotificationChannelConfig{
 				Name:     "wecom_testing",
 				Type:     "wecom",
 				Settings: json.RawMessage(tt.settings),
@@ -348,7 +352,7 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 
 			webhookSender := mockNotificationService()
 
-			fc := FactoryConfig{
+			fc := config.FactoryConfig{
 				Config:              m,
 				NotificationService: webhookSender,
 				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
@@ -356,7 +360,7 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 				},
 				ImageStore: nil,
 				Template:   tmpl,
-				Logger:     &FakeLogger{},
+				Logger:     &log.FakeLogger{},
 			}
 
 			pn, err := buildWecomNotifier(fc)
@@ -468,7 +472,7 @@ func TestWeComNotifier_GetAccessToken(t *testing.T) {
 			defer server.Close()
 
 			w := &WeComNotifier{
-				settings: wecomSettings{
+				settings: config.WecomSettings{
 					EndpointURL: server.URL,
 					CorpID:      tt.fields.corpid,
 					Secret:      tt.fields.secret,
@@ -525,7 +529,7 @@ func TestWeComFactory(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &NotificationChannelConfig{
+			m := &config.NotificationChannelConfig{
 				Name:     "wecom_testing",
 				Type:     "wecom",
 				Settings: json.RawMessage(tt.settings),
@@ -533,14 +537,14 @@ func TestWeComFactory(t *testing.T) {
 
 			webhookSender := mockNotificationService()
 
-			fc := FactoryConfig{
+			fc := config.FactoryConfig{
 				Config:              m,
 				NotificationService: webhookSender,
 				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
 					return fallback
 				},
 				ImageStore: nil,
-				Logger:     &FakeLogger{},
+				Logger:     &log.FakeLogger{},
 			}
 
 			_, err := WeComFactory(fc)

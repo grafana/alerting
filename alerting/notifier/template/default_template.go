@@ -1,4 +1,4 @@
-package channels
+package template
 
 import (
 	"os"
@@ -101,7 +101,7 @@ Labels:
 {{ define "teams.default.message" }}{{ template "default.message" . }}{{ end }}
 `
 
-func templateForTests(t *testing.T) *template.Template {
+func TemplateForTests(t *testing.T) *template.Template {
 	f, err := os.CreateTemp("/tmp", "template")
 	require.NoError(t, err)
 	defer func(f *os.File) {

@@ -7,28 +7,31 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/sender"
 )
 
 type fakeImageStore struct {
-	Images []*Image
+	Images []*images.Image
 }
 
 // getImage returns an image with the same token.
-func (f *fakeImageStore) GetImage(_ context.Context, token string) (*Image, error) {
+func (f *fakeImageStore) GetImage(_ context.Context, token string) (*images.Image, error) {
 	for _, img := range f.Images {
 		if img.Token == token {
 			return img, nil
 		}
 	}
-	return nil, ErrImageNotFound
+	return nil, images.ErrImageNotFound
 }
 
 // newFakeImageStore returns an image store with N test images.
 // Each image has a token and a URL, but does not have a file on disk.
-func newFakeImageStore(n int) ImageStore {
+func newFakeImageStore(n int) images.ImageStore {
 	s := fakeImageStore{}
 	for i := 1; i <= n; i++ {
-		s.Images = append(s.Images, &Image{
+		s.Images = append(s.Images, &images.Image{
 			Token:     fmt.Sprintf("test-image-%d", i),
 			URL:       fmt.Sprintf("https://www.example.com/test-image-%d.jpg", i),
 			CreatedAt: time.Now().UTC(),
@@ -42,7 +45,7 @@ func newFakeImageStore(n int) ImageStore {
 // PNG on disk. The test should call deleteFunc to delete the images from disk
 // at the end of the test.
 // nolint:deadcode,unused
-func newFakeImageStoreWithFile(t *testing.T, n int) ImageStore {
+func newFakeImageStoreWithFile(t *testing.T, n int) images.ImageStore {
 	var (
 		files []string
 		s     fakeImageStore
@@ -63,7 +66,7 @@ func newFakeImageStoreWithFile(t *testing.T, n int) ImageStore {
 			t.Fatalf("failed to create test image: %s", err)
 		}
 		files = append(files, file)
-		s.Images = append(s.Images, &Image{
+		s.Images = append(s.Images, &images.Image{
 			Token:     fmt.Sprintf("test-image-%d", i),
 			Path:      file,
 			URL:       fmt.Sprintf("https://www.example.com/test-image-%d", i),
@@ -120,16 +123,16 @@ func newTestImage() (string, error) {
 }
 
 type notificationServiceMock struct {
-	Webhook     SendWebhookSettings
-	EmailSync   SendEmailSettings
+	Webhook     sender.SendWebhookSettings
+	EmailSync   sender.SendEmailSettings
 	ShouldError error
 }
 
-func (ns *notificationServiceMock) SendWebhook(ctx context.Context, cmd *SendWebhookSettings) error {
+func (ns *notificationServiceMock) SendWebhook(ctx context.Context, cmd *sender.SendWebhookSettings) error {
 	ns.Webhook = *cmd
 	return ns.ShouldError
 }
-func (ns *notificationServiceMock) SendEmail(ctx context.Context, cmd *SendEmailSettings) error {
+func (ns *notificationServiceMock) SendEmail(ctx context.Context, cmd *sender.SendEmailSettings) error {
 	ns.EmailSync = *cmd
 	return ns.ShouldError
 }

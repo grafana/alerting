@@ -3,14 +3,18 @@ package channels
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/sender"
+	template2 "github.com/grafana/alerting/alerting/notifier/template"
 )
 
 type kafkaBody struct {
@@ -45,69 +49,14 @@ type kafkaContext struct {
 // alert notifications to Kafka.
 type KafkaNotifier struct {
 	*Base
-	log      Logger
-	images   ImageStore
-	ns       WebhookSender
+	log      log.Logger
+	images   images.ImageStore
+	ns       sender.WebhookSender
 	tmpl     *template.Template
-	settings *kafkaSettings
+	settings *config.KafkaSettings
 }
 
-type kafkaSettings struct {
-	Endpoint       string `json:"kafkaRestProxy,omitempty" yaml:"kafkaRestProxy,omitempty"`
-	Topic          string `json:"kafkaTopic,omitempty" yaml:"kafkaTopic,omitempty"`
-	Description    string `json:"description,omitempty" yaml:"description,omitempty"`
-	Details        string `json:"details,omitempty" yaml:"details,omitempty"`
-	Username       string `json:"username,omitempty" yaml:"username,omitempty"`
-	Password       string `json:"password,omitempty" yaml:"password,omitempty"`
-	APIVersion     string `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
-	KafkaClusterID string `json:"kafkaClusterId,omitempty" yaml:"kafkaClusterId,omitempty"`
-}
-
-// The user can choose which API version to use when sending
-// messages to Kafka. The default is v2.
-// Details on how these versions differ can be found here:
-// https://docs.confluent.io/platform/current/kafka-rest/api.html
-const (
-	APIVersionV2 = "v2"
-	APIVersionV3 = "v3"
-)
-
-func buildKafkaSettings(fc FactoryConfig) (*kafkaSettings, error) {
-	var settings kafkaSettings
-	err := json.Unmarshal(fc.Config.Settings, &settings)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
-	}
-
-	if settings.Endpoint == "" {
-		return nil, errors.New("could not find kafka rest proxy endpoint property in settings")
-	}
-	settings.Endpoint = strings.TrimRight(settings.Endpoint, "/")
-
-	if settings.Topic == "" {
-		return nil, errors.New("could not find kafka topic property in settings")
-	}
-	if settings.Description == "" {
-		settings.Description = DefaultMessageTitleEmbed
-	}
-	if settings.Details == "" {
-		settings.Details = DefaultMessageEmbed
-	}
-	settings.Password = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "password", settings.Password)
-
-	if settings.APIVersion == "" {
-		settings.APIVersion = APIVersionV2
-	} else if settings.APIVersion == APIVersionV3 {
-		if settings.KafkaClusterID == "" {
-			return nil, errors.New("kafka cluster id must be provided when using api version 3")
-		}
-	} else if settings.APIVersion != APIVersionV2 && settings.APIVersion != APIVersionV3 {
-		return nil, fmt.Errorf("unsupported api version: %s", settings.APIVersion)
-	}
-	return &settings, nil
-}
-
-func KafkaFactory(fc FactoryConfig) (NotificationChannel, error) {
+func KafkaFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 	ch, err := newKafkaNotifier(fc)
 	if err != nil {
 		return nil, receiverInitError{
@@ -119,8 +68,8 @@ func KafkaFactory(fc FactoryConfig) (NotificationChannel, error) {
 }
 
 // newKafkaNotifier is the constructor function for the Kafka notifier.
-func newKafkaNotifier(fc FactoryConfig) (*KafkaNotifier, error) {
-	settings, err := buildKafkaSettings(fc)
+func newKafkaNotifier(fc config.FactoryConfig) (*KafkaNotifier, error) {
+	settings, err := config.BuildKafkaSettings(fc)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +86,7 @@ func newKafkaNotifier(fc FactoryConfig) (*KafkaNotifier, error) {
 
 // Notify sends the alert notification.
 func (kn *KafkaNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	if kn.settings.APIVersion == APIVersionV3 {
+	if kn.settings.APIVersion == config.KafkaAPIVersionV3 {
 		return kn.notifyWithAPIV3(ctx, as...)
 	}
 	return kn.notifyWithAPIV2(ctx, as...)
@@ -146,7 +95,7 @@ func (kn *KafkaNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 // Use the v2 API to send the alert notification.
 func (kn *KafkaNotifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var tmplErr error
-	tmpl, _ := TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
+	tmpl, _ := template2.TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
 
 	topicURL := kn.settings.Endpoint + "/topics/" + tmpl(kn.settings.Topic)
 	if tmplErr != nil {
@@ -161,7 +110,7 @@ func (kn *KafkaNotifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert
 		kn.log.Warn("failed to template Kafka message", "error", tmplErr.Error())
 	}
 
-	cmd := &SendWebhookSettings{
+	cmd := &sender.SendWebhookSettings{
 		URL:        topicURL,
 		Body:       body,
 		HTTPMethod: "POST",
@@ -183,7 +132,7 @@ func (kn *KafkaNotifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert
 // Use the v3 API to send the alert notification.
 func (kn *KafkaNotifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var tmplErr error
-	tmpl, _ := TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
+	tmpl, _ := template2.TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
 
 	// For v3 the Produce URL is like this,
 	// <Endpoint>/v3/clusters/<KafkaClusterID>/topics/<Topic>/records
@@ -200,7 +149,7 @@ func (kn *KafkaNotifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert
 		kn.log.Warn("failed to template Kafka message", "error", tmplErr.Error())
 	}
 
-	cmd := &SendWebhookSettings{
+	cmd := &sender.SendWebhookSettings{
 		URL:        topicURL,
 		Body:       body,
 		HTTPMethod: "POST",
@@ -262,7 +211,7 @@ func (kn *KafkaNotifier) SendResolved() bool {
 }
 
 func (kn *KafkaNotifier) buildBody(ctx context.Context, tmpl func(string) string, as ...*types.Alert) (string, error) {
-	if kn.settings.APIVersion == APIVersionV3 {
+	if kn.settings.APIVersion == config.KafkaAPIVersionV3 {
 		return kn.buildV3Body(ctx, tmpl, as...)
 	}
 	return kn.buildV2Body(ctx, tmpl, as...)
@@ -337,10 +286,10 @@ func buildState(as ...*types.Alert) AlertStateType {
 	return AlertStateAlerting
 }
 
-func buildContextImages(ctx context.Context, l Logger, imageStore ImageStore, as ...*types.Alert) []kafkaContext {
+func buildContextImages(ctx context.Context, l log.Logger, imageStore images.ImageStore, as ...*types.Alert) []kafkaContext {
 	var contexts []kafkaContext
 	_ = withStoredImages(ctx, l, imageStore,
-		func(_ int, image Image) error {
+		func(_ int, image images.Image) error {
 			if image.URL != "" {
 				contexts = append(contexts, kafkaContext{
 					Type:   "image",

@@ -11,10 +11,15 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/images"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestTeamsNotifier(t *testing.T) {
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -249,7 +254,7 @@ func TestTeamsNotifier(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			settingsJSON := json.RawMessage(c.settings)
 
-			m := &NotificationChannelConfig{
+			m := &config.NotificationChannelConfig{
 				Name:     "teams_testing",
 				Type:     "teams",
 				Settings: settingsJSON,
@@ -257,12 +262,12 @@ func TestTeamsNotifier(t *testing.T) {
 
 			webhookSender := mockNotificationService()
 
-			fc := FactoryConfig{
+			fc := config.FactoryConfig{
 				Config:              m,
-				ImageStore:          &UnavailableImageStore{},
+				ImageStore:          &images.UnavailableImageStore{},
 				NotificationService: webhookSender,
 				Template:            tmpl,
-				Logger:              &FakeLogger{},
+				Logger:              &log.FakeLogger{},
 			}
 
 			pn, err := NewTeamsNotifier(fc)

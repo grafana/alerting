@@ -11,13 +11,17 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/alerting/log"
+	"github.com/grafana/alerting/alerting/notifier/config"
+	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
 func TestSensuGoNotifier(t *testing.T) {
 	constNow := time.Now()
 	defer mockTimeNow(constNow)()
 
-	tmpl := templateForTests(t)
+	tmpl := template.TemplateForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -136,7 +140,7 @@ func TestSensuGoNotifier(t *testing.T) {
 			settingsJSON := json.RawMessage(c.settings)
 			secureSettings := make(map[string][]byte)
 
-			m := &NotificationChannelConfig{
+			m := &config.NotificationChannelConfig{
 				Name:           "Sensu Go",
 				Type:           "sensugo",
 				Settings:       settingsJSON,
@@ -145,7 +149,7 @@ func TestSensuGoNotifier(t *testing.T) {
 
 			webhookSender := mockNotificationService()
 
-			fc := FactoryConfig{
+			fc := config.FactoryConfig{
 				Config:              m,
 				ImageStore:          images,
 				NotificationService: webhookSender,
@@ -153,7 +157,7 @@ func TestSensuGoNotifier(t *testing.T) {
 				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
 					return fallback
 				},
-				Logger: &FakeLogger{},
+				Logger: &log.FakeLogger{},
 			}
 
 			sn, err := NewSensuGoNotifier(fc)
