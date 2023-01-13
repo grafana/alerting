@@ -19,7 +19,7 @@ import (
 )
 
 func TestWebexNotifier(t *testing.T) {
-	tmpl := template.TemplateForTests(t)
+	tmpl := template.ForTests(t)
 	images := newFakeImageStoreWithFile(t, 2)
 
 	externalURL, err := url.Parse("http://localhost")

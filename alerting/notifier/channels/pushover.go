@@ -124,7 +124,7 @@ func (pn *PushoverNotifier) genPushoverBody(ctx context.Context, as ...*types.Al
 		return nil, b, fmt.Errorf("failed to write the user: %w", err)
 	}
 
-	if err := w.WriteField("token", pn.settings.ApiToken); err != nil {
+	if err := w.WriteField("token", pn.settings.APIToken); err != nil {
 		return nil, b, fmt.Errorf("failed to write the token: %w", err)
 	}
 

@@ -461,7 +461,7 @@ func TestGoogleChatNotifier(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			tmpl := template.TemplateForTests(t)
+			tmpl := template.ForTests(t)
 
 			externalURL, err := url.Parse(c.externalURL)
 			require.NoError(t, err)

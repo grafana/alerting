@@ -17,7 +17,7 @@ import (
 )
 
 func TestLineNotifier(t *testing.T) {
-	tmpl := template.TemplateForTests(t)
+	tmpl := template.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)

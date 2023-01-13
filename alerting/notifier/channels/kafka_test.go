@@ -18,7 +18,7 @@ import (
 )
 
 func TestKafkaNotifier(t *testing.T) {
-	tmpl := template.TemplateForTests(t)
+	tmpl := template.ForTests(t)
 
 	images := newFakeImageStore(2)
 

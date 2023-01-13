@@ -145,7 +145,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 }
 
 func TestEmailNotifier_Notify(t *testing.T) {
-	tmpl := template2.TemplateForTests(t)
+	tmpl := template2.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost/base")
 	require.NoError(t, err)

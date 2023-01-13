@@ -19,7 +19,7 @@ import (
 )
 
 func TestNewAlertmanagerNotifier(t *testing.T) {
-	tmpl := template.TemplateForTests(t)
+	tmpl := template.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -102,7 +102,7 @@ func TestNewAlertmanagerNotifier(t *testing.T) {
 }
 
 func TestAlertmanagerNotifier_Notify(t *testing.T) {
-	tmpl := template.TemplateForTests(t)
+	tmpl := template.ForTests(t)
 
 	images := newFakeImageStore(1)
 

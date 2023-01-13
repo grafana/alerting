@@ -23,7 +23,7 @@ import (
 )
 
 func TestWeComNotifier(t *testing.T) {
-	tmpl := template.TemplateForTests(t)
+	tmpl := template.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -209,7 +209,7 @@ func TestWeComNotifier(t *testing.T) {
 
 // TestWeComNotifierAPIAPP Testing API Channels
 func TestWeComNotifierAPIAPP(t *testing.T) {
-	tmpl := template.TemplateForTests(t)
+	tmpl := template.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)

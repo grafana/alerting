@@ -403,7 +403,7 @@ func checkMultipart(t *testing.T, expected map[string]struct{}, r io.Reader, bou
 }
 
 func setupSlackForTests(t *testing.T, settings string) (*SlackNotifier, *slackRequestRecorder, error) {
-	tmpl := template.TemplateForTests(t)
+	tmpl := template.ForTests(t)
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL

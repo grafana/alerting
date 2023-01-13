@@ -24,7 +24,7 @@ import (
 )
 
 func TestPushoverNotifier(t *testing.T) {
-	tmpl := template.TemplateForTests(t)
+	tmpl := template.ForTests(t)
 
 	images := newFakeImageStoreWithFile(t, 2)
 
