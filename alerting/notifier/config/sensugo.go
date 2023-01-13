@@ -9,7 +9,7 @@ import (
 	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
-type SensuGoSettings struct {
+type SensuGoConfig struct {
 	URL       string `json:"url,omitempty" yaml:"url,omitempty"`
 	Entity    string `json:"entity,omitempty" yaml:"entity,omitempty"`
 	Check     string `json:"check,omitempty" yaml:"check,omitempty"`
@@ -19,8 +19,8 @@ type SensuGoSettings struct {
 	Message   string `json:"message,omitempty" yaml:"message,omitempty"`
 }
 
-func BuildSensuGoConfig(fc FactoryConfig) (SensuGoSettings, error) {
-	settings := SensuGoSettings{}
+func BuildSensuGoConfig(fc FactoryConfig) (SensuGoConfig, error) {
+	settings := SensuGoConfig{}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)

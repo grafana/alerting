@@ -472,7 +472,7 @@ func TestWeComNotifier_GetAccessToken(t *testing.T) {
 			defer server.Close()
 
 			w := &WeComNotifier{
-				settings: config.WecomSettings{
+				settings: config.WecomConfig{
 					EndpointURL: server.URL,
 					CorpID:      tt.fields.corpid,
 					Secret:      tt.fields.secret,

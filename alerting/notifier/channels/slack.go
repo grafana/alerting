@@ -69,17 +69,17 @@ type SlackNotifier struct {
 	images        images.ImageStore
 	webhookSender sender.WebhookSender
 	sendFn        sendFunc
-	settings      config.SlackSettings
+	settings      config.SlackConfig
 	appVersion    string
 }
 
 // isIncomingWebhook returns true if the settings are for an incoming webhook.
-func isIncomingWebhook(s config.SlackSettings) bool {
+func isIncomingWebhook(s config.SlackConfig) bool {
 	return s.Token == ""
 }
 
 // uploadURL returns the upload URL for Slack.
-func uploadURL(s config.SlackSettings) (string, error) {
+func uploadURL(s config.SlackConfig) (string, error) {
 	u, err := url.Parse(s.URL)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse URL: %w", err)
@@ -103,7 +103,7 @@ func SlackFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 
 func buildSlackNotifier(factoryConfig config.FactoryConfig) (*SlackNotifier, error) {
 	decryptFunc := factoryConfig.DecryptFunc
-	var settings config.SlackSettings
+	var settings config.SlackConfig
 	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)

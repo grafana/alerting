@@ -25,7 +25,7 @@ type EmailNotifier struct {
 	ns       sender.EmailSender
 	images   images.ImageStore
 	tmpl     *template.Template
-	settings *config.EmailSettings
+	settings *config.EmailConfig
 }
 
 func EmailFactory(fc config.FactoryConfig) (NotificationChannel, error) {
@@ -40,7 +40,7 @@ func EmailFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 }
 
 func buildEmailNotifier(fc config.FactoryConfig) (*EmailNotifier, error) {
-	settings, err := config.BuildEmailSettings(fc)
+	settings, err := config.BuildEmailConfig(fc)
 	if err != nil {
 		return nil, err
 	}

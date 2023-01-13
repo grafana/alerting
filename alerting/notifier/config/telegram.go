@@ -16,7 +16,7 @@ const DefaultTelegramParseMode = "HTML"
 // Keys are options accepted by Grafana API, values are options accepted by Telegram API
 var TelegramSupportedParseMode = map[string]string{"Markdown": "Markdown", "MarkdownV2": "MarkdownV2", DefaultTelegramParseMode: "HTML", "None": ""}
 
-type TelegramSettings struct {
+type TelegramConfig struct {
 	BotToken             string `json:"bottoken,omitempty" yaml:"bottoken,omitempty"`
 	ChatID               string `json:"chatid,omitempty" yaml:"chatid,omitempty"`
 	Message              string `json:"message,omitempty" yaml:"message,omitempty"`
@@ -24,8 +24,8 @@ type TelegramSettings struct {
 	DisableNotifications bool   `json:"disable_notifications,omitempty" yaml:"disable_notifications,omitempty"`
 }
 
-func BuildTelegramSettings(fc FactoryConfig) (TelegramSettings, error) {
-	settings := TelegramSettings{}
+func BuildTelegramConfig(fc FactoryConfig) (TelegramConfig, error) {
+	settings := TelegramConfig{}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)

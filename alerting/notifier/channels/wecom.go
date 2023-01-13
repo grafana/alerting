@@ -29,7 +29,7 @@ func WeComFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 }
 
 func buildWecomNotifier(factoryConfig config.FactoryConfig) (*WeComNotifier, error) {
-	settings, err := config.BuildWecomSettings(factoryConfig)
+	settings, err := config.BuildWecomConfig(factoryConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +48,7 @@ type WeComNotifier struct {
 	tmpl        *template.Template
 	log         log.Logger
 	ns          sender.WebhookSender
-	settings    config.WecomSettings
+	settings    config.WecomConfig
 	tok         *WeComAccessToken
 	tokExpireAt time.Time
 	group       singleflight.Group

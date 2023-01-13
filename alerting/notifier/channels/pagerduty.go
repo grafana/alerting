@@ -41,7 +41,7 @@ type PagerdutyNotifier struct {
 	log      log.Logger
 	ns       sender.WebhookSender
 	images   images.ImageStore
-	settings *config.PagerdutySettings
+	settings *config.PagerdutyConfig
 }
 
 func PagerdutyFactory(fc config.FactoryConfig) (NotificationChannel, error) {
@@ -57,7 +57,7 @@ func PagerdutyFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 
 // NewPagerdutyNotifier is the constructor for the PagerDuty notifier
 func newPagerdutyNotifier(fc config.FactoryConfig) (*PagerdutyNotifier, error) {
-	settings, err := config.BuildPagerdutySettings(fc)
+	settings, err := config.BuildPagerdutyConfig(fc)
 	if err != nil {
 		return nil, err
 	}

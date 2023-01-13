@@ -19,7 +19,7 @@ const (
 	KafkaAPIVersionV3 = "v3"
 )
 
-type KafkaSettings struct {
+type KafkaConfig struct {
 	Endpoint       string `json:"kafkaRestProxy,omitempty" yaml:"kafkaRestProxy,omitempty"`
 	Topic          string `json:"kafkaTopic,omitempty" yaml:"kafkaTopic,omitempty"`
 	Description    string `json:"description,omitempty" yaml:"description,omitempty"`
@@ -30,8 +30,8 @@ type KafkaSettings struct {
 	KafkaClusterID string `json:"kafkaClusterId,omitempty" yaml:"kafkaClusterId,omitempty"`
 }
 
-func BuildKafkaSettings(fc FactoryConfig) (*KafkaSettings, error) {
-	var settings KafkaSettings
+func BuildKafkaConfig(fc FactoryConfig) (*KafkaConfig, error) {
+	var settings KafkaConfig
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)

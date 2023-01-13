@@ -23,7 +23,7 @@ type SensuGoNotifier struct {
 	images   images.ImageStore
 	ns       sender.WebhookSender
 	tmpl     *template.Template
-	settings config.SensuGoSettings
+	settings config.SensuGoConfig
 }
 
 func SensuGoFactory(fc config.FactoryConfig) (NotificationChannel, error) {

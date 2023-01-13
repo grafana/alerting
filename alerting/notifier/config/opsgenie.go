@@ -18,7 +18,7 @@ const (
 	DefaultOpsgenieAlertURL = "https://api.opsgenie.com/v2/alerts"
 )
 
-type OpsgenieSettings struct {
+type OpsgenieConfig struct {
 	APIKey           string
 	APIUrl           string
 	Message          string
@@ -28,7 +28,7 @@ type OpsgenieSettings struct {
 	SendTagsAs       string
 }
 
-func BuildOpsgenieSettings(fc FactoryConfig) (*OpsgenieSettings, error) {
+func BuildOpsgenieConfig(fc FactoryConfig) (*OpsgenieConfig, error) {
 	type rawSettings struct {
 		APIKey           string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
 		APIUrl           string `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`
@@ -74,7 +74,7 @@ func BuildOpsgenieSettings(fc FactoryConfig) (*OpsgenieSettings, error) {
 		raw.OverridePriority = &overridePriority
 	}
 
-	return &OpsgenieSettings{
+	return &OpsgenieConfig{
 		APIKey:           raw.APIKey,
 		APIUrl:           raw.APIUrl,
 		Message:          raw.Message,

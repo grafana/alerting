@@ -44,7 +44,7 @@ type PushoverNotifier struct {
 	log      log.Logger
 	images   images.ImageStore
 	ns       sender.WebhookSender
-	settings config.PushoverSettings
+	settings config.PushoverConfig
 }
 
 func PushoverFactory(fc config.FactoryConfig) (NotificationChannel, error) {
@@ -60,7 +60,7 @@ func PushoverFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 
 // NewSlackNotifier is the constructor for the Slack notifier
 func NewPushoverNotifier(fc config.FactoryConfig) (*PushoverNotifier, error) {
-	settings, err := config.BuildPushoverSettings(fc)
+	settings, err := config.BuildPushoverConfig(fc)
 	if err != nil {
 		return nil, err
 	}

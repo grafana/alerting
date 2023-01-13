@@ -9,14 +9,14 @@ import (
 	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
-type LineSettings struct {
+type LineConfig struct {
 	Token       string `json:"token,omitempty" yaml:"token,omitempty"`
 	Title       string `json:"title,omitempty" yaml:"title,omitempty"`
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 }
 
-func BuildLineSettings(fc FactoryConfig) (*LineSettings, error) {
-	var settings LineSettings
+func BuildLineConfig(fc FactoryConfig) (*LineConfig, error) {
+	var settings LineConfig
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)

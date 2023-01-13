@@ -28,7 +28,7 @@ func DingDingFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 
 // newDingDingNotifier is the constructor for the Dingding notifier
 func newDingDingNotifier(fc config.FactoryConfig) (*DingDingNotifier, error) {
-	settings, err := config.BuildDingDingSettings(fc)
+	settings, err := config.BuildDingDingConfig(fc)
 	if err != nil {
 		return nil, err
 	}

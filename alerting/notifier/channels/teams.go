@@ -231,12 +231,12 @@ type TeamsNotifier struct {
 	log      log.Logger
 	ns       sender.WebhookSender
 	images   images.ImageStore
-	settings config.TeamsSettings
+	settings config.TeamsConfig
 }
 
 // NewTeamsNotifier is the constructor for Teams notifier.
 func NewTeamsNotifier(fc config.FactoryConfig) (*TeamsNotifier, error) {
-	settings, err := config.BuildTeamsSettings(fc)
+	settings, err := config.BuildTeamsConfig(fc)
 	if err != nil {
 		return nil, err
 	}

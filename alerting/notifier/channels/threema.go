@@ -29,7 +29,7 @@ type ThreemaNotifier struct {
 	images   images.ImageStore
 	ns       sender.WebhookSender
 	tmpl     *template.Template
-	settings config.ThreemaSettings
+	settings config.ThreemaConfig
 }
 
 func ThreemaFactory(fc config.FactoryConfig) (NotificationChannel, error) {
@@ -44,7 +44,7 @@ func ThreemaFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 }
 
 func NewThreemaNotifier(fc config.FactoryConfig) (*ThreemaNotifier, error) {
-	settings, err := config.BuildThreemaSettings(fc)
+	settings, err := config.BuildThreemaConfig(fc)
 	if err != nil {
 		return nil, err
 	}

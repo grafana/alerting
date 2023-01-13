@@ -1,6 +1,6 @@
 package config
 
-type SlackSettings struct {
+type SlackConfig struct {
 	EndpointURL    string                `json:"endpointUrl,omitempty" yaml:"endpointUrl,omitempty"`
 	URL            string                `json:"url,omitempty" yaml:"url,omitempty"`
 	Token          string                `json:"token,omitempty" yaml:"token,omitempty"`

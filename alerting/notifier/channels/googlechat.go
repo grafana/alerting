@@ -25,7 +25,7 @@ type GoogleChatNotifier struct {
 	ns         sender.WebhookSender
 	images     images.ImageStore
 	tmpl       *template.Template
-	settings   *config.GoogleChatSettings
+	settings   *config.GoogleChatConfig
 	appVersion string
 }
 
@@ -41,7 +41,7 @@ func GoogleChatFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 }
 
 func newGoogleChatNotifier(fc config.FactoryConfig) (*GoogleChatNotifier, error) {
-	settings, err := config.BuildGoogleChatSettings(fc)
+	settings, err := config.BuildGoogleChatConfig(fc)
 	if err != nil {
 		return nil, err
 	}

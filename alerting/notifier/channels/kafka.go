@@ -53,7 +53,7 @@ type KafkaNotifier struct {
 	images   images.ImageStore
 	ns       sender.WebhookSender
 	tmpl     *template.Template
-	settings *config.KafkaSettings
+	settings *config.KafkaConfig
 }
 
 func KafkaFactory(fc config.FactoryConfig) (NotificationChannel, error) {
@@ -69,7 +69,7 @@ func KafkaFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 
 // newKafkaNotifier is the constructor function for the Kafka notifier.
 func newKafkaNotifier(fc config.FactoryConfig) (*KafkaNotifier, error) {
-	settings, err := config.BuildKafkaSettings(fc)
+	settings, err := config.BuildKafkaConfig(fc)
 	if err != nil {
 		return nil, err
 	}

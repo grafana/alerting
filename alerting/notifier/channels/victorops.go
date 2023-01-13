@@ -40,7 +40,7 @@ func VictorOpsFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 // NewVictoropsNotifier creates an instance of VictoropsNotifier that
 // handles posting notifications to Victorops REST API
 func NewVictoropsNotifier(fc config.FactoryConfig) (*VictoropsNotifier, error) {
-	settings, err := config.BuildVictorOpsSettings(fc)
+	settings, err := config.BuildVictorOpsConfig(fc)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ type VictoropsNotifier struct {
 	images     images.ImageStore
 	ns         sender.WebhookSender
 	tmpl       *template.Template
-	settings   config.VictorOpsSettings
+	settings   config.VictorOpsConfig
 	appVersion string
 }
 

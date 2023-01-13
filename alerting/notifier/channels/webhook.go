@@ -26,7 +26,7 @@ type WebhookNotifier struct {
 	images   images.ImageStore
 	tmpl     *template.Template
 	orgID    int64
-	settings config.WebhookSettings
+	settings config.WebhookConfig
 }
 
 func WebHookFactory(fc config.FactoryConfig) (NotificationChannel, error) {
@@ -43,7 +43,7 @@ func WebHookFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 // buildWebhookNotifier is the constructor for
 // the WebHook notifier.
 func buildWebhookNotifier(factoryConfig config.FactoryConfig) (*WebhookNotifier, error) {
-	settings, err := config.BuildWebhookSettings(factoryConfig)
+	settings, err := config.BuildWebhookConfig(factoryConfig)
 	if err != nil {
 		return nil, err
 	}

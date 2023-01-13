@@ -9,14 +9,14 @@ import (
 	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
-type EmailSettings struct {
+type EmailConfig struct {
 	SingleEmail bool
 	Addresses   []string
 	Message     string
 	Subject     string
 }
 
-func BuildEmailSettings(fc FactoryConfig) (*EmailSettings, error) {
+func BuildEmailConfig(fc FactoryConfig) (*EmailConfig, error) {
 	type emailSettingsRaw struct {
 		SingleEmail bool   `json:"singleEmail,omitempty"`
 		Addresses   string `json:"addresses,omitempty"`
@@ -39,7 +39,7 @@ func BuildEmailSettings(fc FactoryConfig) (*EmailSettings, error) {
 		settings.Subject = template.DefaultMessageTitleEmbed
 	}
 
-	return &EmailSettings{
+	return &EmailConfig{
 		SingleEmail: settings.SingleEmail,
 		Message:     settings.Message,
 		Subject:     settings.Subject,

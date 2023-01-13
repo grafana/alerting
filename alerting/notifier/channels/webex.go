@@ -24,7 +24,7 @@ type WebexNotifier struct {
 	images   images.ImageStore
 	tmpl     *template.Template
 	orgID    int64
-	settings *config.WebexSettings
+	settings *config.WebexConfig
 }
 
 func WebexFactory(fc config.FactoryConfig) (NotificationChannel, error) {
@@ -39,7 +39,7 @@ func WebexFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 }
 
 func buildWebexNotifier(factoryConfig config.FactoryConfig) (*WebexNotifier, error) {
-	settings, err := config.BuildWebexSettings(factoryConfig)
+	settings, err := config.BuildWebexConfig(factoryConfig)
 	if err != nil {
 		return nil, err
 	}

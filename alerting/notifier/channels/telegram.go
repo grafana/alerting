@@ -34,7 +34,7 @@ type TelegramNotifier struct {
 	images   images.ImageStore
 	ns       sender.WebhookSender
 	tmpl     *template.Template
-	settings config.TelegramSettings
+	settings config.TelegramConfig
 }
 
 func TelegramFactory(fc config.FactoryConfig) (NotificationChannel, error) {
@@ -50,7 +50,7 @@ func TelegramFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 
 // NewTelegramNotifier is the constructor for the Telegram notifier
 func NewTelegramNotifier(fc config.FactoryConfig) (*TelegramNotifier, error) {
-	settings, err := config.BuildTelegramSettings(fc)
+	settings, err := config.BuildTelegramConfig(fc)
 	if err != nil {
 		return nil, err
 	}

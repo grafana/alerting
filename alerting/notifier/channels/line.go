@@ -26,7 +26,7 @@ type LineNotifier struct {
 	log      log.Logger
 	ns       sender.WebhookSender
 	tmpl     *template.Template
-	settings *config.LineSettings
+	settings *config.LineConfig
 }
 
 func LineFactory(fc config.FactoryConfig) (NotificationChannel, error) {
@@ -42,7 +42,7 @@ func LineFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 
 // newLineNotifier is the constructor for the LINE notifier
 func newLineNotifier(fc config.FactoryConfig) (*LineNotifier, error) {
-	settings, err := config.BuildLineSettings(fc)
+	settings, err := config.BuildLineConfig(fc)
 	if err != nil {
 		return nil, err
 	}

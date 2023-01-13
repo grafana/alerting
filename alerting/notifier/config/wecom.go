@@ -25,7 +25,7 @@ func (mt WeComMsgType) IsValid() bool {
 	return mt == WeComMsgTypeMarkdown || mt == WeComMsgTypeText
 }
 
-type WecomSettings struct {
+type WecomConfig struct {
 	Channel     string       `json:"-" yaml:"-"`
 	EndpointURL string       `json:"endpointUrl,omitempty" yaml:"endpointUrl,omitempty"`
 	URL         string       `json:"url" yaml:"url"`
@@ -38,8 +38,8 @@ type WecomSettings struct {
 	ToUser      string       `json:"touser,omitempty" yaml:"touser,omitempty"`
 }
 
-func BuildWecomSettings(factoryConfig FactoryConfig) (WecomSettings, error) {
-	var settings = WecomSettings{
+func BuildWecomConfig(factoryConfig FactoryConfig) (WecomConfig, error) {
+	var settings = WecomConfig{
 		Channel: DefaultWeComChannelType,
 	}
 

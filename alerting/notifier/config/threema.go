@@ -10,7 +10,7 @@ import (
 	"github.com/grafana/alerting/alerting/notifier/template"
 )
 
-type ThreemaSettings struct {
+type ThreemaConfig struct {
 	GatewayID   string `json:"gateway_id,omitempty" yaml:"gateway_id,omitempty"`
 	RecipientID string `json:"recipient_id,omitempty" yaml:"recipient_id,omitempty"`
 	APISecret   string `json:"api_secret,omitempty" yaml:"api_secret,omitempty"`
@@ -18,8 +18,8 @@ type ThreemaSettings struct {
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 }
 
-func BuildThreemaSettings(fc FactoryConfig) (ThreemaSettings, error) {
-	settings := ThreemaSettings{}
+func BuildThreemaConfig(fc FactoryConfig) (ThreemaConfig, error) {
+	settings := ThreemaConfig{}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)

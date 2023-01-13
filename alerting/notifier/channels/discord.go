@@ -95,7 +95,7 @@ func DiscordFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 }
 
 func newDiscordNotifier(fc config.FactoryConfig) (*DiscordNotifier, error) {
-	settings, err := config.BuildDiscordSettings(fc)
+	settings, err := config.BuildDiscordConfig(fc)
 	if err != nil {
 		return nil, err
 	}

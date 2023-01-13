@@ -16,16 +16,16 @@ const (
 // PLEASE do not touch these settings without taking a look at what we support as part of
 // https://github.com/prometheus/alertmanager/blob/main/notify/webex/webex.go
 // Currently, the Alerting team is unifying channels and (upstream) receivers - any discrepancy is detrimental to that.
-type WebexSettings struct {
+type WebexConfig struct {
 	Message string `json:"message,omitempty" yaml:"message,omitempty"`
 	RoomID  string `json:"room_id,omitempty" yaml:"room_id,omitempty"`
 	APIURL  string `json:"api_url,omitempty" yaml:"api_url,omitempty"`
 	Token   string `json:"bot_token" yaml:"bot_token"`
 }
 
-// BuildWebexSettings is the constructor for the Webex notifier.
-func BuildWebexSettings(factoryConfig FactoryConfig) (*WebexSettings, error) {
-	settings := &WebexSettings{}
+// BuildWebexConfig is the constructor for the Webex notifier.
+func BuildWebexConfig(factoryConfig FactoryConfig) (*WebexConfig, error) {
+	settings := &WebexConfig{}
 	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)

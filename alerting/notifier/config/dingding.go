@@ -17,7 +17,7 @@ type DingDingConfig struct {
 
 const defaultDingdingMsgType = "link"
 
-func BuildDingDingSettings(fc FactoryConfig) (*DingDingConfig, error) {
+func BuildDingDingConfig(fc FactoryConfig) (*DingDingConfig, error) {
 	var settings DingDingConfig
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {

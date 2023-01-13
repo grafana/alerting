@@ -36,7 +36,7 @@ type OpsgenieNotifier struct {
 	log      log.Logger
 	ns       sender.WebhookSender
 	images   images.ImageStore
-	settings *config.OpsgenieSettings
+	settings *config.OpsgenieConfig
 }
 
 func OpsgenieFactory(fc config.FactoryConfig) (NotificationChannel, error) {
@@ -52,7 +52,7 @@ func OpsgenieFactory(fc config.FactoryConfig) (NotificationChannel, error) {
 
 // NewOpsgenieNotifier is the constructor for the Opsgenie notifier
 func NewOpsgenieNotifier(fc config.FactoryConfig) (*OpsgenieNotifier, error) {
-	settings, err := config.BuildOpsgenieSettings(fc)
+	settings, err := config.BuildOpsgenieConfig(fc)
 	if err != nil {
 		return nil, err
 	}

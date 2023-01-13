@@ -17,7 +17,7 @@ const (
 	DefaultPagerDutyClient   = "Grafana"
 )
 
-type PagerdutySettings struct {
+type PagerdutyConfig struct {
 	Key           string            `json:"integrationKey,omitempty" yaml:"integrationKey,omitempty"`
 	Severity      string            `json:"severity,omitempty" yaml:"severity,omitempty"`
 	CustomDetails map[string]string `json:"-" yaml:"-"` // TODO support the settings in the config
@@ -30,8 +30,8 @@ type PagerdutySettings struct {
 	ClientURL     string            `json:"client_url,omitempty" yaml:"client_url,omitempty"`
 }
 
-func BuildPagerdutySettings(fc FactoryConfig) (*PagerdutySettings, error) {
-	settings := PagerdutySettings{}
+func BuildPagerdutyConfig(fc FactoryConfig) (*PagerdutyConfig, error) {
+	settings := PagerdutyConfig{}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
