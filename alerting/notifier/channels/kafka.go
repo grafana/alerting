@@ -82,6 +82,8 @@ func buildKafkaSettings(fc FactoryConfig) (*kafkaSettings, error) {
 	if settings.Endpoint == "" {
 		return nil, errors.New("could not find kafka rest proxy endpoint property in settings")
 	}
+	settings.Endpoint = strings.TrimRight(settings.Endpoint, "/")
+
 	if settings.Topic == "" {
 		return nil, errors.New("could not find kafka topic property in settings")
 	}
@@ -146,7 +148,7 @@ func (kn *KafkaNotifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert
 	var tmplErr error
 	tmpl, _ := TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
 
-	topicURL := strings.TrimRight(kn.settings.Endpoint, "/") + "/topics/" + tmpl(kn.settings.Topic)
+	topicURL := kn.settings.Endpoint + "/topics/" + tmpl(kn.settings.Topic)
 	if tmplErr != nil {
 		kn.log.Warn("failed to template Kafka url", "error", tmplErr.Error())
 	}
@@ -184,8 +186,8 @@ func (kn *KafkaNotifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert
 	tmpl, _ := TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
 
 	// For v3 the Produce URL is like this,
-	// <Endpoint>/kafka/v3/clusters/<Cluster ID>/topics/<Topic Name>/records
-	topicURL := strings.TrimRight(kn.settings.Endpoint, "/") + "/kafka/v3/clusters/" + tmpl(kn.settings.KafkaClusterID) + "/topics/" + tmpl(kn.settings.Topic) + "/records"
+	// <Endpoint>/v3/clusters/<KafkaClusterID>/topics/<Topic>/records
+	topicURL := kn.settings.Endpoint + "/v3/clusters/" + tmpl(kn.settings.KafkaClusterID) + "/topics/" + tmpl(kn.settings.Topic) + "/records"
 	if tmplErr != nil {
 		kn.log.Warn("failed to template Kafka url", "error", tmplErr.Error())
 	}

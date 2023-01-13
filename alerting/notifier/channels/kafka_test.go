@@ -187,7 +187,7 @@ func TestKafkaNotifier(t *testing.T) {
 				"kafkaClusterId": "lkc-abcd"
 			}
 			`,
-			expURL:      `http://localhost:882/kafka/v3/clusters/lkc-abcd/topics/myTopic/records`,
+			expURL:      `http://localhost:882/v3/clusters/lkc-abcd/topics/myTopic/records`,
 			expMsgError: nil,
 			alerts: []*types.Alert{
 				{
@@ -224,6 +224,43 @@ func TestKafkaNotifier(t *testing.T) {
 				"details": "customDetails"
 			}
 			`,
+			expURL:      `http://localhost:882/v3/clusters/lkc-abcd/topics/myTopic/records`,
+			expMsgError: nil,
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", "__alertImageToken__": "test-image-1"},
+					},
+				},
+			},
+			expMsg: `
+			{
+				"value": {
+					"type": "JSON",
+					"data": {
+						"alert_state": "alerting",
+						"client": "Grafana",
+						"client_url": "http://localhost/alerting/list",
+						"contexts": [{"type": "image", "src": "https://www.example.com/test-image-1.jpg"}],
+						"description": "customDescription",
+						"details": "customDetails",
+						"incident_key": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733"
+					}
+				}
+			}`,
+		}, {
+			name: "API v3 verify single alert with image and custom description and details with Confluent cloud kafka",
+			settings: `
+			{
+				"kafkaRestProxy": "http://localhost:882/kafka",
+				"kafkaTopic": "myTopic",
+				"apiVersion": "v3",
+				"kafkaClusterId": "lkc-abcd",
+				"description": "customDescription",
+				"details": "customDetails"
+			}
+			`,
 			expURL:      `http://localhost:882/kafka/v3/clusters/lkc-abcd/topics/myTopic/records`,
 			expMsgError: nil,
 			alerts: []*types.Alert{
@@ -249,8 +286,7 @@ func TestKafkaNotifier(t *testing.T) {
 					}
 				}
 			}`,
-		},
-		{
+		}, {
 			name: "API v3 multiple alerts with images with default description and details",
 			settings: `
 			{
@@ -260,7 +296,7 @@ func TestKafkaNotifier(t *testing.T) {
 				"kafkaClusterId": "lkc-abcd"
 			}
 			`,
-			expURL:      `http://localhost:882/kafka/v3/clusters/lkc-abcd/topics/myTopic/records`,
+			expURL:      `http://localhost:882/v3/clusters/lkc-abcd/topics/myTopic/records`,
 			expMsgError: nil,
 			alerts: []*types.Alert{
 				{
@@ -307,7 +343,7 @@ func TestKafkaNotifier(t *testing.T) {
 				"password": "BruceWayne"
 			}
 			`,
-			expURL:      `http://localhost:882/kafka/v3/clusters/lkc-abcd/topics/myTopic/records`,
+			expURL:      `http://localhost:882/v3/clusters/lkc-abcd/topics/myTopic/records`,
 			expMsgError: nil,
 			expUsername: "batman",
 			expPassword: "BruceWayne",
