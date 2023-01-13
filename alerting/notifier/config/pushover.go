@@ -11,7 +11,7 @@ import (
 
 type PushoverConfig struct {
 	UserKey          string
-	ApiToken         string
+	APIToken         string
 	AlertingPriority int64
 	OkPriority       int64
 	Retry            int64
@@ -50,8 +50,8 @@ func BuildPushoverConfig(fc FactoryConfig) (PushoverConfig, error) {
 	if settings.UserKey == "" {
 		return settings, errors.New("user key not found")
 	}
-	settings.ApiToken = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "apiToken", rawSettings.APIToken)
-	if settings.ApiToken == "" {
+	settings.APIToken = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "apiToken", rawSettings.APIToken)
+	if settings.APIToken == "" {
 		return settings, errors.New("API token not found")
 	}
 	if rawSettings.AlertingPriority != "" {
