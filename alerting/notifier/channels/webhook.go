@@ -75,7 +75,7 @@ func buildWebhookSettings(factoryConfig FactoryConfig) (webhookSettings, error) 
 
 	settings.User = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "username", rawSettings.User)
 	settings.Password = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "password", rawSettings.Password)
-	settings.AuthorizationCredentials = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "authorization_scheme", rawSettings.AuthorizationCredentials)
+	settings.AuthorizationCredentials = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "authorization_credentials", rawSettings.AuthorizationCredentials)
 
 	if settings.AuthorizationCredentials != "" && settings.AuthorizationScheme == "" {
 		settings.AuthorizationScheme = "Bearer"
