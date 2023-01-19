@@ -83,7 +83,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
-replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.25.1-0.20230109182643-002d8ba820f6
+replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.25.1-0.20230119183635-ec19b0a443b7
 
 replace github.com/Unknwon/com v1.0.1 => github.com/unknwon/com v1.0.1
 
