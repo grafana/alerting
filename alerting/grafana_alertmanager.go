@@ -138,7 +138,7 @@ type NotifyReceiver = notify.Receiver
 // Configuration is an interface for accessing Alertmanager configuration.
 type Configuration interface {
 	DispatcherLimits() DispatcherLimits
-	InhibitRules() []*InhibitRule
+	InhibitRules() []InhibitRule
 	MuteTimeIntervals() []MuteTimeInterval
 	ReceiverIntegrations() (map[string][]*Integration, error)
 	BuildReceiverIntegrationsFunc() func(next *GrafanaReceiver, tmpl *Template) (Notifier, error)
