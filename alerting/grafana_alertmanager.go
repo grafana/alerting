@@ -138,7 +138,7 @@ type NotifyReceiver = notify.Receiver
 // Configuration is an interface for accessing Alertmanager configuration.
 type Configuration interface {
 	DispatcherLimits() DispatcherLimits
-	InhibitRules() []*InhibitRule
+	InhibitRules() []InhibitRule
 	MuteTimeIntervals() []MuteTimeInterval
 	ReceiverIntegrations() (map[string][]*Integration, error)
 	BuildReceiverIntegrationsFunc() func(next *GrafanaReceiver, tmpl *Template) (Notifier, error)
@@ -203,15 +203,12 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 	}
 
 	// Initialize the notification log
-	am.wg.Add(1)
-	am.notificationLog, err = nflog.New(
-		nflog.WithRetention(config.Nflog.Retention()),
-		nflog.WithSnapshot(config.Nflog.Filepath()),
-		nflog.WithMaintenance(config.Nflog.MaintenanceFrequency(), am.stopc, am.wg.Done, func() (int64, error) {
-			//TODO: There's a bug here, we need to call GC to ensure we cleanup old entries: https://github.com/grafana/alerting/issues/3
-			return config.Nflog.MaintenanceFunc(am.silences) // this is wrong, we need the notification log.
-		}),
-	)
+	am.notificationLog, err = nflog.New(nflog.Options{
+		SnapshotFile: config.Nflog.Filepath(),
+		Retention:    config.Nflog.Retention(),
+		Logger:       logger,
+	})
+
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the notification log component of alerting: %w", err)
 	}
@@ -220,6 +217,18 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 
 	c = am.peer.AddState(fmt.Sprintf("silences:%d", am.tenantID), am.silences, m.Registerer)
 	am.silences.SetBroadcast(c.Broadcast)
+
+	am.wg.Add(1)
+	go func() {
+		am.notificationLog.Maintenance(config.Nflog.MaintenanceFrequency(), config.Silences.Filepath(), am.stopc, func() (int64, error) {
+			if _, err := am.notificationLog.GC(); err != nil {
+				level.Error(am.logger).Log("notification log garbage collection", "err", err)
+			}
+
+			return config.Nflog.MaintenanceFunc(am.silences)
+		})
+		am.wg.Done()
+	}()
 
 	am.wg.Add(1)
 	go func() {
