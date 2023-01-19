@@ -50,7 +50,7 @@ func TestProcessNotifierError(t *testing.T) {
 		require.Equal(t, ReceiverTimeoutError{
 			Receiver: r,
 			Err:      context.DeadlineExceeded,
-		}, processNotifierError(r, context.DeadlineExceeded))
+		}, ProcessNotifierError(r, context.DeadlineExceeded))
 	})
 
 	t.Run("assert ReceiverTimeoutError is returned for *url.Error timeout", func(t *testing.T) {
@@ -66,7 +66,7 @@ func TestProcessNotifierError(t *testing.T) {
 		require.Equal(t, ReceiverTimeoutError{
 			Receiver: r,
 			Err:      urlError,
-		}, processNotifierError(r, urlError))
+		}, ProcessNotifierError(r, urlError))
 	})
 
 	t.Run("assert unknown error is returned unmodified", func(t *testing.T) {
@@ -75,6 +75,6 @@ func TestProcessNotifierError(t *testing.T) {
 			UID:  "uid",
 		}
 		err := errors.New("this is an error")
-		require.Equal(t, err, processNotifierError(r, err))
+		require.Equal(t, err, ProcessNotifierError(r, err))
 	})
 }
