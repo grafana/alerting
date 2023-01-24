@@ -207,6 +207,7 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		SnapshotFile: config.Nflog.Filepath(),
 		Retention:    config.Nflog.Retention(),
 		Logger:       logger,
+		Metrics:      m.Registerer,
 	})
 
 	if err != nil {
@@ -225,7 +226,7 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 				level.Error(am.logger).Log("notification log garbage collection", "err", err)
 			}
 
-			return config.Nflog.MaintenanceFunc(am.silences)
+			return config.Nflog.MaintenanceFunc(am.notificationLog)
 		})
 		am.wg.Done()
 	}()
