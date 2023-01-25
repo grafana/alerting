@@ -47,12 +47,12 @@ type InvalidReceiverError struct {
 }
 
 type GrafanaReceiver struct {
-	UID                   string            `json:"uid"`
-	Name                  string            `json:"name"`
-	Type                  string            `json:"type"`
-	DisableResolveMessage bool              `json:"disableResolveMessage"`
-	Settings              map[string]string `json:"settings"` //TODO: This used to be simpleJSON but I'm not even sure we need it.
-	SecureSettings        map[string]string `json:"secureSettings"`
+	UID                   string                 `json:"uid"`
+	Name                  string                 `json:"name"`
+	Type                  string                 `json:"type"`
+	DisableResolveMessage bool                   `json:"disableResolveMessage"`
+	Settings              map[string]interface{} `json:"settings"`
+	SecureSettings        map[string]string      `json:"secureSettings"`
 }
 
 type ConfigReceiver = config.Receiver
