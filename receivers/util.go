@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/logging"
@@ -29,38 +28,11 @@ const (
 	AlertStateOK       AlertStateType = "ok"
 )
 
-type ReceiverInitError struct {
-	Reason string
-	Err    error
-	Cfg    NotificationChannelConfig
-}
-
-func (e ReceiverInitError) Error() string {
-	name := ""
-	if e.Cfg.Name != "" {
-		name = fmt.Sprintf("%q ", e.Cfg.Name)
-	}
-
-	s := fmt.Sprintf("failed to validate receiver %sof type %q: %s", name, e.Cfg.Type, e.Reason)
-	if e.Err != nil {
-		return fmt.Sprintf("%s: %s", s, e.Err.Error())
-	}
-
-	return s
-}
-
-func (e ReceiverInitError) Unwrap() error { return e.Err }
-
 func GetAlertStatusColor(status model.AlertStatus) string {
 	if status == model.AlertFiring {
 		return ColorAlertFiring
 	}
 	return ColorAlertResolved
-}
-
-type NotificationChannel interface {
-	notify.Notifier
-	notify.ResolvedSender
 }
 
 type HTTPCfg struct {

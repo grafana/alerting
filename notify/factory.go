@@ -1,7 +1,10 @@
 package notify
 
 import (
+	"fmt"
 	"strings"
+
+	"github.com/prometheus/alertmanager/notify"
 
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/alertmanager"
@@ -25,7 +28,7 @@ import (
 	"github.com/grafana/alerting/receivers/wecom"
 )
 
-var receiverFactories = map[string]func(receivers.FactoryConfig) (receivers.NotificationChannel, error){
+var receiverFactories = map[string]func(receivers.FactoryConfig) (NotificationChannel, error){
 	"prometheus-alertmanager": wrap(alertmanager.New),
 	"dingding":                wrap(dinding.New),
 	"discord":                 wrap(discord.New),
@@ -47,18 +50,23 @@ var receiverFactories = map[string]func(receivers.FactoryConfig) (receivers.Noti
 	"webex":                   wrap(webex.New),
 }
 
-func Factory(receiverType string) (func(receivers.FactoryConfig) (receivers.NotificationChannel, error), bool) {
+type NotificationChannel interface {
+	notify.Notifier
+	notify.ResolvedSender
+}
+
+func Factory(receiverType string) (func(receivers.FactoryConfig) (NotificationChannel, error), bool) {
 	receiverType = strings.ToLower(receiverType)
 	factory, exists := receiverFactories[receiverType]
 	return factory, exists
 }
 
 // wrap wraps the notifier's factory errors with receivers.ReceiverInitError
-func wrap[T receivers.NotificationChannel](f func(fc receivers.FactoryConfig) (T, error)) func(receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	return func(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
+func wrap[T NotificationChannel](f func(fc receivers.FactoryConfig) (T, error)) func(receivers.FactoryConfig) (NotificationChannel, error) {
+	return func(fc receivers.FactoryConfig) (NotificationChannel, error) {
 		ch, err := f(fc)
 		if err != nil {
-			return nil, receivers.ReceiverInitError{
+			return nil, ReceiverInitError{
 				Reason: err.Error(),
 				Cfg:    *fc.Config,
 			}
@@ -66,3 +74,25 @@ func wrap[T receivers.NotificationChannel](f func(fc receivers.FactoryConfig) (T
 		return ch, nil
 	}
 }
+
+type ReceiverInitError struct {
+	Reason string
+	Err    error
+	Cfg    receivers.NotificationChannelConfig
+}
+
+func (e ReceiverInitError) Error() string {
+	name := ""
+	if e.Cfg.Name != "" {
+		name = fmt.Sprintf("%q ", e.Cfg.Name)
+	}
+
+	s := fmt.Sprintf("failed to validate receiver %sof type %q: %s", name, e.Cfg.Type, e.Reason)
+	if e.Err != nil {
+		return fmt.Sprintf("%s: %s", s, e.Err.Error())
+	}
+
+	return s
+}
+
+func (e ReceiverInitError) Unwrap() error { return e.Err }
