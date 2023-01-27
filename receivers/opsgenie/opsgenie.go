@@ -158,7 +158,7 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 			details[k] = v
 		}
 		var imageUrls []string
-		_ = receivers.WithStoredImages(ctx, on.log, on.images,
+		_ = images.WithStoredImages(ctx, on.log, on.images,
 			func(_ int, image images.Image) error {
 				if len(image.URL) == 0 {
 					return nil

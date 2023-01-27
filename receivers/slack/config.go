@@ -1,6 +1,8 @@
 package slack
 
-import "github.com/grafana/alerting/receivers"
+import (
+	"github.com/grafana/alerting/receivers"
+)
 
 const FooterIconURL = "https://grafana.com/static/assets/img/fav32.png"
 

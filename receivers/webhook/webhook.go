@@ -72,7 +72,7 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	tmpl, data := template2.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
 
 	// Augment our Alert data with ImageURLs if available.
-	_ = receivers.WithStoredImages(ctx, wn.log, wn.images,
+	_ = images.WithStoredImages(ctx, wn.log, wn.images,
 		func(index int, image images.Image) error {
 			if len(image.URL) != 0 {
 				data.Alerts[index].ImageURL = image.URL

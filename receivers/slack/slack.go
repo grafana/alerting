@@ -189,7 +189,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 
 	// Do not upload images if using an incoming webhook as incoming webhooks cannot upload files
 	if !isIncomingWebhook(sn.settings) {
-		if err := receivers.WithStoredImages(ctx, sn.log, sn.images, func(index int, image images.Image) error {
+		if err := images.WithStoredImages(ctx, sn.log, sn.images, func(index int, image images.Image) error {
 			// If we have exceeded the maximum number of images for this threadTs
 			// then tell the recipient and stop iterating subsequent images
 			if index >= maxImagesPerThreadTs {
@@ -361,7 +361,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 
 	if isIncomingWebhook(sn.settings) {
 		// Incoming webhooks cannot upload files, instead share images via their URL
-		_ = receivers.WithStoredImages(ctx, sn.log, sn.images, func(index int, image images.Image) error {
+		_ = images.WithStoredImages(ctx, sn.log, sn.images, func(index int, image images.Image) error {
 			if image.URL != "" {
 				req.Attachments[0].ImageURL = image.URL
 				return images.ErrImagesDone

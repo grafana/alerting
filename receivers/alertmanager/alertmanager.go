@@ -85,7 +85,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		return true, nil
 	}
 
-	_ = receivers.WithStoredImages(ctx, n.logger, n.images,
+	_ = images.WithStoredImages(ctx, n.logger, n.images,
 		func(index int, image images.Image) error {
 			// If there is an image for this alert and the image has been uploaded
 			// to a public URL then include it as an annotation

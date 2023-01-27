@@ -72,7 +72,7 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	// Augment our Alert data with ImageURLs if available.
-	_ = receivers.WithStoredImages(ctx, wn.log, wn.images, func(index int, image images.Image) error {
+	_ = images.WithStoredImages(ctx, wn.log, wn.images, func(index int, image images.Image) error {
 		// Cisco Webex only supports a single image per request: https://developer.webex.com/docs/basics#message-attachments
 		if image.HasURL() {
 			data.Alerts[index].ImageURL = image.URL

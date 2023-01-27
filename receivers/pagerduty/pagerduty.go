@@ -144,7 +144,7 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 		},
 	}
 
-	_ = receivers.WithStoredImages(ctx, pn.log, pn.images,
+	_ = images.WithStoredImages(ctx, pn.log, pn.images,
 		func(_ int, image images.Image) error {
 			if len(image.URL) != 0 {
 				msg.Images = append(msg.Images, pagerDutyImage{Src: image.URL})

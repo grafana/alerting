@@ -85,7 +85,7 @@ func (sn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 
 	labels := make(map[string]string)
 
-	_ = receivers.WithStoredImages(ctx, sn.log, sn.images,
+	_ = images.WithStoredImages(ctx, sn.log, sn.images,
 		func(_ int, image images.Image) error {
 			// If there is an image for this alert and the image has been uploaded
 			// to a public URL then add it to the request. We cannot add more than

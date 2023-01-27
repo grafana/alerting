@@ -1,4 +1,4 @@
-package receivers
+package images
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/models"
 )
@@ -30,7 +29,7 @@ func TestWithStoredImages(t *testing.T) {
 			},
 		},
 	}}
-	imageStore := &images.FakeImageStore{Images: []*images.Image{{
+	imageStore := &FakeImageStore{Images: []*Image{{
 		Token:     "test-image-1",
 		URL:       "https://www.example.com/test-image-1.jpg",
 		CreatedAt: time.Now().UTC(),
@@ -46,7 +45,7 @@ func TestWithStoredImages(t *testing.T) {
 	)
 
 	// should iterate all images
-	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageStore, func(index int, image images.Image) error {
+	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageStore, func(index int, image Image) error {
 		i++
 		return nil
 	}, alerts...)
@@ -55,9 +54,9 @@ func TestWithStoredImages(t *testing.T) {
 
 	// should iterate just the first image
 	i = 0
-	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageStore, func(index int, image images.Image) error {
+	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageStore, func(index int, image Image) error {
 		i++
-		return images.ErrImagesDone
+		return ErrImagesDone
 	}, alerts...)
 	require.NoError(t, err)
 	assert.Equal(t, 1, i)

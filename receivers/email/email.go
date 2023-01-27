@@ -63,7 +63,7 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 
 	// Extend alerts data with images, if available.
 	var embeddedFiles []string
-	_ = receivers.WithStoredImages(ctx, en.log, en.images,
+	_ = images.WithStoredImages(ctx, en.log, en.images,
 		func(index int, image images.Image) error {
 			if len(image.URL) != 0 {
 				data.Alerts[index].ImageURL = image.URL

@@ -31,7 +31,6 @@ type Notifier struct {
 	settings Config
 }
 
-
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	settings, err := BuildConfig(fc)
 	if err != nil {
@@ -93,7 +92,7 @@ func (tn *Notifier) buildMessage(ctx context.Context, as ...*types.Alert) string
 		tn.log.Warn("failed to template Threema message", "error", tmplErr.Error())
 	}
 
-	_ = receivers.WithStoredImages(ctx, tn.log, tn.images,
+	_ = images.WithStoredImages(ctx, tn.log, tn.images,
 		func(_ int, image images.Image) error {
 			if image.URL != "" {
 				message += fmt.Sprintf("*Image:* %s\n", image.URL)

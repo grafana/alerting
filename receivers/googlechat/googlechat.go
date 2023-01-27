@@ -168,7 +168,7 @@ func (gcn *Notifier) buildScreenshotCard(ctx context.Context, alerts []*types.Al
 		Sections: []section{},
 	}
 
-	_ = receivers.WithStoredImages(ctx, gcn.log, gcn.images,
+	_ = images.WithStoredImages(ctx, gcn.log, gcn.images,
 		func(index int, image images.Image) error {
 			if len(image.URL) == 0 {
 				return nil

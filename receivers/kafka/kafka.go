@@ -276,7 +276,7 @@ func buildState(as ...*types.Alert) receivers.AlertStateType {
 
 func buildContextImages(ctx context.Context, l logging.Logger, imageStore images.ImageStore, as ...*types.Alert) []kafkaContext {
 	var contexts []kafkaContext
-	_ = receivers.WithStoredImages(ctx, l, imageStore,
+	_ = images.WithStoredImages(ctx, l, imageStore,
 		func(_ int, image images.Image) error {
 			if image.URL != "" {
 				contexts = append(contexts, kafkaContext{

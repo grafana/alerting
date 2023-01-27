@@ -209,7 +209,7 @@ func (d Notifier) SendResolved() bool {
 func (d Notifier) constructAttachments(ctx context.Context, as []*types.Alert, embedQuota int) []discordAttachment {
 	attachments := make([]discordAttachment, 0)
 
-	_ = receivers.WithStoredImages(ctx, d.log, d.images,
+	_ = images.WithStoredImages(ctx, d.log, d.images,
 		func(index int, image images.Image) error {
 			if embedQuota < 1 {
 				return images.ErrImagesDone
@@ -229,7 +229,7 @@ func (d Notifier) constructAttachments(ctx context.Context, as []*types.Alert, e
 			if len(image.Path) > 0 {
 				base := filepath.Base(image.Path)
 				url := fmt.Sprintf("attachment://%s", base)
-				reader, err := receivers.OpenImage(image.Path)
+				reader, err := images.OpenImage(image.Path)
 				if err != nil && !errors.Is(err, images.ErrImageNotFound) {
 					d.log.Warn("failed to retrieve image data from store", "error", err)
 					return nil

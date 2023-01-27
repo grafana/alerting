@@ -24,6 +24,7 @@ const (
 	// victoropsAlertStateRecovery - VictorOps "RECOVERY" message type
 	victoropsAlertStateRecovery = "RECOVERY"
 )
+
 // Notifier defines URL property for Victorops REST API
 // and handles notification process by formatting POST body according to
 // Victorops specifications (http://victorops.force.com/knowledgebase/articles/Integration/Alert-Ingestion-API-Documentation/)
@@ -89,7 +90,7 @@ func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		tmplErr = nil
 	}
 
-	_ = receivers.WithStoredImages(ctx, vn.log, vn.images,
+	_ = images.WithStoredImages(ctx, vn.log, vn.images,
 		func(index int, image images.Image) error {
 			if image.URL != "" {
 				bodyJSON["image_url"] = image.URL

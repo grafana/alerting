@@ -267,7 +267,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	})
 
 	var s AdaptiveCardImageSetItem
-	_ = receivers.WithStoredImages(ctx, tn.log, tn.images,
+	_ = images.WithStoredImages(ctx, tn.log, tn.images,
 		func(_ int, image images.Image) error {
 			if image.URL != "" {
 				s.AppendImage(AdaptiveCardImageItem{URL: image.URL})
