@@ -179,7 +179,7 @@ func TestWeComNotifier(t *testing.T) {
 				Logger:     &logging.FakeLogger{},
 			}
 
-			pn, err := buildWecomNotifier(fc)
+			pn, err := New(fc)
 			if c.expInitError != "" {
 				require.Equal(t, c.expInitError, err.Error())
 				return
@@ -363,7 +363,7 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 				Logger:     &logging.FakeLogger{},
 			}
 
-			pn, err := buildWecomNotifier(fc)
+			pn, err := New(fc)
 			if tt.expInitError != "" {
 				require.Equal(t, tt.expInitError, err.Error())
 				return
@@ -375,7 +375,7 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 
 			// Avoid calling GetAccessToken interfaces
 			pn.tokExpireAt = time.Now().Add(10 * time.Second)
-			pn.tok = &WeComAccessToken{AccessToken: tt.accessToken}
+			pn.tok = &accessToken{AccessToken: tt.accessToken}
 
 			ok, err := pn.Notify(ctx, tt.alerts...)
 			if tt.expMsgError != nil {
@@ -397,7 +397,7 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 
 func TestWeComNotifier_GetAccessToken(t *testing.T) {
 	type fields struct {
-		tok         *WeComAccessToken
+		tok         *accessToken
 		tokExpireAt time.Time
 		corpid      string
 		secret      string
@@ -471,8 +471,8 @@ func TestWeComNotifier_GetAccessToken(t *testing.T) {
 			}))
 			defer server.Close()
 
-			w := &WeComNotifier{
-				settings: WecomConfig{
+			w := &Notifier{
+				settings: Config{
 					EndpointURL: server.URL,
 					CorpID:      tt.fields.corpid,
 					Secret:      tt.fields.secret,

@@ -28,8 +28,8 @@ var (
 	ValidPriorities = map[string]bool{"P1": true, "P2": true, "P3": true, "P4": true, "P5": true}
 )
 
-// OpsgenieNotifier is responsible for sending alert notifications to Opsgenie.
-type OpsgenieNotifier struct {
+// Notifier is responsible for sending alert notifications to Opsgenie.
+type Notifier struct {
 	*receivers.Base
 	tmpl     *template.Template
 	log      logging.Logger
@@ -38,24 +38,13 @@ type OpsgenieNotifier struct {
 	settings *OpsgenieConfig
 }
 
-func OpsgenieFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	notifier, err := NewOpsgenieNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return notifier, nil
-}
-
-// NewOpsgenieNotifier is the constructor for the Opsgenie notifier
-func NewOpsgenieNotifier(fc receivers.FactoryConfig) (*OpsgenieNotifier, error) {
-	settings, err := BuildOpsgenieConfig(fc)
+// New is the constructor for the Opsgenie notifier
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
-	return &OpsgenieNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(fc.Config),
 		tmpl:     fc.Template,
 		log:      fc.Logger,
@@ -66,7 +55,7 @@ func NewOpsgenieNotifier(fc receivers.FactoryConfig) (*OpsgenieNotifier, error) 
 }
 
 // Notify sends an alert notification to Opsgenie
-func (on *OpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (on *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	on.log.Debug("executing Opsgenie notification", "notification", on.Name)
 
 	alerts := types.Alerts(as...)
@@ -96,14 +85,14 @@ func (on *OpsgenieNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 		},
 	}
 
-	if err := on.ns.Send(ctx, cmd); err != nil {
+	if err := on.ns.SendWebhook(ctx, cmd); err != nil {
 		return false, fmt.Errorf("send notification to Opsgenie: %w", err)
 	}
 
 	return true, nil
 }
 
-func (on *OpsgenieNotifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alerts, as []*types.Alert) (payload []byte, apiURL string, err error) {
+func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alerts, as []*types.Alert) (payload []byte, apiURL string, err error) {
 	key, err := notify.ExtractGroupKey(ctx)
 	if err != nil {
 		return nil, "", err
@@ -212,16 +201,16 @@ func (on *OpsgenieNotifier) buildOpsgenieMessage(ctx context.Context, alerts mod
 	return b, apiURL, err
 }
 
-func (on *OpsgenieNotifier) SendResolved() bool {
+func (on *Notifier) SendResolved() bool {
 	return !on.GetDisableResolveMessage()
 }
 
-func (on *OpsgenieNotifier) sendDetails() bool {
-	return on.settings.SendTagsAs == OpsgenieSendDetails || on.settings.SendTagsAs == OpsgenieSendBoth
+func (on *Notifier) sendDetails() bool {
+	return on.settings.SendTagsAs == SendDetails || on.settings.SendTagsAs == SendBoth
 }
 
-func (on *OpsgenieNotifier) sendTags() bool {
-	return on.settings.SendTagsAs == OpsgenieSendTags || on.settings.SendTagsAs == OpsgenieSendBoth
+func (on *Notifier) sendTags() bool {
+	return on.settings.SendTagsAs == SendTags || on.settings.SendTagsAs == SendBoth
 }
 
 type opsGenieCreateMessage struct {

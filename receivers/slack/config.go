@@ -2,7 +2,9 @@ package slack
 
 import "github.com/grafana/alerting/receivers"
 
-type SlackConfig struct {
+const FooterIconURL = "https://grafana.com/static/assets/img/fav32.png"
+
+type Config struct {
 	EndpointURL    string                          `json:"endpointUrl,omitempty" yaml:"endpointUrl,omitempty"`
 	URL            string                          `json:"url,omitempty" yaml:"url,omitempty"`
 	Token          string                          `json:"token,omitempty" yaml:"token,omitempty"`

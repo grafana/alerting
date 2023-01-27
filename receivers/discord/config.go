@@ -9,7 +9,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-type DiscordConfig struct {
+type Config struct {
 	Title              string `json:"title,omitempty" yaml:"title,omitempty"`
 	Message            string `json:"message,omitempty" yaml:"message,omitempty"`
 	AvatarURL          string `json:"avatar_url,omitempty" yaml:"avatar_url,omitempty"`
@@ -17,8 +17,8 @@ type DiscordConfig struct {
 	UseDiscordUsername bool   `json:"use_discord_username,omitempty" yaml:"use_discord_username,omitempty"`
 }
 
-func BuildDiscordConfig(fc receivers.FactoryConfig) (*DiscordConfig, error) {
-	var settings DiscordConfig
+func BuildConfig(fc receivers.FactoryConfig) (*Config, error) {
+	var settings Config
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)

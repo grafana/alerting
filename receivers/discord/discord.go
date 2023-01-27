@@ -64,13 +64,13 @@ type discordImage struct {
 	URL string `json:"url"`
 }
 
-type DiscordNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	log        logging.Logger
 	ns         receivers.WebhookSender
 	images     images.ImageStore
 	tmpl       *template.Template
-	settings   *DiscordConfig
+	settings   *Config
 	appVersion string
 }
 
@@ -82,23 +82,12 @@ type discordAttachment struct {
 	state     model.AlertStatus
 }
 
-func DiscordFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	dn, err := newDiscordNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return dn, nil
-}
-
-func newDiscordNotifier(fc receivers.FactoryConfig) (*DiscordNotifier, error) {
-	settings, err := BuildDiscordConfig(fc)
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
-	return &DiscordNotifier{
+	return &Notifier{
 		Base:       receivers.NewBase(fc.Config),
 		log:        fc.Logger,
 		ns:         fc.NotificationService,
@@ -109,7 +98,7 @@ func newDiscordNotifier(fc receivers.FactoryConfig) (*DiscordNotifier, error) {
 	}, nil
 }
 
-func (d DiscordNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	alerts := types.Alerts(as...)
 
 	var msg discordMessage
@@ -206,18 +195,18 @@ func (d DiscordNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		return false, err
 	}
 
-	if err := d.ns.Send(ctx, cmd); err != nil {
+	if err := d.ns.SendWebhook(ctx, cmd); err != nil {
 		d.log.Error("failed to send notification to Discord", "error", err)
 		return false, err
 	}
 	return true, nil
 }
 
-func (d DiscordNotifier) SendResolved() bool {
+func (d Notifier) SendResolved() bool {
 	return !d.GetDisableResolveMessage()
 }
 
-func (d DiscordNotifier) constructAttachments(ctx context.Context, as []*types.Alert, embedQuota int) []discordAttachment {
+func (d Notifier) constructAttachments(ctx context.Context, as []*types.Alert, embedQuota int) []discordAttachment {
 	attachments := make([]discordAttachment, 0)
 
 	_ = receivers.WithStoredImages(ctx, d.log, d.images,
@@ -263,7 +252,7 @@ func (d DiscordNotifier) constructAttachments(ctx context.Context, as []*types.A
 	return attachments
 }
 
-func (d DiscordNotifier) buildRequest(url string, body []byte, attachments []discordAttachment) (*receivers.SendWebhookSettings, error) {
+func (d Notifier) buildRequest(url string, body []byte, attachments []discordAttachment) (*receivers.SendWebhookSettings, error) {
 	cmd := &receivers.SendWebhookSettings{
 		URL:        url,
 		HTTPMethod: "POST",

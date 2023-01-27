@@ -9,14 +9,14 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-type GoogleChatConfig struct {
+type Config struct {
 	URL     string `json:"url,omitempty" yaml:"url,omitempty"`
 	Title   string `json:"title,omitempty" yaml:"title,omitempty"`
 	Message string `json:"message,omitempty" yaml:"message,omitempty"`
 }
 
-func BuildGoogleChatConfig(fc receivers.FactoryConfig) (*GoogleChatConfig, error) {
-	var settings GoogleChatConfig
+func BuildConfig(fc receivers.FactoryConfig) (*Config, error) {
+	var settings Config
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)

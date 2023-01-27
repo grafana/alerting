@@ -12,7 +12,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-type WebhookConfig struct {
+type Config struct {
 	URL        string
 	HTTPMethod string
 	MaxAlerts  int
@@ -27,8 +27,8 @@ type WebhookConfig struct {
 	Message string
 }
 
-func BuildWebhookConfig(factoryConfig receivers.FactoryConfig) (WebhookConfig, error) {
-	settings := WebhookConfig{}
+func BuildConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
+	settings := Config{}
 	rawSettings := struct {
 		URL                      string      `json:"url,omitempty" yaml:"url,omitempty"`
 		HTTPMethod               string      `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`

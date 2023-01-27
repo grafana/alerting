@@ -224,7 +224,7 @@ func (i AdaptiveCardOpenURLActionItem) MarshalJSON() ([]byte, error) {
 	})
 }
 
-type TeamsNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	tmpl     *template.Template
 	log      logging.Logger
@@ -233,13 +233,13 @@ type TeamsNotifier struct {
 	settings TeamsConfig
 }
 
-// NewTeamsNotifier is the constructor for Teams notifier.
-func NewTeamsNotifier(fc receivers.FactoryConfig) (*TeamsNotifier, error) {
-	settings, err := BuildTeamsConfig(fc)
+// New is the constructor for Teams notifier.
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
-	return &TeamsNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(fc.Config),
 		log:      fc.Logger,
 		ns:       fc.NotificationService,
@@ -249,18 +249,7 @@ func NewTeamsNotifier(fc receivers.FactoryConfig) (*TeamsNotifier, error) {
 	}, nil
 }
 
-func TeamsFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	notifier, err := NewTeamsNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return notifier, nil
-}
-
-func (tn *TeamsNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var tmplErr error
 	tmpl, _ := template2.TmplText(ctx, tn.tmpl, as, tn.log, &tmplErr)
 
@@ -329,7 +318,7 @@ func (tn *TeamsNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 	// response can contain an error message, irrespective of status code (i.e. https://docs.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/connectors-using?tabs=cURL#rate-limiting-for-connectors)
 	cmd.Validation = validateResponse
 
-	if err := tn.ns.Send(ctx, cmd); err != nil {
+	if err := tn.ns.SendWebhook(ctx, cmd); err != nil {
 		return false, errors.Wrap(err, "send notification to Teams")
 	}
 
@@ -345,7 +334,7 @@ func validateResponse(b []byte, statusCode int) error {
 	return nil
 }
 
-func (tn *TeamsNotifier) SendResolved() bool {
+func (tn *Notifier) SendResolved() bool {
 	return !tn.GetDisableResolveMessage()
 }
 

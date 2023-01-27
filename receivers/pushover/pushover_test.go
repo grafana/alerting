@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	images2 "github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
@@ -26,7 +27,7 @@ import (
 func TestPushoverNotifier(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
-	images := receivers.NewFakeImageStoreWithFile(t, 2)
+	images := images2.NewFakeImageStoreWithFile(t, 2)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -232,7 +233,7 @@ func TestPushoverNotifier(t *testing.T) {
 				Logger:   &logging.FakeLogger{},
 			}
 
-			pn, err := NewPushoverNotifier(fc)
+			pn, err := New(fc)
 			if c.expInitError != "" {
 				require.Error(t, err)
 				require.Equal(t, c.expInitError, err.Error())

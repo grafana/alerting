@@ -15,35 +15,24 @@ import (
 	template2 "github.com/grafana/alerting/templates"
 )
 
-// WebexNotifier is responsible for sending alert notifications as webex messages.
-type WebexNotifier struct {
+// Notifier is responsible for sending alert notifications as webex messages.
+type Notifier struct {
 	*receivers.Base
 	ns       receivers.WebhookSender
 	log      logging.Logger
 	images   images.ImageStore
 	tmpl     *template.Template
 	orgID    int64
-	settings *WebexConfig
+	settings *Config
 }
 
-func WebexFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	notifier, err := buildWebexNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return notifier, nil
-}
-
-func buildWebexNotifier(factoryConfig receivers.FactoryConfig) (*WebexNotifier, error) {
-	settings, err := BuildWebexConfig(factoryConfig)
+func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(factoryConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	return &WebexNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(factoryConfig.Config),
 		orgID:    factoryConfig.Config.OrgID,
 		log:      factoryConfig.Logger,
@@ -54,15 +43,15 @@ func buildWebexNotifier(factoryConfig receivers.FactoryConfig) (*WebexNotifier, 
 	}, nil
 }
 
-// WebexMessage defines the JSON object to send to Webex endpoints.
-type WebexMessage struct {
+// webexMessage defines the JSON object to send to Webex endpoints.
+type webexMessage struct {
 	RoomID  string   `json:"roomId,omitempty"`
 	Message string   `json:"markdown"`
 	Files   []string `json:"files,omitempty"`
 }
 
 // Notify implements the Notifier interface.
-func (wn *WebexNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var tmplErr error
 	tmpl, data := template2.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
 
@@ -76,7 +65,7 @@ func (wn *WebexNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		tmplErr = nil
 	}
 
-	msg := &WebexMessage{
+	msg := &webexMessage{
 		RoomID:  wn.settings.RoomID,
 		Message: message,
 		Files:   []string{},
@@ -116,13 +105,13 @@ func (wn *WebexNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, 
 		cmd.HTTPHeader = headers
 	}
 
-	if err := wn.ns.Send(ctx, cmd); err != nil {
+	if err := wn.ns.SendWebhook(ctx, cmd); err != nil {
 		return false, err
 	}
 
 	return true, nil
 }
 
-func (wn *WebexNotifier) SendResolved() bool {
+func (wn *Notifier) SendResolved() bool {
 	return !wn.GetDisableResolveMessage()
 }

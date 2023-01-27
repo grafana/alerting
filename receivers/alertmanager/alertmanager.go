@@ -16,7 +16,7 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-type AlertmanagerConfig struct {
+type Config struct {
 	*receivers.NotificationChannelConfig
 	URLs              []*url.URL
 	BasicAuthUser     string
@@ -29,18 +29,7 @@ type alertmanagerSettings struct {
 	Password string
 }
 
-func AlertmanagerFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	ch, err := buildAlertmanagerNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return ch, nil
-}
-
-func buildAlertmanagerNotifier(fc receivers.FactoryConfig) (*AlertmanagerNotifier, error) {
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	var settings struct {
 		URL      receivers.CommaSeparatedStrings `json:"url,omitempty" yaml:"url,omitempty"`
 		User     string                          `json:"basicAuthUser,omitempty" yaml:"basicAuthUser,omitempty"`
@@ -69,7 +58,7 @@ func buildAlertmanagerNotifier(fc receivers.FactoryConfig) (*AlertmanagerNotifie
 	}
 	settings.Password = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "basicAuthPassword", settings.Password)
 
-	return &AlertmanagerNotifier{
+	return &Notifier{
 		Base:   receivers.NewBase(fc.Config),
 		images: fc.ImageStore,
 		settings: alertmanagerSettings{
@@ -81,8 +70,8 @@ func buildAlertmanagerNotifier(fc receivers.FactoryConfig) (*AlertmanagerNotifie
 	}, nil
 }
 
-// AlertmanagerNotifier sends alert notifications to the alert manager
-type AlertmanagerNotifier struct {
+// Notifier sends alert notifications to the alert manager
+type Notifier struct {
 	*receivers.Base
 	images   images.ImageStore
 	settings alertmanagerSettings
@@ -90,7 +79,7 @@ type AlertmanagerNotifier struct {
 }
 
 // Notify sends alert notifications to Alertmanager.
-func (n *AlertmanagerNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	n.logger.Debug("sending Alertmanager alert", "alertmanager", n.Name)
 	if len(as) == 0 {
 		return true, nil
@@ -116,7 +105,7 @@ func (n *AlertmanagerNotifier) Notify(ctx context.Context, as ...*types.Alert) (
 		numErrs int
 	)
 	for _, u := range n.settings.URLs {
-		if _, err := receivers.SendHTTPRequest(ctx, u, receivers.HttpCfg{
+		if _, err := receivers.SendHTTPRequest(ctx, u, receivers.HTTPCfg{
 			User:     n.settings.User,
 			Password: n.settings.Password,
 			Body:     body,
@@ -136,6 +125,6 @@ func (n *AlertmanagerNotifier) Notify(ctx context.Context, as ...*types.Alert) (
 	return true, nil
 }
 
-func (n *AlertmanagerNotifier) SendResolved() bool {
+func (n *Notifier) SendResolved() bool {
 	return !n.GetDisableResolveMessage()
 }

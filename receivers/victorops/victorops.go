@@ -24,26 +24,27 @@ const (
 	// victoropsAlertStateRecovery - VictorOps "RECOVERY" message type
 	victoropsAlertStateRecovery = "RECOVERY"
 )
-
-func VictorOpsFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	notifier, err := NewVictoropsNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return notifier, nil
+// Notifier defines URL property for Victorops REST API
+// and handles notification process by formatting POST body according to
+// Victorops specifications (http://victorops.force.com/knowledgebase/articles/Integration/Alert-Ingestion-API-Documentation/)
+type Notifier struct {
+	*receivers.Base
+	log        logging.Logger
+	images     images.ImageStore
+	ns         receivers.WebhookSender
+	tmpl       *template.Template
+	settings   Config
+	appVersion string
 }
 
-// NewVictoropsNotifier creates an instance of VictoropsNotifier that
+// New creates an instance of VictoropsNotifier that
 // handles posting notifications to Victorops REST API
-func NewVictoropsNotifier(fc receivers.FactoryConfig) (*VictoropsNotifier, error) {
-	settings, err := BuildVictorOpsConfig(fc)
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
-	return &VictoropsNotifier{
+	return &Notifier{
 		Base:       receivers.NewBase(fc.Config),
 		log:        fc.Logger,
 		images:     fc.ImageStore,
@@ -54,21 +55,8 @@ func NewVictoropsNotifier(fc receivers.FactoryConfig) (*VictoropsNotifier, error
 	}, nil
 }
 
-// VictoropsNotifier defines URL property for Victorops REST API
-// and handles notification process by formatting POST body according to
-// Victorops specifications (http://victorops.force.com/knowledgebase/articles/Integration/Alert-Ingestion-API-Documentation/)
-type VictoropsNotifier struct {
-	*receivers.Base
-	log        logging.Logger
-	images     images.ImageStore
-	ns         receivers.WebhookSender
-	tmpl       *template.Template
-	settings   VictorOpsConfig
-	appVersion string
-}
-
 // Notify sends notification to Victorops via POST to URL endpoint
-func (vn *VictoropsNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	vn.log.Debug("sending notification", "notification", vn.Name)
 
 	var tmplErr error
@@ -128,7 +116,7 @@ func (vn *VictoropsNotifier) Notify(ctx context.Context, as ...*types.Alert) (bo
 		Body: string(b),
 	}
 
-	if err := vn.ns.Send(ctx, cmd); err != nil {
+	if err := vn.ns.SendWebhook(ctx, cmd); err != nil {
 		vn.log.Error("failed to send notification", "error", err, "webhook", vn.Name)
 		return false, err
 	}
@@ -136,7 +124,7 @@ func (vn *VictoropsNotifier) Notify(ctx context.Context, as ...*types.Alert) (bo
 	return true, nil
 }
 
-func (vn *VictoropsNotifier) SendResolved() bool {
+func (vn *Notifier) SendResolved() bool {
 	return !vn.GetDisableResolveMessage()
 }
 
@@ -147,6 +135,6 @@ func buildMessageType(l logging.Logger, tmpl func(string) string, msgType string
 	if messageType := strings.ToUpper(tmpl(msgType)); messageType != "" {
 		return messageType
 	}
-	l.Warn("expansion of message type template resulted in an empty string. Using fallback", "fallback", DefaultVictoropsMessageType, "template", msgType)
-	return DefaultVictoropsMessageType
+	l.Warn("expansion of message type template resulted in an empty string. Using fallback", "fallback", DefaultMessageType, "template", msgType)
+	return DefaultMessageType
 }

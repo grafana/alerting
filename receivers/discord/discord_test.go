@@ -339,7 +339,7 @@ func TestDiscordNotifier(t *testing.T) {
 				GrafanaBuildVersion: appVersion,
 			}
 
-			dn, err := newDiscordNotifier(fc)
+			dn, err := New(fc)
 			if c.expInitError != "" {
 				require.Equal(t, c.expInitError, err.Error())
 				return

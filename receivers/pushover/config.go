@@ -10,7 +10,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-type PushoverConfig struct {
+type Config struct {
 	UserKey          string
 	APIToken         string
 	AlertingPriority int64
@@ -25,8 +25,8 @@ type PushoverConfig struct {
 	Message          string
 }
 
-func BuildPushoverConfig(fc receivers.FactoryConfig) (PushoverConfig, error) {
-	settings := PushoverConfig{}
+func BuildConfig(fc receivers.FactoryConfig) (Config, error) {
+	settings := Config{}
 	rawSettings := struct {
 		UserKey          string      `json:"userKey,omitempty" yaml:"userKey,omitempty"`
 		APIToken         string      `json:"apiToken,omitempty" yaml:"apiToken,omitempty"`

@@ -180,7 +180,7 @@ func TestDingdingNotifier(t *testing.T) {
 				Template:            tmpl,
 				Logger:              &logging.FakeLogger{},
 			}
-			pn, err := newDingDingNotifier(fc)
+			pn, err := New(fc)
 			if c.expInitError != "" {
 				require.Equal(t, c.expInitError, err.Error())
 				return

@@ -11,27 +11,25 @@ import (
 
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
-	template2 "github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/templates"
 )
 
-func DingDingFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	n, err := newDingDingNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return n, nil
+// Notifier is responsible for sending alert notifications to ding ding.
+type Notifier struct {
+	*receivers.Base
+	log      logging.Logger
+	ns       receivers.WebhookSender
+	tmpl     *template.Template
+	settings Config
 }
 
-// newDingDingNotifier is the constructor for the Dingding notifier
-func newDingDingNotifier(fc receivers.FactoryConfig) (*DingDingNotifier, error) {
-	settings, err := BuildDingDingConfig(fc)
+// New is the constructor for the Dingding notifier
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
-	return &DingDingNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(fc.Config),
 		log:      fc.Logger,
 		ns:       fc.NotificationService,
@@ -40,23 +38,14 @@ func newDingDingNotifier(fc receivers.FactoryConfig) (*DingDingNotifier, error) 
 	}, nil
 }
 
-// DingDingNotifier is responsible for sending alert notifications to ding ding.
-type DingDingNotifier struct {
-	*receivers.Base
-	log      logging.Logger
-	ns       receivers.WebhookSender
-	tmpl     *template.Template
-	settings DingDingConfig
-}
-
 // Notify sends the alert notification to dingding.
-func (dd *DingDingNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (dd *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	dd.log.Info("sending dingding")
 
 	dingDingURL := buildDingDingURL(dd)
 
 	var tmplErr error
-	tmpl, _ := template2.TmplText(ctx, dd.tmpl, as, dd.log, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, dd.tmpl, as, dd.log, &tmplErr)
 
 	message := tmpl(dd.settings.Message)
 	title := tmpl(dd.settings.Title)
@@ -80,18 +69,18 @@ func (dd *DingDingNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 
 	cmd := &receivers.SendWebhookSettings{URL: u, Body: b}
 
-	if err := dd.ns.Send(ctx, cmd); err != nil {
+	if err := dd.ns.SendWebhook(ctx, cmd); err != nil {
 		return false, fmt.Errorf("send notification to dingding: %w", err)
 	}
 
 	return true, nil
 }
 
-func (dd *DingDingNotifier) SendResolved() bool {
+func (dd *Notifier) SendResolved() bool {
 	return !dd.GetDisableResolveMessage()
 }
 
-func buildDingDingURL(dd *DingDingNotifier) string {
+func buildDingDingURL(dd *Notifier) string {
 	q := url.Values{
 		"pc_slide": {"false"},
 		"url":      {receivers.JoinURLPath(dd.tmpl.ExternalURL.String(), "/alerting/list", dd.log)},

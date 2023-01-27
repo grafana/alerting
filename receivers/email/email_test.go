@@ -21,7 +21,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 	testCase := []struct {
 		Name          string
 		Config        json.RawMessage
-		Expected      *EmailConfig
+		Expected      *Config
 		ExpectedError string
 	}{
 		{
@@ -34,7 +34,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 			Config: json.RawMessage(`{
 				"addresses": "someops@example.com;somedev@example.com"
 			}`),
-			Expected: &EmailConfig{
+			Expected: &Config{
 				SingleEmail: false,
 				Addresses: []string{
 					"someops@example.com",
@@ -49,7 +49,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 			Config: json.RawMessage(`{
 				"addresses": "someops@example.com,somedev@example.com"
 			}`),
-			Expected: &EmailConfig{
+			Expected: &Config{
 				SingleEmail: false,
 				Addresses: []string{
 					"someops@example.com",
@@ -64,7 +64,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 			Config: json.RawMessage(`{
 				"addresses": "someops@example.com\nsomedev@example.com"
 			}`),
-			Expected: &EmailConfig{
+			Expected: &Config{
 				SingleEmail: false,
 				Addresses: []string{
 					"someops@example.com",
@@ -79,7 +79,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 			Config: json.RawMessage(`{
 				"addresses": "someops@example.com\nsomedev@example.com;somedev2@example.com,somedev3@example.com"
 			}`),
-			Expected: &EmailConfig{
+			Expected: &Config{
 				SingleEmail: false,
 				Addresses: []string{
 					"someops@example.com",
@@ -96,7 +96,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 			Config: json.RawMessage(`{
 				"addresses": "someops@example.com\nsomedev@example.com;somedev2@example.com,somedev3@example.com"
 			}`),
-			Expected: &EmailConfig{
+			Expected: &Config{
 				SingleEmail: false,
 				Addresses: []string{
 					"someops@example.com",
@@ -116,7 +116,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 				"message": "test-message",
 				"subject": "test-subject"
 			}`),
-			Expected: &EmailConfig{
+			Expected: &Config{
 				SingleEmail: true,
 				Addresses: []string{
 					"someops@example.com",
@@ -134,7 +134,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 				Type:     "email",
 				Settings: test.Config,
 			}
-			settings, err := BuildEmailConfig(receivers.FactoryConfig{Config: cfg})
+			settings, err := BuildConfig(receivers.FactoryConfig{Config: cfg})
 			if test.ExpectedError != "" {
 				require.ErrorContains(t, err, test.ExpectedError)
 			} else {

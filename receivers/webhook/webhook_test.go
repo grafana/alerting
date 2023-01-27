@@ -33,7 +33,7 @@ func TestWebhookNotifier(t *testing.T) {
 		settings string
 		alerts   []*types.Alert
 
-		expMsg        *WebhookMessage
+		expMsg        *webhookMessage
 		expURL        string
 		expUsername   string
 		expPassword   string
@@ -55,7 +55,7 @@ func TestWebhookNotifier(t *testing.T) {
 			},
 			expURL:        "http://localhost/test",
 			expHTTPMethod: "POST",
-			expMsg: &WebhookMessage{
+			expMsg: &webhookMessage{
 				ExtendedData: &templates.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
@@ -129,7 +129,7 @@ func TestWebhookNotifier(t *testing.T) {
 			expHTTPMethod: "PUT",
 			expUsername:   "user1",
 			expPassword:   "mysecret",
-			expMsg: &WebhookMessage{
+			expMsg: &webhookMessage{
 				ExtendedData: &templates.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
@@ -196,7 +196,7 @@ func TestWebhookNotifier(t *testing.T) {
 			},
 			expURL:        "http://localhost/test?numAlerts=2&status=firing",
 			expHTTPMethod: "POST",
-			expMsg: &WebhookMessage{
+			expMsg: &webhookMessage{
 				ExtendedData: &templates.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
@@ -261,7 +261,7 @@ func TestWebhookNotifier(t *testing.T) {
 					},
 				},
 			},
-			expMsg: &WebhookMessage{
+			expMsg: &webhookMessage{
 				ExtendedData: &templates.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
@@ -362,7 +362,7 @@ func TestWebhookNotifier(t *testing.T) {
 				Logger:     &logging.FakeLogger{},
 			}
 
-			pn, err := buildWebhookNotifier(fc)
+			pn, err := New(fc)
 			if c.expInitError != "" {
 				require.Error(t, err)
 				require.Equal(t, c.expInitError, err.Error())

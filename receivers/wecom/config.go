@@ -12,36 +12,36 @@ import (
 
 var weComEndpoint = "https://qyapi.weixin.qq.com"
 
-const DefaultWeComChannelType = "groupRobot"
-const DefaultWeComMsgType = "markdown"
-const DefaultWeComToUser = "@all"
+const DefaultChannelType = "groupRobot"
+const DefaultsgType = "markdown"
+const DefaultToUser = "@all"
 
-type WeComMsgType string
+type MsgType string
 
-const WeComMsgTypeMarkdown WeComMsgType = "markdown" // use these in available_receivers.go too
-const WeComMsgTypeText WeComMsgType = "text"
+const MsgTypeMarkdown MsgType = "markdown" // use these in available_receivers.go too
+const MsgTypeText MsgType = "text"
 
 // IsValid checks wecom message type
-func (mt WeComMsgType) IsValid() bool {
-	return mt == WeComMsgTypeMarkdown || mt == WeComMsgTypeText
+func (mt MsgType) IsValid() bool {
+	return mt == MsgTypeMarkdown || mt == MsgTypeText
 }
 
-type WecomConfig struct {
-	Channel     string       `json:"-" yaml:"-"`
-	EndpointURL string       `json:"endpointUrl,omitempty" yaml:"endpointUrl,omitempty"`
-	URL         string       `json:"url" yaml:"url"`
-	AgentID     string       `json:"agent_id,omitempty" yaml:"agent_id,omitempty"`
-	CorpID      string       `json:"corp_id,omitempty" yaml:"corp_id,omitempty"`
-	Secret      string       `json:"secret,omitempty" yaml:"secret,omitempty"`
-	MsgType     WeComMsgType `json:"msgtype,omitempty" yaml:"msgtype,omitempty"`
-	Message     string       `json:"message,omitempty" yaml:"message,omitempty"`
-	Title       string       `json:"title,omitempty" yaml:"title,omitempty"`
-	ToUser      string       `json:"touser,omitempty" yaml:"touser,omitempty"`
+type Config struct {
+	Channel     string  `json:"-" yaml:"-"`
+	EndpointURL string  `json:"endpointUrl,omitempty" yaml:"endpointUrl,omitempty"`
+	URL         string  `json:"url" yaml:"url"`
+	AgentID     string  `json:"agent_id,omitempty" yaml:"agent_id,omitempty"`
+	CorpID      string  `json:"corp_id,omitempty" yaml:"corp_id,omitempty"`
+	Secret      string  `json:"secret,omitempty" yaml:"secret,omitempty"`
+	MsgType     MsgType `json:"msgtype,omitempty" yaml:"msgtype,omitempty"`
+	Message     string  `json:"message,omitempty" yaml:"message,omitempty"`
+	Title       string  `json:"title,omitempty" yaml:"title,omitempty"`
+	ToUser      string  `json:"touser,omitempty" yaml:"touser,omitempty"`
 }
 
-func BuildWecomConfig(factoryConfig receivers.FactoryConfig) (WecomConfig, error) {
-	var settings = WecomConfig{
-		Channel: DefaultWeComChannelType,
+func BuildConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
+	var settings = Config{
+		Channel: DefaultChannelType,
 	}
 
 	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
@@ -54,7 +54,7 @@ func BuildWecomConfig(factoryConfig receivers.FactoryConfig) (WecomConfig, error
 	}
 
 	if !settings.MsgType.IsValid() {
-		settings.MsgType = DefaultWeComMsgType
+		settings.MsgType = DefaultsgType
 	}
 
 	if len(settings.Message) == 0 {
@@ -64,7 +64,7 @@ func BuildWecomConfig(factoryConfig receivers.FactoryConfig) (WecomConfig, error
 		settings.Title = templates.DefaultMessageTitleEmbed
 	}
 	if len(settings.ToUser) == 0 {
-		settings.ToUser = DefaultWeComToUser
+		settings.ToUser = DefaultToUser
 	}
 
 	settings.URL = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "url", settings.URL)

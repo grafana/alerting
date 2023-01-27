@@ -16,11 +16,11 @@ import (
 // Details on how these versions differ can be found here:
 // https://docs.confluent.io/platform/current/kafka-rest/api.html
 const (
-	KafkaAPIVersionV2 = "v2"
-	KafkaAPIVersionV3 = "v3"
+	apiVersionV2 = "v2"
+	apiVersionV3 = "v3"
 )
 
-type KafkaConfig struct {
+type Config struct {
 	Endpoint       string `json:"kafkaRestProxy,omitempty" yaml:"kafkaRestProxy,omitempty"`
 	Topic          string `json:"kafkaTopic,omitempty" yaml:"kafkaTopic,omitempty"`
 	Description    string `json:"description,omitempty" yaml:"description,omitempty"`
@@ -31,8 +31,8 @@ type KafkaConfig struct {
 	KafkaClusterID string `json:"kafkaClusterId,omitempty" yaml:"kafkaClusterId,omitempty"`
 }
 
-func BuildKafkaConfig(fc receivers.FactoryConfig) (*KafkaConfig, error) {
-	var settings KafkaConfig
+func BuildConfig(fc receivers.FactoryConfig) (*Config, error) {
+	var settings Config
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
@@ -55,12 +55,12 @@ func BuildKafkaConfig(fc receivers.FactoryConfig) (*KafkaConfig, error) {
 	settings.Password = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "password", settings.Password)
 
 	if settings.APIVersion == "" {
-		settings.APIVersion = KafkaAPIVersionV2
-	} else if settings.APIVersion == KafkaAPIVersionV3 {
+		settings.APIVersion = apiVersionV2
+	} else if settings.APIVersion == apiVersionV3 {
 		if settings.KafkaClusterID == "" {
 			return nil, errors.New("kafka cluster id must be provided when using api version 3")
 		}
-	} else if settings.APIVersion != KafkaAPIVersionV2 && settings.APIVersion != KafkaAPIVersionV3 {
+	} else if settings.APIVersion != apiVersionV2 && settings.APIVersion != apiVersionV3 {
 		return nil, fmt.Errorf("unsupported api version: %s", settings.APIVersion)
 	}
 	return &settings, nil

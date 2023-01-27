@@ -9,7 +9,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-type DingDingConfig struct {
+type Config struct {
 	URL         string `json:"url,omitempty" yaml:"url,omitempty"`
 	MessageType string `json:"msgType,omitempty" yaml:"msgType,omitempty"`
 	Title       string `json:"title,omitempty" yaml:"title,omitempty"`
@@ -18,8 +18,8 @@ type DingDingConfig struct {
 
 const defaultDingdingMsgType = "link"
 
-func BuildDingDingConfig(fc receivers.FactoryConfig) (*DingDingConfig, error) {
-	var settings DingDingConfig
+func BuildConfig(fc receivers.FactoryConfig) (*Config, error) {
+	var settings Config
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)

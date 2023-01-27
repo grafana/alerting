@@ -17,7 +17,7 @@ type TeamsConfig struct {
 	SectionTitle string `json:"sectiontitle,omitempty" yaml:"sectiontitle,omitempty"`
 }
 
-func BuildTeamsConfig(fc receivers.FactoryConfig) (TeamsConfig, error) {
+func BuildConfig(fc receivers.FactoryConfig) (TeamsConfig, error) {
 	settings := TeamsConfig{}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {

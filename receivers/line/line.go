@@ -15,38 +15,27 @@ import (
 )
 
 var (
-	LineNotifyURL string = "https://notify-api.line.me/api/notify"
+	NotifyURL string = "https://notify-api.line.me/api/notify"
 )
 
-// LineNotifier is responsible for sending
+// Notifier is responsible for sending
 // alert notifications to LINE.
-type LineNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	log      logging.Logger
 	ns       receivers.WebhookSender
 	tmpl     *template.Template
-	settings *LineConfig
+	settings *Config
 }
 
-func LineFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	n, err := newLineNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return n, nil
-}
-
-// newLineNotifier is the constructor for the LINE notifier
-func newLineNotifier(fc receivers.FactoryConfig) (*LineNotifier, error) {
-	settings, err := BuildLineConfig(fc)
+// New is the constructor for the LINE notifier
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
 
-	return &LineNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(fc.Config),
 		log:      fc.Logger,
 		ns:       fc.NotificationService,
@@ -56,7 +45,7 @@ func newLineNotifier(fc receivers.FactoryConfig) (*LineNotifier, error) {
 }
 
 // Notify send an alert notification to LINE
-func (ln *LineNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (ln *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	ln.log.Debug("executing line notification", "notification", ln.Name)
 
 	body := ln.buildMessage(ctx, as...)
@@ -65,7 +54,7 @@ func (ln *LineNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 	form.Add("message", body)
 
 	cmd := &receivers.SendWebhookSettings{
-		URL:        LineNotifyURL,
+		URL:        NotifyURL,
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{
 			"Authorization": fmt.Sprintf("Bearer %s", ln.settings.Token),
@@ -82,11 +71,11 @@ func (ln *LineNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 	return true, nil
 }
 
-func (ln *LineNotifier) SendResolved() bool {
+func (ln *Notifier) SendResolved() bool {
 	return !ln.GetDisableResolveMessage()
 }
 
-func (ln *LineNotifier) buildMessage(ctx context.Context, as ...*types.Alert) string {
+func (ln *Notifier) buildMessage(ctx context.Context, as ...*types.Alert) string {
 	ruleURL := path.Join(ln.tmpl.ExternalURL.String(), "/alerting/list")
 
 	var tmplErr error

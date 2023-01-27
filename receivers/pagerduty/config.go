@@ -12,13 +12,13 @@ import (
 )
 
 const (
-	DefaultPagerDutySeverity = "critical"
-	DefaultPagerDutyClass    = "default"
-	DefaultPagerDutyGroup    = "default"
-	DefaultPagerDutyClient   = "Grafana"
+	DefaultSeverity = "critical"
+	DefaultClass    = "default"
+	DefaultGroup    = "default"
+	DefaultClient   = "Grafana"
 )
 
-type PagerdutyConfig struct {
+type Config struct {
 	Key           string            `json:"integrationKey,omitempty" yaml:"integrationKey,omitempty"`
 	Severity      string            `json:"severity,omitempty" yaml:"severity,omitempty"`
 	CustomDetails map[string]string `json:"-" yaml:"-"` // TODO support the settings in the config
@@ -31,8 +31,8 @@ type PagerdutyConfig struct {
 	ClientURL     string            `json:"client_url,omitempty" yaml:"client_url,omitempty"`
 }
 
-func BuildPagerdutyConfig(fc receivers.FactoryConfig) (*PagerdutyConfig, error) {
-	settings := PagerdutyConfig{}
+func BuildConfig(fc receivers.FactoryConfig) (*Config, error) {
+	settings := Config{}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
@@ -51,22 +51,22 @@ func BuildPagerdutyConfig(fc receivers.FactoryConfig) (*PagerdutyConfig, error) 
 	}
 
 	if settings.Severity == "" {
-		settings.Severity = DefaultPagerDutySeverity
+		settings.Severity = DefaultSeverity
 	}
 	if settings.Class == "" {
-		settings.Class = DefaultPagerDutyClass
+		settings.Class = DefaultClass
 	}
 	if settings.Component == "" {
 		settings.Component = "Grafana"
 	}
 	if settings.Group == "" {
-		settings.Group = DefaultPagerDutyGroup
+		settings.Group = DefaultGroup
 	}
 	if settings.Summary == "" {
 		settings.Summary = templates.DefaultMessageTitleEmbed
 	}
 	if settings.Client == "" {
-		settings.Client = DefaultPagerDutyClient
+		settings.Client = DefaultClient
 	}
 	if settings.ClientURL == "" {
 		settings.ClientURL = "{{ .ExternalURL }}"

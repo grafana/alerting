@@ -91,7 +91,7 @@ func TestNewAlertmanagerNotifier(t *testing.T) {
 				Template:    tmpl,
 				Logger:      &logging.FakeLogger{},
 			}
-			sn, err := buildAlertmanagerNotifier(fc)
+			sn, err := New(fc)
 			if c.expectedInitError != "" {
 				require.ErrorContains(t, err, c.expectedInitError)
 			} else {
@@ -104,7 +104,7 @@ func TestNewAlertmanagerNotifier(t *testing.T) {
 func TestAlertmanagerNotifier_Notify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
-	images := receivers.NewFakeImageStore(1)
+	images := images.NewFakeImageStore(1)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -194,7 +194,7 @@ func TestAlertmanagerNotifier_Notify(t *testing.T) {
 				Template:    tmpl,
 				Logger:      &logging.FakeLogger{},
 			}
-			sn, err := buildAlertmanagerNotifier(fc)
+			sn, err := New(fc)
 			require.NoError(t, err)
 
 			var body []byte
@@ -202,7 +202,7 @@ func TestAlertmanagerNotifier_Notify(t *testing.T) {
 			t.Cleanup(func() {
 				receivers.SendHTTPRequest = origSendHTTPRequest
 			})
-			receivers.SendHTTPRequest = func(ctx context.Context, url *url.URL, cfg receivers.HttpCfg, logger logging.Logger) ([]byte, error) {
+			receivers.SendHTTPRequest = func(ctx context.Context, url *url.URL, cfg receivers.HTTPCfg, logger logging.Logger) ([]byte, error) {
 				body = cfg.Body
 				return nil, c.sendHTTPRequestError
 			}

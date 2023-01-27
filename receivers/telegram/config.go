@@ -13,11 +13,11 @@ import (
 
 const DefaultTelegramParseMode = "HTML"
 
-// TelegramSupportedParseMode is a map of all supported values for field `parse_mode`. https://core.telegram.org/bots/api#formatting-options.
+// SupportedParseMode is a map of all supported values for field `parse_mode`. https://core.telegram.org/bots/api#formatting-options.
 // Keys are options accepted by Grafana API, values are options accepted by Telegram API
-var TelegramSupportedParseMode = map[string]string{"Markdown": "Markdown", "MarkdownV2": "MarkdownV2", DefaultTelegramParseMode: "HTML", "None": ""}
+var SupportedParseMode = map[string]string{"Markdown": "Markdown", "MarkdownV2": "MarkdownV2", DefaultTelegramParseMode: "HTML", "None": ""}
 
-type TelegramConfig struct {
+type Config struct {
 	BotToken             string `json:"bottoken,omitempty" yaml:"bottoken,omitempty"`
 	ChatID               string `json:"chatid,omitempty" yaml:"chatid,omitempty"`
 	Message              string `json:"message,omitempty" yaml:"message,omitempty"`
@@ -25,8 +25,8 @@ type TelegramConfig struct {
 	DisableNotifications bool   `json:"disable_notifications,omitempty" yaml:"disable_notifications,omitempty"`
 }
 
-func BuildTelegramConfig(fc receivers.FactoryConfig) (TelegramConfig, error) {
-	settings := TelegramConfig{}
+func BuildConfig(fc receivers.FactoryConfig) (Config, error) {
+	settings := Config{}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
@@ -46,7 +46,7 @@ func BuildTelegramConfig(fc receivers.FactoryConfig) (TelegramConfig, error) {
 		settings.ParseMode = DefaultTelegramParseMode
 	}
 	found := false
-	for parseMode, value := range TelegramSupportedParseMode {
+	for parseMode, value := range SupportedParseMode {
 		if strings.EqualFold(settings.ParseMode, parseMode) {
 			settings.ParseMode = value
 			found = true

@@ -402,7 +402,7 @@ func checkMultipart(t *testing.T, expected map[string]struct{}, r io.Reader, bou
 	assert.Equal(t, expected, visited)
 }
 
-func setupSlackForTests(t *testing.T, settings string) (*SlackNotifier, *slackRequestRecorder, error) {
+func setupSlackForTests(t *testing.T, settings string) (*Notifier, *slackRequestRecorder, error) {
 	tmpl := templates.ForTests(t)
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -417,7 +417,7 @@ func setupSlackForTests(t *testing.T, settings string) (*SlackNotifier, *slackRe
 		}
 	})
 
-	images := &receivers.FakeImageStore{
+	images := &images.FakeImageStore{
 		Images: []*images.Image{{
 			Token: "image-on-disk",
 			Path:  f.Name(),
@@ -445,7 +445,7 @@ func setupSlackForTests(t *testing.T, settings string) (*SlackNotifier, *slackRe
 		GrafanaBuildVersion: appVersion,
 	}
 
-	sn, err := buildSlackNotifier(c)
+	sn, err := New(c)
 	if err != nil {
 		return nil, nil, err
 	}

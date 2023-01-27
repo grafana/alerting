@@ -16,34 +16,23 @@ import (
 	template2 "github.com/grafana/alerting/templates"
 )
 
-// EmailNotifier is responsible for sending
+// Notifier is responsible for sending
 // alert notifications over email.
-type EmailNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	log      logging.Logger
 	ns       receivers.EmailSender
 	images   images.ImageStore
 	tmpl     *template.Template
-	settings *EmailConfig
+	settings *Config
 }
 
-func EmailFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	notifier, err := buildEmailNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return notifier, nil
-}
-
-func buildEmailNotifier(fc receivers.FactoryConfig) (*EmailNotifier, error) {
-	settings, err := BuildEmailConfig(fc)
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
-	return &EmailNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(fc.Config),
 		log:      fc.Logger,
 		ns:       fc.NotificationService,
@@ -54,7 +43,7 @@ func buildEmailNotifier(fc receivers.FactoryConfig) (*EmailNotifier, error) {
 }
 
 // Notify sends the alert notification.
-func (en *EmailNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
+func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
 	var tmplErr error
 	tmpl, data := template2.TmplText(ctx, en.tmpl, alerts, en.log, &tmplErr)
 
@@ -121,6 +110,6 @@ func (en *EmailNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bo
 	return true, nil
 }
 
-func (en *EmailNotifier) SendResolved() bool {
+func (en *Notifier) SendResolved() bool {
 	return !en.GetDisableResolveMessage()
 }

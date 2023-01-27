@@ -44,36 +44,25 @@ type kafkaContext struct {
 	Source string `json:"src"`
 }
 
-// KafkaNotifier is responsible for sending
+// Notifier is responsible for sending
 // alert notifications to Kafka.
-type KafkaNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	log      logging.Logger
 	images   images.ImageStore
 	ns       receivers.WebhookSender
 	tmpl     *template.Template
-	settings *KafkaConfig
+	settings *Config
 }
 
-func KafkaFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	ch, err := newKafkaNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return ch, nil
-}
-
-// newKafkaNotifier is the constructor function for the Kafka notifier.
-func newKafkaNotifier(fc receivers.FactoryConfig) (*KafkaNotifier, error) {
-	settings, err := BuildKafkaConfig(fc)
+// New is the constructor function for the Kafka notifier.
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
 
-	return &KafkaNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(fc.Config),
 		log:      fc.Logger,
 		images:   fc.ImageStore,
@@ -84,15 +73,15 @@ func newKafkaNotifier(fc receivers.FactoryConfig) (*KafkaNotifier, error) {
 }
 
 // Notify sends the alert notification.
-func (kn *KafkaNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	if kn.settings.APIVersion == KafkaAPIVersionV3 {
+func (kn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+	if kn.settings.APIVersion == apiVersionV3 {
 		return kn.notifyWithAPIV3(ctx, as...)
 	}
 	return kn.notifyWithAPIV2(ctx, as...)
 }
 
 // Use the v2 API to send the alert notification.
-func (kn *KafkaNotifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var tmplErr error
 	tmpl, _ := template2.TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
 
@@ -121,7 +110,7 @@ func (kn *KafkaNotifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert
 		Password: kn.settings.Password,
 	}
 
-	if err := kn.ns.Send(ctx, cmd); err != nil {
+	if err := kn.ns.SendWebhook(ctx, cmd); err != nil {
 		kn.log.Error("Failed to send notification to Kafka", "error", err, "body", body)
 		return false, err
 	}
@@ -129,7 +118,7 @@ func (kn *KafkaNotifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert
 }
 
 // Use the v3 API to send the alert notification.
-func (kn *KafkaNotifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (kn *Notifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var tmplErr error
 	tmpl, _ := template2.TmplText(ctx, kn.tmpl, as, kn.log, &tmplErr)
 
@@ -165,7 +154,7 @@ func (kn *KafkaNotifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert
 	// Can be implemented nicely using receivers. The v3 API can be used in streaming mode
 	// by setting “Transfer-Encoding: chunked” header.
 	// For as long as the connection is kept open, the server will keep accepting records.
-	if err := kn.ns.Send(ctx, cmd); err != nil {
+	if err := kn.ns.SendWebhook(ctx, cmd); err != nil {
 		kn.log.Error("Failed to send notification to Kafka", "error", err, "body", body)
 		return false, err
 	}
@@ -205,18 +194,18 @@ func validateKafkaV3Response(rawResponse []byte, statusCode int) error {
 	return nil
 }
 
-func (kn *KafkaNotifier) SendResolved() bool {
+func (kn *Notifier) SendResolved() bool {
 	return !kn.GetDisableResolveMessage()
 }
 
-func (kn *KafkaNotifier) buildBody(ctx context.Context, tmpl func(string) string, as ...*types.Alert) (string, error) {
-	if kn.settings.APIVersion == KafkaAPIVersionV3 {
+func (kn *Notifier) buildBody(ctx context.Context, tmpl func(string) string, as ...*types.Alert) (string, error) {
+	if kn.settings.APIVersion == apiVersionV3 {
 		return kn.buildV3Body(ctx, tmpl, as...)
 	}
 	return kn.buildV2Body(ctx, tmpl, as...)
 }
 
-func (kn *KafkaNotifier) buildV2Body(ctx context.Context, tmpl func(string) string, as ...*types.Alert) (string, error) {
+func (kn *Notifier) buildV2Body(ctx context.Context, tmpl func(string) string, as ...*types.Alert) (string, error) {
 	var record kafkaRecord
 	if err := kn.buildKafkaRecord(ctx, &record, tmpl, as...); err != nil {
 		return "", err
@@ -233,7 +222,7 @@ func (kn *KafkaNotifier) buildV2Body(ctx context.Context, tmpl func(string) stri
 	return string(body), nil
 }
 
-func (kn *KafkaNotifier) buildV3Body(ctx context.Context, tmpl func(string) string, as ...*types.Alert) (string, error) {
+func (kn *Notifier) buildV3Body(ctx context.Context, tmpl func(string) string, as ...*types.Alert) (string, error) {
 	var record kafkaRecord
 	if err := kn.buildKafkaRecord(ctx, &record, tmpl, as...); err != nil {
 		return "", err
@@ -251,7 +240,7 @@ func (kn *KafkaNotifier) buildV3Body(ctx context.Context, tmpl func(string) stri
 	return string(body), nil
 }
 
-func (kn *KafkaNotifier) buildKafkaRecord(ctx context.Context, record *kafkaRecord, tmpl func(string) string, as ...*types.Alert) error {
+func (kn *Notifier) buildKafkaRecord(ctx context.Context, record *kafkaRecord, tmpl func(string) string, as ...*types.Alert) error {
 	record.Client = "Grafana"
 	record.Description = tmpl(kn.settings.Description)
 	record.Details = tmpl(kn.settings.Details)

@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	images2 "github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
@@ -19,7 +20,7 @@ import (
 func TestThreemaNotifier(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
-	images := receivers.NewFakeImageStore(2)
+	images := images2.NewFakeImageStore(2)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -139,7 +140,7 @@ func TestThreemaNotifier(t *testing.T) {
 				Logger: &logging.FakeLogger{},
 			}
 
-			pn, err := NewThreemaNotifier(fc)
+			pn, err := New(fc)
 			if c.expInitError != "" {
 				require.Error(t, err)
 				require.Equal(t, c.expInitError, err.Error())

@@ -19,41 +19,30 @@ import (
 )
 
 var (
-	TelegramAPIURL = "https://api.telegram.org/bot%s/%s"
+	APIURL = "https://api.telegram.org/bot%s/%s"
 )
 
 // Telegram supports 4096 chars max - from https://limits.tginfo.me/en.
 const telegramMaxMessageLenRunes = 4096
 
-// TelegramNotifier is responsible for sending
+// Notifier is responsible for sending
 // alert notifications to Telegram.
-type TelegramNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	log      logging.Logger
 	images   images.ImageStore
 	ns       receivers.WebhookSender
 	tmpl     *template.Template
-	settings TelegramConfig
+	settings Config
 }
 
-func TelegramFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	notifier, err := NewTelegramNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return notifier, nil
-}
-
-// NewTelegramNotifier is the constructor for the Telegram notifier
-func NewTelegramNotifier(fc receivers.FactoryConfig) (*TelegramNotifier, error) {
-	settings, err := BuildTelegramConfig(fc)
+// New is the constructor for the Telegram notifier
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
-	return &TelegramNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(fc.Config),
 		tmpl:     fc.Template,
 		log:      fc.Logger,
@@ -64,7 +53,7 @@ func NewTelegramNotifier(fc receivers.FactoryConfig) (*TelegramNotifier, error) 
 }
 
 // Notify send an alert notification to Telegram.
-func (tn *TelegramNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	// Create the cmd for sendMessage
 	cmd, err := tn.newWebhookSyncCmd("sendMessage", func(w *multipart.Writer) error {
 		msg, err := tn.buildTelegramMessage(ctx, as)
@@ -85,7 +74,7 @@ func (tn *TelegramNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 	if err != nil {
 		return false, fmt.Errorf("failed to create telegram message: %w", err)
 	}
-	if err := tn.ns.Send(ctx, cmd); err != nil {
+	if err := tn.ns.SendWebhook(ctx, cmd); err != nil {
 		return false, fmt.Errorf("failed to send telegram message: %w", err)
 	}
 
@@ -113,7 +102,7 @@ func (tn *TelegramNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 		if err != nil {
 			return fmt.Errorf("failed to create image: %w", err)
 		}
-		if err := tn.ns.Send(ctx, cmd); err != nil {
+		if err := tn.ns.SendWebhook(ctx, cmd); err != nil {
 			return fmt.Errorf("failed to upload image to telegram: %w", err)
 		}
 		return nil
@@ -122,7 +111,7 @@ func (tn *TelegramNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 	return true, nil
 }
 
-func (tn *TelegramNotifier) buildTelegramMessage(ctx context.Context, as []*types.Alert) (map[string]string, error) {
+func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert) (map[string]string, error) {
 	var tmplErr error
 	defer func() {
 		if tmplErr != nil {
@@ -152,7 +141,7 @@ func (tn *TelegramNotifier) buildTelegramMessage(ctx context.Context, as []*type
 	return m, nil
 }
 
-func (tn *TelegramNotifier) newWebhookSyncCmd(action string, fn func(writer *multipart.Writer) error) (*receivers.SendWebhookSettings, error) {
+func (tn *Notifier) newWebhookSyncCmd(action string, fn func(writer *multipart.Writer) error) (*receivers.SendWebhookSettings, error) {
 	b := bytes.Buffer{}
 	w := multipart.NewWriter(&b)
 
@@ -180,7 +169,7 @@ func (tn *TelegramNotifier) newWebhookSyncCmd(action string, fn func(writer *mul
 	}
 
 	cmd := &receivers.SendWebhookSettings{
-		URL:        fmt.Sprintf(TelegramAPIURL, tn.settings.BotToken, action),
+		URL:        fmt.Sprintf(APIURL, tn.settings.BotToken, action),
 		Body:       b.String(),
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{
@@ -190,6 +179,6 @@ func (tn *TelegramNotifier) newWebhookSyncCmd(action string, fn func(writer *mul
 	return cmd, nil
 }
 
-func (tn *TelegramNotifier) SendResolved() bool {
+func (tn *Notifier) SendResolved() bool {
 	return !tn.GetDisableResolveMessage()
 }

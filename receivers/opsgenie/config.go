@@ -12,11 +12,11 @@ import (
 )
 
 const (
-	OpsgenieSendTags    = "tags"
-	OpsgenieSendDetails = "details"
-	OpsgenieSendBoth    = "both"
+	SendTags    = "tags"
+	SendDetails = "details"
+	SendBoth    = "both"
 
-	DefaultOpsgenieAlertURL = "https://api.opsgenie.com/v2/alerts"
+	DefaultAlertsURL = "https://api.opsgenie.com/v2/alerts"
 )
 
 type OpsgenieConfig struct {
@@ -29,7 +29,7 @@ type OpsgenieConfig struct {
 	SendTagsAs       string
 }
 
-func BuildOpsgenieConfig(fc receivers.FactoryConfig) (*OpsgenieConfig, error) {
+func BuildConfig(fc receivers.FactoryConfig) (*OpsgenieConfig, error) {
 	type rawSettings struct {
 		APIKey           string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
 		APIUrl           string `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`
@@ -51,7 +51,7 @@ func BuildOpsgenieConfig(fc receivers.FactoryConfig) (*OpsgenieConfig, error) {
 		return nil, errors.New("could not find api key property in settings")
 	}
 	if raw.APIUrl == "" {
-		raw.APIUrl = DefaultOpsgenieAlertURL
+		raw.APIUrl = DefaultAlertsURL
 	}
 
 	if strings.TrimSpace(raw.Message) == "" {
@@ -59,9 +59,9 @@ func BuildOpsgenieConfig(fc receivers.FactoryConfig) (*OpsgenieConfig, error) {
 	}
 
 	switch raw.SendTagsAs {
-	case OpsgenieSendTags, OpsgenieSendDetails, OpsgenieSendBoth:
+	case SendTags, SendDetails, SendBoth:
 	case "":
-		raw.SendTagsAs = OpsgenieSendTags
+		raw.SendTagsAs = SendTags
 	default:
 		return nil, fmt.Errorf("invalid value for sendTagsAs: %q", raw.SendTagsAs)
 	}

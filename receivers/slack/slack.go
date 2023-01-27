@@ -52,33 +52,33 @@ var (
 	}
 )
 
-var SlackAPIEndpoint = "https://slack.com/api/chat.postMessage"
+var APIEndpoint = "https://slack.com/api/chat.postMessage"
 
 type sendFunc func(ctx context.Context, req *http.Request, logger logging.Logger) (string, error)
 
 // https://api.slack.com/reference/messaging/attachments#legacy_fields - 1024, no units given, assuming runes or characters.
 const slackMaxTitleLenRunes = 1024
 
-// SlackNotifier is responsible for sending
+// Notifier is responsible for sending
 // alert notification to Slack.
-type SlackNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	log           logging.Logger
 	tmpl          *template.Template
 	images        images.ImageStore
 	webhookSender receivers.WebhookSender
 	sendFn        sendFunc
-	settings      SlackConfig
+	settings      Config
 	appVersion    string
 }
 
 // isIncomingWebhook returns true if the settings are for an incoming webhook.
-func isIncomingWebhook(s SlackConfig) bool {
+func isIncomingWebhook(s Config) bool {
 	return s.Token == ""
 }
 
 // uploadURL returns the upload URL for Slack.
-func uploadURL(s SlackConfig) (string, error) {
+func uploadURL(s Config) (string, error) {
 	u, err := url.Parse(s.URL)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse URL: %w", err)
@@ -88,28 +88,16 @@ func uploadURL(s SlackConfig) (string, error) {
 	return u.String(), nil
 }
 
-// SlackFactory creates a new NotificationChannel that sends notifications to Slack.
-func SlackFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	ch, err := buildSlackNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return ch, nil
-}
-
-func buildSlackNotifier(factoryConfig receivers.FactoryConfig) (*SlackNotifier, error) {
+func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
 	decryptFunc := factoryConfig.DecryptFunc
-	var settings SlackConfig
+	var settings Config
 	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
 	if settings.EndpointURL == "" {
-		settings.EndpointURL = SlackAPIEndpoint
+		settings.EndpointURL = APIEndpoint
 	}
 	slackURL := decryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "url", settings.URL)
 	if slackURL == "" {
@@ -123,14 +111,14 @@ func buildSlackNotifier(factoryConfig receivers.FactoryConfig) (*SlackNotifier, 
 	settings.URL = apiURL.String()
 
 	settings.Recipient = strings.TrimSpace(settings.Recipient)
-	if settings.Recipient == "" && settings.URL == SlackAPIEndpoint {
+	if settings.Recipient == "" && settings.URL == APIEndpoint {
 		return nil, errors.New("recipient must be specified when using the Slack chat API")
 	}
 	if settings.MentionChannel != "" && settings.MentionChannel != "here" && settings.MentionChannel != "channel" {
 		return nil, fmt.Errorf("invalid value for mentionChannel: %q", settings.MentionChannel)
 	}
 	settings.Token = decryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "token", settings.Token)
-	if settings.Token == "" && settings.URL == SlackAPIEndpoint {
+	if settings.Token == "" && settings.URL == APIEndpoint {
 		return nil, errors.New("token must be specified when using the Slack chat API")
 	}
 	if settings.Username == "" {
@@ -142,7 +130,7 @@ func buildSlackNotifier(factoryConfig receivers.FactoryConfig) (*SlackNotifier, 
 	if settings.Title == "" {
 		settings.Title = templates.DefaultMessageTitleEmbed
 	}
-	return &SlackNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(factoryConfig.Config),
 		settings: settings,
 
@@ -184,7 +172,7 @@ type attachment struct {
 }
 
 // Notify sends an alert notification to Slack.
-func (sn *SlackNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
+func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
 	sn.log.Debug("Creating slack message", "alerts", len(alerts))
 
 	m, err := sn.createSlackMessage(ctx, alerts)
@@ -334,7 +322,7 @@ func handleSlackJSONResponse(resp *http.Response, logger logging.Logger) (string
 	return result.Ts, nil
 }
 
-func (sn *SlackNotifier) createSlackMessage(ctx context.Context, alerts []*types.Alert) (*slackMessage, error) {
+func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert) (*slackMessage, error) {
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, sn.log, &tmplErr)
 
@@ -362,7 +350,7 @@ func (sn *SlackNotifier) createSlackMessage(ctx context.Context, alerts []*types
 				Title:      title,
 				Fallback:   title,
 				Footer:     "Grafana v" + sn.appVersion,
-				FooterIcon: receivers.FooterIconURL,
+				FooterIcon: FooterIconURL,
 				Ts:         time.Now().Unix(),
 				TitleLink:  ruleURL,
 				Text:       tmpl(sn.settings.Text),
@@ -421,7 +409,7 @@ func (sn *SlackNotifier) createSlackMessage(ctx context.Context, alerts []*types
 	return req, nil
 }
 
-func (sn *SlackNotifier) sendSlackMessage(ctx context.Context, m *slackMessage) (string, error) {
+func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (string, error) {
 	b, err := json.Marshal(m)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal Slack message: %w", err)
@@ -436,7 +424,7 @@ func (sn *SlackNotifier) sendSlackMessage(ctx context.Context, m *slackMessage) 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "Grafana")
 	if sn.settings.Token == "" {
-		if sn.settings.URL == SlackAPIEndpoint {
+		if sn.settings.URL == APIEndpoint {
 			panic("Token should be set when using the Slack chat API")
 		}
 		sn.log.Debug("Looks like we are using an incoming webhook, no Authorization header required")
@@ -456,7 +444,7 @@ func (sn *SlackNotifier) sendSlackMessage(ctx context.Context, m *slackMessage) 
 // createImageMultipart returns the mutlipart/form-data request and headers for files.upload.
 // It returns an error if the image does not exist or there was an error preparing the
 // multipart form.
-func (sn *SlackNotifier) createImageMultipart(image images.Image, channel, comment, threadTs string) (http.Header, []byte, error) {
+func (sn *Notifier) createImageMultipart(image images.Image, channel, comment, threadTs string) (http.Header, []byte, error) {
 	buf := bytes.Buffer{}
 	w := multipart.NewWriter(&buf)
 	defer func() {
@@ -506,7 +494,7 @@ func (sn *SlackNotifier) createImageMultipart(image images.Image, channel, comme
 	return headers, b, nil
 }
 
-func (sn *SlackNotifier) sendMultipart(ctx context.Context, headers http.Header, data io.Reader) error {
+func (sn *Notifier) sendMultipart(ctx context.Context, headers http.Header, data io.Reader) error {
 	sn.log.Debug("Sending multipart request to files.upload")
 
 	u, err := uploadURL(sn.settings)
@@ -533,7 +521,7 @@ func (sn *SlackNotifier) sendMultipart(ctx context.Context, headers http.Header,
 // uploadImage shares the image to the channel names or IDs. It returns an error if the file
 // does not exist, or if there was an error either preparing or sending the multipart/form-data
 // request.
-func (sn *SlackNotifier) uploadImage(ctx context.Context, image images.Image, channel, comment, threadTs string) error {
+func (sn *Notifier) uploadImage(ctx context.Context, image images.Image, channel, comment, threadTs string) error {
 	sn.log.Debug("Uploadimg image", "image", image.Token)
 	headers, data, err := sn.createImageMultipart(image, channel, comment, threadTs)
 	if err != nil {
@@ -543,7 +531,7 @@ func (sn *SlackNotifier) uploadImage(ctx context.Context, image images.Image, ch
 	return sn.sendMultipart(ctx, headers, bytes.NewReader(data))
 }
 
-func (sn *SlackNotifier) SendResolved() bool {
+func (sn *Notifier) SendResolved() bool {
 	return !sn.GetDisableResolveMessage()
 }
 

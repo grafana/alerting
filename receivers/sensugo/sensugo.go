@@ -17,38 +17,27 @@ import (
 	template2 "github.com/grafana/alerting/templates"
 )
 
-type SensuGoNotifier struct {
-	*receivers.Base
-	log      logging.Logger
-	images   images.ImageStore
-	ns       receivers.WebhookSender
-	tmpl     *template.Template
-	settings SensuGoConfig
-}
-
 var (
 	// Provides current time. Can be overwritten in tests.
 	timeNow = time.Now
 )
 
-func SensuGoFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	notifier, err := NewSensuGoNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return notifier, nil
+type Notifier struct {
+	*receivers.Base
+	log      logging.Logger
+	images   images.ImageStore
+	ns       receivers.WebhookSender
+	tmpl     *template.Template
+	settings Config
 }
 
-// NewSensuGoNotifier is the constructor for the SensuGo notifier
-func NewSensuGoNotifier(fc receivers.FactoryConfig) (*SensuGoNotifier, error) {
-	settings, err := BuildSensuGoConfig(fc)
+// New is the constructor for the SensuGo notifier
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
-	return &SensuGoNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(fc.Config),
 		log:      fc.Logger,
 		images:   fc.ImageStore,
@@ -59,7 +48,7 @@ func NewSensuGoNotifier(fc receivers.FactoryConfig) (*SensuGoNotifier, error) {
 }
 
 // Notify sends an alert notification to Sensu Go
-func (sn *SensuGoNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (sn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	sn.log.Debug("sending Sensu Go result")
 
 	var tmplErr error
@@ -150,7 +139,7 @@ func (sn *SensuGoNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 			"Authorization": fmt.Sprintf("Key %s", sn.settings.APIKey),
 		},
 	}
-	if err := sn.ns.Send(ctx, cmd); err != nil {
+	if err := sn.ns.SendWebhook(ctx, cmd); err != nil {
 		sn.log.Error("failed to send Sensu Go event", "error", err, "sensugo", sn.Name)
 		return false, err
 	}
@@ -158,6 +147,6 @@ func (sn *SensuGoNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 	return true, nil
 }
 
-func (sn *SensuGoNotifier) SendResolved() bool {
+func (sn *Notifier) SendResolved() bool {
 	return !sn.GetDisableResolveMessage()
 }

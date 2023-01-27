@@ -270,7 +270,7 @@ func TestTeamsNotifier(t *testing.T) {
 				Logger:              &logging.FakeLogger{},
 			}
 
-			pn, err := NewTeamsNotifier(fc)
+			pn, err := New(fc)
 			if c.expInitError != "" {
 				require.Error(t, err)
 				require.Equal(t, c.expInitError, err.Error())

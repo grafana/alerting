@@ -16,15 +16,15 @@ import (
 	template2 "github.com/grafana/alerting/templates"
 )
 
-// GoogleChatNotifier is responsible for sending
+// Notifier is responsible for sending
 // alert notifications to Google chat.
-type GoogleChatNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	log        logging.Logger
 	ns         receivers.WebhookSender
 	images     images.ImageStore
 	tmpl       *template.Template
-	settings   *GoogleChatConfig
+	settings   *Config
 	appVersion string
 }
 
@@ -33,23 +33,12 @@ var (
 	timeNow = time.Now
 )
 
-func GoogleChatFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	gcn, err := newGoogleChatNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return gcn, nil
-}
-
-func newGoogleChatNotifier(fc receivers.FactoryConfig) (*GoogleChatNotifier, error) {
-	settings, err := BuildGoogleChatConfig(fc)
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
-	return &GoogleChatNotifier{
+	return &Notifier{
 		Base:       receivers.NewBase(fc.Config),
 		log:        fc.Logger,
 		ns:         fc.NotificationService,
@@ -61,7 +50,7 @@ func newGoogleChatNotifier(fc receivers.FactoryConfig) (*GoogleChatNotifier, err
 }
 
 // Notify send an alert notification to Google Chat.
-func (gcn *GoogleChatNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	gcn.log.Debug("executing Google Chat notification")
 
 	var tmplErr error
@@ -151,7 +140,7 @@ func (gcn *GoogleChatNotifier) Notify(ctx context.Context, as ...*types.Alert) (
 		Body: string(body),
 	}
 
-	if err := gcn.ns.Send(ctx, cmd); err != nil {
+	if err := gcn.ns.SendWebhook(ctx, cmd); err != nil {
 		gcn.log.Error("Failed to send Google Hangouts Chat alert", "error", err, "webhook", gcn.Name)
 		return false, err
 	}
@@ -159,11 +148,11 @@ func (gcn *GoogleChatNotifier) Notify(ctx context.Context, as ...*types.Alert) (
 	return true, nil
 }
 
-func (gcn *GoogleChatNotifier) SendResolved() bool {
+func (gcn *Notifier) SendResolved() bool {
 	return !gcn.GetDisableResolveMessage()
 }
 
-func (gcn *GoogleChatNotifier) isURLAbsolute(urlToCheck string) bool {
+func (gcn *Notifier) isURLAbsolute(urlToCheck string) bool {
 	parsed, err := url.Parse(urlToCheck)
 	if err != nil {
 		gcn.log.Warn("could not parse URL", "urlToCheck", urlToCheck)
@@ -173,7 +162,7 @@ func (gcn *GoogleChatNotifier) isURLAbsolute(urlToCheck string) bool {
 	return parsed.IsAbs()
 }
 
-func (gcn *GoogleChatNotifier) buildScreenshotCard(ctx context.Context, alerts []*types.Alert) *card {
+func (gcn *Notifier) buildScreenshotCard(ctx context.Context, alerts []*types.Alert) *card {
 	card := card{
 		Header:   header{Title: "Screenshots"},
 		Sections: []section{},

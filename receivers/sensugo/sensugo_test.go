@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	images2 "github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
@@ -27,7 +28,7 @@ func TestSensuGoNotifier(t *testing.T) {
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
 
-	images := receivers.NewFakeImageStore(2)
+	images := images2.NewFakeImageStore(2)
 
 	cases := []struct {
 		name         string
@@ -160,7 +161,7 @@ func TestSensuGoNotifier(t *testing.T) {
 				Logger: &logging.FakeLogger{},
 			}
 
-			sn, err := NewSensuGoNotifier(fc)
+			sn, err := New(fc)
 			if c.expInitError != "" {
 				require.Error(t, err)
 				require.Equal(t, c.expInitError, err.Error())

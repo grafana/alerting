@@ -56,7 +56,7 @@ func TestPagerdutyNotifier(t *testing.T) {
 				Payload: pagerDutyPayload{
 					Summary:   "[FIRING:1]  (val1)",
 					Source:    hostname,
-					Severity:  DefaultPagerDutySeverity,
+					Severity:  DefaultSeverity,
 					Class:     "default",
 					Component: "Grafana",
 					Group:     "default",
@@ -91,7 +91,7 @@ func TestPagerdutyNotifier(t *testing.T) {
 				Payload: pagerDutyPayload{
 					Summary:   "[FIRING:1]  (val1 invalid-severity)",
 					Source:    hostname,
-					Severity:  DefaultPagerDutySeverity,
+					Severity:  DefaultSeverity,
 					Class:     "default",
 					Component: "Grafana",
 					Group:     "default",
@@ -170,7 +170,7 @@ func TestPagerdutyNotifier(t *testing.T) {
 				Payload: pagerDutyPayload{
 					Summary:   "Alerts firing: 1",
 					Source:    hostname,
-					Severity:  DefaultPagerDutySeverity,
+					Severity:  DefaultSeverity,
 					Class:     "default",
 					Component: "Grafana",
 					Group:     "default",
@@ -250,7 +250,7 @@ func TestPagerdutyNotifier(t *testing.T) {
 				Payload: pagerDutyPayload{
 					Summary:   fmt.Sprintf("%s…", strings.Repeat("1", 1023)),
 					Source:    hostname,
-					Severity:  DefaultPagerDutySeverity,
+					Severity:  DefaultSeverity,
 					Class:     "default",
 					Component: "Grafana",
 					Group:     "default",
@@ -293,7 +293,7 @@ func TestPagerdutyNotifier(t *testing.T) {
 				Template: tmpl,
 				Logger:   &logging.FakeLogger{},
 			}
-			pn, err := newPagerdutyNotifier(fc)
+			pn, err := New(fc)
 			if c.expInitError != "" {
 				require.Error(t, err)
 				require.Equal(t, c.expInitError, err.Error())

@@ -28,40 +28,29 @@ const (
 )
 
 var (
-	knownSeverity        = map[string]struct{}{DefaultPagerDutySeverity: {}, "error": {}, "warning": {}, "info": {}}
-	PagerdutyEventAPIURL = "https://events.pagerduty.com/v2/enqueue"
+	knownSeverity = map[string]struct{}{DefaultSeverity: {}, "error": {}, "warning": {}, "info": {}}
+	eventAPIURL   = "https://events.pagerduty.com/v2/enqueue"
 )
 
-// PagerdutyNotifier is responsible for sending
+// Notifier is responsible for sending
 // alert notifications to pagerduty
-type PagerdutyNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	tmpl     *template.Template
 	log      logging.Logger
 	ns       receivers.WebhookSender
 	images   images.ImageStore
-	settings *PagerdutyConfig
+	settings *Config
 }
 
-func PagerdutyFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	pdn, err := newPagerdutyNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return pdn, nil
-}
-
-// NewPagerdutyNotifier is the constructor for the PagerDuty notifier
-func newPagerdutyNotifier(fc receivers.FactoryConfig) (*PagerdutyNotifier, error) {
-	settings, err := BuildPagerdutyConfig(fc)
+// New is the constructor for the PagerDuty notifier
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
 
-	return &PagerdutyNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(fc.Config),
 		tmpl:     fc.Template,
 		log:      fc.Logger,
@@ -72,7 +61,7 @@ func newPagerdutyNotifier(fc receivers.FactoryConfig) (*PagerdutyNotifier, error
 }
 
 // Notify sends an alert notification to PagerDuty
-func (pn *PagerdutyNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	alerts := types.Alerts(as...)
 	if alerts.Status() == model.AlertResolved && !pn.SendResolved() {
 		pn.log.Debug("not sending a trigger to Pagerduty", "status", alerts.Status(), "auto resolve", pn.SendResolved())
@@ -91,21 +80,21 @@ func (pn *PagerdutyNotifier) Notify(ctx context.Context, as ...*types.Alert) (bo
 
 	pn.log.Info("notifying Pagerduty", "event_type", eventType)
 	cmd := &receivers.SendWebhookSettings{
-		URL:        PagerdutyEventAPIURL,
+		URL:        eventAPIURL,
 		Body:       string(body),
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{
 			"Content-Type": "application/json",
 		},
 	}
-	if err := pn.ns.Send(ctx, cmd); err != nil {
+	if err := pn.ns.SendWebhook(ctx, cmd); err != nil {
 		return false, fmt.Errorf("send notification to Pagerduty: %w", err)
 	}
 
 	return true, nil
 }
 
-func (pn *PagerdutyNotifier) buildPagerdutyMessage(ctx context.Context, alerts model.Alerts, as []*types.Alert) (*pagerDutyMessage, string, error) {
+func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Alerts, as []*types.Alert) (*pagerDutyMessage, string, error) {
 	key, err := notify.ExtractGroupKey(ctx)
 	if err != nil {
 		return nil, "", err
@@ -130,8 +119,8 @@ func (pn *PagerdutyNotifier) buildPagerdutyMessage(ctx context.Context, alerts m
 
 	severity := strings.ToLower(tmpl(pn.settings.Severity))
 	if _, ok := knownSeverity[severity]; !ok {
-		pn.log.Warn("Severity is not in the list of known values - using default severity", "actualSeverity", severity, "defaultSeverity", DefaultPagerDutySeverity)
-		severity = DefaultPagerDutySeverity
+		pn.log.Warn("Severity is not in the list of known values - using default severity", "actualSeverity", severity, "defaultSeverity", DefaultSeverity)
+		severity = DefaultSeverity
 	}
 
 	msg := &pagerDutyMessage{
@@ -178,7 +167,7 @@ func (pn *PagerdutyNotifier) buildPagerdutyMessage(ctx context.Context, alerts m
 	return msg, eventType, nil
 }
 
-func (pn *PagerdutyNotifier) SendResolved() bool {
+func (pn *Notifier) SendResolved() bool {
 	return !pn.GetDisableResolveMessage()
 }
 

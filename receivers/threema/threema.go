@@ -17,37 +17,27 @@ import (
 )
 
 var (
-	ThreemaGwBaseURL = "https://msgapi.threema.ch/send_simple"
+	BaseURL = "https://msgapi.threema.ch/send_simple"
 )
 
-// ThreemaNotifier is responsible for sending
+// Notifier is responsible for sending
 // alert notifications to Threema.
-type ThreemaNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	log      logging.Logger
 	images   images.ImageStore
 	ns       receivers.WebhookSender
 	tmpl     *template.Template
-	settings ThreemaConfig
+	settings Config
 }
 
-func ThreemaFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	notifier, err := NewThreemaNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return notifier, nil
-}
 
-func NewThreemaNotifier(fc receivers.FactoryConfig) (*ThreemaNotifier, error) {
-	settings, err := BuildThreemaConfig(fc)
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
-	return &ThreemaNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(fc.Config),
 		log:      fc.Logger,
 		images:   fc.ImageStore,
@@ -58,7 +48,7 @@ func NewThreemaNotifier(fc receivers.FactoryConfig) (*ThreemaNotifier, error) {
 }
 
 // Notify send an alert notification to Threema
-func (tn *ThreemaNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	tn.log.Debug("sending threema alert notification", "from", tn.settings.GatewayID, "to", tn.settings.RecipientID)
 
 	// Set up basic API request data
@@ -69,14 +59,14 @@ func (tn *ThreemaNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 	data.Set("text", tn.buildMessage(ctx, as...))
 
 	cmd := &receivers.SendWebhookSettings{
-		URL:        ThreemaGwBaseURL,
+		URL:        BaseURL,
 		Body:       data.Encode(),
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{
 			"Content-Type": "application/x-www-form-urlencoded",
 		},
 	}
-	if err := tn.ns.Send(ctx, cmd); err != nil {
+	if err := tn.ns.SendWebhook(ctx, cmd); err != nil {
 		tn.log.Error("Failed to send threema notification", "error", err, "webhook", tn.Name)
 		return false, err
 	}
@@ -84,11 +74,11 @@ func (tn *ThreemaNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 	return true, nil
 }
 
-func (tn *ThreemaNotifier) SendResolved() bool {
+func (tn *Notifier) SendResolved() bool {
 	return !tn.GetDisableResolveMessage()
 }
 
-func (tn *ThreemaNotifier) buildMessage(ctx context.Context, as ...*types.Alert) string {
+func (tn *Notifier) buildMessage(ctx context.Context, as ...*types.Alert) string {
 	var tmplErr error
 	tmpl, _ := template2.TmplText(ctx, tn.tmpl, as, tn.log, &tmplErr)
 

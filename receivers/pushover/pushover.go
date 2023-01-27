@@ -32,38 +32,27 @@ const (
 )
 
 var (
-	PushoverEndpoint = "https://api.pushover.net/1/messages.json"
+	Endpoint = "https://api.pushover.net/1/messages.json"
 )
 
-// PushoverNotifier is responsible for sending
+// Notifier is responsible for sending
 // alert notifications to Pushover
-type PushoverNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	tmpl     *template.Template
 	log      logging.Logger
 	images   images.ImageStore
 	ns       receivers.WebhookSender
-	settings PushoverConfig
+	settings Config
 }
 
-func PushoverFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	notifier, err := NewPushoverNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return notifier, nil
-}
-
-// NewSlackNotifier is the constructor for the Slack notifier
-func NewPushoverNotifier(fc receivers.FactoryConfig) (*PushoverNotifier, error) {
-	settings, err := BuildPushoverConfig(fc)
+// New is the constructor for the pushover notifier
+func New(fc receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(fc)
 	if err != nil {
 		return nil, err
 	}
-	return &PushoverNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(fc.Config),
 		tmpl:     fc.Template,
 		log:      fc.Logger,
@@ -74,7 +63,7 @@ func NewPushoverNotifier(fc receivers.FactoryConfig) (*PushoverNotifier, error) 
 }
 
 // Notify sends an alert notification to Slack.
-func (pn *PushoverNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	headers, uploadBody, err := pn.genPushoverBody(ctx, as...)
 	if err != nil {
 		pn.log.Error("Failed to generate body for pushover", "error", err)
@@ -82,24 +71,24 @@ func (pn *PushoverNotifier) Notify(ctx context.Context, as ...*types.Alert) (boo
 	}
 
 	cmd := &receivers.SendWebhookSettings{
-		URL:        PushoverEndpoint,
+		URL:        Endpoint,
 		HTTPMethod: "POST",
 		HTTPHeader: headers,
 		Body:       uploadBody.String(),
 	}
 
-	if err := pn.ns.Send(ctx, cmd); err != nil {
+	if err := pn.ns.SendWebhook(ctx, cmd); err != nil {
 		pn.log.Error("failed to send pushover notification", "error", err, "webhook", pn.Name)
 		return false, err
 	}
 
 	return true, nil
 }
-func (pn *PushoverNotifier) SendResolved() bool {
+func (pn *Notifier) SendResolved() bool {
 	return !pn.GetDisableResolveMessage()
 }
 
-func (pn *PushoverNotifier) genPushoverBody(ctx context.Context, as ...*types.Alert) (map[string]string, bytes.Buffer, error) {
+func (pn *Notifier) genPushoverBody(ctx context.Context, as ...*types.Alert) (map[string]string, bytes.Buffer, error) {
 	key, err := notify.ExtractGroupKey(ctx)
 	if err != nil {
 		return nil, bytes.Buffer{}, err
@@ -222,7 +211,7 @@ func (pn *PushoverNotifier) genPushoverBody(ctx context.Context, as ...*types.Al
 	return headers, b, nil
 }
 
-func (pn *PushoverNotifier) writeImageParts(ctx context.Context, w *multipart.Writer, as ...*types.Alert) {
+func (pn *Notifier) writeImageParts(ctx context.Context, w *multipart.Writer, as ...*types.Alert) {
 	// Pushover supports at most one image attachment with a maximum size of pushoverMaxFileSize.
 	// If the image is larger than pushoverMaxFileSize then return an error.
 	_ = receivers.WithStoredImages(ctx, pn.log, pn.images, func(index int, image images.Image) error {

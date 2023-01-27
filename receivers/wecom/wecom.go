@@ -16,23 +16,24 @@ import (
 	template2 "github.com/grafana/alerting/templates"
 )
 
-func WeComFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	ch, err := buildWecomNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return ch, nil
+// Notifier is responsible for sending alert notifications to WeCom.
+type Notifier struct {
+	*receivers.Base
+	tmpl        *template.Template
+	log         logging.Logger
+	ns          receivers.WebhookSender
+	settings    Config
+	tok         *accessToken
+	tokExpireAt time.Time
+	group       singleflight.Group
 }
 
-func buildWecomNotifier(factoryConfig receivers.FactoryConfig) (*WeComNotifier, error) {
-	settings, err := BuildWecomConfig(factoryConfig)
+func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(factoryConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &WeComNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(factoryConfig.Config),
 		tmpl:     factoryConfig.Template,
 		log:      factoryConfig.Logger,
@@ -41,20 +42,8 @@ func buildWecomNotifier(factoryConfig receivers.FactoryConfig) (*WeComNotifier, 
 	}, nil
 }
 
-// WeComNotifier is responsible for sending alert notifications to WeCom.
-type WeComNotifier struct {
-	*receivers.Base
-	tmpl        *template.Template
-	log         logging.Logger
-	ns          receivers.WebhookSender
-	settings    WecomConfig
-	tok         *WeComAccessToken
-	tokExpireAt time.Time
-	group       singleflight.Group
-}
-
 // Notify send an alert notification to WeCom.
-func (w *WeComNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	w.log.Info("executing WeCom notification", "notification", w.Name)
 
 	var tmplErr error
@@ -67,7 +56,7 @@ func (w *WeComNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 		tmpl(w.settings.Title),
 		tmpl(w.settings.Message),
 	)
-	if w.settings.MsgType != DefaultWeComMsgType {
+	if w.settings.MsgType != DefaultsgType {
 		content = fmt.Sprintf("%s\n%s\n",
 			tmpl(w.settings.Title),
 			tmpl(w.settings.Message),
@@ -80,7 +69,7 @@ func (w *WeComNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 	}
 
 	url := w.settings.URL
-	if w.settings.Channel != DefaultWeComChannelType {
+	if w.settings.Channel != DefaultChannelType {
 		bodyMsg["agentid"] = w.settings.AgentID
 		bodyMsg["touser"] = w.settings.ToUser
 		token, err := w.GetAccessToken(ctx)
@@ -104,7 +93,7 @@ func (w *WeComNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 		Body: string(body),
 	}
 
-	if err = w.ns.Send(ctx, cmd); err != nil {
+	if err = w.ns.SendWebhook(ctx, cmd); err != nil {
 		w.log.Error("failed to send WeCom webhook", "error", err, "notification", w.Name)
 		return false, err
 	}
@@ -113,7 +102,7 @@ func (w *WeComNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, e
 }
 
 // GetAccessToken returns the access token for apiapp
-func (w *WeComNotifier) GetAccessToken(ctx context.Context) (string, error) {
+func (w *Notifier) GetAccessToken(ctx context.Context) (string, error) {
 	t := w.tok
 	if w.tokExpireAt.Before(time.Now()) || w.tok == nil {
 		// avoid multiple calls when there are multiple alarms
@@ -123,7 +112,7 @@ func (w *WeComNotifier) GetAccessToken(ctx context.Context) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		t = tok.(*WeComAccessToken)
+		t = tok.(*accessToken)
 		// expire five minutes in advance to avoid using it when it is about to expire
 		w.tokExpireAt = time.Now().Add(time.Second * time.Duration(t.ExpireIn-300))
 		w.tok = t
@@ -131,14 +120,14 @@ func (w *WeComNotifier) GetAccessToken(ctx context.Context) (string, error) {
 	return t.AccessToken, nil
 }
 
-type WeComAccessToken struct {
+type accessToken struct {
 	AccessToken string `json:"access_token"`
 	ErrMsg      string `json:"errmsg"`
 	ErrCode     int    `json:"errcode"`
 	ExpireIn    int    `json:"expire_in"`
 }
 
-func (w *WeComNotifier) getAccessToken(ctx context.Context) (*WeComAccessToken, error) {
+func (w *Notifier) getAccessToken(ctx context.Context) (*accessToken, error) {
 	geTokenURL := fmt.Sprintf(w.settings.EndpointURL+"/cgi-bin/gettoken?corpid=%s&corpsecret=%s", w.settings.CorpID, w.settings.Secret)
 
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, geTokenURL, nil)
@@ -161,7 +150,7 @@ func (w *WeComNotifier) getAccessToken(ctx context.Context) (*WeComAccessToken, 
 		_ = resp.Body.Close()
 	}()
 
-	var accessToken WeComAccessToken
+	var accessToken accessToken
 	err = json.NewDecoder(resp.Body).Decode(&accessToken)
 	if err != nil {
 		return nil, err
@@ -173,6 +162,6 @@ func (w *WeComNotifier) getAccessToken(ctx context.Context) (*WeComAccessToken, 
 	return &accessToken, nil
 }
 
-func (w *WeComNotifier) SendResolved() bool {
+func (w *Notifier) SendResolved() bool {
 	return !w.GetDisableResolveMessage()
 }

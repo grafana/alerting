@@ -16,37 +16,26 @@ import (
 	template2 "github.com/grafana/alerting/templates"
 )
 
-// WebhookNotifier is responsible for sending
+// Notifier is responsible for sending
 // alert notifications as webhooks.
-type WebhookNotifier struct {
+type Notifier struct {
 	*receivers.Base
 	log      logging.Logger
 	ns       receivers.WebhookSender
 	images   images.ImageStore
 	tmpl     *template.Template
 	orgID    int64
-	settings WebhookConfig
+	settings Config
 }
 
-func WebHookFactory(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
-	notifier, err := buildWebhookNotifier(fc)
-	if err != nil {
-		return nil, receivers.ReceiverInitError{
-			Reason: err.Error(),
-			Cfg:    *fc.Config,
-		}
-	}
-	return notifier, nil
-}
-
-// buildWebhookNotifier is the constructor for
+// New is the constructor for
 // the WebHook notifier.
-func buildWebhookNotifier(factoryConfig receivers.FactoryConfig) (*WebhookNotifier, error) {
-	settings, err := BuildWebhookConfig(factoryConfig)
+func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
+	settings, err := BuildConfig(factoryConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &WebhookNotifier{
+	return &Notifier{
 		Base:     receivers.NewBase(factoryConfig.Config),
 		orgID:    factoryConfig.Config.OrgID,
 		log:      factoryConfig.Logger,
@@ -57,8 +46,8 @@ func buildWebhookNotifier(factoryConfig receivers.FactoryConfig) (*WebhookNotifi
 	}, nil
 }
 
-// WebhookMessage defines the JSON object send to webhook endpoints.
-type WebhookMessage struct {
+// webhookMessage defines the JSON object send to webhook endpoints.
+type webhookMessage struct {
 	*template2.ExtendedData
 
 	// The protocol version.
@@ -72,7 +61,7 @@ type WebhookMessage struct {
 }
 
 // Notify implements the Notifier interface.
-func (wn *WebhookNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	groupKey, err := notify.ExtractGroupKey(ctx)
 	if err != nil {
 		return false, err
@@ -92,7 +81,7 @@ func (wn *WebhookNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 		},
 		as...)
 
-	msg := &WebhookMessage{
+	msg := &webhookMessage{
 		Version:         "1",
 		ExtendedData:    data,
 		GroupKey:        groupKey.String(),
@@ -136,7 +125,7 @@ func (wn *WebhookNotifier) Notify(ctx context.Context, as ...*types.Alert) (bool
 		HTTPHeader: headers,
 	}
 
-	if err := wn.ns.Send(ctx, cmd); err != nil {
+	if err := wn.ns.SendWebhook(ctx, cmd); err != nil {
 		return false, err
 	}
 
@@ -151,6 +140,6 @@ func truncateAlerts(maxAlerts int, alerts []*types.Alert) ([]*types.Alert, int) 
 	return alerts, 0
 }
 
-func (wn *WebhookNotifier) SendResolved() bool {
+func (wn *Notifier) SendResolved() bool {
 	return !wn.GetDisableResolveMessage()
 }
