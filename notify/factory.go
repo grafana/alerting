@@ -26,29 +26,43 @@ import (
 )
 
 var receiverFactories = map[string]func(receivers.FactoryConfig) (receivers.NotificationChannel, error){
-	"prometheus-alertmanager": alertmanager.AlertmanagerFactory,
-	"dingding":                dinding.DingDingFactory,
-	"discord":                 discord.DiscordFactory,
-	"email":                   email.EmailFactory,
-	"googlechat":              googlechat.GoogleChatFactory,
-	"kafka":                   kafka.KafkaFactory,
-	"line":                    line.LineFactory,
-	"opsgenie":                opsgenie.OpsgenieFactory,
-	"pagerduty":               pagerduty.PagerdutyFactory,
-	"pushover":                pushover.PushoverFactory,
-	"sensugo":                 sensugo.SensuGoFactory,
-	"slack":                   slack.SlackFactory,
-	"teams":                   teams.TeamsFactory,
-	"telegram":                telegram.TelegramFactory,
-	"threema":                 threema.ThreemaFactory,
-	"victorops":               victorops.VictorOpsFactory,
-	"webhook":                 webhook.WebHookFactory,
-	"wecom":                   wecom.WeComFactory,
-	"webex":                   webex.WebexFactory,
+	"prometheus-alertmanager": wrap(alertmanager.New),
+	"dingding":                wrap(dinding.New),
+	"discord":                 wrap(discord.New),
+	"email":                   wrap(email.New),
+	"googlechat":              wrap(googlechat.New),
+	"kafka":                   wrap(kafka.New),
+	"line":                    wrap(line.New),
+	"opsgenie":                wrap(opsgenie.New),
+	"pagerduty":               wrap(pagerduty.New),
+	"pushover":                wrap(pushover.New),
+	"sensugo":                 wrap(sensugo.New),
+	"slack":                   wrap(slack.New),
+	"teams":                   wrap(teams.New),
+	"telegram":                wrap(telegram.New),
+	"threema":                 wrap(threema.New),
+	"victorops":               wrap(victorops.New),
+	"webhook":                 wrap(webhook.New),
+	"wecom":                   wrap(wecom.New),
+	"webex":                   wrap(webex.New),
 }
 
 func Factory(receiverType string) (func(receivers.FactoryConfig) (receivers.NotificationChannel, error), bool) {
 	receiverType = strings.ToLower(receiverType)
 	factory, exists := receiverFactories[receiverType]
 	return factory, exists
+}
+
+// wrap wraps the notifier's factory errors with receivers.ReceiverInitError
+func wrap[T receivers.NotificationChannel](f func(fc receivers.FactoryConfig) (T, error)) func(receivers.FactoryConfig) (receivers.NotificationChannel, error) {
+	return func(fc receivers.FactoryConfig) (receivers.NotificationChannel, error) {
+		ch, err := f(fc)
+		if err != nil {
+			return nil, receivers.ReceiverInitError{
+				Reason: err.Error(),
+				Cfg:    *fc.Config,
+			}
+		}
+		return ch, nil
+	}
 }
