@@ -547,7 +547,7 @@ func TestWeComFactory(t *testing.T) {
 				Logger:     &logging.FakeLogger{},
 			}
 
-			_, err := WeComFactory(fc)
+			_, err := New(fc)
 			if !tt.wantErr(t, err, fmt.Sprintf("WeComFactory(%v)", fc)) {
 				return
 			}

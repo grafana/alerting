@@ -10,15 +10,15 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-type TeamsConfig struct {
+type Config struct {
 	URL          string `json:"url,omitempty" yaml:"url,omitempty"`
 	Message      string `json:"message,omitempty" yaml:"message,omitempty"`
 	Title        string `json:"title,omitempty" yaml:"title,omitempty"`
 	SectionTitle string `json:"sectiontitle,omitempty" yaml:"sectiontitle,omitempty"`
 }
 
-func BuildConfig(fc receivers.FactoryConfig) (TeamsConfig, error) {
-	settings := TeamsConfig{}
+func BuildConfig(fc receivers.FactoryConfig) (Config, error) {
+	settings := Config{}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)

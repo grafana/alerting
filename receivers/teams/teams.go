@@ -230,7 +230,7 @@ type Notifier struct {
 	log      logging.Logger
 	ns       receivers.WebhookSender
 	images   images.ImageStore
-	settings TeamsConfig
+	settings Config
 }
 
 // New is the constructor for Teams notifier.

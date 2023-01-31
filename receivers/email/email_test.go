@@ -174,7 +174,7 @@ func TestEmailNotifier_Notify(t *testing.T) {
 			Logger:     &logging.FakeLogger{},
 		}
 
-		emailNotifier, err := EmailFactory(fc)
+		emailNotifier, err := New(fc)
 		require.NoError(t, err)
 
 		alerts := []*types.Alert{

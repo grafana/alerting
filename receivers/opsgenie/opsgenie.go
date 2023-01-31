@@ -35,7 +35,7 @@ type Notifier struct {
 	log      logging.Logger
 	ns       receivers.WebhookSender
 	images   images.ImageStore
-	settings *OpsgenieConfig
+	settings *Config
 }
 
 // New is the constructor for the Opsgenie notifier
