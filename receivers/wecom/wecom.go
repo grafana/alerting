@@ -29,7 +29,7 @@ type Notifier struct {
 }
 
 func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := BuildConfig(factoryConfig)
+	settings, err := ValidateConfig(factoryConfig)
 	if err != nil {
 		return nil, err
 	}

@@ -24,8 +24,8 @@ type Config struct {
 	Token   string `json:"bot_token" yaml:"bot_token"`
 }
 
-// BuildConfig is the constructor for the Webex notifier.
-func BuildConfig(factoryConfig receivers.FactoryConfig) (*Config, error) {
+// ValidateConfig is the constructor for the Webex notifier.
+func ValidateConfig(factoryConfig receivers.FactoryConfig) (*Config, error) {
 	settings := &Config{}
 	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
 	if err != nil {

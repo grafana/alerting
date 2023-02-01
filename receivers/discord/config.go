@@ -17,7 +17,7 @@ type Config struct {
 	UseDiscordUsername bool   `json:"use_discord_username,omitempty" yaml:"use_discord_username,omitempty"`
 }
 
-func BuildConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	var settings Config
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {

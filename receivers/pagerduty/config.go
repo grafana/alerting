@@ -31,7 +31,7 @@ type Config struct {
 	ClientURL     string            `json:"client_url,omitempty" yaml:"client_url,omitempty"`
 }
 
-func BuildConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	settings := Config{}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {

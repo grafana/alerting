@@ -39,7 +39,7 @@ type Config struct {
 	ToUser      string  `json:"touser,omitempty" yaml:"touser,omitempty"`
 }
 
-func BuildConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
+func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 	var settings = Config{
 		Channel: DefaultChannelType,
 	}

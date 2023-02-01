@@ -27,7 +27,7 @@ type Config struct {
 	Message string
 }
 
-func BuildConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
+func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 	settings := Config{}
 	rawSettings := struct {
 		URL                      string      `json:"url,omitempty" yaml:"url,omitempty"`

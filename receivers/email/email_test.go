@@ -134,7 +134,7 @@ func TestEmailNotifier_Init(t *testing.T) {
 				Type:     "email",
 				Settings: test.Config,
 			}
-			settings, err := BuildConfig(receivers.FactoryConfig{Config: cfg})
+			settings, err := ValidateConfig(receivers.FactoryConfig{Config: cfg})
 			if test.ExpectedError != "" {
 				require.ErrorContains(t, err, test.ExpectedError)
 			} else {

@@ -33,7 +33,7 @@ type Notifier struct {
 
 // New is the constructor for the SensuGo notifier
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := BuildConfig(fc)
+	settings, err := ValidateConfig(fc)
 	if err != nil {
 		return nil, err
 	}

@@ -17,7 +17,7 @@ type Config struct {
 	Subject     string
 }
 
-func BuildConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	type emailSettingsRaw struct {
 		SingleEmail bool   `json:"singleEmail,omitempty"`
 		Addresses   string `json:"addresses,omitempty"`

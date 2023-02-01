@@ -29,7 +29,7 @@ type Config struct {
 	SendTagsAs       string
 }
 
-func BuildConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	type rawSettings struct {
 		APIKey           string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
 		APIUrl           string `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`

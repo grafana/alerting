@@ -16,7 +16,7 @@ type Config struct {
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 }
 
-func BuildConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	var settings Config
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {

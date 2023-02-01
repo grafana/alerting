@@ -25,7 +25,7 @@ type Config struct {
 	DisableNotifications bool   `json:"disable_notifications,omitempty" yaml:"disable_notifications,omitempty"`
 }
 
-func BuildConfig(fc receivers.FactoryConfig) (Config, error) {
+func ValidateConfig(fc receivers.FactoryConfig) (Config, error) {
 	settings := Config{}
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {

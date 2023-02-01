@@ -31,7 +31,7 @@ type Config struct {
 	KafkaClusterID string `json:"kafkaClusterId,omitempty" yaml:"kafkaClusterId,omitempty"`
 }
 
-func BuildConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	var settings Config
 	err := json.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
