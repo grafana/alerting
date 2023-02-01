@@ -13,7 +13,7 @@ type FakeImageStore struct {
 	Images []*Image
 }
 
-// getImage returns an image with the same token.
+// GetImage returns an image with the same token.
 func (f *FakeImageStore) GetImage(_ context.Context, token string) (*Image, error) {
 	for _, img := range f.Images {
 		if img.Token == token {
@@ -23,7 +23,7 @@ func (f *FakeImageStore) GetImage(_ context.Context, token string) (*Image, erro
 	return nil, ErrImageNotFound
 }
 
-// newFakeImageStore returns an image store with N test images.
+// NewFakeImageStore returns an image store with N test images.
 // Each image has a token and a URL, but does not have a file on disk.
 func NewFakeImageStore(n int) ImageStore {
 	s := FakeImageStore{}
@@ -74,7 +74,6 @@ func NewFakeImageStoreWithFile(t *testing.T, n int) ImageStore {
 	return &s
 }
 
-// nolint:deadcode,unused
 func newTestImage() (string, error) {
 	f, err := os.CreateTemp("", "test-image-*.png")
 	if err != nil {

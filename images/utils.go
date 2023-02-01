@@ -17,7 +17,7 @@ import (
 
 const (
 	// ImageStoreTimeout should be used by all callers for calles to `Images`
-	ImageStoreTimeout time.Duration = 500 * time.Millisecond
+	ImageStoreTimeout = 500 * time.Millisecond
 )
 
 type forEachImageFunc func(index int, image Image) error
@@ -70,6 +70,7 @@ func WithStoredImages(ctx context.Context, l logging.Logger, imageStore ImageSto
 	return nil
 }
 
+// OpenImage returns an the io representation of an image from the given path.
 // The path argument here comes from reading internal image storage, not User
 // input, so we ignore the security check here.
 //

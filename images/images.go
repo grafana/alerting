@@ -35,6 +35,6 @@ type ImageStore interface {
 type UnavailableImageStore struct{}
 
 // GetImage returns the image with the corresponding token, or ErrImageNotFound.
-func (u *UnavailableImageStore) GetImage(ctx context.Context, token string) (*Image, error) {
+func (u *UnavailableImageStore) GetImage(context.Context, string) (*Image, error) {
 	return nil, ErrImagesUnavailable
 }
