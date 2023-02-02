@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	// APIURL is a URL where the notification payload is sent
+	// APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
 	APIURL = "https://notify-api.line.me/api/notify"
 )
 
