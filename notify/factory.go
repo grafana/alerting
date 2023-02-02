@@ -87,7 +87,7 @@ func (e ReceiverInitError) Error() string {
 		name = fmt.Sprintf("%q ", e.Cfg.Name)
 	}
 
-	s := fmt.Sprintf("failed to validate receiver %sof type %q: %s", name, e.Cfg.Type, e.Reason)
+	s := fmt.Sprintf("failed to validate receiver %s of type %q: %s", name, e.Cfg.Type, e.Reason)
 	if e.Err != nil {
 		return fmt.Sprintf("%s: %s", s, e.Err.Error())
 	}
