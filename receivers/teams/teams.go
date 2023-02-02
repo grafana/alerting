@@ -66,7 +66,7 @@ type AdaptiveCardsAttachment struct {
 	ContentURL  string       `json:"contentUrl,omitempty"`
 }
 
-// AdapativeCard repesents an Adaptive Card.
+// AdaptiveCard repesents an Adaptive Card.
 // https://adaptivecards.io/explorer/AdaptiveCard.html
 type AdaptiveCard struct {
 	Body    []AdaptiveCardItem
@@ -203,7 +203,7 @@ type AdaptiveCardActionItem interface {
 	MarshalJSON() ([]byte, error)
 }
 
-// AdapativeCardOpenURLActionItem is an Action.OpenUrl action.
+// AdaptiveCardOpenURLActionItem is an Action.OpenUrl action.
 type AdaptiveCardOpenURLActionItem struct {
 	IconURL string
 	Title   string

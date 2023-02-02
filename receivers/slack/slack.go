@@ -37,6 +37,9 @@ const (
 	footerIconURL               = "https://grafana.com/static/assets/img/fav32.png"
 )
 
+// APIURL is a URL where the notification payload is sent. Public variable because to be able to override in integration tests
+var APIURL = "https://slack.com/api/chat.postMessage"
+
 var (
 	slackClient = &http.Client{
 		Timeout: time.Second * 30,
@@ -52,8 +55,6 @@ var (
 		},
 	}
 )
-
-var APIEndpoint = "https://slack.com/api/chat.postMessage"
 
 type sendFunc func(ctx context.Context, req *http.Request, logger logging.Logger) (string, error)
 
@@ -389,7 +390,7 @@ func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (stri
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "Grafana")
 	if sn.settings.Token == "" {
-		if sn.settings.URL == APIEndpoint {
+		if sn.settings.URL == APIURL {
 			panic("Token should be set when using the Slack chat API")
 		}
 		sn.log.Debug("Looks like we are using an incoming webhook, no Authorization header required")

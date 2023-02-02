@@ -19,6 +19,7 @@ import (
 )
 
 var (
+	// APIURL is a URL where the notification payload is sent
 	APIURL = "https://api.telegram.org/bot%s/%s"
 )
 
