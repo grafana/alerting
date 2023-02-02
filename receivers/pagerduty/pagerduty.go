@@ -29,7 +29,7 @@ const (
 
 var (
 	knownSeverity = map[string]struct{}{DefaultSeverity: {}, "error": {}, "warning": {}, "info": {}}
-	// APIURL is a URL where the notification payload is sent. Public variable because to be able to override in integration tests
+	// APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
 	APIURL = "https://events.pagerduty.com/v2/enqueue"
 )
 

@@ -16,7 +16,7 @@ import (
 
 var (
 	// APIURL is a URL where the notification payload is sent
-	APIURL string = "https://notify-api.line.me/api/notify"
+	APIURL = "https://notify-api.line.me/api/notify"
 )
 
 // Notifier is responsible for sending

@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	// APIURL is a URL where the notification payload is sent. Public variable because to be able to override in integration tests
+	// APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
 	APIURL = "https://api.pushover.net/1/messages.json"
 )
 

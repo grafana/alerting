@@ -37,7 +37,7 @@ const (
 	footerIconURL               = "https://grafana.com/static/assets/img/fav32.png"
 )
 
-// APIURL is a URL where the notification payload is sent. Public variable because to be able to override in integration tests
+// APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
 var APIURL = "https://slack.com/api/chat.postMessage"
 
 var (
