@@ -17,7 +17,8 @@ import (
 )
 
 var (
-	BaseURL = "https://msgapi.threema.ch/send_simple"
+	// APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
+	APIURL = "https://msgapi.threema.ch/send_simple"
 )
 
 // Notifier is responsible for sending
@@ -58,7 +59,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	data.Set("text", tn.buildMessage(ctx, as...))
 
 	cmd := &receivers.SendWebhookSettings{
-		URL:        BaseURL,
+		URL:        APIURL,
 		Body:       data.Encode(),
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{

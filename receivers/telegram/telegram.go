@@ -19,6 +19,7 @@ import (
 )
 
 var (
+	// APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
 	APIURL = "https://api.telegram.org/bot%s/%s"
 )
 

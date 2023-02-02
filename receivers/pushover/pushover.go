@@ -32,7 +32,8 @@ const (
 )
 
 var (
-	Endpoint = "https://api.pushover.net/1/messages.json"
+	// APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
+	APIURL = "https://api.pushover.net/1/messages.json"
 )
 
 // Notifier is responsible for sending
@@ -71,7 +72,7 @@ func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	cmd := &receivers.SendWebhookSettings{
-		URL:        Endpoint,
+		URL:        APIURL,
 		HTTPMethod: "POST",
 		HTTPHeader: headers,
 		Body:       uploadBody.String(),

@@ -15,7 +15,8 @@ import (
 )
 
 var (
-	NotifyURL string = "https://notify-api.line.me/api/notify"
+	// APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
+	APIURL = "https://notify-api.line.me/api/notify"
 )
 
 // Notifier is responsible for sending
@@ -54,7 +55,7 @@ func (ln *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	form.Add("message", body)
 
 	cmd := &receivers.SendWebhookSettings{
-		URL:        NotifyURL,
+		URL:        APIURL,
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{
 			"Authorization": fmt.Sprintf("Bearer %s", ln.settings.Token),

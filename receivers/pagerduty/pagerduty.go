@@ -29,7 +29,8 @@ const (
 
 var (
 	knownSeverity = map[string]struct{}{DefaultSeverity: {}, "error": {}, "warning": {}, "info": {}}
-	eventAPIURL   = "https://events.pagerduty.com/v2/enqueue"
+	// APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
+	APIURL = "https://events.pagerduty.com/v2/enqueue"
 )
 
 // Notifier is responsible for sending
@@ -80,7 +81,7 @@ func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 
 	pn.log.Info("notifying Pagerduty", "event_type", eventType)
 	cmd := &receivers.SendWebhookSettings{
-		URL:        eventAPIURL,
+		URL:        APIURL,
 		Body:       string(body),
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{
