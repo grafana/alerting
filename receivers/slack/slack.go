@@ -34,6 +34,7 @@ const (
 	// rate limits for files.upload https://api.slack.com/docs/rate-limits#tier_t2
 	maxImagesPerThreadTs        = 5
 	maxImagesPerThreadTsMessage = "There are more images than can be shown here. To see the panels for all firing and resolved alerts please check Grafana"
+	footerIconURL               = "https://grafana.com/static/assets/img/fav32.png"
 )
 
 var (
@@ -89,47 +90,11 @@ func uploadURL(s Config) (string, error) {
 }
 
 func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
-	decryptFunc := factoryConfig.DecryptFunc
-	var settings Config
-	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
+	settings, err := ValidateConfig(factoryConfig)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
+		return nil, err
 	}
 
-	if settings.EndpointURL == "" {
-		settings.EndpointURL = APIEndpoint
-	}
-	slackURL := decryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "url", settings.URL)
-	if slackURL == "" {
-		slackURL = settings.EndpointURL
-	}
-
-	apiURL, err := url.Parse(slackURL)
-	if err != nil {
-		return nil, fmt.Errorf("invalid URL %q", slackURL)
-	}
-	settings.URL = apiURL.String()
-
-	settings.Recipient = strings.TrimSpace(settings.Recipient)
-	if settings.Recipient == "" && settings.URL == APIEndpoint {
-		return nil, errors.New("recipient must be specified when using the Slack chat API")
-	}
-	if settings.MentionChannel != "" && settings.MentionChannel != "here" && settings.MentionChannel != "channel" {
-		return nil, fmt.Errorf("invalid value for mentionChannel: %q", settings.MentionChannel)
-	}
-	settings.Token = decryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "token", settings.Token)
-	if settings.Token == "" && settings.URL == APIEndpoint {
-		return nil, errors.New("token must be specified when using the Slack chat API")
-	}
-	if settings.Username == "" {
-		settings.Username = "Grafana"
-	}
-	if settings.Text == "" {
-		settings.Text = templates.DefaultMessageEmbed
-	}
-	if settings.Title == "" {
-		settings.Title = templates.DefaultMessageTitleEmbed
-	}
 	return &Notifier{
 		Base:     receivers.NewBase(factoryConfig.Config),
 		settings: settings,
@@ -350,7 +315,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 				Title:      title,
 				Fallback:   title,
 				Footer:     "Grafana v" + sn.appVersion,
-				FooterIcon: FooterIconURL,
+				FooterIcon: footerIconURL,
 				Ts:         time.Now().Unix(),
 				TitleLink:  ruleURL,
 				Text:       tmpl(sn.settings.Text),

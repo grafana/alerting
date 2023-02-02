@@ -3,10 +3,7 @@ package alertmanager
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net/url"
-	"strings"
 
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -16,57 +13,17 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-type Config struct {
-	*receivers.NotificationChannelConfig
-	URLs              []*url.URL
-	BasicAuthUser     string
-	BasicAuthPassword string
-}
-
-type alertmanagerSettings struct {
-	URLs     []*url.URL
-	User     string
-	Password string
-}
-
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	var settings struct {
-		URL      receivers.CommaSeparatedStrings `json:"url,omitempty" yaml:"url,omitempty"`
-		User     string                          `json:"basicAuthUser,omitempty" yaml:"basicAuthUser,omitempty"`
-		Password string                          `json:"basicAuthPassword,omitempty" yaml:"basicAuthPassword,omitempty"`
-	}
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	settings, err := ValidateConfig(fc)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
+		return nil, err
 	}
-
-	urls := make([]*url.URL, 0, len(settings.URL))
-	for _, uS := range settings.URL {
-		uS = strings.TrimSpace(uS)
-		if uS == "" {
-			continue
-		}
-		uS = strings.TrimSuffix(uS, "/") + "/api/v1/alerts"
-		u, err := url.Parse(uS)
-		if err != nil {
-			return nil, fmt.Errorf("invalid url property in settings: %w", err)
-		}
-		urls = append(urls, u)
-	}
-	if len(settings.URL) == 0 || len(urls) == 0 {
-		return nil, errors.New("could not find url property in settings")
-	}
-	settings.Password = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "basicAuthPassword", settings.Password)
 
 	return &Notifier{
-		Base:   receivers.NewBase(fc.Config),
-		images: fc.ImageStore,
-		settings: alertmanagerSettings{
-			URLs:     urls,
-			User:     settings.User,
-			Password: settings.Password,
-		},
-		logger: fc.Logger,
+		Base:     receivers.NewBase(fc.Config),
+		images:   fc.ImageStore,
+		settings: settings,
+		logger:   fc.Logger,
 	}, nil
 }
 
@@ -74,7 +31,7 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 type Notifier struct {
 	*receivers.Base
 	images   images.ImageStore
-	settings alertmanagerSettings
+	settings Config
 	logger   logging.Logger
 }
 
