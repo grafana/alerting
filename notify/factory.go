@@ -82,9 +82,9 @@ type ReceiverInitError struct {
 }
 
 func (e ReceiverInitError) Error() string {
-	name := ""
+	var name string
 	if e.Cfg.Name != "" {
-		name = fmt.Sprintf("%q ", e.Cfg.Name)
+		name = fmt.Sprintf("%q", e.Cfg.Name)
 	}
 
 	s := fmt.Sprintf("failed to validate receiver %sof type %q: %s", name, e.Cfg.Type, e.Reason)
