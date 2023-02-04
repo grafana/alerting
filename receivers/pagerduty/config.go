@@ -1,8 +1,6 @@
 package pagerduty
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -19,7 +17,7 @@ const (
 )
 
 type Config struct {
-	Key           string            `json:"integrationKey,omitempty" yaml:"integrationKey,omitempty"`
+	Key           receivers.Secret  `json:"integrationKey,omitempty" yaml:"integrationKey,omitempty"`
 	Severity      string            `json:"severity,omitempty" yaml:"severity,omitempty"`
 	CustomDetails map[string]string `json:"-" yaml:"-"` // TODO support the settings in the config
 	Class         string            `json:"class,omitempty" yaml:"class,omitempty"`
@@ -33,12 +31,11 @@ type Config struct {
 
 func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	settings := Config{}
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := fc.Marshaller.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
-	settings.Key = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "integrationKey", settings.Key)
 	if settings.Key == "" {
 		return nil, errors.New("could not find integration key property in settings")
 	}

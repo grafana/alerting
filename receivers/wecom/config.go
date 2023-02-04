@@ -1,8 +1,6 @@
 package wecom
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -27,16 +25,16 @@ func (mt MsgType) IsValid() bool {
 }
 
 type Config struct {
-	Channel     string  `json:"-" yaml:"-"`
-	EndpointURL string  `json:"endpointUrl,omitempty" yaml:"endpointUrl,omitempty"`
-	URL         string  `json:"url" yaml:"url"`
-	AgentID     string  `json:"agent_id,omitempty" yaml:"agent_id,omitempty"`
-	CorpID      string  `json:"corp_id,omitempty" yaml:"corp_id,omitempty"`
-	Secret      string  `json:"secret,omitempty" yaml:"secret,omitempty"`
-	MsgType     MsgType `json:"msgtype,omitempty" yaml:"msgtype,omitempty"`
-	Message     string  `json:"message,omitempty" yaml:"message,omitempty"`
-	Title       string  `json:"title,omitempty" yaml:"title,omitempty"`
-	ToUser      string  `json:"touser,omitempty" yaml:"touser,omitempty"`
+	Channel     string           `json:"-" yaml:"-"`
+	EndpointURL string           `json:"endpointUrl,omitempty" yaml:"endpointUrl,omitempty"`
+	URL         receivers.Secret `json:"url" yaml:"url"`
+	AgentID     string           `json:"agent_id,omitempty" yaml:"agent_id,omitempty"`
+	CorpID      string           `json:"corp_id,omitempty" yaml:"corp_id,omitempty"`
+	Secret      receivers.Secret `json:"secret,omitempty" yaml:"secret,omitempty"`
+	MsgType     MsgType          `json:"msgtype,omitempty" yaml:"msgtype,omitempty"`
+	Message     string           `json:"message,omitempty" yaml:"message,omitempty"`
+	Title       string           `json:"title,omitempty" yaml:"title,omitempty"`
+	ToUser      string           `json:"touser,omitempty" yaml:"touser,omitempty"`
 }
 
 func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
@@ -44,7 +42,7 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 		Channel: DefaultChannelType,
 	}
 
-	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
+	err := factoryConfig.Marshaller.Unmarshal(factoryConfig.Config.Settings, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
@@ -66,9 +64,6 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 	if len(settings.ToUser) == 0 {
 		settings.ToUser = DefaultToUser
 	}
-
-	settings.URL = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "url", settings.URL)
-	settings.Secret = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "secret", settings.Secret)
 
 	if len(settings.URL) == 0 && len(settings.Secret) == 0 {
 		return settings, errors.New("either url or secret is required")

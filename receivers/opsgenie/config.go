@@ -1,8 +1,6 @@
 package opsgenie
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -20,7 +18,7 @@ const (
 )
 
 type Config struct {
-	APIKey           string
+	APIKey           receivers.Secret
 	APIUrl           string
 	Message          string
 	Description      string
@@ -31,22 +29,21 @@ type Config struct {
 
 func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	type rawSettings struct {
-		APIKey           string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
-		APIUrl           string `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`
-		Message          string `json:"message,omitempty" yaml:"message,omitempty"`
-		Description      string `json:"description,omitempty" yaml:"description,omitempty"`
-		AutoClose        *bool  `json:"autoClose,omitempty" yaml:"autoClose,omitempty"`
-		OverridePriority *bool  `json:"overridePriority,omitempty" yaml:"overridePriority,omitempty"`
-		SendTagsAs       string `json:"sendTagsAs,omitempty" yaml:"sendTagsAs,omitempty"`
+		APIKey           receivers.Secret `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
+		APIUrl           string           `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`
+		Message          string           `json:"message,omitempty" yaml:"message,omitempty"`
+		Description      string           `json:"description,omitempty" yaml:"description,omitempty"`
+		AutoClose        *bool            `json:"autoClose,omitempty" yaml:"autoClose,omitempty"`
+		OverridePriority *bool            `json:"overridePriority,omitempty" yaml:"overridePriority,omitempty"`
+		SendTagsAs       string           `json:"sendTagsAs,omitempty" yaml:"sendTagsAs,omitempty"`
 	}
 
 	raw := rawSettings{}
-	err := json.Unmarshal(fc.Config.Settings, &raw)
+	err := fc.Marshaller.Unmarshal(fc.Config.Settings, &raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
-	raw.APIKey = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "apiKey", raw.APIKey)
 	if raw.APIKey == "" {
 		return nil, errors.New("could not find api key property in settings")
 	}

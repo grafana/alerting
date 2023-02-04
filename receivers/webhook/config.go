@@ -1,7 +1,6 @@
 package webhook
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,18 +29,18 @@ type Config struct {
 func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 	settings := Config{}
 	rawSettings := struct {
-		URL                      string      `json:"url,omitempty" yaml:"url,omitempty"`
-		HTTPMethod               string      `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
-		MaxAlerts                json.Number `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
-		AuthorizationScheme      string      `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
-		AuthorizationCredentials string      `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
-		User                     string      `json:"username,omitempty" yaml:"username,omitempty"`
-		Password                 string      `json:"password,omitempty" yaml:"password,omitempty"`
-		Title                    string      `json:"title,omitempty" yaml:"title,omitempty"`
-		Message                  string      `json:"message,omitempty" yaml:"message,omitempty"`
+		URL                      string           `json:"url,omitempty" yaml:"url,omitempty"`
+		HTTPMethod               string           `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
+		MaxAlerts                json.Number      `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
+		AuthorizationScheme      string           `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
+		AuthorizationCredentials receivers.Secret `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
+		User                     receivers.Secret `json:"username,omitempty" yaml:"username,omitempty"`
+		Password                 receivers.Secret `json:"password,omitempty" yaml:"password,omitempty"`
+		Title                    string           `json:"title,omitempty" yaml:"title,omitempty"`
+		Message                  string           `json:"message,omitempty" yaml:"message,omitempty"`
 	}{}
 
-	err := json.Unmarshal(factoryConfig.Config.Settings, &rawSettings)
+	err := factoryConfig.Marshaller.Unmarshal(factoryConfig.Config.Settings, &rawSettings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
@@ -58,10 +57,6 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 	if rawSettings.MaxAlerts != "" {
 		settings.MaxAlerts, _ = strconv.Atoi(rawSettings.MaxAlerts.String())
 	}
-
-	settings.User = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "username", rawSettings.User)
-	settings.Password = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "password", rawSettings.Password)
-	settings.AuthorizationCredentials = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "authorization_credentials", rawSettings.AuthorizationCredentials)
 
 	if settings.AuthorizationCredentials != "" && settings.AuthorizationScheme == "" {
 		settings.AuthorizationScheme = "Bearer"

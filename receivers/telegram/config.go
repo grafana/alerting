@@ -1,8 +1,6 @@
 package telegram
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -18,20 +16,19 @@ const DefaultTelegramParseMode = "HTML"
 var SupportedParseMode = map[string]string{"Markdown": "Markdown", "MarkdownV2": "MarkdownV2", DefaultTelegramParseMode: "HTML", "None": ""}
 
 type Config struct {
-	BotToken             string `json:"bottoken,omitempty" yaml:"bottoken,omitempty"`
-	ChatID               string `json:"chatid,omitempty" yaml:"chatid,omitempty"`
-	Message              string `json:"message,omitempty" yaml:"message,omitempty"`
-	ParseMode            string `json:"parse_mode,omitempty" yaml:"parse_mode,omitempty"`
-	DisableNotifications bool   `json:"disable_notifications,omitempty" yaml:"disable_notifications,omitempty"`
+	BotToken             receivers.Secret `json:"bottoken,omitempty" yaml:"bottoken,omitempty"`
+	ChatID               string           `json:"chatid,omitempty" yaml:"chatid,omitempty"`
+	Message              string           `json:"message,omitempty" yaml:"message,omitempty"`
+	ParseMode            string           `json:"parse_mode,omitempty" yaml:"parse_mode,omitempty"`
+	DisableNotifications bool             `json:"disable_notifications,omitempty" yaml:"disable_notifications,omitempty"`
 }
 
 func ValidateConfig(fc receivers.FactoryConfig) (Config, error) {
 	settings := Config{}
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := fc.Marshaller.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
-	settings.BotToken = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "bottoken", settings.BotToken)
 	if settings.BotToken == "" {
 		return settings, errors.New("could not find Bot Token in settings")
 	}

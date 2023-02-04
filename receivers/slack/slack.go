@@ -81,7 +81,7 @@ func isIncomingWebhook(s Config) bool {
 
 // uploadURL returns the upload URL for Slack.
 func uploadURL(s Config) (string, error) {
-	u, err := url.Parse(s.URL)
+	u, err := url.Parse(string(s.URL))
 	if err != nil {
 		return "", fmt.Errorf("failed to parse URL: %w", err)
 	}
@@ -382,7 +382,7 @@ func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (stri
 	}
 
 	sn.log.Debug("sending Slack API request", "url", sn.settings.URL, "data", string(b))
-	request, err := http.NewRequestWithContext(ctx, http.MethodPost, sn.settings.URL, bytes.NewReader(b))
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, string(sn.settings.URL), bytes.NewReader(b))
 	if err != nil {
 		return "", fmt.Errorf("failed to create HTTP request: %w", err)
 	}
@@ -390,13 +390,13 @@ func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (stri
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("User-Agent", "Grafana")
 	if sn.settings.Token == "" {
-		if sn.settings.URL == APIURL {
+		if string(sn.settings.URL) == APIURL {
 			panic("Token should be set when using the Slack chat API")
 		}
 		sn.log.Debug("Looks like we are using an incoming webhook, no Authorization header required")
 	} else {
 		sn.log.Debug("Looks like we are using the Slack API, have set the Bearer token for this request")
-		request.Header.Set("Authorization", "Bearer "+sn.settings.Token)
+		request.Header.Set("Authorization", "Bearer "+string(sn.settings.Token))
 	}
 
 	threadTs, err := sn.sendFn(ctx, request, sn.log)
@@ -475,7 +475,7 @@ func (sn *Notifier) sendMultipart(ctx context.Context, headers http.Header, data
 	for k, v := range headers {
 		req.Header[k] = v
 	}
-	req.Header.Set("Authorization", "Bearer "+sn.settings.Token)
+	req.Header.Set("Authorization", "Bearer "+string(sn.settings.Token))
 
 	if _, err := sn.sendFn(ctx, req, sn.log); err != nil {
 		return fmt.Errorf("failed to send request: %w", err)

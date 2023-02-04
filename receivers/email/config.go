@@ -1,7 +1,6 @@
 package email
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -26,7 +25,7 @@ func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	}
 
 	var settings emailSettingsRaw
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := fc.Marshaller.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}

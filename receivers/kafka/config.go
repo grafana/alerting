@@ -1,8 +1,6 @@
 package kafka
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -21,19 +19,19 @@ const (
 )
 
 type Config struct {
-	Endpoint       string `json:"kafkaRestProxy,omitempty" yaml:"kafkaRestProxy,omitempty"`
-	Topic          string `json:"kafkaTopic,omitempty" yaml:"kafkaTopic,omitempty"`
-	Description    string `json:"description,omitempty" yaml:"description,omitempty"`
-	Details        string `json:"details,omitempty" yaml:"details,omitempty"`
-	Username       string `json:"username,omitempty" yaml:"username,omitempty"`
-	Password       string `json:"password,omitempty" yaml:"password,omitempty"`
-	APIVersion     string `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
-	KafkaClusterID string `json:"kafkaClusterId,omitempty" yaml:"kafkaClusterId,omitempty"`
+	Endpoint       string           `json:"kafkaRestProxy,omitempty" yaml:"kafkaRestProxy,omitempty"`
+	Topic          string           `json:"kafkaTopic,omitempty" yaml:"kafkaTopic,omitempty"`
+	Description    string           `json:"description,omitempty" yaml:"description,omitempty"`
+	Details        string           `json:"details,omitempty" yaml:"details,omitempty"`
+	Username       string           `json:"username,omitempty" yaml:"username,omitempty"`
+	Password       receivers.Secret `json:"password,omitempty" yaml:"password,omitempty"`
+	APIVersion     string           `json:"apiVersion,omitempty" yaml:"apiVersion,omitempty"`
+	KafkaClusterID string           `json:"kafkaClusterId,omitempty" yaml:"kafkaClusterId,omitempty"`
 }
 
 func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	var settings Config
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := fc.Marshaller.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
@@ -52,7 +50,6 @@ func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	if settings.Details == "" {
 		settings.Details = templates.DefaultMessageEmbed
 	}
-	settings.Password = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "password", settings.Password)
 
 	if settings.APIVersion == "" {
 		settings.APIVersion = apiVersionV2

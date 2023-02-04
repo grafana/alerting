@@ -1,7 +1,6 @@
 package dinding
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -20,7 +19,7 @@ const defaultDingdingMsgType = "link"
 
 func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	var settings Config
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := fc.Marshaller.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}

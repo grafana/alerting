@@ -107,7 +107,7 @@ func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bo
 			"Accept":       "application/vnd.kafka.v2+json",
 		},
 		User:     kn.settings.Username,
-		Password: kn.settings.Password,
+		Password: string(kn.settings.Password),
 	}
 
 	if err := kn.ns.SendWebhook(ctx, cmd); err != nil {
@@ -147,7 +147,7 @@ func (kn *Notifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bo
 		},
 		Validation: validateKafkaV3Response,
 		User:       kn.settings.Username,
-		Password:   kn.settings.Password,
+		Password:   string(kn.settings.Password),
 	}
 
 	// TODO: Convert to a stream - keep a single connection open and send records on it.
@@ -185,7 +185,7 @@ func validateKafkaV3Response(rawResponse []byte, statusCode int) error {
 	// 200 status means the API was processed successfully.
 	// The message publishing could still fail. This is verified by checking the error_code field in the response.
 	var response kafkaV3Response
-	if err := json.Unmarshal(rawResponse, &response); err != nil {
+	if err := fc.Marshaller.Unmarshal(rawResponse, &response); err != nil {
 		return err
 	}
 	if response.ErrorCode/100 != 2 {

@@ -64,7 +64,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	for _, u := range n.settings.URLs {
 		if _, err := receivers.SendHTTPRequest(ctx, u, receivers.HTTPCfg{
 			User:     n.settings.User,
-			Password: n.settings.Password,
+			Password: string(n.settings.Password),
 			Body:     body,
 		}, n.logger); err != nil {
 			n.logger.Warn("failed to send to Alertmanager", "error", err, "alertmanager", n.Name, "url", u.String())

@@ -109,11 +109,11 @@ func (pn *Notifier) genPushoverBody(ctx context.Context, as ...*types.Alert) (ma
 	var tmplErr error
 	tmpl, _ := template2.TmplText(ctx, pn.tmpl, as, pn.log, &tmplErr)
 
-	if err := w.WriteField("user", tmpl(pn.settings.UserKey)); err != nil {
+	if err := w.WriteField("user", tmpl(string(pn.settings.UserKey))); err != nil {
 		return nil, b, fmt.Errorf("failed to write the user: %w", err)
 	}
 
-	if err := w.WriteField("token", pn.settings.APIToken); err != nil {
+	if err := w.WriteField("token", string(pn.settings.APIToken)); err != nil {
 		return nil, b, fmt.Errorf("failed to write the token: %w", err)
 	}
 

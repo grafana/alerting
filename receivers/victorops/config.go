@@ -1,7 +1,6 @@
 package victorops
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -23,7 +22,7 @@ type Config struct {
 
 func ValidateConfig(fc receivers.FactoryConfig) (Config, error) {
 	settings := Config{}
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := fc.Marshaller.Unmarshal(fc.Config.Settings, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}

@@ -1,8 +1,6 @@
 package slack
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -14,8 +12,8 @@ import (
 
 type Config struct {
 	EndpointURL    string                          `json:"endpointUrl,omitempty" yaml:"endpointUrl,omitempty"`
-	URL            string                          `json:"url,omitempty" yaml:"url,omitempty"`
-	Token          string                          `json:"token,omitempty" yaml:"token,omitempty"`
+	URL            receivers.Secret                `json:"url,omitempty" yaml:"url,omitempty"`
+	Token          receivers.Secret                `json:"token,omitempty" yaml:"token,omitempty"`
 	Recipient      string                          `json:"recipient,omitempty" yaml:"recipient,omitempty"`
 	Text           string                          `json:"text,omitempty" yaml:"text,omitempty"`
 	Title          string                          `json:"title,omitempty" yaml:"title,omitempty"`
@@ -28,9 +26,8 @@ type Config struct {
 }
 
 func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
-	decryptFunc := factoryConfig.DecryptFunc
 	var settings Config
-	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
+	err := factoryConfig.Marshaller.Unmarshal(factoryConfig.Config.Settings, &settings)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
@@ -38,7 +35,7 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 	if settings.EndpointURL == "" {
 		settings.EndpointURL = APIURL
 	}
-	slackURL := decryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "url", settings.URL)
+	slackURL := string(settings.URL)
 	if slackURL == "" {
 		slackURL = settings.EndpointURL
 	}
@@ -47,17 +44,16 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid URL %q", slackURL)
 	}
-	settings.URL = apiURL.String()
+	settings.URL = receivers.Secret(apiURL.String())
 
 	settings.Recipient = strings.TrimSpace(settings.Recipient)
-	if settings.Recipient == "" && settings.URL == APIURL {
+	if settings.Recipient == "" && string(settings.URL) == APIURL {
 		return Config{}, errors.New("recipient must be specified when using the Slack chat API")
 	}
 	if settings.MentionChannel != "" && settings.MentionChannel != "here" && settings.MentionChannel != "channel" {
 		return Config{}, fmt.Errorf("invalid value for mentionChannel: %q", settings.MentionChannel)
 	}
-	settings.Token = decryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "token", settings.Token)
-	if settings.Token == "" && settings.URL == APIURL {
+	if settings.Token == "" && string(settings.URL) == APIURL {
 		return Config{}, errors.New("token must be specified when using the Slack chat API")
 	}
 	if settings.Username == "" {

@@ -1,7 +1,6 @@
 package pushover
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,8 +10,8 @@ import (
 )
 
 type Config struct {
-	UserKey          string
-	APIToken         string
+	UserKey          receivers.Secret `json:"userKey,omitempty" yaml:"userKey,omitempty"`
+	APIToken         receivers.Secret `json:"apiToken,omitempty" yaml:"apiToken,omitempty"`
 	AlertingPriority int64
 	OkPriority       int64
 	Retry            int64
@@ -28,30 +27,28 @@ type Config struct {
 func ValidateConfig(fc receivers.FactoryConfig) (Config, error) {
 	settings := Config{}
 	rawSettings := struct {
-		UserKey          string      `json:"userKey,omitempty" yaml:"userKey,omitempty"`
-		APIToken         string      `json:"apiToken,omitempty" yaml:"apiToken,omitempty"`
-		AlertingPriority json.Number `json:"priority,omitempty" yaml:"priority,omitempty"`
-		OKPriority       json.Number `json:"okPriority,omitempty" yaml:"okPriority,omitempty"`
-		Retry            json.Number `json:"retry,omitempty" yaml:"retry,omitempty"`
-		Expire           json.Number `json:"expire,omitempty" yaml:"expire,omitempty"`
-		Device           string      `json:"device,omitempty" yaml:"device,omitempty"`
-		AlertingSound    string      `json:"sound,omitempty" yaml:"sound,omitempty"`
-		OKSound          string      `json:"okSound,omitempty" yaml:"okSound,omitempty"`
-		Upload           *bool       `json:"uploadImage,omitempty" yaml:"uploadImage,omitempty"`
-		Title            string      `json:"title,omitempty" yaml:"title,omitempty"`
-		Message          string      `json:"message,omitempty" yaml:"message,omitempty"`
+		UserKey          receivers.Secret `json:"userKey,omitempty" yaml:"userKey,omitempty"`
+		APIToken         receivers.Secret `json:"apiToken,omitempty" yaml:"apiToken,omitempty"`
+		AlertingPriority json.Number      `json:"priority,omitempty" yaml:"priority,omitempty"`
+		OKPriority       json.Number      `json:"okPriority,omitempty" yaml:"okPriority,omitempty"`
+		Retry            json.Number      `json:"retry,omitempty" yaml:"retry,omitempty"`
+		Expire           json.Number      `json:"expire,omitempty" yaml:"expire,omitempty"`
+		Device           string           `json:"device,omitempty" yaml:"device,omitempty"`
+		AlertingSound    string           `json:"sound,omitempty" yaml:"sound,omitempty"`
+		OKSound          string           `json:"okSound,omitempty" yaml:"okSound,omitempty"`
+		Upload           *bool            `json:"uploadImage,omitempty" yaml:"uploadImage,omitempty"`
+		Title            string           `json:"title,omitempty" yaml:"title,omitempty"`
+		Message          string           `json:"message,omitempty" yaml:"message,omitempty"`
 	}{}
 
-	err := json.Unmarshal(fc.Config.Settings, &rawSettings)
+	err := fc.Marshaller.Unmarshal(fc.Config.Settings, &rawSettings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
-	settings.UserKey = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "userKey", rawSettings.UserKey)
 	if settings.UserKey == "" {
 		return settings, errors.New("user key not found")
 	}
-	settings.APIToken = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "apiToken", rawSettings.APIToken)
 	if settings.APIToken == "" {
 		return settings, errors.New("API token not found")
 	}
