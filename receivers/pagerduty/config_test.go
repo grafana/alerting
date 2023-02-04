@@ -34,7 +34,7 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name:              "Error if empty",
 			settings:          "",
-			expectedInitError: `failed to unmarshal settings: unexpected end of JSON input`,
+			expectedInitError: `failed to unmarshal settings`,
 		},
 		{
 			name:              "Error if empty JSON object",
