@@ -166,12 +166,9 @@ func TestEmailNotifier_Notify(t *testing.T) {
 				Settings: json.RawMessage(jsonData),
 			},
 			NotificationService: emailSender,
-			DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-				return fallback
-			},
-			ImageStore: &images.UnavailableImageStore{},
-			Template:   tmpl,
-			Logger:     &logging.FakeLogger{},
+			ImageStore:          &images.UnavailableImageStore{},
+			Template:            tmpl,
+			Logger:              &logging.FakeLogger{},
 		}
 
 		emailNotifier, err := New(fc)
