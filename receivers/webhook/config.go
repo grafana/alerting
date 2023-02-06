@@ -54,6 +54,7 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 		rawSettings.HTTPMethod = http.MethodPost
 	}
 	settings.HTTPMethod = rawSettings.HTTPMethod
+	settings.AuthorizationScheme = rawSettings.AuthorizationScheme
 
 	if rawSettings.MaxAlerts != "" {
 		settings.MaxAlerts, _ = strconv.Atoi(rawSettings.MaxAlerts.String())

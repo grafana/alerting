@@ -18,6 +18,19 @@ const (
 	DefaultClient   = "Grafana"
 )
 
+func defaultCustomDetails() map[string]string {
+	return map[string]string{
+		"firing":       `{{ template "__text_alert_list" .Alerts.Firing }}`,
+		"resolved":     `{{ template "__text_alert_list" .Alerts.Resolved }}`,
+		"num_firing":   `{{ .Alerts.Firing | len }}`,
+		"num_resolved": `{{ .Alerts.Resolved | len }}`,
+	}
+}
+
+var getHostname = func() (string, error) {
+	return os.Hostname()
+}
+
 type Config struct {
 	Key           string            `json:"integrationKey,omitempty" yaml:"integrationKey,omitempty"`
 	Severity      string            `json:"severity,omitempty" yaml:"severity,omitempty"`
@@ -43,12 +56,7 @@ func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 		return nil, errors.New("could not find integration key property in settings")
 	}
 
-	settings.CustomDetails = map[string]string{
-		"firing":       `{{ template "__text_alert_list" .Alerts.Firing }}`,
-		"resolved":     `{{ template "__text_alert_list" .Alerts.Resolved }}`,
-		"num_firing":   `{{ .Alerts.Firing | len }}`,
-		"num_resolved": `{{ .Alerts.Resolved | len }}`,
-	}
+	settings.CustomDetails = defaultCustomDetails()
 
 	if settings.Severity == "" {
 		settings.Severity = DefaultSeverity
@@ -72,7 +80,7 @@ func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 		settings.ClientURL = "{{ .ExternalURL }}"
 	}
 	if settings.Source == "" {
-		source, err := os.Hostname()
+		source, err := getHostname()
 		if err != nil {
 			source = settings.Client
 		}
