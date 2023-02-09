@@ -28,18 +28,18 @@ type Config struct {
 func ValidateConfig(fc receivers.FactoryConfig) (Config, error) {
 	settings := Config{}
 	rawSettings := struct {
-		UserKey          string      `json:"userKey,omitempty" yaml:"userKey,omitempty"`
-		APIToken         string      `json:"apiToken,omitempty" yaml:"apiToken,omitempty"`
-		AlertingPriority json.Number `json:"priority,omitempty" yaml:"priority,omitempty"`
-		OKPriority       json.Number `json:"okPriority,omitempty" yaml:"okPriority,omitempty"`
-		Retry            json.Number `json:"retry,omitempty" yaml:"retry,omitempty"`
-		Expire           json.Number `json:"expire,omitempty" yaml:"expire,omitempty"`
-		Device           string      `json:"device,omitempty" yaml:"device,omitempty"`
-		AlertingSound    string      `json:"sound,omitempty" yaml:"sound,omitempty"`
-		OKSound          string      `json:"okSound,omitempty" yaml:"okSound,omitempty"`
-		Upload           *bool       `json:"uploadImage,omitempty" yaml:"uploadImage,omitempty"`
-		Title            string      `json:"title,omitempty" yaml:"title,omitempty"`
-		Message          string      `json:"message,omitempty" yaml:"message,omitempty"`
+		UserKey          string                   `json:"userKey,omitempty" yaml:"userKey,omitempty"`
+		APIToken         string                   `json:"apiToken,omitempty" yaml:"apiToken,omitempty"`
+		AlertingPriority receivers.OptionalNumber `json:"priority,omitempty" yaml:"priority,omitempty"`
+		OKPriority       receivers.OptionalNumber `json:"okPriority,omitempty" yaml:"okPriority,omitempty"`
+		Retry            receivers.OptionalNumber `json:"retry,omitempty" yaml:"retry,omitempty"`
+		Expire           receivers.OptionalNumber `json:"expire,omitempty" yaml:"expire,omitempty"`
+		Device           string                   `json:"device,omitempty" yaml:"device,omitempty"`
+		AlertingSound    string                   `json:"sound,omitempty" yaml:"sound,omitempty"`
+		OKSound          string                   `json:"okSound,omitempty" yaml:"okSound,omitempty"`
+		Upload           *bool                    `json:"uploadImage,omitempty" yaml:"uploadImage,omitempty"`
+		Title            string                   `json:"title,omitempty" yaml:"title,omitempty"`
+		Message          string                   `json:"message,omitempty" yaml:"message,omitempty"`
 	}{}
 
 	err := json.Unmarshal(fc.Config.Settings, &rawSettings)
