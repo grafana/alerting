@@ -300,6 +300,66 @@ func TestWebhookNotifier(t *testing.T) {
 			expHeaders:    map[string]string{"Authorization": "Bearer mysecret"},
 		},
 		{
+			name: "with custom authorization scheme",
+			settings: `{
+				"url": "http://localhost/test1",
+				"authorization_scheme": "test-auth-scheme",
+				"authorization_credentials": "mysecret",
+				"httpMethod": "POST",
+				"maxAlerts": 2
+			}`,
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: &WebhookMessage{
+				ExtendedData: &ExtendedData{
+					Receiver: "my_receiver",
+					Status:   "firing",
+					Alerts: ExtendedAlerts{
+						{
+							Status: "firing",
+							Labels: template.KV{
+								"alertname": "alert1",
+								"lbl1":      "val1",
+							},
+							Annotations: template.KV{
+								"ann1": "annv1",
+							},
+							Fingerprint:  "fac0861a85de433a",
+							DashboardURL: "http://localhost/d/abcd",
+							PanelURL:     "http://localhost/d/abcd?viewPanel=efgh",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+						},
+					},
+					GroupLabels: template.KV{
+						"alertname": "",
+					},
+					CommonLabels: template.KV{
+						"alertname": "alert1",
+						"lbl1":      "val1",
+					},
+					CommonAnnotations: template.KV{
+						"ann1": "annv1",
+					},
+					ExternalURL: "http://localhost",
+				},
+				Version:  "1",
+				GroupKey: "alertname",
+				Title:    "[FIRING:1]  (val1)",
+				State:    "alerting",
+				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				OrgID:    orgID,
+			},
+			expURL:        "http://localhost/test1",
+			expHTTPMethod: "POST",
+			expHeaders:    map[string]string{"Authorization": "test-auth-scheme mysecret"},
+		},
+		{
 			name:     "bad template in url",
 			settings: `{"url": "http://localhost/test1?numAlerts={{len Alerts}}"}`,
 			alerts: []*types.Alert{
