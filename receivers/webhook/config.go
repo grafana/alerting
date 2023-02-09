@@ -30,15 +30,15 @@ type Config struct {
 func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 	settings := Config{}
 	rawSettings := struct {
-		URL                      string      `json:"url,omitempty" yaml:"url,omitempty"`
-		HTTPMethod               string      `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
-		MaxAlerts                json.Number `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
-		AuthorizationScheme      string      `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
-		AuthorizationCredentials string      `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
-		User                     string      `json:"username,omitempty" yaml:"username,omitempty"`
-		Password                 string      `json:"password,omitempty" yaml:"password,omitempty"`
-		Title                    string      `json:"title,omitempty" yaml:"title,omitempty"`
-		Message                  string      `json:"message,omitempty" yaml:"message,omitempty"`
+		URL                      string                   `json:"url,omitempty" yaml:"url,omitempty"`
+		HTTPMethod               string                   `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
+		MaxAlerts                receivers.OptionalNumber `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
+		AuthorizationScheme      string                   `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
+		AuthorizationCredentials string                   `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
+		User                     string                   `json:"username,omitempty" yaml:"username,omitempty"`
+		Password                 string                   `json:"password,omitempty" yaml:"password,omitempty"`
+		Title                    string                   `json:"title,omitempty" yaml:"title,omitempty"`
+		Message                  string                   `json:"message,omitempty" yaml:"message,omitempty"`
 	}{}
 
 	err := json.Unmarshal(factoryConfig.Config.Settings, &rawSettings)

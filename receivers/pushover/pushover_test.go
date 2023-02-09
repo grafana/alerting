@@ -187,6 +187,48 @@ func TestPushoverNotifier(t *testing.T) {
 			expMsgError: nil,
 		},
 		{
+			name: "Integer fields as empty strings",
+			settings: `{
+					"userKey": "<userKey>",
+					"apiToken": "<apiToken>",
+					"device": "device",
+					"priority": "",
+					"okpriority": "",
+					"retry": "",
+					"expire": "",
+					"sound": "echo",
+					"oksound": "magic",
+					"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved"
+				}`,
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"__alert_rule_uid__": "rule uid", "alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__alertImageToken__": "test-image-1"},
+					},
+				}, {
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+						Annotations: model.LabelSet{"ann1": "annv2", "__alertImageToken__": "test-image-2"},
+					},
+				},
+			},
+			expMsg: map[string]string{
+				"user":       "<userKey>",
+				"token":      "<apiToken>",
+				"priority":   "0",
+				"sound":      "echo",
+				"title":      "[FIRING:2]  ",
+				"url":        "http://localhost/alerting/list",
+				"url_title":  "Show alert rule",
+				"message":    "2 alerts are firing, 0 are resolved",
+				"attachment": "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\b\x04\x00\x00\x00\xb5\x1c\f\x02\x00\x00\x00\vIDATx\xdacd`\x00\x00\x00\x06\x00\x020\x81\xd0/\x00\x00\x00\x00IEND\xaeB`\x82",
+				"html":       "1",
+				"device":     "device",
+			},
+			expMsgError: nil,
+		},
+		{
 			name: "Missing user key",
 			settings: `{
 				"apiToken": "<apiToken>"
