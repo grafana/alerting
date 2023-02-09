@@ -49,6 +49,7 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 		return settings, errors.New("required field 'url' is not specified")
 	}
 	settings.URL = rawSettings.URL
+	settings.AuthorizationScheme = rawSettings.AuthorizationScheme
 
 	if rawSettings.HTTPMethod == "" {
 		rawSettings.HTTPMethod = http.MethodPost
