@@ -2,7 +2,6 @@ package line
 
 import (
 	"context"
-	"encoding/json"
 	"net/url"
 	"testing"
 
@@ -16,7 +15,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestLineNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
@@ -25,7 +24,7 @@ func TestLineNotifier(t *testing.T) {
 
 	cases := []struct {
 		name         string
-		settings     string
+		settings     Config
 		alerts       []*types.Alert
 		expHeaders   map[string]string
 		expMsg       string
@@ -33,8 +32,12 @@ func TestLineNotifier(t *testing.T) {
 		expMsgError  error
 	}{
 		{
-			name:     "One alert",
-			settings: `{"token": "sometoken"}`,
+			name: "One alert",
+			settings: Config{
+				Title:       templates.DefaultMessageTitleEmbed,
+				Description: templates.DefaultMessageEmbed,
+				Token:       "sometoken",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -50,8 +53,12 @@ func TestLineNotifier(t *testing.T) {
 			expMsg:      "message=%5BFIRING%3A1%5D++%28val1%29%0Ahttp%3A%2Flocalhost%2Falerting%2Flist%0A%0A%2A%2AFiring%2A%2A%0A%0AValue%3A+%5Bno+value%5D%0ALabels%3A%0A+-+alertname+%3D+alert1%0A+-+lbl1+%3D+val1%0AAnnotations%3A%0A+-+ann1+%3D+annv1%0ASilence%3A+http%3A%2F%2Flocalhost%2Falerting%2Fsilence%2Fnew%3Falertmanager%3Dgrafana%26matcher%3Dalertname%253Dalert1%26matcher%3Dlbl1%253Dval1%0ADashboard%3A+http%3A%2F%2Flocalhost%2Fd%2Fabcd%0APanel%3A+http%3A%2F%2Flocalhost%2Fd%2Fabcd%3FviewPanel%3Defgh%0A",
 			expMsgError: nil,
 		}, {
-			name:     "Multiple alerts",
-			settings: `{"token": "sometoken"}`,
+			name: "Multiple alerts",
+			settings: Config{
+				Title:       templates.DefaultMessageTitleEmbed,
+				Description: templates.DefaultMessageEmbed,
+				Token:       "sometoken",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -72,8 +79,12 @@ func TestLineNotifier(t *testing.T) {
 			expMsg:      "message=%5BFIRING%3A2%5D++%0Ahttp%3A%2Flocalhost%2Falerting%2Flist%0A%0A%2A%2AFiring%2A%2A%0A%0AValue%3A+%5Bno+value%5D%0ALabels%3A%0A+-+alertname+%3D+alert1%0A+-+lbl1+%3D+val1%0AAnnotations%3A%0A+-+ann1+%3D+annv1%0ASilence%3A+http%3A%2F%2Flocalhost%2Falerting%2Fsilence%2Fnew%3Falertmanager%3Dgrafana%26matcher%3Dalertname%253Dalert1%26matcher%3Dlbl1%253Dval1%0A%0AValue%3A+%5Bno+value%5D%0ALabels%3A%0A+-+alertname+%3D+alert1%0A+-+lbl1+%3D+val2%0AAnnotations%3A%0A+-+ann1+%3D+annv2%0ASilence%3A+http%3A%2F%2Flocalhost%2Falerting%2Fsilence%2Fnew%3Falertmanager%3Dgrafana%26matcher%3Dalertname%253Dalert1%26matcher%3Dlbl1%253Dval2%0A",
 			expMsgError: nil,
 		}, {
-			name:     "One alert custom title and description",
-			settings: `{"token": "sometoken", "title": "customTitle {{ .Alerts.Firing | len }}", "description": "customDescription"}`,
+			name: "One alert custom title and description",
+			settings: Config{
+				Title:       "customTitle {{ .Alerts.Firing | len }}",
+				Description: "customDescription",
+				Token:       "sometoken",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -88,41 +99,25 @@ func TestLineNotifier(t *testing.T) {
 			},
 			expMsg:      "message=customTitle+1%0Ahttp%3A%2Flocalhost%2Falerting%2Flist%0A%0AcustomDescription",
 			expMsgError: nil,
-		}, {
-			name:         "Token missing",
-			settings:     `{}`,
-			expInitError: `could not find token in settings`,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			settingsJSON := json.RawMessage(c.settings)
-			secureSettings := make(map[string][]byte)
 			webhookSender := receivers.MockNotificationService()
 
-			fc := receivers.FactoryConfig{
-				Config: &receivers.NotificationChannelConfig{
-					Name:           "line_testing",
-					Type:           "line",
-					Settings:       settingsJSON,
-					SecureSettings: secureSettings,
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				// TODO: allow changing the associated values for different tests.
-				NotificationService: webhookSender,
-				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-					return fallback
-				},
-				Template: tmpl,
-				Logger:   &logging.FakeLogger{},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: &c.settings,
 			}
-			pn, err := New(fc)
-			if c.expInitError != "" {
-				require.Error(t, err)
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})

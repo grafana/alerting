@@ -16,7 +16,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestDingdingNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
@@ -24,16 +24,20 @@ func TestDingdingNotifier(t *testing.T) {
 	tmpl.ExternalURL = externalURL
 
 	cases := []struct {
-		name         string
-		settings     string
-		alerts       []*types.Alert
-		expMsg       map[string]interface{}
-		expInitError string
-		expMsgError  error
+		name        string
+		settings    Config
+		alerts      []*types.Alert
+		expMsg      map[string]interface{}
+		expMsgError error
 	}{
 		{
-			name:     "Default config with one alert",
-			settings: `{"url": "http://localhost"}`,
+			name: "Default config with one alert",
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: defaultDingdingMsgType,
+				Title:       templates.DefaultMessageTitleEmbed,
+				Message:     templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -53,11 +57,12 @@ func TestDingdingNotifier(t *testing.T) {
 			expMsgError: nil,
 		}, {
 			name: "Custom config with multiple alerts",
-			settings: `{
-				"url": "http://localhost",
-				"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
-				"msgType": "actionCard"
-			}`,
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: "actionCard",
+				Title:       templates.DefaultMessageTitleEmbed,
+				Message:     "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -82,8 +87,13 @@ func TestDingdingNotifier(t *testing.T) {
 			},
 			expMsgError: nil,
 		}, {
-			name:     "Default config with one alert and custom title and description",
-			settings: `{"url": "http://localhost", "title": "Alerts firing: {{ len .Alerts.Firing }}", "message": "customMessage"}`,
+			name: "Default config with one alert and custom title and description",
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: defaultDingdingMsgType,
+				Title:       "Alerts firing: {{ len .Alerts.Firing }}",
+				Message:     "customMessage",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -103,11 +113,12 @@ func TestDingdingNotifier(t *testing.T) {
 			expMsgError: nil,
 		}, {
 			name: "Missing field in template",
-			settings: `{
-				"url": "http://localhost",
-				"message": "I'm a custom template {{ .NotAField }} bad template",
-				"msgType": "actionCard"
-			}`,
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: "actionCard",
+				Title:       templates.DefaultMessageTitleEmbed,
+				Message:     "I'm a custom template {{ .NotAField }} bad template",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -132,11 +143,12 @@ func TestDingdingNotifier(t *testing.T) {
 			expMsgError: nil,
 		}, {
 			name: "Invalid template",
-			settings: `{
-				"url": "http://localhost",
-				"message": "I'm a custom template {{ {.NotAField }} bad template",
-				"msgType": "actionCard"
-			}`,
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: "actionCard",
+				Title:       templates.DefaultMessageTitleEmbed,
+				Message:     "I'm a custom template {{ {.NotAField }} bad template",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -159,37 +171,30 @@ func TestDingdingNotifier(t *testing.T) {
 				"msgtype": "link",
 			},
 			expMsgError: nil,
-		}, {
-			name:         "Error in initing",
-			settings:     `{}`,
-			expInitError: `could not find url property in settings`,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			webhookSender := receivers.MockNotificationService()
-			fc := receivers.FactoryConfig{
-				Config: &receivers.NotificationChannelConfig{
-					Name:     "dingding_testing",
-					Type:     "dingding",
-					Settings: json.RawMessage(c.settings),
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				// TODO: allow changing the associated values for different tests.
-				NotificationService: webhookSender,
-				Template:            tmpl,
-				Logger:              &logging.FakeLogger{},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: c.settings,
 			}
-			pn, err := New(fc)
-			if c.expInitError != "" {
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+
 			ok, err := pn.Notify(ctx, c.alerts...)
+
 			if c.expMsgError != nil {
 				require.False(t, ok)
 				require.Error(t, err)

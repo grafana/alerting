@@ -2,7 +2,6 @@ package opsgenie
 
 import (
 	"context"
-	"encoding/json"
 	"net/url"
 	"testing"
 	"time"
@@ -18,7 +17,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestOpsgenieNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
@@ -26,16 +25,23 @@ func TestOpsgenieNotifier(t *testing.T) {
 	tmpl.ExternalURL = externalURL
 
 	cases := []struct {
-		name         string
-		settings     string
-		alerts       []*types.Alert
-		expMsg       string
-		expInitError string
-		expMsgError  error
+		name        string
+		settings    Config
+		alerts      []*types.Alert
+		expMsg      string
+		expMsgError error
 	}{
 		{
-			name:     "Default config with one alert",
-			settings: `{"apiKey": "abcdefgh0123456789"}`,
+			name: "Default config with one alert",
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          templates.DefaultMessageTitleEmbed,
+				Description:      "",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendTags,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -56,8 +62,16 @@ func TestOpsgenieNotifier(t *testing.T) {
 			}`,
 		},
 		{
-			name:     "Default config with one alert, custom message and description",
-			settings: `{"apiKey": "abcdefgh0123456789", "message": "test message", "description": "test description"}`,
+			name: "Default config with one alert, custom message and description",
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          "test message",
+				Description:      "test description",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendTags,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -79,10 +93,15 @@ func TestOpsgenieNotifier(t *testing.T) {
 		},
 		{
 			name: "Default config with one alert, message length > 130",
-			settings: `{
-				"apiKey": "abcdefgh0123456789",
-				"message": "IyJnsW78xQoiBJ7L7NqASv31JCFf0At3r9KUykqBVxSiC6qkDhvDLDW9VImiFcq0Iw2XwFy5fX4FcbTmlkaZzUzjVwx9VUuokhzqQlJVhWDYFqhj3a5wX0LjyvNQjsqT9WaWJAWOJanwOAWon"
-				}`,
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          "IyJnsW78xQoiBJ7L7NqASv31JCFf0At3r9KUykqBVxSiC6qkDhvDLDW9VImiFcq0Iw2XwFy5fX4FcbTmlkaZzUzjVwx9VUuokhzqQlJVhWDYFqhj3a5wX0LjyvNQjsqT9WaWJAWOJanwOAWon",
+				Description:      "",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendTags,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -103,8 +122,16 @@ func TestOpsgenieNotifier(t *testing.T) {
 			}`,
 		},
 		{
-			name:     "Default config with one alert, templated message and description",
-			settings: `{"apiKey": "abcdefgh0123456789", "message": "Firing: {{ len .Alerts.Firing }}", "description": "{{ len .Alerts.Firing }} firing, {{ len .Alerts.Resolved }} resolved."}`,
+			name: "Default config with one alert, templated message and description",
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          "Firing: {{ len .Alerts.Firing }}",
+				Description:      "{{ len .Alerts.Firing }} firing, {{ len .Alerts.Resolved }} resolved.",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendTags,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -126,12 +153,15 @@ func TestOpsgenieNotifier(t *testing.T) {
 		},
 		{
 			name: "Default config with one alert and send tags as tags, empty description and message",
-			settings: `{
-				"apiKey": "abcdefgh0123456789",
-				"sendTagsAs": "tags",
-				"message": " ",
-				"description": " "
-			}`,
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          templates.DefaultMessageTitleEmbed,
+				Description:      " ",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendTags,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -153,10 +183,15 @@ func TestOpsgenieNotifier(t *testing.T) {
 		},
 		{
 			name: "Default config with one alert and send tags as details",
-			settings: `{
-				"apiKey": "abcdefgh0123456789",
-				"sendTagsAs": "details"
-			}`,
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          templates.DefaultMessageTitleEmbed,
+				Description:      "",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendDetails,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -180,10 +215,15 @@ func TestOpsgenieNotifier(t *testing.T) {
 		},
 		{
 			name: "Custom config with multiple alerts and send tags as both details and tag",
-			settings: `{
-				"apiKey": "abcdefgh0123456789",
-				"sendTagsAs": "both"
-			}`,
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          templates.DefaultMessageTitleEmbed,
+				Description:      "",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendBoth,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -211,8 +251,16 @@ func TestOpsgenieNotifier(t *testing.T) {
 			expMsgError: nil,
 		},
 		{
-			name:     "Resolved is not sent when auto close is false",
-			settings: `{"apiKey": "abcdefgh0123456789", "autoClose": false}`,
+			name: "Resolved is not sent when auto close is false",
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          templates.DefaultMessageTitleEmbed,
+				Description:      "",
+				AutoClose:        false,
+				OverridePriority: true,
+				SendTagsAs:       SendBoth,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -223,46 +271,31 @@ func TestOpsgenieNotifier(t *testing.T) {
 				},
 			},
 		},
-		{
-			name:         "Error when incorrect settings",
-			settings:     `{}`,
-			expInitError: `could not find api key property in settings`,
-		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			settingsJSON := json.RawMessage(c.settings)
-			secureSettings := make(map[string][]byte)
 
 			webhookSender := receivers.MockNotificationService()
 			webhookSender.Webhook.Body = "<not-sent>"
 
-			fc := receivers.FactoryConfig{
-				Config: &receivers.NotificationChannelConfig{
-					Name:           "opsgenie_testing",
-					Type:           "opsgenie",
-					Settings:       settingsJSON,
-					SecureSettings: secureSettings,
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				NotificationService: webhookSender,
-				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-					return fallback
-				},
-				ImageStore: &images.UnavailableImageStore{},
-				Template:   tmpl,
-				Logger:     &logging.FakeLogger{},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: &c.settings,
+				images:   &images.UnavailableImageStore{},
 			}
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
-			pn, err := New(fc)
-			if c.expInitError != "" {
-				require.Error(t, err)
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
+
 			ok, err := pn.Notify(ctx, c.alerts...)
 			if c.expMsgError != nil {
 				require.False(t, ok)

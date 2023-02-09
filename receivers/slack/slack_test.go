@@ -29,20 +29,29 @@ import (
 
 var appVersion = fmt.Sprintf("%d.0.0", rand.Uint32())
 
-func TestSlackIncomingWebhook(t *testing.T) {
+func TestNotify_IncomingWebhook(t *testing.T) {
 	tests := []struct {
 		name            string
 		alerts          []*types.Alert
 		expectedMessage *slackMessage
 		expectedError   string
-		settings        string
+		settings        Config
 	}{{
 		name: "Message is sent",
-		settings: `{
-			"icon_emoji": ":emoji:",
-			"recipient": "#test",
-			"url": "https://example.com/hooks/xxxx"
-		}`,
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            "https://example.com/hooks/xxxx",
+			Token:          "",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          templates.DefaultMessageTitleEmbed,
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+		},
 		alerts: []*types.Alert{{
 			Alert: model.Alert{
 				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
@@ -68,11 +77,20 @@ func TestSlackIncomingWebhook(t *testing.T) {
 		},
 	}, {
 		name: "Message is sent with image URL",
-		settings: `{
-				"icon_emoji": ":emoji:",
-				"recipient": "#test",
-				"url": "https://example.com/hooks/xxxx"
-			}`,
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            "https://example.com/hooks/xxxx",
+			Token:          "",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          templates.DefaultMessageTitleEmbed,
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+		},
 		alerts: []*types.Alert{{
 			Alert: model.Alert{
 				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
@@ -99,11 +117,20 @@ func TestSlackIncomingWebhook(t *testing.T) {
 		},
 	}, {
 		name: "Message is sent and image on local disk is ignored",
-		settings: `{
-				"icon_emoji": ":emoji:",
-				"recipient": "#test",
-				"url": "https://example.com/hooks/xxxx"
-			}`,
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            "https://example.com/hooks/xxxx",
+			Token:          "",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          templates.DefaultMessageTitleEmbed,
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+		},
 		alerts: []*types.Alert{{
 			Alert: model.Alert{
 				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
@@ -171,21 +198,30 @@ func TestSlackIncomingWebhook(t *testing.T) {
 	}
 }
 
-func TestSlackPostMessage(t *testing.T) {
+func TestNotigy_PostMessage(t *testing.T) {
 	tests := []struct {
 		name            string
 		alerts          []*types.Alert
 		expectedMessage *slackMessage
 		expectedReplies []interface{} // can contain either slackMessage or map[string]struct{} for multipart/form-data
 		expectedError   string
-		settings        string
+		settings        Config
 	}{{
 		name: "Message is sent",
-		settings: `{
-			"icon_emoji": ":emoji:",
-			"recipient": "#test",
-			"token": "1234"
-		}`,
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            APIURL,
+			Token:          "1234",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          templates.DefaultMessageTitleEmbed,
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+		},
 		alerts: []*types.Alert{{
 			Alert: model.Alert{
 				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
@@ -211,12 +247,20 @@ func TestSlackPostMessage(t *testing.T) {
 		},
 	}, {
 		name: "Message is sent with two firing alerts",
-		settings: `{
-			"title": "{{ .Alerts.Firing | len }} firing, {{ .Alerts.Resolved | len }} resolved",
-			"icon_emoji": ":emoji:",
-			"recipient": "#test",
-			"token": "1234"
-		}`,
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            APIURL,
+			Token:          "1234",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          "{{ .Alerts.Firing | len }} firing, {{ .Alerts.Resolved | len }} resolved",
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+		},
 		alerts: []*types.Alert{{
 			Alert: model.Alert{
 				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
@@ -247,11 +291,20 @@ func TestSlackPostMessage(t *testing.T) {
 		},
 	}, {
 		name: "Message is sent and image is uploaded",
-		settings: `{
-			"icon_emoji": ":emoji:",
-			"recipient": "#test",
-			"token": "1234"
-		}`,
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            APIURL,
+			Token:          "1234",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          templates.DefaultMessageTitleEmbed,
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+		},
 		alerts: []*types.Alert{{
 			Alert: model.Alert{
 				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
@@ -286,12 +339,20 @@ func TestSlackPostMessage(t *testing.T) {
 		},
 	}, {
 		name: "Message is sent to custom URL",
-		settings: `{
-			"icon_emoji": ":emoji:",
-			"recipient": "#test",
-			"endpointUrl": "https://example.com/api",
-			"token": "1234"
-		}`,
+		settings: Config{
+			EndpointURL:    "https://example.com/api",
+			URL:            "https://example.com/api",
+			Token:          "1234",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          templates.DefaultMessageTitleEmbed,
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+		},
 		alerts: []*types.Alert{{
 			Alert: model.Alert{
 				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
@@ -402,7 +463,7 @@ func checkMultipart(t *testing.T, expected map[string]struct{}, r io.Reader, bou
 	assert.Equal(t, expected, visited)
 }
 
-func setupSlackForTests(t *testing.T, settings string) (*Notifier, *slackRequestRecorder, error) {
+func setupSlackForTests(t *testing.T, settings Config) (*Notifier, *slackRequestRecorder, error) {
 	tmpl := templates.ForTests(t)
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -428,64 +489,24 @@ func setupSlackForTests(t *testing.T, settings string) (*Notifier, *slackRequest
 	}
 	notificationService := receivers.MockNotificationService()
 
-	c := receivers.FactoryConfig{
-		Config: &receivers.NotificationChannelConfig{
-			Name:           "slack_testing",
-			Type:           "slack",
-			Settings:       json.RawMessage(settings),
-			SecureSettings: make(map[string][]byte),
+	sn := &Notifier{
+		Base: &receivers.Base{
+			Name:                  "",
+			Type:                  "",
+			UID:                   "",
+			DisableResolveMessage: false,
 		},
-		ImageStore:          images,
-		NotificationService: notificationService,
-		DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-			return fallback
-		},
-		Template:            tmpl,
-		Logger:              &logging.FakeLogger{},
-		GrafanaBuildVersion: appVersion,
-	}
-
-	sn, err := New(c)
-	if err != nil {
-		return nil, nil, err
+		log:           &logging.FakeLogger{},
+		webhookSender: notificationService,
+		tmpl:          tmpl,
+		settings:      settings,
+		images:        images,
+		appVersion:    appVersion,
 	}
 
 	sr := &slackRequestRecorder{}
 	sn.sendFn = sr.fn
 	return sn, sr, nil
-}
-
-func TestCreateSlackNotifierFromConfig(t *testing.T) {
-	tests := []struct {
-		name          string
-		settings      string
-		expectedError string
-	}{{
-		name: "Missing token",
-		settings: `{
-			"recipient": "#testchannel"
-		}`,
-		expectedError: "token must be specified when using the Slack chat API",
-	}, {
-		name: "Missing recipient",
-		settings: `{
-			"token": "1234"
-		}`,
-		expectedError: "recipient must be specified when using the Slack chat API",
-	}}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			n, _, err := setupSlackForTests(t, test.settings)
-			if test.expectedError != "" {
-				assert.Nil(t, n)
-				assert.EqualError(t, err, test.expectedError)
-			} else {
-				assert.NotNil(t, n)
-				assert.Nil(t, err)
-			}
-		})
-	}
 }
 
 func TestSendSlackRequest(t *testing.T) {

@@ -20,24 +20,30 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestDiscordNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
 	appVersion := fmt.Sprintf("%d.0.0", rand.Uint32())
+
 	cases := []struct {
-		name         string
-		settings     string
-		alerts       []*types.Alert
-		expMsg       map[string]interface{}
-		expInitError string
-		expMsgError  error
+		name        string
+		settings    Config
+		alerts      []*types.Alert
+		expMsg      map[string]interface{}
+		expMsgError error
 	}{
 		{
-			name:     "Default config with one alert",
-			settings: `{"url": "http://localhost"}`,
+			name: "Default config with one alert",
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            templates.DefaultMessageEmbed,
+				AvatarURL:          "",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -63,8 +69,14 @@ func TestDiscordNotifier(t *testing.T) {
 			expMsgError: nil,
 		},
 		{
-			name:     "Default config with one alert and custom title",
-			settings: `{"url": "http://localhost", "title": "Alerts firing: {{ len .Alerts.Firing }}"}`,
+			name: "Default config with one alert and custom title",
+			settings: Config{
+				Title:              "Alerts firing: {{ len .Alerts.Firing }}",
+				Message:            templates.DefaultMessageEmbed,
+				AvatarURL:          "",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -91,11 +103,13 @@ func TestDiscordNotifier(t *testing.T) {
 		},
 		{
 			name: "Missing field in template",
-			settings: `{
-				"avatar_url": "https://grafana.com/static/assets/img/fav32.png",
-				"url": "http://localhost",
-				"message": "I'm a custom template {{ .NotAField }} bad template"
-			}`,
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            "I'm a custom template {{ .NotAField }} bad template",
+				AvatarURL:          "https://grafana.com/static/assets/img/fav32.png",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -123,11 +137,13 @@ func TestDiscordNotifier(t *testing.T) {
 		},
 		{
 			name: "Invalid message template",
-			settings: `{
-				"avatar_url": "https://grafana.com/static/assets/img/fav32.png",
-				"url": "http://localhost",
-				"message": "{{ template \"invalid.template\" }}"
-			}`,
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            "{{ template \"invalid.template\" }}",
+				AvatarURL:          "https://grafana.com/static/assets/img/fav32.png",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -155,11 +171,13 @@ func TestDiscordNotifier(t *testing.T) {
 		},
 		{
 			name: "Invalid avatar URL template",
-			settings: `{
-				"avatar_url": "{{ invalid } }}",
-				"url": "http://localhost",
-				"message": "valid message"
-			}`,
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            "valid message",
+				AvatarURL:          "{{ invalid } }}",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -187,11 +205,13 @@ func TestDiscordNotifier(t *testing.T) {
 		},
 		{
 			name: "Invalid URL template",
-			settings: `{
-				"avatar_url": "https://grafana.com/static/assets/img/fav32.png",
-				"url": "http://localhost?q={{invalid }}}",
-				"message": "valid message"
-			}`,
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            "valid message",
+				AvatarURL:          "https://grafana.com/static/assets/img/fav32.png",
+				WebhookURL:         "http://localhost?q={{invalid }}}",
+				UseDiscordUsername: false,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -219,11 +239,13 @@ func TestDiscordNotifier(t *testing.T) {
 		},
 		{
 			name: "Custom config with multiple alerts",
-			settings: `{
-				"avatar_url": "https://grafana.com/static/assets/img/fav32.png",
-				"url": "http://localhost",
-				"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved"
-			}`,
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+				AvatarURL:          "https://grafana.com/static/assets/img/fav32.png",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -255,16 +277,14 @@ func TestDiscordNotifier(t *testing.T) {
 			expMsgError: nil,
 		},
 		{
-			name:         "Error in initialization",
-			settings:     `{}`,
-			expInitError: `could not find webhook url property in settings`,
-		},
-		{
 			name: "Default config with one alert, use default discord username",
-			settings: `{
-				"url": "http://localhost",
-				"use_discord_username": true
-			}`,
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            templates.DefaultMessageEmbed,
+				AvatarURL:          "",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: true,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -290,11 +310,13 @@ func TestDiscordNotifier(t *testing.T) {
 		},
 		{
 			name: "Should truncate too long messages",
-			settings: fmt.Sprintf(`{
-				"url": "http://localhost",
-				"use_discord_username": true,
-				"message": "%s"
-			}`, strings.Repeat("Y", discordMaxMessageLen+rand.Intn(100)+1)),
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            strings.Repeat("Y", discordMaxMessageLen+rand.Intn(100)+1),
+				AvatarURL:          "",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: true,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -324,27 +346,20 @@ func TestDiscordNotifier(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			webhookSender := receivers.MockNotificationService()
 			imageStore := &images.UnavailableImageStore{}
-
-			fc := receivers.FactoryConfig{
-				Config: &receivers.NotificationChannelConfig{
-					Name:     "discord_testing",
-					Type:     "discord",
-					Settings: json.RawMessage(c.settings),
+			dn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				ImageStore: imageStore,
-				// TODO: allow changing the associated values for different tests.
-				NotificationService: webhookSender,
-				Template:            tmpl,
-				Logger:              &logging.FakeLogger{},
-				GrafanaBuildVersion: appVersion,
+				log:        &logging.FakeLogger{},
+				ns:         webhookSender,
+				tmpl:       tmpl,
+				settings:   &c.settings,
+				images:     imageStore,
+				appVersion: appVersion,
 			}
-
-			dn, err := New(fc)
-			if c.expInitError != "" {
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})

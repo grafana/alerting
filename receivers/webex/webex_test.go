@@ -2,7 +2,6 @@ package webex
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -19,7 +18,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestWebexNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 	images := images2.NewFakeImageStoreWithFile(t, 2)
 
@@ -29,7 +28,7 @@ func TestWebexNotifier(t *testing.T) {
 
 	cases := []struct {
 		name         string
-		settings     string
+		settings     Config
 		alerts       []*types.Alert
 		expHeaders   map[string]string
 		expMsg       string
@@ -38,10 +37,12 @@ func TestWebexNotifier(t *testing.T) {
 	}{
 		{
 			name: "A single alert with default template",
-			settings: `{
-				"bot_token": "abcdefgh0123456789",
-				"room_id": "someid"
-			}`,
+			settings: Config{
+				Message: templates.DefaultMessageEmbed,
+				RoomID:  "someid",
+				APIURL:  DefaultAPIURL,
+				Token:   "abcdefgh0123456789",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -57,11 +58,12 @@ func TestWebexNotifier(t *testing.T) {
 		},
 		{
 			name: "Multiple alerts with custom template",
-			settings: `{
-				"bot_token": "abcdefgh0123456789",
-				"room_id": "someid",
-				"message": "__Custom Firing__\n{{len .Alerts.Firing}} Firing\n{{ template \"__text_alert_list\" .Alerts.Firing }}"
-			}`,
+			settings: Config{
+				Message: "__Custom Firing__\n{{len .Alerts.Firing}} Firing\n{{ template \"__text_alert_list\" .Alerts.Firing }}",
+				RoomID:  "someid",
+				APIURL:  DefaultAPIURL,
+				Token:   "abcdefgh0123456789",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -82,11 +84,12 @@ func TestWebexNotifier(t *testing.T) {
 		},
 		{
 			name: "Truncate long message",
-			settings: `{
-				"bot_token": "abcdefgh0123456789",
-				"room_id": "someid",
-				"message": "{{ .CommonLabels.alertname }}"
-			}`,
+			settings: Config{
+				Message: "{{ .CommonLabels.alertname }}",
+				RoomID:  "someid",
+				APIURL:  DefaultAPIURL,
+				Token:   "abcdefgh0123456789",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -98,43 +101,25 @@ func TestWebexNotifier(t *testing.T) {
 			expMsg:      fmt.Sprintf(`{"roomId":"someid","markdown":"%s…"}`, strings.Repeat("1", 4093)),
 			expMsgError: nil,
 		},
-		{
-			name:         "Error in initing",
-			settings:     `{ "api_url": "ostgres://user:abc{DEf1=ghi@example.com:5432/db?sslmode=require" }`,
-			expInitError: `invalid URL "ostgres://user:abc{DEf1=ghi@example.com:5432/db?sslmode=require"`,
-		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			settingsJSON := json.RawMessage(c.settings)
-			secureSettings := make(map[string][]byte)
-
 			notificationService := receivers.MockNotificationService()
 
-			fc := receivers.FactoryConfig{
-				Config: &receivers.NotificationChannelConfig{
-					Name:           "webex_tests",
-					Type:           "webex",
-					Settings:       settingsJSON,
-					SecureSettings: secureSettings,
+			n := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				ImageStore:          images,
-				NotificationService: notificationService,
-				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-					return fallback
-				},
-				Template: tmpl,
-				Logger:   &logging.FakeLogger{},
+				log:      &logging.FakeLogger{},
+				ns:       notificationService,
+				tmpl:     tmpl,
+				settings: &c.settings,
+				images:   images,
 			}
-
-			n, err := New(fc)
-			if c.expInitError != "" {
-				require.Error(t, err)
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})

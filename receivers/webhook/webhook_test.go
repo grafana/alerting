@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"testing"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestWebhookNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
@@ -30,7 +31,7 @@ func TestWebhookNotifier(t *testing.T) {
 
 	cases := []struct {
 		name     string
-		settings string
+		settings Config
 		alerts   []*types.Alert
 
 		expMsg        *webhookMessage
@@ -39,12 +40,21 @@ func TestWebhookNotifier(t *testing.T) {
 		expPassword   string
 		expHeaders    map[string]string
 		expHTTPMethod string
-		expInitError  string
 		expMsgError   error
 	}{
 		{
-			name:     "Default config with one alert with custom message",
-			settings: `{"url": "http://localhost/test", "message": "Custom message"}`,
+			name: "Default config with one alert with custom message",
+			settings: Config{
+				URL:                      "http://localhost/test",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                0,
+				AuthorizationScheme:      "",
+				AuthorizationCredentials: "",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  "Custom message",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -99,14 +109,17 @@ func TestWebhookNotifier(t *testing.T) {
 		},
 		{
 			name: "Custom config with multiple alerts with custom title",
-			settings: `{
-				"url": "http://localhost/test1",
-				"title": "Alerts firing: {{ len .Alerts.Firing }}",
-				"username": "user1",
-				"password": "mysecret",
-				"httpMethod": "PUT",
-				"maxAlerts": "2"
-			}`,
+			settings: Config{
+				URL:                      "http://localhost/test1",
+				HTTPMethod:               "PUT",
+				MaxAlerts:                2,
+				AuthorizationScheme:      "",
+				AuthorizationCredentials: "",
+				User:                     "user1",
+				Password:                 "mysecret",
+				Title:                    "Alerts firing: {{ len .Alerts.Firing }}",
+				Message:                  templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -179,8 +192,18 @@ func TestWebhookNotifier(t *testing.T) {
 			expHeaders:  map[string]string{},
 		},
 		{
-			name:     "Default config, template variables in URL",
-			settings: `{"url": "http://localhost/test?numAlerts={{len .Alerts}}&status={{.Status}}"}`,
+			name: "Default config, template variables in URL",
+			settings: Config{
+				URL:                      "http://localhost/test?numAlerts={{len .Alerts}}&status={{.Status}}",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                0,
+				AuthorizationScheme:      "",
+				AuthorizationCredentials: "",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -247,12 +270,17 @@ func TestWebhookNotifier(t *testing.T) {
 		},
 		{
 			name: "with Authorization set",
-			settings: `{
-				"url": "http://localhost/test1",
-				"authorization_credentials": "mysecret",
-				"httpMethod": "POST",
-				"maxAlerts": 2
-			}`,
+			settings: Config{
+				URL:                      "http://localhost/test1",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                2,
+				AuthorizationScheme:      "Bearer",
+				AuthorizationCredentials: "mysecret",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -305,68 +333,18 @@ func TestWebhookNotifier(t *testing.T) {
 			expHeaders:    map[string]string{"Authorization": "Bearer mysecret"},
 		},
 		{
-			name: "with custom authorization scheme",
-			settings: `{
-				"url": "http://localhost/test1",
-				"authorization_scheme": "test-auth-scheme",
-				"authorization_credentials": "mysecret",
-				"httpMethod": "POST",
-				"maxAlerts": 2
-			}`,
-			alerts: []*types.Alert{
-				{
-					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
-					},
-				},
+			name: "bad template in url",
+			settings: Config{
+				URL:                      "http://localhost/test1?numAlerts={{len Alerts}}",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                0,
+				AuthorizationScheme:      "",
+				AuthorizationCredentials: "",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  templates.DefaultMessageEmbed,
 			},
-			expMsg: &webhookMessage{
-				ExtendedData: &templates.ExtendedData{
-					Receiver: "my_receiver",
-					Status:   "firing",
-					Alerts: templates.ExtendedAlerts{
-						{
-							Status: "firing",
-							Labels: template.KV{
-								"alertname": "alert1",
-								"lbl1":      "val1",
-							},
-							Annotations: template.KV{
-								"ann1": "annv1",
-							},
-							Fingerprint:  "fac0861a85de433a",
-							DashboardURL: "http://localhost/d/abcd",
-							PanelURL:     "http://localhost/d/abcd?viewPanel=efgh",
-							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
-						},
-					},
-					GroupLabels: template.KV{
-						"alertname": "",
-					},
-					CommonLabels: template.KV{
-						"alertname": "alert1",
-						"lbl1":      "val1",
-					},
-					CommonAnnotations: template.KV{
-						"ann1": "annv1",
-					},
-					ExternalURL: "http://localhost",
-				},
-				Version:  "1",
-				GroupKey: "alertname",
-				Title:    "[FIRING:1]  (val1)",
-				State:    "alerting",
-				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
-				OrgID:    orgID,
-			},
-			expURL:        "http://localhost/test1",
-			expHTTPMethod: "POST",
-			expHeaders:    map[string]string{"Authorization": "test-auth-scheme mysecret"},
-		},
-		{
-			name:     "bad template in url",
-			settings: `{"url": "http://localhost/test1?numAlerts={{len Alerts}}"}`,
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -377,58 +355,26 @@ func TestWebhookNotifier(t *testing.T) {
 			},
 			expMsgError: fmt.Errorf("template: :1: function \"Alerts\" not defined"),
 		},
-		{
-			name: "with both HTTP basic auth and Authorization Header set",
-			settings: `{
-				"url": "http://localhost/test1",
-				"username": "user1",
-				"password": "mysecret",
-				"authorization_credentials": "mysecret",
-				"httpMethod": "POST",
-				"maxAlerts": "2"
-			}`,
-			expInitError: "both HTTP Basic Authentication and Authorization Header are set, only 1 is permitted",
-		},
-		{
-			name:         "Error in initing",
-			settings:     `{}`,
-			expInitError: `required field 'url' is not specified`,
-		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			settingsJSON := json.RawMessage(c.settings)
-			secureSettings := make(map[string][]byte)
-
-			m := &receivers.NotificationChannelConfig{
-				OrgID:          orgID,
-				Name:           "webhook_testing",
-				Type:           "webhook",
-				Settings:       settingsJSON,
-				SecureSettings: secureSettings,
-			}
-
 			webhookSender := receivers.MockNotificationService()
 
-			fc := receivers.FactoryConfig{
-				Config:              m,
-				NotificationService: webhookSender,
-				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-					return fallback
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				ImageStore: &images.UnavailableImageStore{},
-				Template:   tmpl,
-				Logger:     &logging.FakeLogger{},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: c.settings,
+				images:   &images.UnavailableImageStore{},
+				orgID:    1,
 			}
-
-			pn, err := New(fc)
-			if c.expInitError != "" {
-				require.Error(t, err)
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})

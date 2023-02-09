@@ -20,23 +20,26 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestGoogleChatNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	constNow := time.Now()
 	defer mockTimeNow(constNow)()
 	appVersion := fmt.Sprintf("%d.0.0", rand.Uint32())
 
 	cases := []struct {
-		name         string
-		settings     string
-		alerts       []*types.Alert
-		expMsg       *outerStruct
-		expInitError string
-		expMsgError  error
-		externalURL  string
+		name        string
+		settings    Config
+		alerts      []*types.Alert
+		expMsg      *outerStruct
+		expMsgError error
+		externalURL string
 	}{
 		{
-			name:        "One alert",
-			settings:    `{"url": "http://localhost"}`,
+			name: "One alert",
+			settings: Config{
+				Title:   templates.DefaultMessageTitleEmbed,
+				Message: templates.DefaultMessageEmbed,
+				URL:     "http://localhost",
+			},
 			externalURL: "http://localhost",
 			alerts: []*types.Alert{
 				{
@@ -90,8 +93,12 @@ func TestGoogleChatNotifier(t *testing.T) {
 			},
 			expMsgError: nil,
 		}, {
-			name:        "Multiple alerts",
-			settings:    `{"url": "http://localhost"}`,
+			name: "Multiple alerts",
+			settings: Config{
+				Title:   templates.DefaultMessageTitleEmbed,
+				Message: templates.DefaultMessageEmbed,
+				URL:     "http://localhost",
+			},
 			externalURL: "http://localhost",
 			alerts: []*types.Alert{
 				{
@@ -148,14 +155,14 @@ func TestGoogleChatNotifier(t *testing.T) {
 				},
 			},
 			expMsgError: nil,
-		}, {
-			name:         "Error in initing",
-			settings:     `{}`,
-			externalURL:  "http://localhost",
-			expInitError: `could not find url property in settings`,
-		}, {
-			name:        "Customized message",
-			settings:    `{"url": "http://localhost", "message": "I'm a custom template and you have {{ len .Alerts.Firing }} firing alert."}`,
+		},
+		{
+			name: "Customized message",
+			settings: Config{
+				Title:   templates.DefaultMessageTitleEmbed,
+				Message: "I'm a custom template and you have {{ len .Alerts.Firing }} firing alert.",
+				URL:     "http://localhost",
+			},
 			externalURL: "http://localhost",
 			alerts: []*types.Alert{
 				{
@@ -209,8 +216,12 @@ func TestGoogleChatNotifier(t *testing.T) {
 			},
 			expMsgError: nil,
 		}, {
-			name:        "Customized title",
-			settings:    `{"url": "http://localhost", "title": "Alerts firing: {{ len .Alerts.Firing }}"}`,
+			name: "Customized title",
+			settings: Config{
+				Title:   "Alerts firing: {{ len .Alerts.Firing }}",
+				Message: templates.DefaultMessageEmbed,
+				URL:     "http://localhost",
+			},
 			externalURL: "http://localhost",
 			alerts: []*types.Alert{
 				{
@@ -264,8 +275,12 @@ func TestGoogleChatNotifier(t *testing.T) {
 			},
 			expMsgError: nil,
 		}, {
-			name:        "Missing field in template",
-			settings:    `{"url": "http://localhost", "message": "I'm a custom template {{ .NotAField }} bad template"}`,
+			name: "Missing field in message template",
+			settings: Config{
+				Title:   templates.DefaultMessageTitleEmbed,
+				Message: "I'm a custom template {{ .NotAField }} bad template",
+				URL:     "http://localhost",
+			},
 			externalURL: "http://localhost",
 			alerts: []*types.Alert{
 				{
@@ -319,8 +334,12 @@ func TestGoogleChatNotifier(t *testing.T) {
 			},
 			expMsgError: nil,
 		}, {
-			name:        "Invalid template",
-			settings:    `{"url": "http://localhost", "message": "I'm a custom template {{ {.NotAField }} bad template"}`,
+			name: "Invalid template",
+			settings: Config{
+				Title:   templates.DefaultMessageTitleEmbed,
+				Message: "I'm a custom template {{ {.NotAField }} bad template",
+				URL:     "http://localhost",
+			},
 			externalURL: "http://localhost",
 			alerts: []*types.Alert{
 				{
@@ -370,9 +389,13 @@ func TestGoogleChatNotifier(t *testing.T) {
 			expMsgError: nil,
 		},
 		{
-			name:        "Empty external URL",
-			settings:    `{ "url": "http://localhost" }`, // URL in settings = googlechat url
-			externalURL: "",                              // external URL = URL of grafana from configuration
+			name: "Empty external URL",
+			settings: Config{
+				Title:   templates.DefaultMessageTitleEmbed,
+				Message: templates.DefaultMessageEmbed,
+				URL:     "http://localhost",
+			}, // URL in settings = googlechat url
+			externalURL: "", // external URL = URL of grafana from configuration
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -414,9 +437,13 @@ func TestGoogleChatNotifier(t *testing.T) {
 			},
 		},
 		{
-			name:        "Relative external URL",
-			settings:    `{ "url": "http://localhost" }`, // URL in settings = googlechat url
-			externalURL: "/grafana",                      // external URL = URL of grafana from configuration
+			name: "Relative external URL",
+			settings: Config{
+				Title:   templates.DefaultMessageTitleEmbed,
+				Message: templates.DefaultMessageEmbed,
+				URL:     "http://localhost",
+			}, // URL in settings = googlechat url
+			externalURL: "/grafana", // external URL = URL of grafana from configuration
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -470,26 +497,20 @@ func TestGoogleChatNotifier(t *testing.T) {
 			webhookSender := receivers.MockNotificationService()
 			imageStore := &images.UnavailableImageStore{}
 
-			fc := receivers.FactoryConfig{
-				Config: &receivers.NotificationChannelConfig{
-					Name:     "googlechat_testing",
-					Type:     "googlechat",
-					Settings: json.RawMessage(c.settings),
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				ImageStore:          imageStore,
-				NotificationService: webhookSender,
-				Template:            tmpl,
-				Logger:              &logging.FakeLogger{},
-				GrafanaBuildVersion: appVersion,
+				log:        &logging.FakeLogger{},
+				ns:         webhookSender,
+				tmpl:       tmpl,
+				settings:   &c.settings,
+				images:     imageStore,
+				appVersion: appVersion,
 			}
-
-			pn, err := New(fc)
-			if c.expInitError != "" {
-				require.Error(t, err)
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
