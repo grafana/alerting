@@ -44,15 +44,15 @@ type webhookSettings struct {
 func buildWebhookSettings(factoryConfig FactoryConfig) (webhookSettings, error) {
 	settings := webhookSettings{}
 	rawSettings := struct {
-		URL                      string      `json:"url,omitempty" yaml:"url,omitempty"`
-		HTTPMethod               string      `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
-		MaxAlerts                json.Number `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
-		AuthorizationScheme      string      `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
-		AuthorizationCredentials string      `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
-		User                     string      `json:"username,omitempty" yaml:"username,omitempty"`
-		Password                 string      `json:"password,omitempty" yaml:"password,omitempty"`
-		Title                    string      `json:"title,omitempty" yaml:"title,omitempty"`
-		Message                  string      `json:"message,omitempty" yaml:"message,omitempty"`
+		URL                      string         `json:"url,omitempty" yaml:"url,omitempty"`
+		HTTPMethod               string         `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
+		MaxAlerts                OptionalNumber `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
+		AuthorizationScheme      string         `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
+		AuthorizationCredentials string         `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
+		User                     string         `json:"username,omitempty" yaml:"username,omitempty"`
+		Password                 string         `json:"password,omitempty" yaml:"password,omitempty"`
+		Title                    string         `json:"title,omitempty" yaml:"title,omitempty"`
+		Message                  string         `json:"message,omitempty" yaml:"message,omitempty"`
 	}{}
 
 	err := factoryConfig.Config.unmarshalSettings(&rawSettings)
