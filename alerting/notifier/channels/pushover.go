@@ -3,7 +3,6 @@ package channels
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -61,18 +60,18 @@ type pushoverSettings struct {
 func buildPushoverSettings(fc FactoryConfig) (pushoverSettings, error) {
 	settings := pushoverSettings{}
 	rawSettings := struct {
-		UserKey          string      `json:"userKey,omitempty" yaml:"userKey,omitempty"`
-		APIToken         string      `json:"apiToken,omitempty" yaml:"apiToken,omitempty"`
-		AlertingPriority json.Number `json:"priority,omitempty" yaml:"priority,omitempty"`
-		OKPriority       json.Number `json:"okPriority,omitempty" yaml:"okPriority,omitempty"`
-		Retry            json.Number `json:"retry,omitempty" yaml:"retry,omitempty"`
-		Expire           json.Number `json:"expire,omitempty" yaml:"expire,omitempty"`
-		Device           string      `json:"device,omitempty" yaml:"device,omitempty"`
-		AlertingSound    string      `json:"sound,omitempty" yaml:"sound,omitempty"`
-		OKSound          string      `json:"okSound,omitempty" yaml:"okSound,omitempty"`
-		Upload           *bool       `json:"uploadImage,omitempty" yaml:"uploadImage,omitempty"`
-		Title            string      `json:"title,omitempty" yaml:"title,omitempty"`
-		Message          string      `json:"message,omitempty" yaml:"message,omitempty"`
+		UserKey          string         `json:"userKey,omitempty" yaml:"userKey,omitempty"`
+		APIToken         string         `json:"apiToken,omitempty" yaml:"apiToken,omitempty"`
+		AlertingPriority OptionalNumber `json:"priority,omitempty" yaml:"priority,omitempty"`
+		OKPriority       OptionalNumber `json:"okPriority,omitempty" yaml:"okPriority,omitempty"`
+		Retry            OptionalNumber `json:"retry,omitempty" yaml:"retry,omitempty"`
+		Expire           OptionalNumber `json:"expire,omitempty" yaml:"expire,omitempty"`
+		Device           string         `json:"device,omitempty" yaml:"device,omitempty"`
+		AlertingSound    string         `json:"sound,omitempty" yaml:"sound,omitempty"`
+		OKSound          string         `json:"okSound,omitempty" yaml:"okSound,omitempty"`
+		Upload           *bool          `json:"uploadImage,omitempty" yaml:"uploadImage,omitempty"`
+		Title            string         `json:"title,omitempty" yaml:"title,omitempty"`
+		Message          string         `json:"message,omitempty" yaml:"message,omitempty"`
 	}{}
 
 	err := fc.Config.unmarshalSettings(&rawSettings)
