@@ -68,6 +68,7 @@ func buildWebhookSettings(factoryConfig FactoryConfig) (webhookSettings, error) 
 		rawSettings.HTTPMethod = http.MethodPost
 	}
 	settings.HTTPMethod = rawSettings.HTTPMethod
+	settings.AuthorizationScheme = rawSettings.AuthorizationScheme
 
 	if rawSettings.MaxAlerts != "" {
 		settings.MaxAlerts, _ = strconv.Atoi(rawSettings.MaxAlerts.String())
