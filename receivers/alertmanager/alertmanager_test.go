@@ -16,14 +16,14 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
-	testing2 "github.com/grafana/alerting/receivers/testing"
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 )
 
 func TestNotify(t *testing.T) {
 	imageStore := images.NewFakeImageStore(1)
 	singleURLConfig := Config{
 		URLs: []*url.URL{
-			testing2.ParseURLUnsafe("https://alertmanager.com/api/v1/alerts"),
+			receiversTesting.ParseURLUnsafe("https://alertmanager.com/api/v1/alerts"),
 		},
 		User:     "admin",
 		Password: "password",

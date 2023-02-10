@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/receivers"
-	testing2 "github.com/grafana/alerting/receivers/testing"
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 )
 
 func TestValidateConfig(t *testing.T) {
@@ -57,7 +57,7 @@ func TestValidateConfig(t *testing.T) {
 			}`,
 			expectedConfig: Config{
 				URLs: []*url.URL{
-					testing2.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
 				},
 				User:     "",
 				Password: "",
@@ -70,9 +70,9 @@ func TestValidateConfig(t *testing.T) {
 			}`,
 			expectedConfig: Config{
 				URLs: []*url.URL{
-					testing2.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
-					testing2.ParseURLUnsafe("https://alertmanager-02.com/api/v1/alerts"),
-					testing2.ParseURLUnsafe("https://alertmanager-03.com/api/v1/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-02.com/api/v1/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-03.com/api/v1/alerts"),
 				},
 				User:     "",
 				Password: "",
@@ -87,7 +87,7 @@ func TestValidateConfig(t *testing.T) {
 			}`,
 			expectedConfig: Config{
 				URLs: []*url.URL{
-					testing2.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
 				},
 				User:     "grafana",
 				Password: "admin",
@@ -105,7 +105,7 @@ func TestValidateConfig(t *testing.T) {
 			},
 			expectedConfig: Config{
 				URLs: []*url.URL{
-					testing2.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
 				},
 				User:     "grafana",
 				Password: "grafana-admin",
@@ -118,7 +118,7 @@ func TestValidateConfig(t *testing.T) {
 				Settings:       json.RawMessage(c.settings),
 				SecureSettings: c.secrets,
 			}
-			fc, err := testing2.NewFactoryConfigForValidateConfigTesting(t, m)
+			fc, err := receiversTesting.NewFactoryConfigForValidateConfigTesting(t, m)
 			require.NoError(t, err)
 
 			sn, err := ValidateConfig(fc)
