@@ -103,6 +103,14 @@ func buildBody(url string, msgType string, title string, msg string) (string, er
 				"singleURL":   url,
 			},
 		}
+	} else if msgType == "markdown" {
+		bodyMsg = map[string]interface{}{
+			"msgtype": "markdown",
+			"markdown": map[string]string{
+				"title": title,
+				"text":  msg,
+			},
+		}
 	} else {
 		bodyMsg = map[string]interface{}{
 			"msgtype": "link",
