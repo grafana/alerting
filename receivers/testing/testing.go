@@ -34,3 +34,13 @@ func DecryptForTesting(_ context.Context, sjd map[string][]byte, key string, fal
 	}
 	return string(v)
 }
+
+func GetDecryptForTesting(sjd map[string][]byte) receivers.DecryptFunc {
+	return func(key string, fallback string) string {
+		v, ok := sjd[key]
+		if !ok {
+			return fallback
+		}
+		return string(v)
+	}
+}
