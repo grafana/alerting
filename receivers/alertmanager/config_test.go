@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/alerting/receivers"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 )
 
@@ -114,14 +113,7 @@ func TestValidateConfig(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			m := &receivers.NotificationChannelConfig{
-				Settings:       json.RawMessage(c.settings),
-				SecureSettings: c.secrets,
-			}
-			fc, err := receiversTesting.NewFactoryConfigForValidateConfigTesting(t, m)
-			require.NoError(t, err)
-
-			sn, err := ValidateConfig(fc)
+			sn, err := ValidateConfig(json.RawMessage(c.settings), receiversTesting.GetDecryptForTesting(c.secrets))
 
 			if c.expectedInitError != "" {
 				require.ErrorContains(t, err, c.expectedInitError)
