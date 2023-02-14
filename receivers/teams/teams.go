@@ -249,6 +249,17 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBaseFromMetadata(meta),
+		log:      logger,
+		ns:       sender,
+		images:   images,
+		tmpl:     template,
+		settings: cfg,
+	}
+}
+
 func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var tmplErr error
 	tmpl, _ := template2.TmplText(ctx, tn.tmpl, as, tn.log, &tmplErr)

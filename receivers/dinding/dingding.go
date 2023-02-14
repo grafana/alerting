@@ -38,6 +38,16 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, logger logging.Logger) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBaseFromMetadata(meta),
+		log:      logger,
+		ns:       sender,
+		tmpl:     template,
+		settings: cfg,
+	}
+}
+
 // Notify sends the alert notification to dingding.
 func (dd *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	dd.log.Info("sending dingding")

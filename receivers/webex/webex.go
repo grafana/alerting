@@ -43,6 +43,18 @@ func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, orgID int64) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBaseFromMetadata(meta),
+		orgID:    orgID,
+		log:      logger,
+		ns:       sender,
+		images:   images,
+		tmpl:     template,
+		settings: cfg,
+	}
+}
+
 // webexMessage defines the JSON object to send to Webex endpoints.
 type webexMessage struct {
 	RoomID  string   `json:"roomId,omitempty"`

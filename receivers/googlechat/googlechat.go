@@ -49,6 +49,18 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
+	return &Notifier{
+		Base:       receivers.NewBaseFromMetadata(meta),
+		log:        logger,
+		ns:         sender,
+		images:     images,
+		tmpl:       template,
+		settings:   cfg,
+		appVersion: appVersion,
+	}
+}
+
 // Notify send an alert notification to Google Chat.
 func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	gcn.log.Debug("executing Google Chat notification")

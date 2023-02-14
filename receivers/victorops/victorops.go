@@ -56,6 +56,18 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
+	return &Notifier{
+		Base:       receivers.NewBaseFromMetadata(meta),
+		log:        logger,
+		images:     images,
+		ns:         sender,
+		tmpl:       template,
+		settings:   cfg,
+		appVersion: appVersion,
+	}
+}
+
 // Notify sends notification to Victorops via POST to URL endpoint
 func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	vn.log.Debug("sending notification", "notification", vn.Name)

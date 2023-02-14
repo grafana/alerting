@@ -42,6 +42,16 @@ func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, logger logging.Logger) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBaseFromMetadata(meta),
+		tmpl:     template,
+		log:      logger,
+		ns:       sender,
+		settings: cfg,
+	}
+}
+
 // Notify send an alert notification to WeCom.
 func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	w.log.Info("executing WeCom notification", "notification", w.Name)

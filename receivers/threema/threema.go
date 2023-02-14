@@ -47,6 +47,17 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBaseFromMetadata(meta),
+		log:      logger,
+		images:   images,
+		ns:       sender,
+		tmpl:     template,
+		settings: cfg,
+	}
+}
+
 // Notify send an alert notification to Threema
 func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	tn.log.Debug("sending threema alert notification", "from", tn.settings.GatewayID, "to", tn.settings.RecipientID)

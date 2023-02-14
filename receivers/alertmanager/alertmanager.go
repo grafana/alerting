@@ -27,6 +27,15 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, images images.ImageStore, logger logging.Logger) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBaseFromMetadata(meta),
+		images:   images,
+		settings: cfg,
+		logger:   logger,
+	}
+}
+
 // Notifier sends alert notifications to the alert manager
 type Notifier struct {
 	*receivers.Base

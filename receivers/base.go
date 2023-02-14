@@ -20,3 +20,12 @@ func NewBase(cfg *NotificationChannelConfig) *Base {
 		DisableResolveMessage: cfg.DisableResolveMessage,
 	}
 }
+
+func NewBaseFromMetadata(cfg Metadata) *Base {
+	return &Base{
+		UID:                   cfg.UID,
+		Name:                  cfg.Name,
+		Type:                  cfg.Type,
+		DisableResolveMessage: cfg.DisableResolveMessage,
+	}
+}

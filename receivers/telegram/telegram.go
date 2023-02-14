@@ -53,6 +53,17 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBaseFromMetadata(meta),
+		tmpl:     template,
+		log:      logger,
+		images:   images,
+		ns:       sender,
+		settings: cfg,
+	}
+}
+
 // Notify send an alert notification to Telegram.
 func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	// Create the cmd for sendMessage

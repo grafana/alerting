@@ -42,6 +42,17 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.EmailSender, images images.ImageStore, logger logging.Logger) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBaseFromMetadata(meta),
+		log:      logger,
+		ns:       sender,
+		images:   images,
+		tmpl:     template,
+		settings: cfg,
+	}
+}
+
 // Notify sends the alert notification.
 func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
 	var tmplErr error

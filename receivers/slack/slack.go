@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"net"
+	net "net"
 	"net/http"
 	"net/url"
 	"os"
@@ -107,6 +107,20 @@ func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
 		tmpl:          factoryConfig.Template,
 		appVersion:    factoryConfig.GrafanaBuildVersion,
 	}, nil
+}
+
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBaseFromMetadata(meta),
+		settings: cfg,
+
+		images:        images,
+		webhookSender: sender,
+		sendFn:        sendSlackRequest,
+		log:           logger,
+		tmpl:          template,
+		appVersion:    appVersion,
+	}
 }
 
 // slackMessage is the slackMessage for sending a slack notification.

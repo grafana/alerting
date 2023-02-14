@@ -54,6 +54,17 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBaseFromMetadata(meta),
+		log:      logger,
+		ns:       sender,
+		images:   images,
+		tmpl:     template,
+		settings: cfg,
+	}
+}
+
 // Notify sends an alert notification to Opsgenie
 func (on *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	on.log.Debug("executing Opsgenie notification", "notification", on.Name)

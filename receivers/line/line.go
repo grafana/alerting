@@ -45,6 +45,16 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 	}, nil
 }
 
+func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, logger logging.Logger) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBaseFromMetadata(meta),
+		log:      logger,
+		ns:       sender,
+		tmpl:     template,
+		settings: cfg,
+	}
+}
+
 // Notify send an alert notification to LINE
 func (ln *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	ln.log.Debug("executing line notification", "notification", ln.Name)
