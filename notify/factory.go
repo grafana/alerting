@@ -37,7 +37,8 @@ type NotificationChannel interface {
 func BuildReceiverIntegrations(
 	receiver GrafanaReceiverConfig,
 	tmpl *template.Template,
-	ns receivers.NotificationSender,
+	ns receivers.WebhookSender,
+	es receivers.EmailSender,
 	img images.ImageStore, // Used by some receivers to include as part of the source
 	newLogger logging.LoggerFactory,
 	orgID int64,
@@ -69,7 +70,7 @@ func BuildReceiverIntegrations(
 	}
 	for i, cfg := range receiver.EmailConfigs {
 		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
-			return email.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l)
+			return email.New(cfg.Settings, cfg.Metadata, tmpl, es, img, l)
 		})
 	}
 	for i, cfg := range receiver.GooglechatConfigs {

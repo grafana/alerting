@@ -106,7 +106,7 @@ func TestProcessNotifierError(t *testing.T) {
 }
 
 func TestBuildReceiverConfiguration(t *testing.T) {
-	var decrypt receivers.GetDecryptedValueFn = func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
+	var decrypt GetDecryptedValueFn = func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
 		v, ok := sjd[key]
 		if !ok {
 			return fallback

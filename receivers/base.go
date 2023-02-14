@@ -12,6 +12,14 @@ func (n *Base) GetDisableResolveMessage() bool {
 	return n.DisableResolveMessage
 }
 
+// Metadata contains the metadata of the notifier.
+type Metadata struct {
+	UID                   string
+	Name                  string
+	Type                  string
+	DisableResolveMessage bool
+}
+
 func NewBase(cfg Metadata) *Base {
 	return &Base{
 		UID:                   cfg.UID,
