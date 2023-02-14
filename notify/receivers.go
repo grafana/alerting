@@ -2,10 +2,13 @@ package notify
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/prometheus/alertmanager/config"
@@ -13,6 +16,27 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/grafana/alerting/receivers"
+	"github.com/grafana/alerting/receivers/alertmanager"
+	"github.com/grafana/alerting/receivers/dinding"
+	"github.com/grafana/alerting/receivers/discord"
+	"github.com/grafana/alerting/receivers/email"
+	"github.com/grafana/alerting/receivers/googlechat"
+	"github.com/grafana/alerting/receivers/kafka"
+	"github.com/grafana/alerting/receivers/line"
+	"github.com/grafana/alerting/receivers/opsgenie"
+	"github.com/grafana/alerting/receivers/pagerduty"
+	"github.com/grafana/alerting/receivers/pushover"
+	"github.com/grafana/alerting/receivers/sensugo"
+	"github.com/grafana/alerting/receivers/slack"
+	"github.com/grafana/alerting/receivers/teams"
+	"github.com/grafana/alerting/receivers/telegram"
+	"github.com/grafana/alerting/receivers/threema"
+	"github.com/grafana/alerting/receivers/victorops"
+	"github.com/grafana/alerting/receivers/webex"
+	"github.com/grafana/alerting/receivers/webhook"
+	"github.com/grafana/alerting/receivers/wecom"
 )
 
 const (
@@ -291,4 +315,174 @@ func ProcessNotifierError(config *GrafanaReceiver, err error) error {
 	}
 
 	return err
+}
+
+// GrafanaReceiverTyped represents a parsed and validated APIReceiver
+type GrafanaReceiverTyped struct {
+	Name                string
+	AlertmanagerConfigs []*NotifierConfig[alertmanager.Config]
+	DingdingConfigs     []*NotifierConfig[dinding.Config]
+	DiscordConfigs      []*NotifierConfig[discord.Config]
+	EmailConfigs        []*NotifierConfig[email.Config]
+	GooglechatConfigs   []*NotifierConfig[googlechat.Config]
+	KafkaConfigs        []*NotifierConfig[kafka.Config]
+	LineConfigs         []*NotifierConfig[line.Config]
+	OpsgenieConfigs     []*NotifierConfig[opsgenie.Config]
+	PagerdutyConfigs    []*NotifierConfig[pagerduty.Config]
+	PushoverConfigs     []*NotifierConfig[pushover.Config]
+	SensugoConfigs      []*NotifierConfig[sensugo.Config]
+	SlackConfigs        []*NotifierConfig[slack.Config]
+	TeamsConfigs        []*NotifierConfig[teams.Config]
+	TelegramConfigs     []*NotifierConfig[telegram.Config]
+	ThreemaConfigs      []*NotifierConfig[threema.Config]
+	VictoropsConfigs    []*NotifierConfig[victorops.Config]
+	WebhookConfigs      []*NotifierConfig[webhook.Config]
+	WecomConfigs        []*NotifierConfig[wecom.Config]
+	WebexConfigs        []*NotifierConfig[webex.Config]
+}
+
+// NotifierConfig represents parsed GrafanaReceiver.
+type NotifierConfig[T interface{}] struct {
+	receivers.NotifierInfo
+	Settings T
+}
+
+// ValidateAPIReceiver parses, decrypts and validates the APIReceiver. GrafanaReceiverTyped that contains configurations of all notifiers configurations for this receiver
+func ValidateAPIReceiver(ctx context.Context, api *APIReceiver, decrypt receivers.GetDecryptedValueFn) (GrafanaReceiverTyped, error) {
+	result := GrafanaReceiverTyped{
+		Name: api.Name,
+	}
+	parseConfig := func(receiver *GrafanaReceiver) error {
+		// secure settings are already encrypted at this point
+		secureSettings := make(map[string][]byte, len(receiver.SecureSettings))
+
+		if receiver.SecureSettings != nil {
+			for k, v := range receiver.SecureSettings {
+				d, err := base64.StdEncoding.DecodeString(v)
+				if err != nil {
+					return InvalidReceiverError{
+						Receiver: receiver,
+						Err:      errors.New("failed to decode secure setting"),
+					}
+				}
+				secureSettings[k] = d
+			}
+		}
+
+		var decryptFn receivers.DecryptFunc = func(key string, fallback string) string {
+			return decrypt(ctx, secureSettings, key, fallback)
+		}
+
+		switch strings.ToLower(receiver.Type) {
+		case "prometheus-alertmanager":
+			return createReceiver[alertmanager.Config](receiver)(alertmanager.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[alertmanager.Config]) {
+				result.AlertmanagerConfigs = append(result.AlertmanagerConfigs, f)
+			})
+		case "dingding":
+			return createReceiver[dinding.Config](receiver)(dinding.NewConfig(receiver.Settings))(func(f *NotifierConfig[dinding.Config]) {
+				result.DingdingConfigs = append(result.DingdingConfigs, f)
+			})
+		case "discord":
+			return createReceiver[discord.Config](receiver)(discord.NewConfig(receiver.Settings))(func(f *NotifierConfig[discord.Config]) {
+				result.DiscordConfigs = append(result.DiscordConfigs, f)
+			})
+		case "email":
+			return createReceiver[email.Config](receiver)(email.NewConfig(receiver.Settings))(func(f *NotifierConfig[email.Config]) {
+				result.EmailConfigs = append(result.EmailConfigs, f)
+			})
+		case "googlechat":
+			return createReceiver[googlechat.Config](receiver)(googlechat.NewConfig(receiver.Settings))(func(f *NotifierConfig[googlechat.Config]) {
+				result.GooglechatConfigs = append(result.GooglechatConfigs, f)
+			})
+		case "kafka":
+			return createReceiver[kafka.Config](receiver)(kafka.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[kafka.Config]) {
+				result.KafkaConfigs = append(result.KafkaConfigs, f)
+			})
+		case "line":
+			return createReceiver[line.Config](receiver)(line.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[line.Config]) {
+				result.LineConfigs = append(result.LineConfigs, f)
+			})
+		case "opsgenie":
+			return createReceiver[opsgenie.Config](receiver)(opsgenie.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[opsgenie.Config]) {
+				result.OpsgenieConfigs = append(result.OpsgenieConfigs, f)
+			})
+		case "pagerduty":
+			return createReceiver[pagerduty.Config](receiver)(pagerduty.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[pagerduty.Config]) {
+				result.PagerdutyConfigs = append(result.PagerdutyConfigs, f)
+			})
+		case "pushover":
+			return createReceiver[pushover.Config](receiver)(pushover.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[pushover.Config]) {
+				result.PushoverConfigs = append(result.PushoverConfigs, f)
+			})
+		case "sensugo":
+			return createReceiver[sensugo.Config](receiver)(sensugo.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[sensugo.Config]) {
+				result.SensugoConfigs = append(result.SensugoConfigs, f)
+			})
+		case "slack":
+			return createReceiver[slack.Config](receiver)(slack.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[slack.Config]) {
+				result.SlackConfigs = append(result.SlackConfigs, f)
+			})
+		case "teams":
+			return createReceiver[teams.Config](receiver)(teams.NewConfig(receiver.Settings))(func(f *NotifierConfig[teams.Config]) {
+				result.TeamsConfigs = append(result.TeamsConfigs, f)
+			})
+		case "telegram":
+			return createReceiver[telegram.Config](receiver)(telegram.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[telegram.Config]) {
+				result.TelegramConfigs = append(result.TelegramConfigs, f)
+			})
+		case "threema":
+			return createReceiver[threema.Config](receiver)(threema.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[threema.Config]) {
+				result.ThreemaConfigs = append(result.ThreemaConfigs, f)
+			})
+		case "victorops":
+			return createReceiver[victorops.Config](receiver)(victorops.NewConfig(receiver.Settings))(func(f *NotifierConfig[victorops.Config]) {
+				result.VictoropsConfigs = append(result.VictoropsConfigs, f)
+			})
+		case "webhook":
+			return createReceiver[webhook.Config](receiver)(webhook.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[webhook.Config]) {
+				result.WebhookConfigs = append(result.WebhookConfigs, f)
+			})
+		case "wecom":
+			return createReceiver[wecom.Config](receiver)(wecom.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[wecom.Config]) {
+				result.WecomConfigs = append(result.WecomConfigs, f)
+			})
+		case "webex":
+			return createReceiver[webex.Config](receiver)(webex.NewConfig(receiver.Settings, decryptFn))(func(f *NotifierConfig[webex.Config]) {
+				result.WebexConfigs = append(result.WebexConfigs, f)
+			})
+		default:
+			return fmt.Errorf("notifier %s is not supported", receiver.Type)
+		}
+	}
+	for _, receiver := range api.Receivers {
+		err := parseConfig(receiver)
+		if err != nil {
+			return GrafanaReceiverTyped{}, &InvalidReceiverError{
+				Receiver: receiver,
+				Err:      err,
+			}
+		}
+	}
+	return result, nil
+}
+
+func createReceiver[T interface{}](receiver *GrafanaReceiver) func(cfg T, err error) func(f func(f *NotifierConfig[T])) error {
+	return func(settings T, err error) func(f func(f *NotifierConfig[T])) error {
+		return func(f func(f *NotifierConfig[T])) error {
+			if err != nil {
+				return err
+			}
+			r := &NotifierConfig[T]{
+				NotifierInfo: receivers.NotifierInfo{
+					UID:                   receiver.UID,
+					Name:                  receiver.Name,
+					Type:                  receiver.Type,
+					DisableResolveMessage: receiver.DisableResolveMessage,
+				},
+				Settings: settings,
+			}
+			f(r)
+			return nil
+		}
+	}
 }
