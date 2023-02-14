@@ -57,7 +57,7 @@ type Notifier struct {
 
 // New is the constructor function for the Kafka notifier.
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(fc)
+	settings, err := ValidateConfig(fc.Config.Settings, fc.Decrypt)
 	if err != nil {
 		return nil, err
 	}

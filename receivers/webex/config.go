@@ -1,7 +1,6 @@
 package webex
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -25,9 +24,9 @@ type Config struct {
 }
 
 // ValidateConfig is the constructor for the Webex notifier.
-func ValidateConfig(factoryConfig receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (*Config, error) {
 	settings := &Config{}
-	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
@@ -40,7 +39,7 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (*Config, error) {
 		settings.Message = templates.DefaultMessageEmbed
 	}
 
-	settings.Token = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "bot_token", settings.Token)
+	settings.Token = decryptFn("bot_token", settings.Token)
 
 	u, err := url.Parse(settings.APIURL)
 	if err != nil {

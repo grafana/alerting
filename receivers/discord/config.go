@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -17,9 +16,9 @@ type Config struct {
 	UseDiscordUsername bool   `json:"use_discord_username,omitempty" yaml:"use_discord_username,omitempty"`
 }
 
-func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(jsonData json.RawMessage) (*Config, error) {
 	var settings Config
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}

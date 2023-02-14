@@ -1,7 +1,6 @@
 package line
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,13 +15,13 @@ type Config struct {
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 }
 
-func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (*Config, error) {
 	var settings Config
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
-	settings.Token = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "token", settings.Token)
+	settings.Token = decryptFn("token", settings.Token)
 	if settings.Token == "" {
 		return nil, errors.New("could not find token in settings")
 	}

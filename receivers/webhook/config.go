@@ -1,7 +1,6 @@
 package webhook
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,7 +26,7 @@ type Config struct {
 	Message string
 }
 
-func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
+func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
 	rawSettings := struct {
 		URL                      string                   `json:"url,omitempty" yaml:"url,omitempty"`
@@ -41,7 +40,7 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 		Message                  string                   `json:"message,omitempty" yaml:"message,omitempty"`
 	}{}
 
-	err := json.Unmarshal(factoryConfig.Config.Settings, &rawSettings)
+	err := json.Unmarshal(jsonData, &rawSettings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
@@ -60,9 +59,9 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 		settings.MaxAlerts, _ = strconv.Atoi(rawSettings.MaxAlerts.String())
 	}
 
-	settings.User = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "username", rawSettings.User)
-	settings.Password = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "password", rawSettings.Password)
-	settings.AuthorizationCredentials = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "authorization_credentials", rawSettings.AuthorizationCredentials)
+	settings.User = decryptFn("username", rawSettings.User)
+	settings.Password = decryptFn("password", rawSettings.Password)
+	settings.AuthorizationCredentials = decryptFn("authorization_credentials", rawSettings.AuthorizationCredentials)
 
 	if settings.AuthorizationCredentials != "" && settings.AuthorizationScheme == "" {
 		settings.AuthorizationScheme = "Bearer"

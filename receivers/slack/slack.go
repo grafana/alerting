@@ -91,7 +91,7 @@ func uploadURL(s Config) (string, error) {
 }
 
 func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(factoryConfig)
+	settings, err := ValidateConfig(factoryConfig.Config.Settings, factoryConfig.Decrypt)
 	if err != nil {
 		return nil, err
 	}

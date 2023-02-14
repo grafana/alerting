@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -17,9 +16,9 @@ type Config struct {
 	SectionTitle string `json:"sectiontitle,omitempty" yaml:"sectiontitle,omitempty"`
 }
 
-func ValidateConfig(fc receivers.FactoryConfig) (Config, error) {
+func ValidateConfig(jsonData json.RawMessage) (Config, error) {
 	settings := Config{}
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}

@@ -40,7 +40,7 @@ type Notifier struct {
 
 // New is the constructor for the Opsgenie notifier
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(fc)
+	settings, err := ValidateConfig(fc.Config.Settings, fc.Decrypt)
 	if err != nil {
 		return nil, err
 	}

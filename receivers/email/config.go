@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -17,7 +16,7 @@ type Config struct {
 	Subject     string
 }
 
-func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(jsonData json.RawMessage) (*Config, error) {
 	type emailSettingsRaw struct {
 		SingleEmail bool   `json:"singleEmail,omitempty"`
 		Addresses   string `json:"addresses,omitempty"`
@@ -26,7 +25,7 @@ func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	}
 
 	var settings emailSettingsRaw
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}

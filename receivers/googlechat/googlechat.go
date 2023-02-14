@@ -34,7 +34,7 @@ var (
 )
 
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(fc)
+	settings, err := ValidateConfig(fc.Config.Settings)
 	if err != nil {
 		return nil, err
 	}

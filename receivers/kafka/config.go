@@ -1,7 +1,6 @@
 package kafka
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,9 +30,9 @@ type Config struct {
 	KafkaClusterID string `json:"kafkaClusterId,omitempty" yaml:"kafkaClusterId,omitempty"`
 }
 
-func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (*Config, error) {
 	var settings Config
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
@@ -52,7 +51,7 @@ func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	if settings.Details == "" {
 		settings.Details = templates.DefaultMessageEmbed
 	}
-	settings.Password = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "password", settings.Password)
+	settings.Password = decryptFn("password", settings.Password)
 
 	if settings.APIVersion == "" {
 		settings.APIVersion = apiVersionV2

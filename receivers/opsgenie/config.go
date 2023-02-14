@@ -1,7 +1,6 @@
 package opsgenie
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,7 +28,7 @@ type Config struct {
 	SendTagsAs       string
 }
 
-func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (*Config, error) {
 	type rawSettings struct {
 		APIKey           string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
 		APIUrl           string `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`
@@ -41,12 +40,12 @@ func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	}
 
 	raw := rawSettings{}
-	err := json.Unmarshal(fc.Config.Settings, &raw)
+	err := json.Unmarshal(jsonData, &raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
-	raw.APIKey = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "apiKey", raw.APIKey)
+	raw.APIKey = decryptFn("apiKey", raw.APIKey)
 	if raw.APIKey == "" {
 		return nil, errors.New("could not find api key property in settings")
 	}

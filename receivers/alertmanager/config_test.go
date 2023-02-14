@@ -113,7 +113,7 @@ func TestValidateConfig(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			sn, err := ValidateConfig(json.RawMessage(c.settings), receiversTesting.GetDecryptForTesting(c.secrets))
+			sn, err := ValidateConfig(json.RawMessage(c.settings), receiversTesting.DecryptForTesting(c.secrets))
 
 			if c.expectedInitError != "" {
 				require.ErrorContains(t, err, c.expectedInitError)

@@ -41,12 +41,12 @@ type Notifier struct {
 	log      logging.Logger
 	ns       receivers.WebhookSender
 	images   images.ImageStore
-	settings *Config
+	settings Config
 }
 
 // New is the constructor for the PagerDuty notifier
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(fc)
+	settings, err := ValidateConfig(fc.Config.Settings, fc.Decrypt)
 	if err != nil {
 		return nil, err
 	}

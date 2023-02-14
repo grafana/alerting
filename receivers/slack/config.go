@@ -1,7 +1,6 @@
 package slack
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,10 +26,9 @@ type Config struct {
 	MentionGroups  receivers.CommaSeparatedStrings `json:"mentionGroups,omitempty" yaml:"mentionGroups,omitempty"`
 }
 
-func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
-	decryptFunc := factoryConfig.DecryptFunc
+func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	var settings Config
-	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
@@ -38,7 +36,7 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 	if settings.EndpointURL == "" {
 		settings.EndpointURL = APIURL
 	}
-	slackURL := decryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "url", settings.URL)
+	slackURL := decryptFn("url", settings.URL)
 	if slackURL == "" {
 		slackURL = settings.EndpointURL
 	}
@@ -56,7 +54,7 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 	if settings.MentionChannel != "" && settings.MentionChannel != "here" && settings.MentionChannel != "channel" {
 		return Config{}, fmt.Errorf("invalid value for mentionChannel: %q", settings.MentionChannel)
 	}
-	settings.Token = decryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "token", settings.Token)
+	settings.Token = decryptFn("token", settings.Token)
 	if settings.Token == "" && settings.URL == APIURL {
 		return Config{}, errors.New("token must be specified when using the Slack chat API")
 	}
