@@ -28,11 +28,6 @@ import (
 	"github.com/grafana/alerting/receivers/wecom"
 )
 
-type NotificationChannel interface {
-	notify.Notifier
-	notify.ResolvedSender
-}
-
 // BuildReceiverIntegrations builds notifiers of the receiver and wraps each of them in Integration.
 func BuildReceiverIntegrations(
 	receiver GrafanaReceiverConfig,
@@ -46,7 +41,12 @@ func BuildReceiverIntegrations(
 ) []*Integration {
 	var integrations []*Integration
 
-	createIntegration := func(idx int, cfg receivers.Metadata, f func(logger logging.Logger) NotificationChannel) {
+	type notificationChannel interface {
+		notify.Notifier
+		notify.ResolvedSender
+	}
+
+	createIntegration := func(idx int, cfg receivers.Metadata, f func(logger logging.Logger) notificationChannel) {
 		logger := newLogger("ngalert.notifier."+cfg.Type, "notifierUID", cfg.UID)
 		n := f(logger)
 		i := NewIntegration(n, n, cfg.Type, idx)
@@ -54,97 +54,97 @@ func BuildReceiverIntegrations(
 	}
 
 	for i, cfg := range receiver.AlertmanagerConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return alertmanager.New(cfg.Settings, cfg.Metadata, img, l)
 		})
 	}
 	for i, cfg := range receiver.DingdingConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return dinding.New(cfg.Settings, cfg.Metadata, tmpl, ns, l)
 		})
 	}
 	for i, cfg := range receiver.DiscordConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return discord.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l, version)
 		})
 	}
 	for i, cfg := range receiver.EmailConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return email.New(cfg.Settings, cfg.Metadata, tmpl, es, img, l)
 		})
 	}
 	for i, cfg := range receiver.GooglechatConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return googlechat.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l, version)
 		})
 	}
 	for i, cfg := range receiver.KafkaConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return kafka.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l)
 		})
 	}
 	for i, cfg := range receiver.LineConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return line.New(cfg.Settings, cfg.Metadata, tmpl, ns, l)
 		})
 	}
 	for i, cfg := range receiver.OpsgenieConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return opsgenie.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l)
 		})
 	}
 	for i, cfg := range receiver.PagerdutyConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return pagerduty.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l)
 		})
 	}
 	for i, cfg := range receiver.PushoverConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return pushover.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l)
 		})
 	}
 	for i, cfg := range receiver.SensugoConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return sensugo.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l)
 		})
 	}
 	for i, cfg := range receiver.SlackConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return slack.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l, version)
 		})
 	}
 	for i, cfg := range receiver.TeamsConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return teams.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l)
 		})
 	}
 	for i, cfg := range receiver.TelegramConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return telegram.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l)
 		})
 	}
 	for i, cfg := range receiver.ThreemaConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return threema.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l)
 		})
 	}
 	for i, cfg := range receiver.VictoropsConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return victorops.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l, version)
 		})
 	}
 	for i, cfg := range receiver.WebhookConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return webhook.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l, orgID)
 		})
 	}
 	for i, cfg := range receiver.WecomConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return wecom.New(cfg.Settings, cfg.Metadata, tmpl, ns, l)
 		})
 	}
 	for i, cfg := range receiver.WebexConfigs {
-		createIntegration(i, cfg.Metadata, func(l logging.Logger) NotificationChannel {
+		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return webex.New(cfg.Settings, cfg.Metadata, tmpl, ns, img, l, orgID)
 		})
 	}
