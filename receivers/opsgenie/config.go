@@ -28,7 +28,7 @@ type Config struct {
 	SendTagsAs       string
 }
 
-func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (*Config, error) {
+func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	type rawSettings struct {
 		APIKey           string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
 		APIUrl           string `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`
@@ -42,12 +42,12 @@ func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (
 	raw := rawSettings{}
 	err := json.Unmarshal(jsonData, &raw)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
+		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
 	raw.APIKey = decryptFn("apiKey", raw.APIKey)
 	if raw.APIKey == "" {
-		return nil, errors.New("could not find api key property in settings")
+		return Config{}, errors.New("could not find api key property in settings")
 	}
 	if raw.APIUrl == "" {
 		raw.APIUrl = DefaultAlertsURL
@@ -62,7 +62,7 @@ func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (
 	case "":
 		raw.SendTagsAs = SendTags
 	default:
-		return nil, fmt.Errorf("invalid value for sendTagsAs: %q", raw.SendTagsAs)
+		return Config{}, fmt.Errorf("invalid value for sendTagsAs: %q", raw.SendTagsAs)
 	}
 
 	if raw.AutoClose == nil {
@@ -74,7 +74,7 @@ func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (
 		raw.OverridePriority = &overridePriority
 	}
 
-	return &Config{
+	return Config{
 		APIKey:           raw.APIKey,
 		APIUrl:           raw.APIUrl,
 		Message:          raw.Message,

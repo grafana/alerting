@@ -98,7 +98,7 @@ func TestValidateConfig(t *testing.T) {
 				require.ErrorContains(t, err, c.expectedInitError)
 				return
 			}
-			require.Equal(t, c.expectedConfig, *actual)
+			require.Equal(t, c.expectedConfig, actual)
 		})
 	}
 }

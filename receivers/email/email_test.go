@@ -46,7 +46,7 @@ func TestNotify(t *testing.T) {
 			log:      &logging.FakeLogger{},
 			ns:       emailSender,
 			tmpl:     tmpl,
-			settings: &settings,
+			settings: settings,
 			images:   &images.UnavailableImageStore{},
 		}
 

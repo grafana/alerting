@@ -24,7 +24,7 @@ type Notifier struct {
 	ns       receivers.EmailSender
 	images   images.ImageStore
 	tmpl     *template.Template
-	settings *Config
+	settings Config
 }
 
 func New(fc receivers.FactoryConfig) (*Notifier, error) {

@@ -26,7 +26,7 @@ type Notifier struct {
 	log      logging.Logger
 	ns       receivers.WebhookSender
 	tmpl     *template.Template
-	settings *Config
+	settings Config
 }
 
 // New is the constructor for the LINE notifier

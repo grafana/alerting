@@ -1,7 +1,6 @@
 package pagerduty
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,16 +43,16 @@ type Config struct {
 	ClientURL     string            `json:"client_url,omitempty" yaml:"client_url,omitempty"`
 }
 
-func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
+func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
+		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
-	settings.Key = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "integrationKey", settings.Key)
+	settings.Key = decryptFn("integrationKey", settings.Key)
 	if settings.Key == "" {
-		return nil, errors.New("could not find integration key property in settings")
+		return Config{}, errors.New("could not find integration key property in settings")
 	}
 
 	settings.CustomDetails = defaultCustomDetails()
@@ -86,5 +85,5 @@ func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 		}
 		settings.Source = source
 	}
-	return &settings, nil
+	return settings, nil
 }

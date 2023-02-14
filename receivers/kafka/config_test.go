@@ -179,7 +179,7 @@ func TestValidateConfig(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, c.expectedConfig, *actual)
+			require.Equal(t, c.expectedConfig, actual)
 		})
 	}
 }

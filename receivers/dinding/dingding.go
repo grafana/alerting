@@ -34,7 +34,7 @@ func New(fc receivers.FactoryConfig) (*Notifier, error) {
 		log:      fc.Logger,
 		ns:       fc.NotificationService,
 		tmpl:     fc.Template,
-		settings: *settings,
+		settings: settings,
 	}, nil
 }
 

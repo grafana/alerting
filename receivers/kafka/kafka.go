@@ -52,7 +52,7 @@ type Notifier struct {
 	images   images.ImageStore
 	ns       receivers.WebhookSender
 	tmpl     *template.Template
-	settings *Config
+	settings Config
 }
 
 // New is the constructor function for the Kafka notifier.

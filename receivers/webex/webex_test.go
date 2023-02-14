@@ -117,7 +117,7 @@ func TestNotify(t *testing.T) {
 				log:      &logging.FakeLogger{},
 				ns:       notificationService,
 				tmpl:     tmpl,
-				settings: &c.settings,
+				settings: c.settings,
 				images:   images,
 			}
 

@@ -24,7 +24,7 @@ type Notifier struct {
 	ns         receivers.WebhookSender
 	images     images.ImageStore
 	tmpl       *template.Template
-	settings   *Config
+	settings   Config
 	appVersion string
 }
 

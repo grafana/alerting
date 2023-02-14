@@ -23,7 +23,7 @@ type Notifier struct {
 	images   images.ImageStore
 	tmpl     *template.Template
 	orgID    int64
-	settings *Config
+	settings Config
 }
 
 func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {

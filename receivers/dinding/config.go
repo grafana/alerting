@@ -17,14 +17,14 @@ type Config struct {
 
 const defaultDingdingMsgType = "link"
 
-func ValidateConfig(jsonData json.RawMessage) (*Config, error) {
+func ValidateConfig(jsonData json.RawMessage) (Config, error) {
 	var settings Config
 	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
+		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 	if settings.URL == "" {
-		return nil, errors.New("could not find url property in settings")
+		return Config{}, errors.New("could not find url property in settings")
 	}
 	if settings.MessageType == "" {
 		settings.MessageType = defaultDingdingMsgType
@@ -35,5 +35,5 @@ func ValidateConfig(jsonData json.RawMessage) (*Config, error) {
 	if settings.Message == "" {
 		settings.Message = templates.DefaultMessageEmbed
 	}
-	return &settings, nil
+	return settings, nil
 }

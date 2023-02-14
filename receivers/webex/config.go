@@ -24,11 +24,11 @@ type Config struct {
 }
 
 // ValidateConfig is the constructor for the Webex notifier.
-func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (*Config, error) {
-	settings := &Config{}
+func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
+	settings := Config{}
 	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
+		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
 	if settings.APIURL == "" {
@@ -43,7 +43,7 @@ func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (
 
 	u, err := url.Parse(settings.APIURL)
 	if err != nil {
-		return nil, fmt.Errorf("invalid URL %q", settings.APIURL)
+		return Config{}, fmt.Errorf("invalid URL %q", settings.APIURL)
 	}
 	settings.APIURL = u.String()
 

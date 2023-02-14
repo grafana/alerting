@@ -289,7 +289,7 @@ func TestNotify(t *testing.T) {
 				log:      &logging.FakeLogger{},
 				ns:       webhookSender,
 				tmpl:     tmpl,
-				settings: &c.settings,
+				settings: c.settings,
 				images:   &images.UnavailableImageStore{},
 			}
 
