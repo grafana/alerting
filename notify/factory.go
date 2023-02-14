@@ -1,7 +1,6 @@
 package notify
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/prometheus/alertmanager/notify"
@@ -67,32 +66,18 @@ func wrap[T NotificationChannel](f func(fc receivers.FactoryConfig) (T, error)) 
 		ch, err := f(fc)
 		if err != nil {
 			return nil, ReceiverInitError{
-				Reason: err.Error(),
-				Cfg:    *fc.Config,
+				Err: err,
+				// TODO it will be removed in the next PR
+				Cfg: &GrafanaReceiver{
+					UID:                   fc.Config.UID,
+					Name:                  fc.Config.Name,
+					Type:                  fc.Config.Type,
+					DisableResolveMessage: fc.Config.DisableResolveMessage,
+					Settings:              fc.Config.Settings,
+					SecureSettings:        nil,
+				},
 			}
 		}
 		return ch, nil
 	}
 }
-
-type ReceiverInitError struct {
-	Reason string
-	Err    error
-	Cfg    receivers.NotificationChannelConfig
-}
-
-func (e ReceiverInitError) Error() string {
-	name := ""
-	if e.Cfg.Name != "" {
-		name = fmt.Sprintf("%q ", e.Cfg.Name)
-	}
-
-	s := fmt.Sprintf("failed to validate receiver %sof type %q: %s", name, e.Cfg.Type, e.Reason)
-	if e.Err != nil {
-		return fmt.Sprintf("%s: %s", s, e.Err.Error())
-	}
-
-	return s
-}
-
-func (e ReceiverInitError) Unwrap() error { return e.Err }
