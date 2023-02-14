@@ -90,28 +90,9 @@ func uploadURL(s Config) (string, error) {
 	return u.String(), nil
 }
 
-func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := NewConfig(factoryConfig.Config.Settings, factoryConfig.Decrypt)
-	if err != nil {
-		return nil, err
-	}
-
+func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
-		Base:     receivers.NewBase(factoryConfig.Config),
-		settings: settings,
-
-		images:        factoryConfig.ImageStore,
-		webhookSender: factoryConfig.NotificationService,
-		sendFn:        sendSlackRequest,
-		log:           factoryConfig.Logger,
-		tmpl:          factoryConfig.Template,
-		appVersion:    factoryConfig.GrafanaBuildVersion,
-	}, nil
-}
-
-func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
-	return &Notifier{
-		Base:     receivers.NewBaseFromMetadata(meta),
+		Base:     receivers.NewBase(meta),
 		settings: cfg,
 
 		images:        images,

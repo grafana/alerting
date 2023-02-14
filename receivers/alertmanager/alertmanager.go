@@ -13,23 +13,9 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := NewConfig(fc.Config.Settings, fc.Decrypt)
-	if err != nil {
-		return nil, err
-	}
-
+func New(cfg Config, meta receivers.Metadata, images images.ImageStore, logger logging.Logger) *Notifier {
 	return &Notifier{
-		Base:     receivers.NewBase(fc.Config),
-		images:   fc.ImageStore,
-		settings: settings,
-		logger:   fc.Logger,
-	}, nil
-}
-
-func New2(cfg Config, meta receivers.Metadata, images images.ImageStore, logger logging.Logger) *Notifier {
-	return &Notifier{
-		Base:     receivers.NewBaseFromMetadata(meta),
+		Base:     receivers.NewBase(meta),
 		images:   images,
 		settings: cfg,
 		logger:   logger,

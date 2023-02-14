@@ -27,24 +27,9 @@ type Notifier struct {
 	settings Config
 }
 
-func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := NewConfig(fc.Config.Settings)
-	if err != nil {
-		return nil, err
-	}
+func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.EmailSender, images images.ImageStore, logger logging.Logger) *Notifier {
 	return &Notifier{
-		Base:     receivers.NewBase(fc.Config),
-		log:      fc.Logger,
-		ns:       fc.NotificationService,
-		images:   fc.ImageStore,
-		tmpl:     fc.Template,
-		settings: settings,
-	}, nil
-}
-
-func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.EmailSender, images images.ImageStore, logger logging.Logger) *Notifier {
-	return &Notifier{
-		Base:     receivers.NewBaseFromMetadata(meta),
+		Base:     receivers.NewBase(meta),
 		log:      logger,
 		ns:       sender,
 		images:   images,

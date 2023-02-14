@@ -40,25 +40,9 @@ type Notifier struct {
 
 // New creates an instance of VictoropsNotifier that
 // handles posting notifications to Victorops REST API
-func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := NewConfig(fc.Config.Settings)
-	if err != nil {
-		return nil, err
-	}
+func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
-		Base:       receivers.NewBase(fc.Config),
-		log:        fc.Logger,
-		images:     fc.ImageStore,
-		ns:         fc.NotificationService,
-		tmpl:       fc.Template,
-		settings:   settings,
-		appVersion: fc.GrafanaBuildVersion,
-	}, nil
-}
-
-func New2(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
-	return &Notifier{
-		Base:       receivers.NewBaseFromMetadata(meta),
+		Base:       receivers.NewBase(meta),
 		log:        logger,
 		images:     images,
 		ns:         sender,
