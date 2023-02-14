@@ -2,7 +2,6 @@ package threema
 
 import (
 	"context"
-	"encoding/json"
 	"net/url"
 	"testing"
 
@@ -17,7 +16,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestThreemaNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	images := images2.NewFakeImageStore(2)
@@ -28,7 +27,7 @@ func TestThreemaNotifier(t *testing.T) {
 
 	cases := []struct {
 		name         string
-		settings     string
+		settings     Config
 		alerts       []*types.Alert
 		expMsg       string
 		expInitError string
@@ -36,11 +35,13 @@ func TestThreemaNotifier(t *testing.T) {
 	}{
 		{
 			name: "A single alert with an image",
-			settings: `{
-				"gateway_id": "*1234567",
-				"recipient_id": "87654321",
-				"api_secret": "supersecret"
-			}`,
+			settings: Config{
+				GatewayID:   "*1234567",
+				RecipientID: "87654321",
+				APISecret:   "supersecret",
+				Title:       templates.DefaultMessageTitleEmbed,
+				Description: templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -53,11 +54,13 @@ func TestThreemaNotifier(t *testing.T) {
 			expMsgError: nil,
 		}, {
 			name: "Multiple alerts with images",
-			settings: `{
-				"gateway_id": "*1234567",
-				"recipient_id": "87654321",
-				"api_secret": "supersecret"
-			}`,
+			settings: Config{
+				GatewayID:   "*1234567",
+				RecipientID: "87654321",
+				APISecret:   "supersecret",
+				Title:       templates.DefaultMessageTitleEmbed,
+				Description: templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -75,13 +78,13 @@ func TestThreemaNotifier(t *testing.T) {
 			expMsgError: nil,
 		}, {
 			name: "A single alert with an image and custom title and description",
-			settings: `{
-				"gateway_id": "*1234567",
-				"recipient_id": "87654321",
-				"api_secret": "supersecret",
-				"title": "customTitle {{ .Alerts.Firing | len }}",
-				"description": "customDescription"
-			}`,
+			settings: Config{
+				GatewayID:   "*1234567",
+				RecipientID: "87654321",
+				APISecret:   "supersecret",
+				Title:       "customTitle {{ .Alerts.Firing | len }}",
+				Description: "customDescription",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -92,61 +95,26 @@ func TestThreemaNotifier(t *testing.T) {
 			},
 			expMsg:      "from=%2A1234567&secret=supersecret&text=%E2%9A%A0%EF%B8%8F+customTitle+1%0A%0A%2AMessage%3A%2A%0AcustomDescription%0A%2AURL%3A%2A+http%3A%2Flocalhost%2Falerting%2Flist%0A%2AImage%3A%2A+https%3A%2F%2Fwww.example.com%2Ftest-image-1.jpg%0A&to=87654321",
 			expMsgError: nil,
-		}, {
-			name: "Invalid gateway id",
-			settings: `{
-				"gateway_id": "12345678",
-				"recipient_id": "87654321",
-				"api_secret": "supersecret"
-			}`,
-			expInitError: `invalid Threema Gateway ID: Must start with a *`,
-		}, {
-			name: "Invalid receipent id",
-			settings: `{
-				"gateway_id": "*1234567",
-				"recipient_id": "8765432",
-				"api_secret": "supersecret"
-			}`,
-			expInitError: `invalid Threema Recipient ID: Must be 8 characters long`,
-		}, {
-			name: "No API secret",
-			settings: `{
-				"gateway_id": "*1234567",
-				"recipient_id": "87654321"
-			}`,
-			expInitError: `could not find Threema API secret in settings`,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			settingsJSON := json.RawMessage(c.settings)
-			secureSettings := make(map[string][]byte)
 			webhookSender := receivers.MockNotificationService()
 
-			fc := receivers.FactoryConfig{
-				Config: &receivers.NotificationChannelConfig{
-					Name:           "threema_testing",
-					Type:           "threema",
-					Settings:       settingsJSON,
-					SecureSettings: secureSettings,
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				NotificationService: webhookSender,
-				ImageStore:          images,
-				Template:            tmpl,
-				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-					return fallback
-				},
-				Logger: &logging.FakeLogger{},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: c.settings,
+				images:   images,
 			}
-
-			pn, err := New(fc)
-			if c.expInitError != "" {
-				require.Error(t, err)
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})

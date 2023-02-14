@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"testing"
@@ -18,7 +17,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestKafkaNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	images := images2.NewFakeImageStore(2)
@@ -29,10 +28,9 @@ func TestKafkaNotifier(t *testing.T) {
 
 	cases := []struct {
 		name           string
-		settings       string
+		settings       Config
 		alerts         []*types.Alert
 		expURL, expMsg string
-		expInitError   string
 		expMsgError    error
 		expUsername    string
 		expPassword    string
@@ -40,12 +38,16 @@ func TestKafkaNotifier(t *testing.T) {
 	}{
 		{
 			name: "A single alert with image and custom description and details",
-			settings: `{
-				"kafkaRestProxy": "http://localhost",
-				"kafkaTopic": "sometopic",
-				"description": "customDescription",
-				"details": "customDetails"
-			}`,
+			settings: Config{
+				Endpoint:       "http://localhost",
+				Topic:          "sometopic",
+				Description:    "customDescription",
+				Details:        "customDetails",
+				Username:       "",
+				Password:       "",
+				APIVersion:     apiVersionV2,
+				KafkaClusterID: "",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -79,14 +81,16 @@ func TestKafkaNotifier(t *testing.T) {
 			},
 		}, {
 			name: "A single alert with image and custom description and details with auth",
-			settings: `{
-				"kafkaRestProxy": "http://localhost",
-				"kafkaTopic": "sometopic",
-				"description": "customDescription",
-				"details": "customDetails",
-				"username": "batman",
-				"password": "BruceWayne"
-			}`,
+			settings: Config{
+				Endpoint:       "http://localhost",
+				Topic:          "sometopic",
+				Description:    "customDescription",
+				Details:        "customDetails",
+				Username:       "batman",
+				Password:       "BruceWayne",
+				APIVersion:     apiVersionV2,
+				KafkaClusterID: "",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -120,10 +124,16 @@ func TestKafkaNotifier(t *testing.T) {
 			},
 		}, {
 			name: "Multiple alerts with images with default description and details",
-			settings: `{
-				"kafkaRestProxy": "http://localhost",
-				"kafkaTopic": "sometopic"
-			}`,
+			settings: Config{
+				Endpoint:       "http://localhost",
+				Topic:          "sometopic",
+				Description:    templates.DefaultMessageTitleEmbed,
+				Details:        templates.DefaultMessageEmbed,
+				Username:       "",
+				Password:       "",
+				APIVersion:     apiVersionV2,
+				KafkaClusterID: "",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -155,43 +165,17 @@ func TestKafkaNotifier(t *testing.T) {
 				}`,
 			expMsgError: nil,
 		}, {
-			name:         "Endpoint missing",
-			settings:     `{"kafkaTopic": "sometopic"}`,
-			expInitError: `could not find kafka rest proxy endpoint property in settings`,
-		}, {
-			name:         "Topic missing",
-			settings:     `{"kafkaRestProxy": "http://localhost"}`,
-			expInitError: `could not find kafka topic property in settings`,
-		}, {
-			name: "Bad API version",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost",
-				"kafkaTopic": "myTopic",
-				"apiVersion": "invalid"
-			}
-			`,
-			expInitError: `unsupported api version: invalid`,
-		}, {
-			name: "API v3. Missing cluster ID",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost",
-				"kafkaTopic": "myTopic",
-				"apiVersion": "v3"
-			}
-			`,
-			expInitError: `kafka cluster id must be provided when using api version 3`,
-		}, {
 			name: "API v3 verify URL, description and details",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost:882",
-				"kafkaTopic": "myTopic",
-				"apiVersion": "v3",
-				"kafkaClusterId": "lkc-abcd"
-			}
-			`,
+			settings: Config{
+				Endpoint:       "http://localhost:882",
+				Topic:          "myTopic",
+				Description:    templates.DefaultMessageTitleEmbed,
+				Details:        templates.DefaultMessageEmbed,
+				Username:       "",
+				Password:       "",
+				APIVersion:     apiVersionV3,
+				KafkaClusterID: "lkc-abcd",
+			},
 			expURL:      `http://localhost:882/v3/clusters/lkc-abcd/topics/myTopic/records`,
 			expMsgError: nil,
 			alerts: []*types.Alert{
@@ -219,16 +203,16 @@ func TestKafkaNotifier(t *testing.T) {
 			}`,
 		}, {
 			name: "API v3 verify single alert with image and custom description and details",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost:882",
-				"kafkaTopic": "myTopic",
-				"apiVersion": "v3",
-				"kafkaClusterId": "lkc-abcd",
-				"description": "customDescription",
-				"details": "customDetails"
-			}
-			`,
+			settings: Config{
+				Endpoint:       "http://localhost:882",
+				Topic:          "myTopic",
+				Description:    "customDescription",
+				Details:        "customDetails",
+				Username:       "",
+				Password:       "",
+				APIVersion:     apiVersionV3,
+				KafkaClusterID: "lkc-abcd",
+			},
 			expURL:      `http://localhost:882/v3/clusters/lkc-abcd/topics/myTopic/records`,
 			expMsgError: nil,
 			alerts: []*types.Alert{
@@ -256,16 +240,16 @@ func TestKafkaNotifier(t *testing.T) {
 			}`,
 		}, {
 			name: "API v3 verify single alert with image and custom description and details with Confluent cloud kafka",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost:882/kafka",
-				"kafkaTopic": "myTopic",
-				"apiVersion": "v3",
-				"kafkaClusterId": "lkc-abcd",
-				"description": "customDescription",
-				"details": "customDetails"
-			}
-			`,
+			settings: Config{
+				Endpoint:       "http://localhost:882/kafka",
+				Topic:          "myTopic",
+				Description:    "customDescription",
+				Details:        "customDetails",
+				Username:       "",
+				Password:       "",
+				APIVersion:     apiVersionV3,
+				KafkaClusterID: "lkc-abcd",
+			},
 			expURL:      `http://localhost:882/kafka/v3/clusters/lkc-abcd/topics/myTopic/records`,
 			expMsgError: nil,
 			alerts: []*types.Alert{
@@ -293,14 +277,16 @@ func TestKafkaNotifier(t *testing.T) {
 			}`,
 		}, {
 			name: "API v3 multiple alerts with images with default description and details",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost:882",
-				"kafkaTopic": "myTopic",
-				"apiVersion": "v3",
-				"kafkaClusterId": "lkc-abcd"
-			}
-			`,
+			settings: Config{
+				Endpoint:       "http://localhost:882",
+				Topic:          "myTopic",
+				Description:    templates.DefaultMessageTitleEmbed,
+				Details:        templates.DefaultMessageEmbed,
+				Username:       "",
+				Password:       "",
+				APIVersion:     apiVersionV3,
+				KafkaClusterID: "lkc-abcd",
+			},
 			expURL:      `http://localhost:882/v3/clusters/lkc-abcd/topics/myTopic/records`,
 			expMsgError: nil,
 			alerts: []*types.Alert{
@@ -338,16 +324,16 @@ func TestKafkaNotifier(t *testing.T) {
 		},
 		{
 			name: "API v3 multiple alerts with images with default description and details and auth",
-			settings: `
-			{
-				"kafkaRestProxy": "http://localhost:882",
-				"kafkaTopic": "myTopic",
-				"apiVersion": "v3",
-				"kafkaClusterId": "lkc-abcd",
-				"username": "batman",
-				"password": "BruceWayne"
-			}
-			`,
+			settings: Config{
+				Endpoint:       "http://localhost:882",
+				Topic:          "myTopic",
+				Description:    templates.DefaultMessageTitleEmbed,
+				Details:        templates.DefaultMessageEmbed,
+				Username:       "batman",
+				Password:       "BruceWayne",
+				APIVersion:     apiVersionV3,
+				KafkaClusterID: "lkc-abcd",
+			},
 			expURL:      `http://localhost:882/v3/clusters/lkc-abcd/topics/myTopic/records`,
 			expMsgError: nil,
 			expUsername: "batman",
@@ -390,30 +376,19 @@ func TestKafkaNotifier(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			webhookSender := receivers.MockNotificationService()
-
-			fc := receivers.FactoryConfig{
-				Config: &receivers.NotificationChannelConfig{
-					Name:     "kafka_testing",
-					Type:     "kafka",
-					Settings: json.RawMessage(c.settings),
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				ImageStore: images,
-				// TODO: allow changing the associated values for different tests.
-				NotificationService: webhookSender,
-				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-					return fallback
-				},
-				Template: tmpl,
-				Logger:   &logging.FakeLogger{},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: &c.settings,
+				images:   images,
 			}
-
-			pn, err := New(fc)
-			if c.expInitError != "" {
-				require.Error(t, err)
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})

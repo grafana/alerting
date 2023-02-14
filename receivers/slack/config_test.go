@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/receivers"
-	testing2 "github.com/grafana/alerting/receivers/testing"
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -260,7 +260,7 @@ func TestValidateConfig(t *testing.T) {
 				Settings:       json.RawMessage(c.settings),
 				SecureSettings: c.secureSettings,
 			}
-			fc, err := testing2.NewFactoryConfigForValidateConfigTesting(t, m)
+			fc, err := receiversTesting.NewFactoryConfigForValidateConfigTesting(t, m)
 			require.NoError(t, err)
 
 			actual, err := ValidateConfig(fc)

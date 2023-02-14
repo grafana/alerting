@@ -19,7 +19,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestVictoropsNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	images := images2.NewFakeImageStore(2)
@@ -30,16 +30,20 @@ func TestVictoropsNotifier(t *testing.T) {
 	version := fmt.Sprintf("%d.0.0", rand.Uint64())
 
 	cases := []struct {
-		name         string
-		settings     string
-		alerts       []*types.Alert
-		expMsg       map[string]interface{}
-		expInitError string
-		expMsgError  error
+		name        string
+		settings    Config
+		alerts      []*types.Alert
+		expMsg      map[string]interface{}
+		expMsgError error
 	}{
 		{
-			name:     "A single alert with image",
-			settings: `{"url": "http://localhost"}`,
+			name: "A single alert with image",
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: DefaultMessageType,
+				Title:       templates.DefaultMessageTitleEmbed,
+				Description: templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -59,8 +63,13 @@ func TestVictoropsNotifier(t *testing.T) {
 			},
 			expMsgError: nil,
 		}, {
-			name:     "Multiple alerts with images",
-			settings: `{"url": "http://localhost"}`,
+			name: "Multiple alerts with images",
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: DefaultMessageType,
+				Title:       templates.DefaultMessageTitleEmbed,
+				Description: templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -85,8 +94,13 @@ func TestVictoropsNotifier(t *testing.T) {
 			},
 			expMsgError: nil,
 		}, {
-			name:     "Custom message",
-			settings: `{"url": "http://localhost", "messageType": "Alerts firing: {{ len .Alerts.Firing }}"}`,
+			name: "Custom message",
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: "Alerts firing: {{ len .Alerts.Firing }}",
+				Title:       templates.DefaultMessageTitleEmbed,
+				Description: templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -110,8 +124,13 @@ func TestVictoropsNotifier(t *testing.T) {
 			},
 			expMsgError: nil,
 		}, {
-			name:     "Custom title and description",
-			settings: `{"url": "http://localhost", "title": "Alerts firing: {{ len .Alerts.Firing }}", "description": "customDescription"}`,
+			name: "Custom title and description",
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: DefaultMessageType,
+				Title:       "Alerts firing: {{ len .Alerts.Firing }}",
+				Description: "customDescription",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -135,8 +154,13 @@ func TestVictoropsNotifier(t *testing.T) {
 			},
 			expMsgError: nil,
 		}, {
-			name:     "Missing field in template",
-			settings: `{"url": "http://localhost", "messageType": "custom template {{ .NotAField }} bad template"}`,
+			name: "Missing field in template",
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: "custom template {{ .NotAField }} bad template",
+				Title:       templates.DefaultMessageTitleEmbed,
+				Description: templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -160,8 +184,13 @@ func TestVictoropsNotifier(t *testing.T) {
 			},
 			expMsgError: nil,
 		}, {
-			name:     "Invalid template",
-			settings: `{"url": "http://localhost", "messageType": "custom template {{ {.NotAField }} bad template"}`,
+			name: "Invalid template",
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: "custom template {{ {.NotAField }} bad template",
+				Title:       templates.DefaultMessageTitleEmbed,
+				Description: templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -184,41 +213,28 @@ func TestVictoropsNotifier(t *testing.T) {
 				"state_message":       "",
 			},
 			expMsgError: nil,
-		}, {
-			name:         "Error in initing, no URL",
-			settings:     `{}`,
-			expInitError: `could not find victorops url property in settings`,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			settingsJSON := json.RawMessage(c.settings)
-
-			m := &receivers.NotificationChannelConfig{
-				Name:     "victorops_testing",
-				Type:     "victorops",
-				Settings: settingsJSON,
-			}
 
 			webhookSender := receivers.MockNotificationService()
 
-			fc := receivers.FactoryConfig{
-				Config:              m,
-				NotificationService: webhookSender,
-				ImageStore:          images,
-				Template:            tmpl,
-				Logger:              &logging.FakeLogger{},
-				GrafanaBuildVersion: version,
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
+				},
+				log:        &logging.FakeLogger{},
+				ns:         webhookSender,
+				tmpl:       tmpl,
+				settings:   c.settings,
+				images:     images,
+				appVersion: version,
 			}
-
-			pn, err := New(fc)
-			if c.expInitError != "" {
-				require.Error(t, err)
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})

@@ -18,7 +18,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestTeamsNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
@@ -26,15 +26,19 @@ func TestTeamsNotifier(t *testing.T) {
 	tmpl.ExternalURL = externalURL
 
 	cases := []struct {
-		name         string
-		settings     string
-		alerts       []*types.Alert
-		expMsg       map[string]interface{}
-		expInitError string
-		expMsgError  error
+		name        string
+		settings    Config
+		alerts      []*types.Alert
+		expMsg      map[string]interface{}
+		expMsgError error
 	}{{
-		name:     "Default config with one alert",
-		settings: `{"url": "http://localhost"}`,
+		name: "Default config with one alert",
+		settings: Config{
+			URL:          "http://localhost",
+			Message:      `{{ template "teams.default.message" .}}`,
+			Title:        templates.DefaultMessageTitleEmbed,
+			SectionTitle: "",
+		},
 		alerts: []*types.Alert{
 			{
 				Alert: model.Alert{
@@ -80,12 +84,12 @@ func TestTeamsNotifier(t *testing.T) {
 		expMsgError: nil,
 	}, {
 		name: "Custom config with multiple alerts",
-		settings: `{
-	"url": "http://localhost",
-	"title": "{{ .CommonLabels.alertname }}",
-	"sectiontitle": "Details",
-	"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved"
-}`,
+		settings: Config{
+			URL:          "http://localhost",
+			Message:      "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+			Title:        "{{ .CommonLabels.alertname }}",
+			SectionTitle: "Details",
+		},
 		alerts: []*types.Alert{
 			{
 				Alert: model.Alert{
@@ -136,12 +140,12 @@ func TestTeamsNotifier(t *testing.T) {
 		expMsgError: nil,
 	}, {
 		name: "Missing field in template",
-		settings: `{
-	"url": "http://localhost",
-	"title": "{{ .CommonLabels.alertname }}",
-	"sectiontitle": "Details",
-	"message": "I'm a custom template {{ .NotAField }} bad template"
-}`,
+		settings: Config{
+			URL:          "http://localhost",
+			Message:      "I'm a custom template {{ .NotAField }} bad template",
+			Title:        "{{ .CommonLabels.alertname }}",
+			SectionTitle: "Details",
+		},
 		alerts: []*types.Alert{
 			{
 				Alert: model.Alert{
@@ -191,12 +195,12 @@ func TestTeamsNotifier(t *testing.T) {
 		expMsgError: nil,
 	}, {
 		name: "Invalid template",
-		settings: `{
-				"url": "http://localhost",
-				"title": "{{ .CommonLabels.alertname }}",
-				"sectiontitle": "Details",
-				"message": "I'm a custom template {{ {.NotAField }} bad template"
-			}`,
+		settings: Config{
+			URL:          "http://localhost",
+			Message:      "I'm a custom template {{ {.NotAField }} bad template",
+			Title:        "{{ .CommonLabels.alertname }}",
+			SectionTitle: "Details",
+		},
 		alerts: []*types.Alert{
 			{
 				Alert: model.Alert{
@@ -244,39 +248,25 @@ func TestTeamsNotifier(t *testing.T) {
 			"type": "message",
 		},
 		expMsgError: nil,
-	}, {
-		name:         "Error in initing",
-		settings:     `{}`,
-		expInitError: `could not find url property in settings`,
 	}}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			settingsJSON := json.RawMessage(c.settings)
-
-			m := &receivers.NotificationChannelConfig{
-				Name:     "teams_testing",
-				Type:     "teams",
-				Settings: settingsJSON,
-			}
-
 			webhookSender := receivers.MockNotificationService()
 
-			fc := receivers.FactoryConfig{
-				Config:              m,
-				ImageStore:          &images.UnavailableImageStore{},
-				NotificationService: webhookSender,
-				Template:            tmpl,
-				Logger:              &logging.FakeLogger{},
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
+				},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: c.settings,
+				images:   &images.UnavailableImageStore{},
 			}
-
-			pn, err := New(fc)
-			if c.expInitError != "" {
-				require.Error(t, err)
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})

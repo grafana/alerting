@@ -22,7 +22,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestWeComNotifier(t *testing.T) {
+func TestNotify_GroupRobot(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
@@ -30,16 +30,26 @@ func TestWeComNotifier(t *testing.T) {
 	tmpl.ExternalURL = externalURL
 
 	cases := []struct {
-		name         string
-		settings     string
-		alerts       []*types.Alert
-		expMsg       map[string]interface{}
-		expInitError string
-		expMsgError  error
+		name        string
+		settings    Config
+		alerts      []*types.Alert
+		expMsg      map[string]interface{}
+		expMsgError error
 	}{
 		{
-			name:     "Default config with one alert",
-			settings: `{"url": "http://localhost"}`,
+			name: "Default config with one alert",
+			settings: Config{
+				Channel:     DefaultChannelType,
+				EndpointURL: weComEndpoint,
+				URL:         "http://localhost",
+				AgentID:     "",
+				CorpID:      "",
+				Secret:      "",
+				MsgType:     DefaultsgType,
+				Message:     templates.DefaultMessageEmbed,
+				Title:       templates.DefaultMessageTitleEmbed,
+				ToUser:      DefaultToUser,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -58,10 +68,18 @@ func TestWeComNotifier(t *testing.T) {
 		},
 		{
 			name: "Custom config with multiple alerts",
-			settings: `{
-				"url": "http://localhost",
-				"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved"
-			}`,
+			settings: Config{
+				Channel:     DefaultChannelType,
+				EndpointURL: weComEndpoint,
+				URL:         "http://localhost",
+				AgentID:     "",
+				CorpID:      "",
+				Secret:      "",
+				MsgType:     DefaultsgType,
+				Message:     "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+				Title:       templates.DefaultMessageTitleEmbed,
+				ToUser:      DefaultToUser,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -85,11 +103,18 @@ func TestWeComNotifier(t *testing.T) {
 		},
 		{
 			name: "Custom title and message with multiple alerts",
-			settings: `{
-				"url": "http://localhost",
-				"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
-				"title": "This notification is {{ .Status }}!"
-			}`,
+			settings: Config{
+				Channel:     DefaultChannelType,
+				EndpointURL: weComEndpoint,
+				URL:         "http://localhost",
+				AgentID:     "",
+				CorpID:      "",
+				Secret:      "",
+				MsgType:     DefaultsgType,
+				Message:     "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+				Title:       "This notification is {{ .Status }}!",
+				ToUser:      DefaultToUser,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -112,13 +137,19 @@ func TestWeComNotifier(t *testing.T) {
 			expMsgError: nil,
 		},
 		{
-			name:         "Error in initing",
-			settings:     `{}`,
-			expInitError: `either url or secret is required`,
-		},
-		{
-			name:     "Use default if optional fields are explicitly empty",
-			settings: `{"url": "http://localhost", "message": "", "title": ""}`,
+			name: "Use default if optional fields are explicitly empty",
+			settings: Config{
+				Channel:     DefaultChannelType,
+				EndpointURL: weComEndpoint,
+				URL:         "http://localhost",
+				AgentID:     "",
+				CorpID:      "",
+				Secret:      "",
+				MsgType:     DefaultsgType,
+				Message:     templates.DefaultMessageEmbed,
+				Title:       templates.DefaultMessageTitleEmbed,
+				ToUser:      DefaultToUser,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -136,8 +167,19 @@ func TestWeComNotifier(t *testing.T) {
 			expMsgError: nil,
 		},
 		{
-			name:     "Use text are explicitly empty",
-			settings: `{"url": "http://localhost", "message": "", "title": "", "msgtype": "text"}`,
+			name: "Use text are explicitly empty",
+			settings: Config{
+				Channel:     DefaultChannelType,
+				EndpointURL: weComEndpoint,
+				URL:         "http://localhost",
+				AgentID:     "",
+				CorpID:      "",
+				Secret:      "",
+				MsgType:     "text",
+				Message:     templates.DefaultMessageEmbed,
+				Title:       templates.DefaultMessageTitleEmbed,
+				ToUser:      DefaultToUser,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -158,33 +200,20 @@ func TestWeComNotifier(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			settingsJSON := json.RawMessage(c.settings)
-
-			m := &receivers.NotificationChannelConfig{
-				Name:     "wecom_testing",
-				Type:     "wecom",
-				Settings: settingsJSON,
-			}
-
 			webhookSender := receivers.MockNotificationService()
 
-			fc := receivers.FactoryConfig{
-				Config:              m,
-				NotificationService: webhookSender,
-				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-					return fallback
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				ImageStore: nil,
-				Template:   tmpl,
-				Logger:     &logging.FakeLogger{},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: c.settings,
 			}
-
-			pn, err := New(fc)
-			if c.expInitError != "" {
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
@@ -207,8 +236,7 @@ func TestWeComNotifier(t *testing.T) {
 	}
 }
 
-// TestWeComNotifierAPIAPP Testing API Channels
-func TestWeComNotifierAPIAPP(t *testing.T) {
+func TestNotify_ApiApp(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
@@ -217,7 +245,7 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		settings     string
+		settings     Config
 		statusCode   int
 		accessToken  string
 		alerts       []*types.Alert
@@ -226,22 +254,20 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 		expMsgError  error
 	}{
 		{
-			name:         "not AgentID",
-			settings:     `{"secret": "secret"}`,
-			accessToken:  "access_token",
-			expInitError: "could not find AgentID in settings",
-		},
-		{
-			name:         "not CorpID",
-			settings:     `{"secret": "secret", "agent_id": "agent_id"}`,
-			accessToken:  "access_token",
-			expInitError: "could not find CorpID in settings",
-		},
-		{
-			name:         "Default APIAPP config with one alert",
-			settings:     `{"secret": "secret", "agent_id": "agent_id", "corp_id": "corp_id"}`,
-			accessToken:  "access_token",
-			expInitError: "",
+			name: "Default APIAPP config with one alert",
+			settings: Config{
+				Channel:     "apiapp",
+				EndpointURL: weComEndpoint,
+				URL:         "",
+				AgentID:     "agent_id",
+				CorpID:      "corp_id",
+				Secret:      "secret",
+				MsgType:     DefaultsgType,
+				Message:     templates.DefaultMessageEmbed,
+				Title:       templates.DefaultMessageTitleEmbed,
+				ToUser:      DefaultToUser,
+			},
+			accessToken: "access_token",
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -261,10 +287,18 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 		},
 		{
 			name: "Custom message(markdown) with multiple alert",
-			settings: `{
-				"secret": "secret", "agent_id": "agent_id", "corp_id": "corp_id",
-				"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved"}
-			`,
+			settings: Config{
+				Channel:     "apiapp",
+				EndpointURL: weComEndpoint,
+				URL:         "",
+				AgentID:     "agent_id",
+				CorpID:      "corp_id",
+				Secret:      "secret",
+				MsgType:     DefaultsgType,
+				Message:     "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+				Title:       templates.DefaultMessageTitleEmbed,
+				ToUser:      DefaultToUser,
+			},
 			accessToken:  "access_token",
 			expInitError: "",
 			alerts: []*types.Alert{
@@ -293,11 +327,18 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 		},
 		{
 			name: "Custom message(Text) with multiple alert",
-			settings: `{
-				"secret": "secret", "agent_id": "agent_id", "corp_id": "corp_id",
-				"msgtype": "text",
-				"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved"}
-			`,
+			settings: Config{
+				Channel:     "apiapp",
+				EndpointURL: weComEndpoint,
+				URL:         "",
+				AgentID:     "agent_id",
+				CorpID:      "corp_id",
+				Secret:      "secret",
+				MsgType:     "text",
+				Message:     "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+				Title:       templates.DefaultMessageTitleEmbed,
+				ToUser:      DefaultToUser,
+			},
 			accessToken:  "access_token",
 			expInitError: "",
 			alerts: []*types.Alert{
@@ -344,31 +385,20 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 			}))
 			defer server.Close()
 
-			m := &receivers.NotificationChannelConfig{
-				Name:     "wecom_testing",
-				Type:     "wecom",
-				Settings: json.RawMessage(tt.settings),
-			}
-
 			webhookSender := receivers.MockNotificationService()
 
-			fc := receivers.FactoryConfig{
-				Config:              m,
-				NotificationService: webhookSender,
-				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-					return fallback
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				ImageStore: nil,
-				Template:   tmpl,
-				Logger:     &logging.FakeLogger{},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: tt.settings,
 			}
-
-			pn, err := New(fc)
-			if tt.expInitError != "" {
-				require.Equal(t, tt.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
@@ -395,7 +425,7 @@ func TestWeComNotifierAPIAPP(t *testing.T) {
 	}
 }
 
-func TestWeComNotifier_GetAccessToken(t *testing.T) {
+func TestGetAccessToken(t *testing.T) {
 	type fields struct {
 		tok         *accessToken
 		tokExpireAt time.Time
@@ -485,72 +515,6 @@ func TestWeComNotifier_GetAccessToken(t *testing.T) {
 				return
 			}
 			assert.Equalf(t, tt.want, got, "GetAccessToken()")
-		})
-	}
-}
-
-func TestWeComFactory(t *testing.T) {
-	tests := []struct {
-		name     string
-		settings string
-		wantErr  assert.ErrorAssertionFunc
-	}{
-		{
-			name:     "null",
-			settings: "{}",
-			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
-				return assert.Contains(t, err.Error(), "either url or secret is required", i...)
-			},
-		},
-		{
-			name:     "webhook url",
-			settings: `{"url": "https://example.com"}`,
-			wantErr:  assert.NoError,
-		},
-		{
-			name:     "apiapp missing AgentID",
-			settings: `{"secret": "secret"}`,
-			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
-				return assert.Contains(t, err.Error(), "could not find AgentID in settings", i...)
-			},
-		},
-		{
-			name:     "apiapp missing CorpID",
-			settings: `{"secret": "secret", "agent_id": "agent_id"}`,
-			wantErr: func(t assert.TestingT, err error, i ...interface{}) bool {
-				return assert.Contains(t, err.Error(), "could not find CorpID in settings", i...)
-			},
-		},
-		{
-			name:     "apiapp",
-			settings: `{"secret": "secret", "agent_id": "agent_id", "corp_id": "corp_id"}`,
-			wantErr:  assert.NoError,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := &receivers.NotificationChannelConfig{
-				Name:     "wecom_testing",
-				Type:     "wecom",
-				Settings: json.RawMessage(tt.settings),
-			}
-
-			webhookSender := receivers.MockNotificationService()
-
-			fc := receivers.FactoryConfig{
-				Config:              m,
-				NotificationService: webhookSender,
-				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-					return fallback
-				},
-				ImageStore: nil,
-				Logger:     &logging.FakeLogger{},
-			}
-
-			_, err := New(fc)
-			if !tt.wantErr(t, err, fmt.Sprintf("WeComFactory(%v)", fc)) {
-				return
-			}
 		})
 	}
 }

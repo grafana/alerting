@@ -3,7 +3,6 @@ package pushover
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -24,7 +23,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestPushoverNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
 	images := images2.NewFakeImageStoreWithFile(t, 2)
@@ -34,19 +33,28 @@ func TestPushoverNotifier(t *testing.T) {
 	tmpl.ExternalURL = externalURL
 
 	cases := []struct {
-		name         string
-		settings     string
-		alerts       []*types.Alert
-		expMsg       map[string]string
-		expInitError string
-		expMsgError  error
+		name        string
+		settings    Config
+		alerts      []*types.Alert
+		expMsg      map[string]string
+		expMsgError error
 	}{
 		{
 			name: "Correct config with single alert",
-			settings: `{
-				"userKey": "<userKey>",
-				"apiToken": "<apiToken>"
-			}`,
+			settings: Config{
+				UserKey:          "<userKey>",
+				APIToken:         "<apiToken>",
+				AlertingPriority: 0,
+				OkPriority:       0,
+				Retry:            0,
+				Expire:           0,
+				Device:           "",
+				AlertingSound:    "",
+				OkSound:          "",
+				Upload:           true,
+				Title:            templates.DefaultMessageTitleEmbed,
+				Message:          templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -71,11 +79,20 @@ func TestPushoverNotifier(t *testing.T) {
 		},
 		{
 			name: "Custom title",
-			settings: `{
-				"userKey": "<userKey>",
-				"apiToken": "<apiToken>",
-				"title": "Alerts firing: {{ len .Alerts.Firing }}"
-			}`,
+			settings: Config{
+				UserKey:          "<userKey>",
+				APIToken:         "<apiToken>",
+				AlertingPriority: 0,
+				OkPriority:       0,
+				Retry:            0,
+				Expire:           0,
+				Device:           "",
+				AlertingSound:    "",
+				OkSound:          "",
+				Upload:           true,
+				Title:            "Alerts firing: {{ len .Alerts.Firing }}",
+				Message:          templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -100,18 +117,20 @@ func TestPushoverNotifier(t *testing.T) {
 		},
 		{
 			name: "Custom config with multiple alerts",
-			settings: `{
-					"userKey": "<userKey>",
-					"apiToken": "<apiToken>",
-					"device": "device",
-					"priority": "2",
-					"okpriority": "0",
-					"retry": "30",
-					"expire": "86400",
-					"sound": "echo",
-					"oksound": "magic",
-					"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved"
-				}`,
+			settings: Config{
+				UserKey:          "<userKey>",
+				APIToken:         "<apiToken>",
+				AlertingPriority: 2,
+				OkPriority:       0,
+				Retry:            30,
+				Expire:           86400,
+				Device:           "device",
+				AlertingSound:    "echo",
+				OkSound:          "magic",
+				Upload:           true,
+				Title:            templates.DefaultMessageTitleEmbed,
+				Message:          "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -141,105 +160,6 @@ func TestPushoverNotifier(t *testing.T) {
 				"device":     "device",
 			},
 			expMsgError: nil,
-		},
-		{
-			name: "Integer fields as integers",
-			settings: `{
-					"userKey": "<userKey>",
-					"apiToken": "<apiToken>",
-					"device": "device",
-					"priority": 2,
-					"okpriority": 0,
-					"retry": 30,
-					"expire": 86400,
-					"sound": "echo",
-					"oksound": "magic",
-					"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved"
-				}`,
-			alerts: []*types.Alert{
-				{
-					Alert: model.Alert{
-						Labels:      model.LabelSet{"__alert_rule_uid__": "rule uid", "alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__alertImageToken__": "test-image-1"},
-					},
-				}, {
-					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
-						Annotations: model.LabelSet{"ann1": "annv2", "__alertImageToken__": "test-image-2"},
-					},
-				},
-			},
-			expMsg: map[string]string{
-				"user":       "<userKey>",
-				"token":      "<apiToken>",
-				"priority":   "2",
-				"sound":      "echo",
-				"title":      "[FIRING:2]  ",
-				"url":        "http://localhost/alerting/list",
-				"url_title":  "Show alert rule",
-				"message":    "2 alerts are firing, 0 are resolved",
-				"attachment": "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\b\x04\x00\x00\x00\xb5\x1c\f\x02\x00\x00\x00\vIDATx\xdacd`\x00\x00\x00\x06\x00\x020\x81\xd0/\x00\x00\x00\x00IEND\xaeB`\x82",
-				"html":       "1",
-				"retry":      "30",
-				"expire":     "86400",
-				"device":     "device",
-			},
-			expMsgError: nil,
-		},
-		{
-			name: "Integer fields as empty strings",
-			settings: `{
-					"userKey": "<userKey>",
-					"apiToken": "<apiToken>",
-					"device": "device",
-					"priority": "",
-					"okpriority": "",
-					"retry": "",
-					"expire": "",
-					"sound": "echo",
-					"oksound": "magic",
-					"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved"
-				}`,
-			alerts: []*types.Alert{
-				{
-					Alert: model.Alert{
-						Labels:      model.LabelSet{"__alert_rule_uid__": "rule uid", "alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__alertImageToken__": "test-image-1"},
-					},
-				}, {
-					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
-						Annotations: model.LabelSet{"ann1": "annv2", "__alertImageToken__": "test-image-2"},
-					},
-				},
-			},
-			expMsg: map[string]string{
-				"user":       "<userKey>",
-				"token":      "<apiToken>",
-				"priority":   "0",
-				"sound":      "echo",
-				"title":      "[FIRING:2]  ",
-				"url":        "http://localhost/alerting/list",
-				"url_title":  "Show alert rule",
-				"message":    "2 alerts are firing, 0 are resolved",
-				"attachment": "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\b\x04\x00\x00\x00\xb5\x1c\f\x02\x00\x00\x00\vIDATx\xdacd`\x00\x00\x00\x06\x00\x020\x81\xd0/\x00\x00\x00\x00IEND\xaeB`\x82",
-				"html":       "1",
-				"device":     "device",
-			},
-			expMsgError: nil,
-		},
-		{
-			name: "Missing user key",
-			settings: `{
-				"apiToken": "<apiToken>"
-			}`,
-			expInitError: `user key not found`,
-		}, {
-			name: "Missing api key",
-			settings: `{
-				"userKey": "<userKey>"
-			}`,
-			expInitError: `API token not found`,
 		},
 	}
 
@@ -254,34 +174,21 @@ func TestPushoverNotifier(t *testing.T) {
 		})
 
 		t.Run(c.name, func(t *testing.T) {
-			settingsJSON := json.RawMessage(c.settings)
-			secureSettings := make(map[string][]byte)
-
 			webhookSender := receivers.MockNotificationService()
 
-			fc := receivers.FactoryConfig{
-				Config: &receivers.NotificationChannelConfig{
-					Name:           "pushover_testing",
-					Type:           "pushover",
-					Settings:       settingsJSON,
-					SecureSettings: secureSettings,
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				ImageStore:          images,
-				NotificationService: webhookSender,
-				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-					return fallback
-				},
-				Template: tmpl,
-				Logger:   &logging.FakeLogger{},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: c.settings,
+				images:   images,
 			}
-
-			pn, err := New(fc)
-			if c.expInitError != "" {
-				require.Error(t, err)
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})

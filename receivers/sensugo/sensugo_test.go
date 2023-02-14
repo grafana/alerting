@@ -18,7 +18,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestSensuGoNotifier(t *testing.T) {
+func TestNotify(t *testing.T) {
 	constNow := time.Now()
 	defer mockTimeNow(constNow)()
 
@@ -31,16 +31,23 @@ func TestSensuGoNotifier(t *testing.T) {
 	images := images2.NewFakeImageStore(2)
 
 	cases := []struct {
-		name         string
-		settings     string
-		alerts       []*types.Alert
-		expMsg       map[string]interface{}
-		expInitError string
-		expMsgError  error
+		name        string
+		settings    Config
+		alerts      []*types.Alert
+		expMsg      map[string]interface{}
+		expMsgError error
 	}{
 		{
-			name:     "Default config with one alert",
-			settings: `{"url": "http://sensu-api.local:8080", "apikey": "<apikey>"}`,
+			name: "Default config with one alert",
+			settings: Config{
+				URL:       "http://sensu-api.local:8080",
+				Entity:    "",
+				Check:     "",
+				Namespace: "",
+				Handler:   "",
+				APIKey:    "<apikey>",
+				Message:   templates.DefaultMessageEmbed,
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -75,15 +82,15 @@ func TestSensuGoNotifier(t *testing.T) {
 			expMsgError: nil,
 		}, {
 			name: "Custom config with multiple alerts",
-			settings: `{
-				"url": "http://sensu-api.local:8080",
-				"entity": "grafana_instance_01",
-				"check": "grafana_rule_0",
-				"namespace": "namespace",
-				"handler": "myhandler",
-				"apikey": "<apikey>",
-				"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved"
-			}`,
+			settings: Config{
+				URL:       "http://sensu-api.local:8080",
+				Entity:    "grafana_instance_01",
+				Check:     "grafana_rule_0",
+				Namespace: "namespace",
+				Handler:   "myhandler",
+				APIKey:    "<apikey>",
+				Message:   "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+			},
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
@@ -121,53 +128,26 @@ func TestSensuGoNotifier(t *testing.T) {
 				"ruleUrl": "http://localhost/alerting/list",
 			},
 			expMsgError: nil,
-		}, {
-			name: "Error in initing: missing URL",
-			settings: `{
-				"apikey": "<apikey>"
-			}`,
-			expInitError: `could not find URL property in settings`,
-		}, {
-			name: "Error in initing: missing API key",
-			settings: `{
-				"url": "http://sensu-api.local:8080"
-			}`,
-			expInitError: `could not find the API key property in settings`,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			settingsJSON := json.RawMessage(c.settings)
-			secureSettings := make(map[string][]byte)
-
-			m := &receivers.NotificationChannelConfig{
-				Name:           "Sensu Go",
-				Type:           "sensugo",
-				Settings:       settingsJSON,
-				SecureSettings: secureSettings,
-			}
-
 			webhookSender := receivers.MockNotificationService()
 
-			fc := receivers.FactoryConfig{
-				Config:              m,
-				ImageStore:          images,
-				NotificationService: webhookSender,
-				Template:            tmpl,
-				DecryptFunc: func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-					return fallback
+			sn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
 				},
-				Logger: &logging.FakeLogger{},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: c.settings,
+				images:   images,
 			}
-
-			sn, err := New(fc)
-			if c.expInitError != "" {
-				require.Error(t, err)
-				require.Equal(t, c.expInitError, err.Error())
-				return
-			}
-			require.NoError(t, err)
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
 			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
