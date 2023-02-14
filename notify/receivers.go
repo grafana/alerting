@@ -2,6 +2,7 @@ package notify
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -163,7 +164,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 
 	for _, receiver := range c.Receivers {
 		for _, next := range receiver.Receivers {
-			n, err := am.buildReceiverIntegration(next, tmpl)
+			n, err := am.IntegrationsBuilder.buildReceiverIntegration(next, tmpl)
 			if err != nil {
 				invalid = append(invalid, result{
 					Config:       next,

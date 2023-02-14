@@ -96,11 +96,12 @@ type GrafanaAlertmanager struct {
 	stageMetrics      *notify.Metrics
 	dispatcherMetrics *dispatch.DispatcherMetrics
 
-	reloadConfigMtx              sync.RWMutex
-	configHash                   [16]byte
-	config                       []byte
-	receivers                    []*notify.Receiver
-	buildReceiverIntegrationFunc func(next *GrafanaReceiver, tmpl *Template) (Notifier, error)
+	reloadConfigMtx sync.RWMutex
+	configHash      [16]byte
+	config          []byte
+	receivers       []*notify.Receiver
+
+	IntegrationsBuilder IntegrationsBuilder
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -142,9 +143,7 @@ type Configuration interface {
 	DispatcherLimits() DispatcherLimits
 	InhibitRules() []InhibitRule
 	MuteTimeIntervals() []MuteTimeInterval
-	ReceiverIntegrations() (map[string][]*Integration, error)
-	BuildReceiverIntegrationsFunc() func(next *GrafanaReceiver, tmpl *Template) (Notifier, error)
-
+	Receivers() []*APIReceiver
 	RoutingTree() *Route
 	Templates() *Template
 
@@ -159,6 +158,8 @@ type GrafanaAlertmanagerConfig struct {
 
 	Silences MaintenanceOptions
 	Nflog    MaintenanceOptions
+
+	IntegrationsBuilder IntegrationsBuilder
 }
 
 func (c *GrafanaAlertmanagerConfig) Validate() error {
@@ -177,15 +178,16 @@ func (c *GrafanaAlertmanagerConfig) Validate() error {
 func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAlertmanagerConfig, peer ClusterPeer, logger log.Logger, m *GrafanaAlertmanagerMetrics) (*GrafanaAlertmanager, error) {
 	// TODO: Remove the context.
 	am := &GrafanaAlertmanager{
-		stopc:             make(chan struct{}),
-		logger:            log.With(logger, "component", "alertmanager", tenantKey, tenantID),
-		marker:            types.NewMarker(m.Registerer),
-		stageMetrics:      notify.NewMetrics(m.Registerer),
-		dispatcherMetrics: dispatch.NewDispatcherMetrics(false, m.Registerer),
-		peer:              peer,
-		peerTimeout:       config.PeerTimeout,
-		Metrics:           m,
-		tenantID:          tenantID,
+		stopc:               make(chan struct{}),
+		logger:              log.With(logger, "component", "alertmanager", tenantKey, tenantID),
+		marker:              types.NewMarker(m.Registerer),
+		stageMetrics:        notify.NewMetrics(m.Registerer),
+		dispatcherMetrics:   dispatch.NewDispatcherMetrics(false, m.Registerer),
+		peer:                peer,
+		peerTimeout:         config.PeerTimeout,
+		Metrics:             m,
+		tenantID:            tenantID,
+		IntegrationsBuilder: config.IntegrationsBuilder,
 	}
 
 	if err := config.Validate(); err != nil {
@@ -340,7 +342,7 @@ func (am *GrafanaAlertmanager) buildMuteTimesMap(muteTimeIntervals []config.Mute
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	// Finally, build the integrations map using the receiver configuration and templates.
-	integrationsMap, err := cfg.ReceiverIntegrations()
+	integrationsMap, err := am.IntegrationsBuilder.BuildIntegrationsMap(cfg.Receivers(), cfg.Templates())
 	if err != nil {
 		return fmt.Errorf("failed to build integration map: %w", err)
 	}
@@ -378,7 +380,6 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 		receivers = append(receivers, notify.NewReceiver(name, isActive, integrationsMap[name]))
 	}
 	am.receivers = receivers
-	am.buildReceiverIntegrationFunc = cfg.BuildReceiverIntegrationsFunc()
 
 	am.wg.Add(1)
 	go func() {
@@ -591,8 +592,4 @@ func (am *GrafanaAlertmanager) getTemplate() (*template.Template, error) {
 	}
 
 	return am.templates, nil
-}
-
-func (am *GrafanaAlertmanager) buildReceiverIntegration(next *GrafanaReceiver, tmpl *template.Template) (Notifier, error) {
-	return am.buildReceiverIntegrationFunc(next, tmpl)
 }
