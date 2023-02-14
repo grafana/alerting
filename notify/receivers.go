@@ -457,7 +457,7 @@ func ValidateAPIReceiver(ctx context.Context, api *APIReceiver, decrypt receiver
 	for _, receiver := range api.Receivers {
 		err := parseConfig(receiver)
 		if err != nil {
-			return GrafanaReceiverTyped{}, &ReceiverInitError{
+			return GrafanaReceiverTyped{}, &ReceiverValidationError{
 				Cfg: receiver,
 				Err: err,
 			}
@@ -487,12 +487,12 @@ func createReceiver[T interface{}](receiver *GrafanaReceiver) func(cfg T, err er
 	}
 }
 
-type ReceiverInitError struct {
+type ReceiverValidationError struct {
 	Err error
 	Cfg *GrafanaReceiver
 }
 
-func (e ReceiverInitError) Error() string {
+func (e ReceiverValidationError) Error() string {
 	name := ""
 	if e.Cfg.Name != "" {
 		name = fmt.Sprintf("%q ", e.Cfg.Name)
@@ -501,4 +501,4 @@ func (e ReceiverInitError) Error() string {
 	return s
 }
 
-func (e ReceiverInitError) Unwrap() error { return e.Err }
+func (e ReceiverValidationError) Unwrap() error { return e.Err }

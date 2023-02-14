@@ -60,12 +60,12 @@ func Factory(receiverType string) (func(receivers.FactoryConfig) (NotificationCh
 	return factory, exists
 }
 
-// wrap wraps the notifier's factory errors with receivers.ReceiverInitError
+// wrap wraps the notifier's factory errors with receivers.ReceiverValidationError
 func wrap[T NotificationChannel](f func(fc receivers.FactoryConfig) (T, error)) func(receivers.FactoryConfig) (NotificationChannel, error) {
 	return func(fc receivers.FactoryConfig) (NotificationChannel, error) {
 		ch, err := f(fc)
 		if err != nil {
-			return nil, ReceiverInitError{
+			return nil, ReceiverValidationError{
 				Err: err,
 				// TODO it will be removed in the next PR
 				Cfg: &GrafanaReceiver{
