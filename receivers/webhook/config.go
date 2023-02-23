@@ -26,7 +26,7 @@ type Config struct {
 	Message string
 }
 
-func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
 	rawSettings := struct {
 		URL                      string                   `json:"url,omitempty" yaml:"url,omitempty"`

@@ -23,8 +23,8 @@ type Config struct {
 	Token   string `json:"bot_token" yaml:"bot_token"`
 }
 
-// ValidateConfig is the constructor for the Webex notifier.
-func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
+// NewConfig is the constructor for the Webex notifier.
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
 	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {

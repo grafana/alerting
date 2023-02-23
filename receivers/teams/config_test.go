@@ -9,7 +9,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestValidateConfig(t *testing.T) {
+func TestNewConfig(t *testing.T) {
 	cases := []struct {
 		name              string
 		settings          string
@@ -70,7 +70,7 @@ func TestValidateConfig(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			actual, err := ValidateConfig(json.RawMessage(c.settings))
+			actual, err := NewConfig(json.RawMessage(c.settings))
 
 			if c.expectedInitError != "" {
 				require.ErrorContains(t, err, c.expectedInitError)

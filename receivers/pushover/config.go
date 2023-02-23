@@ -24,7 +24,7 @@ type Config struct {
 	Message          string
 }
 
-func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
 	rawSettings := struct {
 		UserKey          string                   `json:"userKey,omitempty" yaml:"userKey,omitempty"`

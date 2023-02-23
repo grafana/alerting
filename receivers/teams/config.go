@@ -16,7 +16,7 @@ type Config struct {
 	SectionTitle string `json:"sectiontitle,omitempty" yaml:"sectiontitle,omitempty"`
 }
 
-func ValidateConfig(jsonData json.RawMessage) (Config, error) {
+func NewConfig(jsonData json.RawMessage) (Config, error) {
 	settings := Config{}
 	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {

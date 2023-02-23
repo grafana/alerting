@@ -16,7 +16,7 @@ type Config struct {
 	Subject     string
 }
 
-func ValidateConfig(jsonData json.RawMessage) (Config, error) {
+func NewConfig(jsonData json.RawMessage) (Config, error) {
 	type emailSettingsRaw struct {
 		SingleEmail bool   `json:"singleEmail,omitempty"`
 		Addresses   string `json:"addresses,omitempty"`

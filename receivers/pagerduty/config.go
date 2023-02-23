@@ -43,7 +43,7 @@ type Config struct {
 	ClientURL     string            `json:"client_url,omitempty" yaml:"client_url,omitempty"`
 }
 
-func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
 	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {

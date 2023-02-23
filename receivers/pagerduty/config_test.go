@@ -11,7 +11,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestValidateConfig(t *testing.T) {
+func TestNewConfig(t *testing.T) {
 	hostName := "Grafana-TEST-host"
 	provideHostName := func() (string, error) {
 		return hostName, nil
@@ -213,7 +213,7 @@ func TestValidateConfig(t *testing.T) {
 				})
 			}
 
-			actual, err := ValidateConfig(json.RawMessage(c.settings), receiversTesting.DecryptForTesting(c.secureSettings))
+			actual, err := NewConfig(json.RawMessage(c.settings), receiversTesting.DecryptForTesting(c.secureSettings))
 
 			if c.expectedInitError != "" {
 				require.ErrorContains(t, err, c.expectedInitError)

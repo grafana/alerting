@@ -19,7 +19,7 @@ type Config struct {
 	Message   string `json:"message,omitempty" yaml:"message,omitempty"`
 }
 
-func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
 	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {

@@ -14,7 +14,7 @@ import (
 )
 
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(fc.Config.Settings, fc.Decrypt)
+	settings, err := NewConfig(fc.Config.Settings, fc.Decrypt)
 	if err != nil {
 		return nil, err
 	}

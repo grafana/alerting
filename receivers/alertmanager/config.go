@@ -16,7 +16,7 @@ type Config struct {
 	Password string
 }
 
-func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	var settings struct {
 		URL      receivers.CommaSeparatedStrings `json:"url,omitempty" yaml:"url,omitempty"`
 		User     string                          `json:"basicAuthUser,omitempty" yaml:"basicAuthUser,omitempty"`

@@ -38,7 +38,7 @@ type Config struct {
 	ToUser      string  `json:"touser,omitempty" yaml:"touser,omitempty"`
 }
 
-func ValidateConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	var settings = Config{
 		Channel: DefaultChannelType,
 	}

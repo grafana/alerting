@@ -25,7 +25,7 @@ type Notifier struct {
 
 // New is the constructor for the Dingding notifier
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(fc.Config.Settings)
+	settings, err := NewConfig(fc.Config.Settings)
 	if err != nil {
 		return nil, err
 	}

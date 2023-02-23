@@ -27,7 +27,7 @@ type Notifier struct {
 }
 
 func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(factoryConfig.Config.Settings, factoryConfig.Decrypt)
+	settings, err := NewConfig(factoryConfig.Config.Settings, factoryConfig.Decrypt)
 	if err != nil {
 		return nil, err
 	}
