@@ -1,7 +1,6 @@
 package sensugo
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,16 +19,16 @@ type Config struct {
 	Message   string `json:"message,omitempty" yaml:"message,omitempty"`
 }
 
-func ValidateConfig(fc receivers.FactoryConfig) (Config, error) {
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 	if settings.URL == "" {
 		return settings, errors.New("could not find URL property in settings")
 	}
-	settings.APIKey = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "apikey", settings.APIKey)
+	settings.APIKey = decryptFn("apikey", settings.APIKey)
 	if settings.APIKey == "" {
 		return settings, errors.New("could not find the API key property in settings")
 	}

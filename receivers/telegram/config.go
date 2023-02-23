@@ -1,7 +1,6 @@
 package telegram
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,13 +24,13 @@ type Config struct {
 	DisableNotifications bool   `json:"disable_notifications,omitempty" yaml:"disable_notifications,omitempty"`
 }
 
-func ValidateConfig(fc receivers.FactoryConfig) (Config, error) {
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
-	settings.BotToken = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "bottoken", settings.BotToken)
+	settings.BotToken = decryptFn("bottoken", settings.BotToken)
 	if settings.BotToken == "" {
 		return settings, errors.New("could not find Bot Token in settings")
 	}

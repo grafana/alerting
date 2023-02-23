@@ -15,6 +15,8 @@ import (
 // the given key. If the key is not present, then it returns the fallback value.
 type GetDecryptedValueFn func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string
 
+type DecryptFunc func(key string, fallback string) string
+
 type NotificationSender interface {
 	WebhookSender
 	EmailSender
@@ -40,6 +42,10 @@ type FactoryConfig struct {
 	// Used to retrieve image URLs for messages, or data for uploads.
 	Template *template.Template
 	Logger   logging.Logger
+}
+
+func (fc *FactoryConfig) Decrypt(key, fallback string) string {
+	return fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, key, fallback)
 }
 
 func NewFactoryConfig(config *NotificationChannelConfig, notificationService NotificationSender,

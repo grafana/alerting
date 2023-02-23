@@ -24,7 +24,7 @@ type Notifier struct {
 	ns         receivers.WebhookSender
 	images     images.ImageStore
 	tmpl       *template.Template
-	settings   *Config
+	settings   Config
 	appVersion string
 }
 
@@ -34,7 +34,7 @@ var (
 )
 
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(fc)
+	settings, err := NewConfig(fc.Config.Settings)
 	if err != nil {
 		return nil, err
 	}

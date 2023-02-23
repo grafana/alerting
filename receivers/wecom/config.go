@@ -1,7 +1,6 @@
 package wecom
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,12 +38,12 @@ type Config struct {
 	ToUser      string  `json:"touser,omitempty" yaml:"touser,omitempty"`
 }
 
-func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	var settings = Config{
 		Channel: DefaultChannelType,
 	}
 
-	err := json.Unmarshal(factoryConfig.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
@@ -67,8 +66,8 @@ func ValidateConfig(factoryConfig receivers.FactoryConfig) (Config, error) {
 		settings.ToUser = DefaultToUser
 	}
 
-	settings.URL = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "url", settings.URL)
-	settings.Secret = factoryConfig.DecryptFunc(context.Background(), factoryConfig.Config.SecureSettings, "secret", settings.Secret)
+	settings.URL = decryptFn("url", settings.URL)
+	settings.Secret = decryptFn("secret", settings.Secret)
 
 	if len(settings.URL) == 0 && len(settings.Secret) == 0 {
 		return settings, errors.New("either url or secret is required")

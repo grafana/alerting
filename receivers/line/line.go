@@ -26,12 +26,12 @@ type Notifier struct {
 	log      logging.Logger
 	ns       receivers.WebhookSender
 	tmpl     *template.Template
-	settings *Config
+	settings Config
 }
 
 // New is the constructor for the LINE notifier
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(fc)
+	settings, err := NewConfig(fc.Config.Settings, fc.Decrypt)
 	if err != nil {
 		return nil, err
 	}

@@ -1,7 +1,6 @@
 package pushover
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,7 +24,7 @@ type Config struct {
 	Message          string
 }
 
-func ValidateConfig(fc receivers.FactoryConfig) (Config, error) {
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
 	rawSettings := struct {
 		UserKey          string                   `json:"userKey,omitempty" yaml:"userKey,omitempty"`
@@ -42,16 +41,16 @@ func ValidateConfig(fc receivers.FactoryConfig) (Config, error) {
 		Message          string                   `json:"message,omitempty" yaml:"message,omitempty"`
 	}{}
 
-	err := json.Unmarshal(fc.Config.Settings, &rawSettings)
+	err := json.Unmarshal(jsonData, &rawSettings)
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
-	settings.UserKey = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "userKey", rawSettings.UserKey)
+	settings.UserKey = decryptFn("userKey", rawSettings.UserKey)
 	if settings.UserKey == "" {
 		return settings, errors.New("user key not found")
 	}
-	settings.APIToken = fc.DecryptFunc(context.Background(), fc.Config.SecureSettings, "apiToken", rawSettings.APIToken)
+	settings.APIToken = decryptFn("apiToken", rawSettings.APIToken)
 	if settings.APIToken == "" {
 		return settings, errors.New("API token not found")
 	}

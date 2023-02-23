@@ -235,7 +235,7 @@ type Notifier struct {
 
 // New is the constructor for Teams notifier.
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(fc)
+	settings, err := NewConfig(fc.Config.Settings)
 	if err != nil {
 		return nil, err
 	}

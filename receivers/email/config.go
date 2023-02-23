@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -17,7 +16,7 @@ type Config struct {
 	Subject     string
 }
 
-func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
+func NewConfig(jsonData json.RawMessage) (Config, error) {
 	type emailSettingsRaw struct {
 		SingleEmail bool   `json:"singleEmail,omitempty"`
 		Addresses   string `json:"addresses,omitempty"`
@@ -26,12 +25,12 @@ func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 	}
 
 	var settings emailSettingsRaw
-	err := json.Unmarshal(fc.Config.Settings, &settings)
+	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal settings: %w", err)
+		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 	if settings.Addresses == "" {
-		return nil, errors.New("could not find addresses in settings")
+		return Config{}, errors.New("could not find addresses in settings")
 	}
 	// split addresses with a few different ways
 	addresses := splitEmails(settings.Addresses)
@@ -40,7 +39,7 @@ func ValidateConfig(fc receivers.FactoryConfig) (*Config, error) {
 		settings.Subject = templates.DefaultMessageTitleEmbed
 	}
 
-	return &Config{
+	return Config{
 		SingleEmail: settings.SingleEmail,
 		Message:     settings.Message,
 		Subject:     settings.Subject,

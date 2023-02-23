@@ -41,7 +41,7 @@ type Notifier struct {
 // New creates an instance of VictoropsNotifier that
 // handles posting notifications to Victorops REST API
 func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := ValidateConfig(fc)
+	settings, err := NewConfig(fc.Config.Settings)
 	if err != nil {
 		return nil, err
 	}
