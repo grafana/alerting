@@ -343,7 +343,7 @@ type GrafanaReceiverTyped struct {
 
 // NotifierConfig represents parsed GrafanaReceiver.
 type NotifierConfig[T interface{}] struct {
-	receivers.NotifierInfo
+	receivers.Metadata
 	Settings T
 }
 

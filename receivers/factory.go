@@ -32,8 +32,8 @@ type NotificationChannelConfig struct {
 	SecureSettings        map[string][]byte `json:"secureSettings"`
 }
 
-// NotifierInfo contains metadata of the notifier. Name, UID, Type, etc
-type NotifierInfo struct {
+// Metadata contains the metadata of the notifier
+type Metadata struct {
 	UID                   string
 	Name                  string
 	Type                  string
