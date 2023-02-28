@@ -347,8 +347,8 @@ type NotifierConfig[T interface{}] struct {
 	Settings T
 }
 
-// ValidateAPIReceiver parses, decrypts and validates the APIReceiver. GrafanaReceiverTyped that contains configurations of all notifiers configurations for this receiver
-func ValidateAPIReceiver(ctx context.Context, api *APIReceiver, decrypt receivers.GetDecryptedValueFn) (GrafanaReceiverTyped, error) {
+// BuildReceiverIntegrations parses, decrypts and validates the APIReceiver. GrafanaReceiverTyped that contains configurations of all notifiers configurations for this receiver
+func BuildReceiverIntegrations(ctx context.Context, api *APIReceiver, decrypt receivers.GetDecryptedValueFn) (GrafanaReceiverTyped, error) {
 	result := GrafanaReceiverTyped{
 		Name: api.Name,
 	}
