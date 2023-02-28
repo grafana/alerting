@@ -353,12 +353,7 @@ func BuildReceiverIntegrations(ctx context.Context, api *APIReceiver, decrypt re
 		Name: api.Name,
 	}
 	for _, receiver := range api.Receivers {
-		secureSettings, err := decodeSecretsFromBase64(receiver.SecureSettings)
-		if err == nil {
-			err = parseReceiver(&result, receiver, func(key string, fallback string) string {
-				return decrypt(ctx, secureSettings, key, fallback)
-			})
-		}
+		err := parseReceiver(ctx, &result, receiver, decrypt)
 		if err != nil {
 			return GrafanaReceiverTyped{}, &ReceiverValidationError{
 				Cfg: receiver,
@@ -370,7 +365,16 @@ func BuildReceiverIntegrations(ctx context.Context, api *APIReceiver, decrypt re
 }
 
 // parseReceiver parses receivers and populates corresponding field in GrafanaReceiverTyped. Returns error if configuration cannot be parsed
-func parseReceiver(result *GrafanaReceiverTyped, receiver *GrafanaReceiver, decryptFn receivers.DecryptFunc) error {
+func parseReceiver(ctx context.Context, result *GrafanaReceiverTyped, receiver *GrafanaReceiver, decrypt receivers.GetDecryptedValueFn) error {
+	secureSettings, err := decodeSecretsFromBase64(receiver.SecureSettings)
+	if err != nil {
+		return err
+	}
+
+	decryptFn := func(key string, fallback string) string {
+		return decrypt(ctx, secureSettings, key, fallback)
+	}
+
 	switch strings.ToLower(receiver.Type) {
 	case "prometheus-alertmanager":
 		cfg, err := alertmanager.NewConfig(receiver.Settings, decryptFn)
