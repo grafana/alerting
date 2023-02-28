@@ -108,18 +108,8 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Extracts all fields",
-			settings: `{
-				"url": "http://localhost",  
-				"entity" : "test-entity",
-				"check" : "test-check",
-				"namespace" : "test-namespace",
-				"handler" : "test-handler",
-				"message" : "test-message"
-			}`,
-			secureSettings: map[string][]byte{
-				"apikey": []byte("test-api-key"),
-			},
+			name:     "Extracts all fields",
+			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				URL:       "http://localhost",
 				Entity:    "test-entity",
@@ -127,6 +117,20 @@ func TestNewConfig(t *testing.T) {
 				Namespace: "test-namespace",
 				Handler:   "test-handler",
 				APIKey:    "test-api-key",
+				Message:   "test-message",
+			},
+		},
+		{
+			name:           "Extracts all fields + override from encrypted",
+			settings:       FullValidConfigForTesting,
+			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			expectedConfig: Config{
+				URL:       "http://localhost",
+				Entity:    "test-entity",
+				Check:     "test-check",
+				Namespace: "test-namespace",
+				Handler:   "test-handler",
+				APIKey:    "test-secret-api-key",
 				Message:   "test-message",
 			},
 		},

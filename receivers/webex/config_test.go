@@ -54,13 +54,8 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Extracts all fields",
-			settings: `{
-				"message" :"test-message",  
-				"room_id" :"test-room-id",
-				"api_url" :"http://localhost",
-				"bot_token" :"12345"
-			}`,
+			name:     "Extracts all fields",
+			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				Message: "test-message",
 				RoomID:  "test-room-id",
@@ -92,6 +87,17 @@ func TestNewConfig(t *testing.T) {
 				RoomID:  "",
 				APIURL:  DefaultAPIURL,
 				Token:   "test-token",
+			},
+		},
+		{
+			name:           "Extracts all fields + override from secrets",
+			settings:       FullValidConfigForTesting,
+			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			expectedConfig: Config{
+				Message: "test-message",
+				RoomID:  "test-room-id",
+				APIURL:  "http://localhost",
+				Token:   "12345-secret",
 			},
 		},
 	}

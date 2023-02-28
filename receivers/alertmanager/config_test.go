@@ -93,15 +93,9 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "User and password from secrets",
-			settings: `{
-				"url": "https://alertmanager-01.com",
-				"basicAuthUser": "grafana",
-				"basicAuthPassword": "admin"
-			}`,
-			secrets: map[string][]byte{
-				"basicAuthPassword": []byte("grafana-admin"),
-			},
+			name:     "User and password from secrets",
+			settings: FullValidConfigForTesting,
+			secrets:  receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
 				URLs: []*url.URL{
 					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),

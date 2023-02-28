@@ -170,20 +170,25 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Extracts all fields",
-			secureSettings: map[string][]byte{
-				"apiKey": []byte("test-api-key"),
-			},
-			settings: `{
-				"apiUrl" : "http://localhost", 
-				"message" : "test-message", 
-				"description": "test-description", 
-				"autoClose": false, 
-				"overridePriority": false, 
-				"sendTagsAs": "both"
-			}`,
+			name:           "Extracts all fields",
+			secureSettings: map[string][]byte{},
+			settings:       FullValidConfigForTesting,
 			expectedConfig: Config{
 				APIKey:           "test-api-key",
+				APIUrl:           "http://localhost",
+				Message:          "test-message",
+				Description:      "test-description",
+				AutoClose:        false,
+				OverridePriority: false,
+				SendTagsAs:       "both",
+			},
+		},
+		{
+			name:           "Extracts all fields + override from secrets",
+			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			settings:       FullValidConfigForTesting,
+			expectedConfig: Config{
+				APIKey:           "test-secret-api-key",
 				APIUrl:           "http://localhost",
 				Message:          "test-message",
 				Description:      "test-description",

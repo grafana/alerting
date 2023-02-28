@@ -51,7 +51,7 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name:     "Extracts all fields",
-			settings: `{"url": "http://localhost", "title": "test-title", "message": "test-message", "avatar_url" : "http://avatar", "use_discord_username": true}`,
+			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				Title:   "test-title",
 				Message: "test-message",

@@ -72,7 +72,7 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name:     "Extracts all fields",
-			settings: `{"addresses": "test@grafana.com", "subject": "test-subject", "message": "test-message", "singleEmail": true}`,
+			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				SingleEmail: true,
 				Addresses: []string{

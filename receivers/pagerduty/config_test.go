@@ -124,23 +124,27 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "All empty fields = minimal valid configuration",
-			secureSettings: map[string][]byte{
-				"integrationKey": []byte("test-api-key"),
-			},
-			settings: `{
-				"integrationKey": "", 
-				"severity" : "test-severity", 
-				"class" : "test-class", 
-				"component": "test-component", 
-				"group": "test-group", 
-				"summary": "test-summary", 
-				"source": "test-source",
-				"client" : "test-client",
-				"client_url": "test-client-url"
-			}`,
+			name:     "Extract all fields",
+			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				Key:           "test-api-key",
+				Severity:      "test-severity",
+				CustomDetails: defaultCustomDetails(),
+				Class:         "test-class",
+				Component:     "test-component",
+				Group:         "test-group",
+				Summary:       "test-summary",
+				Source:        "test-source",
+				Client:        "test-client",
+				ClientURL:     "test-client-url",
+			},
+		},
+		{
+			name:           "Extract all fields + override from secrets",
+			settings:       FullValidConfigForTesting,
+			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			expectedConfig: Config{
+				Key:           "test-secret-api-key",
 				Severity:      "test-severity",
 				CustomDetails: defaultCustomDetails(),
 				Class:         "test-class",

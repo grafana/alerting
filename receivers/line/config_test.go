@@ -80,12 +80,22 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name:           "Extracts all fields",
-			settings:       `{"token": "test", "title": "test-title", "description": "test-description" }`,
+			settings:       FullValidConfigForTesting,
 			secureSettings: map[string][]byte{},
 			expectedConfig: Config{
 				Title:       "test-title",
 				Description: "test-description",
 				Token:       "test",
+			},
+		},
+		{
+			name:           "Extracts all fields + override from secrets",
+			settings:       FullValidConfigForTesting,
+			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			expectedConfig: Config{
+				Title:       "test-title",
+				Description: "test-description",
+				Token:       "test-secret-token",
 			},
 		},
 	}

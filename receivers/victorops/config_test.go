@@ -52,13 +52,8 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Extracts all fields",
-			settings: `{
-				"url" : "http://localhost",
-				"messageType" :"test-messagetype",
-				"title" :"test-title",
-				"description" :"test-description"
-			}`,
+			name:     "Extracts all fields",
+			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				URL:         "http://localhost",
 				MessageType: "test-messagetype",

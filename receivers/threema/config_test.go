@@ -147,18 +147,24 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Extracts all fields",
-			settings: `{
-				"gateway_id": "*1234567",
-				"recipient_id": "*1234567",
-				"api_secret": "test-secret",
-				"title" : "test-title",
-				"description": "test-description"
-			}`,
+			name:     "Extracts all fields",
+			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				GatewayID:   "*1234567",
 				RecipientID: "*1234567",
 				APISecret:   "test-secret",
+				Title:       "test-title",
+				Description: "test-description",
+			},
+		},
+		{
+			name:           "Extracts all fields + override from secrets",
+			settings:       FullValidConfigForTesting,
+			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			expectedConfig: Config{
+				GatewayID:   "*1234567",
+				RecipientID: "*1234567",
+				APISecret:   "test-secret-secret",
 				Title:       "test-title",
 				Description: "test-description",
 			},

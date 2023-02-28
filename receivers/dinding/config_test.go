@@ -53,13 +53,8 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Custom config with multiple alerts",
-			settings: `{
-				"url": "http://localhost",
-				"message": "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
-                "title": "Alerts firing: {{ len .Alerts.Firing }}",
-				"msgType": "actionCard"
-			}`,
+			name:     "All supported fields",
+			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				URL:         "http://localhost",
 				MessageType: "actionCard",
