@@ -353,7 +353,7 @@ func BuildReceiverIntegrations(ctx context.Context, api *APIReceiver, decrypt re
 		Name: api.Name,
 	}
 	for _, receiver := range api.Receivers {
-		err := parseReceiver(ctx, &result, receiver, decrypt)
+		err := parseNotifier(ctx, &result, receiver, decrypt)
 		if err != nil {
 			return GrafanaReceiverTyped{}, &ReceiverValidationError{
 				Cfg: receiver,
@@ -364,8 +364,8 @@ func BuildReceiverIntegrations(ctx context.Context, api *APIReceiver, decrypt re
 	return result, nil
 }
 
-// parseReceiver parses receivers and populates corresponding field in GrafanaReceiverTyped. Returns error if configuration cannot be parsed
-func parseReceiver(ctx context.Context, result *GrafanaReceiverTyped, receiver *GrafanaReceiver, decrypt receivers.GetDecryptedValueFn) error {
+// parseNotifier parses receivers and populates corresponding field in GrafanaReceiverTyped. Returns error if configuration cannot be parsed
+func parseNotifier(ctx context.Context, result *GrafanaReceiverTyped, receiver *GrafanaReceiver, decrypt receivers.GetDecryptedValueFn) error {
 	secureSettings, err := decodeSecretsFromBase64(receiver.SecureSettings)
 	if err != nil {
 		return err
