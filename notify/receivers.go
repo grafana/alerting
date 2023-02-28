@@ -493,7 +493,6 @@ func parseReceiver(result *GrafanaReceiverTyped, receiver *GrafanaReceiver, decr
 }
 
 func decodeSecretsFromBase64(secrets map[string]string) (map[string][]byte, error) {
-	// secure settings are already encrypted at this point
 	secureSettings := make(map[string][]byte, len(secrets))
 	if secrets == nil {
 		return secureSettings, nil
