@@ -317,8 +317,8 @@ func ProcessNotifierError(config *GrafanaReceiver, err error) error {
 	return err
 }
 
-// GrafanaReceiverTyped represents a parsed and validated APIReceiver
-type GrafanaReceiverTyped struct {
+// GrafanaReceiverConfig represents a parsed and validated APIReceiver
+type GrafanaReceiverConfig struct {
 	Name                string
 	AlertmanagerConfigs []*NotifierConfig[alertmanager.Config]
 	DingdingConfigs     []*NotifierConfig[dinding.Config]
@@ -347,15 +347,15 @@ type NotifierConfig[T interface{}] struct {
 	Settings T
 }
 
-// BuildReceiverIntegrations parses, decrypts and validates the APIReceiver. GrafanaReceiverTyped that contains configurations of all notifiers configurations for this receiver
-func BuildReceiverIntegrations(ctx context.Context, api *APIReceiver, decrypt receivers.GetDecryptedValueFn) (GrafanaReceiverTyped, error) {
-	result := GrafanaReceiverTyped{
+// BuildReceiverConfiguration parses, decrypts and validates the APIReceiver. GrafanaReceiverConfig that contains configurations of all notifiers configurations for this receiver
+func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt receivers.GetDecryptedValueFn) (GrafanaReceiverConfig, error) {
+	result := GrafanaReceiverConfig{
 		Name: api.Name,
 	}
 	for _, receiver := range api.Receivers {
 		err := parseNotifier(ctx, &result, receiver, decrypt)
 		if err != nil {
-			return GrafanaReceiverTyped{}, &ReceiverValidationError{
+			return GrafanaReceiverConfig{}, &ReceiverValidationError{
 				Cfg: receiver,
 				Err: fmt.Errorf("failed to parse notifier %s (UID: %s): %w", receiver.Name, receiver.UID, err),
 			}
@@ -364,8 +364,8 @@ func BuildReceiverIntegrations(ctx context.Context, api *APIReceiver, decrypt re
 	return result, nil
 }
 
-// parseNotifier parses receivers and populates corresponding field in GrafanaReceiverTyped. Returns error if configuration cannot be parsed
-func parseNotifier(ctx context.Context, result *GrafanaReceiverTyped, receiver *GrafanaReceiver, decrypt receivers.GetDecryptedValueFn) error {
+// parseNotifier parses receivers and populates corresponding field in GrafanaReceiverConfig. Returns error if configuration cannot be parsed
+func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *GrafanaReceiver, decrypt receivers.GetDecryptedValueFn) error {
 	secureSettings, err := decodeSecretsFromBase64(receiver.SecureSettings)
 	if err != nil {
 		return err
