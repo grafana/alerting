@@ -377,6 +377,9 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 
 		receivers = append(receivers, notify.NewReceiver(name, isActive, integrationsMap[name]))
 	}
+
+	am.setReceiverMetrics(receivers, len(activeReceivers))
+
 	am.receivers = receivers
 	am.buildReceiverIntegrationFunc = cfg.BuildReceiverIntegrationsFunc()
 
@@ -397,6 +400,22 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	am.templates = cfg.Templates()
 
 	return nil
+}
+
+func (am *GrafanaAlertmanager) setReceiverMetrics(receivers []*notify.Receiver, countActiveReceivers int) {
+	am.Metrics.configuredReceivers.WithLabelValues(am.tenantString(), ActiveStateLabelValue).Set(float64(countActiveReceivers))
+	am.Metrics.configuredReceivers.WithLabelValues(am.tenantString(), InactiveStateLabelValue).Set(float64(len(receivers) - countActiveReceivers))
+
+	integrationsByType := make(map[string]int, len(receivers))
+	for _, r := range receivers {
+		for _, i := range r.Integrations() {
+			integrationsByType[i.Name()]++
+		}
+	}
+
+	for t, count := range integrationsByType {
+		am.Metrics.configuredIntegrations.WithLabelValues(am.tenantString(), t).Set(float64(count))
+	}
 }
 
 // PutAlerts receives the alerts and then sends them through the corresponding route based on whenever the alert has a receiver embedded or not
@@ -591,6 +610,10 @@ func (am *GrafanaAlertmanager) getTemplate() (*template.Template, error) {
 	}
 
 	return am.templates, nil
+}
+
+func (am *GrafanaAlertmanager) tenantString() string {
+	return fmt.Sprintf("%d", am.tenantID)
 }
 
 func (am *GrafanaAlertmanager) buildReceiverIntegration(next *GrafanaReceiver, tmpl *template.Template) (Notifier, error) {

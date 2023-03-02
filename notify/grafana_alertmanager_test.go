@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"sort"
@@ -11,15 +12,18 @@ import (
 	"github.com/go-openapi/strfmt"
 	"github.com/prometheus/alertmanager/api/v2/models"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
+	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/provider/mem"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 )
 
-func setupAMTest(t *testing.T) *GrafanaAlertmanager {
-	m := NewGrafanaAlertmanagerMetrics(prometheus.NewPedanticRegistry())
+func setupAMTest(t *testing.T) (*GrafanaAlertmanager, *prometheus.Registry) {
+	reg := prometheus.NewPedanticRegistry()
+	m := NewGrafanaAlertmanagerMetrics(reg)
 
 	grafanaConfig := &GrafanaAlertmanagerConfig{
 		Silences: newFakeMaintanenceOptions(t),
@@ -28,11 +32,11 @@ func setupAMTest(t *testing.T) *GrafanaAlertmanager {
 
 	am, err := NewGrafanaAlertmanager("org", 1, grafanaConfig, &NilPeer{}, log.NewNopLogger(), m)
 	require.NoError(t, err)
-	return am
+	return am, reg
 }
 
 func TestPutAlert(t *testing.T) {
-	am := setupAMTest(t)
+	am, _ := setupAMTest(t)
 
 	startTime := time.Now()
 	endTime := startTime.Add(2 * time.Hour)
@@ -309,12 +313,42 @@ func TestPutAlert(t *testing.T) {
 	}
 }
 
+func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
+	fn := &fakeNotifier{}
+	integrations := []*notify.Integration{
+		notify.NewIntegration(fn, fn, "grafana-oncall", 0),
+		notify.NewIntegration(fn, fn, "sns", 1),
+	}
+
+	am, reg := setupAMTest(t)
+
+	receivers := []*notify.Receiver{
+		notify.NewReceiver("ActiveNoIntegrations", true, nil),
+		notify.NewReceiver("InactiveNoIntegrations", false, nil),
+		notify.NewReceiver("ActiveMultipleIntegrations", true, integrations),
+		notify.NewReceiver("InactiveMultipleIntegrations", false, integrations),
+	}
+
+	am.setReceiverMetrics(receivers, 2)
+
+	require.NoError(t, testutil.GatherAndCompare(reg, bytes.NewBufferString(`
+        	            	# HELP grafana_alerting_alertmanager_integrations Number of configured receivers.
+        	            	# TYPE grafana_alerting_alertmanager_integrations gauge
+        	            	grafana_alerting_alertmanager_integrations{org="1",type="grafana-oncall"} 2
+        	            	grafana_alerting_alertmanager_integrations{org="1",type="sns"} 2
+        	            	# HELP grafana_alerting_alertmanager_receivers Number of configured receivers by state. It is considered active if used within a route.
+        	            	# TYPE grafana_alerting_alertmanager_receivers gauge
+        	            	grafana_alerting_alertmanager_receivers{org="1",state="active"} 2
+        	            	grafana_alerting_alertmanager_receivers{org="1",state="inactive"} 2
+`), "grafana_alerting_alertmanager_receivers", "grafana_alerting_alertmanager_integrations"))
+}
+
 // Tests cleanup of expired Silences. We rely on prometheus/alertmanager for
 // our alert silencing functionality, so we rely on its tests. However, we
 // implement a custom maintenance function for silences, because we snapshot
 // our data differently, so we test that functionality.
 func TestSilenceCleanup(t *testing.T) {
-	am := setupAMTest(t)
+	am, _ := setupAMTest(t)
 	now := time.Now()
 	dt := func(t time.Time) strfmt.DateTime { return strfmt.DateTime(t) }
 
@@ -367,46 +401,4 @@ func TestSilenceCleanup(t *testing.T) {
 		require.NoError(t, err)
 		return len(found) == 2
 	}, 6*time.Second, 150*time.Millisecond)
-}
-
-type FakeConfig struct {
-}
-
-func (f *FakeConfig) DispatcherLimits() DispatcherLimits {
-	panic("implement me")
-}
-
-func (f *FakeConfig) InhibitRules() []*InhibitRule {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (f *FakeConfig) MuteTimeIntervals() []MuteTimeInterval {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (f *FakeConfig) ReceiverIntegrations() (map[string][]Integration, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (f *FakeConfig) RoutingTree() *Route {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (f *FakeConfig) Templates() *Template {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (f *FakeConfig) Hash() [16]byte {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (f *FakeConfig) Raw() []byte {
-	// TODO implement me
-	panic("implement me")
 }
