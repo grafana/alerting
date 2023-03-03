@@ -70,18 +70,8 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Extracts all fields",
-			settings: `{
-				"url": "http://localhost",
-				"httpMethod": "test-httpMethod",
-				"maxAlerts": "2",
-				"authorization_scheme": "basic",
-				"authorization_credentials": "",
-				"username": "test-user",
-				"password": "test-pass",
-				"title": "test-title",
-				"message": "test-message"		
-			}`,
+			name:     "Extracts all fields",
+			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				URL:                      "http://localhost",
 				HTTPMethod:               "test-httpMethod",
@@ -90,6 +80,22 @@ func TestNewConfig(t *testing.T) {
 				AuthorizationCredentials: "",
 				User:                     "test-user",
 				Password:                 "test-pass",
+				Title:                    "test-title",
+				Message:                  "test-message",
+			},
+		},
+		{
+			name:           "Extracts all fields + override from secrets",
+			settings:       FullValidConfigForTesting,
+			secretSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			expectedConfig: Config{
+				URL:                      "http://localhost",
+				HTTPMethod:               "test-httpMethod",
+				MaxAlerts:                2,
+				AuthorizationScheme:      "basic",
+				AuthorizationCredentials: "",
+				User:                     "test-secret-user",
+				Password:                 "test-secret-pass",
 				Title:                    "test-title",
 				Message:                  "test-message",
 			},

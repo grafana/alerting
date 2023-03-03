@@ -251,6 +251,43 @@ func TestNewConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "Extract all fields",
+			settings: FullValidConfigForTesting,
+			expectedConfig: Config{
+				EndpointURL:    "http://localhost/endpoint_url",
+				URL:            "http://localhost/url",
+				Token:          "test-token",
+				Recipient:      "test-recipient",
+				Text:           "test-text",
+				Title:          "test-title",
+				Username:       "test-username",
+				IconEmoji:      "test-icon",
+				IconURL:        "http://localhost/icon_url",
+				MentionChannel: "channel",
+				MentionUsers:   []string{"test-mentionUsers"},
+				MentionGroups:  []string{"test-mentionGroups"},
+			},
+		},
+		{
+			name:           "Extract all fields + override from secrets",
+			settings:       FullValidConfigForTesting,
+			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			expectedConfig: Config{
+				EndpointURL:    "http://localhost/endpoint_url",
+				URL:            "http://localhost/url-secret",
+				Token:          "test-secret-token",
+				Recipient:      "test-recipient",
+				Text:           "test-text",
+				Title:          "test-title",
+				Username:       "test-username",
+				IconEmoji:      "test-icon",
+				IconURL:        "http://localhost/icon_url",
+				MentionChannel: "channel",
+				MentionUsers:   []string{"test-mentionUsers"},
+				MentionGroups:  []string{"test-mentionGroups"},
+			},
+		},
 	}
 
 	for _, c := range cases {

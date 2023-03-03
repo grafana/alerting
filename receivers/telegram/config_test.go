@@ -98,16 +98,22 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Extracts all fields",
-			settings: `{
-				"bottoken" :"test-token",
-				"chatid" :"12345678",
-				"message" :"test-message",
-				"parse_mode" :"html",
-				"disable_notifications" :true
-			}`,
+			name:     "Extracts all fields",
+			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				BotToken:             "test-token",
+				ChatID:               "12345678",
+				Message:              "test-message",
+				ParseMode:            "HTML",
+				DisableNotifications: true,
+			},
+		},
+		{
+			name:           "Extracts all fields + override from secrets",
+			settings:       FullValidConfigForTesting,
+			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			expectedConfig: Config{
+				BotToken:             "test-secret-token",
 				ChatID:               "12345678",
 				Message:              "test-message",
 				ParseMode:            "HTML",

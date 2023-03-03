@@ -2,10 +2,13 @@ package notify
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/prometheus/alertmanager/config"
@@ -13,6 +16,27 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/grafana/alerting/receivers"
+	"github.com/grafana/alerting/receivers/alertmanager"
+	"github.com/grafana/alerting/receivers/dinding"
+	"github.com/grafana/alerting/receivers/discord"
+	"github.com/grafana/alerting/receivers/email"
+	"github.com/grafana/alerting/receivers/googlechat"
+	"github.com/grafana/alerting/receivers/kafka"
+	"github.com/grafana/alerting/receivers/line"
+	"github.com/grafana/alerting/receivers/opsgenie"
+	"github.com/grafana/alerting/receivers/pagerduty"
+	"github.com/grafana/alerting/receivers/pushover"
+	"github.com/grafana/alerting/receivers/sensugo"
+	"github.com/grafana/alerting/receivers/slack"
+	"github.com/grafana/alerting/receivers/teams"
+	"github.com/grafana/alerting/receivers/telegram"
+	"github.com/grafana/alerting/receivers/threema"
+	"github.com/grafana/alerting/receivers/victorops"
+	"github.com/grafana/alerting/receivers/webex"
+	"github.com/grafana/alerting/receivers/webhook"
+	"github.com/grafana/alerting/receivers/wecom"
 )
 
 const (
@@ -47,12 +71,12 @@ type InvalidReceiverError struct {
 }
 
 type GrafanaReceiver struct {
-	UID                   string                 `json:"uid"`
-	Name                  string                 `json:"name"`
-	Type                  string                 `json:"type"`
-	DisableResolveMessage bool                   `json:"disableResolveMessage"`
-	Settings              map[string]interface{} `json:"settings"`
-	SecureSettings        map[string]string      `json:"secureSettings"`
+	UID                   string            `json:"uid"`
+	Name                  string            `json:"name"`
+	Type                  string            `json:"type"`
+	DisableResolveMessage bool              `json:"disableResolveMessage"`
+	Settings              json.RawMessage   `json:"settings"`
+	SecureSettings        map[string]string `json:"secureSettings"`
 }
 
 type ConfigReceiver = config.Receiver
@@ -292,3 +316,225 @@ func ProcessNotifierError(config *GrafanaReceiver, err error) error {
 
 	return err
 }
+
+// GrafanaReceiverConfig represents a parsed and validated APIReceiver
+type GrafanaReceiverConfig struct {
+	Name                string
+	AlertmanagerConfigs []*NotifierConfig[alertmanager.Config]
+	DingdingConfigs     []*NotifierConfig[dinding.Config]
+	DiscordConfigs      []*NotifierConfig[discord.Config]
+	EmailConfigs        []*NotifierConfig[email.Config]
+	GooglechatConfigs   []*NotifierConfig[googlechat.Config]
+	KafkaConfigs        []*NotifierConfig[kafka.Config]
+	LineConfigs         []*NotifierConfig[line.Config]
+	OpsgenieConfigs     []*NotifierConfig[opsgenie.Config]
+	PagerdutyConfigs    []*NotifierConfig[pagerduty.Config]
+	PushoverConfigs     []*NotifierConfig[pushover.Config]
+	SensugoConfigs      []*NotifierConfig[sensugo.Config]
+	SlackConfigs        []*NotifierConfig[slack.Config]
+	TeamsConfigs        []*NotifierConfig[teams.Config]
+	TelegramConfigs     []*NotifierConfig[telegram.Config]
+	ThreemaConfigs      []*NotifierConfig[threema.Config]
+	VictoropsConfigs    []*NotifierConfig[victorops.Config]
+	WebhookConfigs      []*NotifierConfig[webhook.Config]
+	WecomConfigs        []*NotifierConfig[wecom.Config]
+	WebexConfigs        []*NotifierConfig[webex.Config]
+}
+
+// NotifierConfig represents parsed GrafanaReceiver.
+type NotifierConfig[T interface{}] struct {
+	receivers.Metadata
+	Settings T
+}
+
+// BuildReceiverConfiguration parses, decrypts and validates the APIReceiver.
+func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt receivers.GetDecryptedValueFn) (GrafanaReceiverConfig, error) {
+	result := GrafanaReceiverConfig{
+		Name: api.Name,
+	}
+	for _, receiver := range api.Receivers {
+		err := parseNotifier(ctx, &result, receiver, decrypt)
+		if err != nil {
+			return GrafanaReceiverConfig{}, &ReceiverValidationError{
+				Cfg: receiver,
+				Err: fmt.Errorf("failed to parse notifier %s (UID: %s): %w", receiver.Name, receiver.UID, err),
+			}
+		}
+	}
+	return result, nil
+}
+
+// parseNotifier parses receivers and populates the corresponding field in GrafanaReceiverConfig. Returns an error if the configuration cannot be parsed.
+func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *GrafanaReceiver, decrypt receivers.GetDecryptedValueFn) error {
+	secureSettings, err := decodeSecretsFromBase64(receiver.SecureSettings)
+	if err != nil {
+		return err
+	}
+
+	decryptFn := func(key string, fallback string) string {
+		return decrypt(ctx, secureSettings, key, fallback)
+	}
+
+	switch strings.ToLower(receiver.Type) {
+	case "prometheus-alertmanager":
+		cfg, err := alertmanager.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.AlertmanagerConfigs = append(result.AlertmanagerConfigs, newNotifierConfig(receiver, cfg))
+	case "dingding":
+		cfg, err := dinding.NewConfig(receiver.Settings)
+		if err != nil {
+			return err
+		}
+		result.DingdingConfigs = append(result.DingdingConfigs, newNotifierConfig(receiver, cfg))
+	case "discord":
+		cfg, err := discord.NewConfig(receiver.Settings)
+		if err != nil {
+			return err
+		}
+		result.DiscordConfigs = append(result.DiscordConfigs, newNotifierConfig(receiver, cfg))
+	case "email":
+		cfg, err := email.NewConfig(receiver.Settings)
+		if err != nil {
+			return err
+		}
+		result.EmailConfigs = append(result.EmailConfigs, newNotifierConfig(receiver, cfg))
+	case "googlechat":
+		cfg, err := googlechat.NewConfig(receiver.Settings)
+		if err != nil {
+			return err
+		}
+		result.GooglechatConfigs = append(result.GooglechatConfigs, newNotifierConfig(receiver, cfg))
+	case "kafka":
+		cfg, err := kafka.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.KafkaConfigs = append(result.KafkaConfigs, newNotifierConfig(receiver, cfg))
+	case "line":
+		cfg, err := line.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.LineConfigs = append(result.LineConfigs, newNotifierConfig(receiver, cfg))
+	case "opsgenie":
+		cfg, err := opsgenie.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.OpsgenieConfigs = append(result.OpsgenieConfigs, newNotifierConfig(receiver, cfg))
+	case "pagerduty":
+		cfg, err := pagerduty.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.PagerdutyConfigs = append(result.PagerdutyConfigs, newNotifierConfig(receiver, cfg))
+	case "pushover":
+		cfg, err := pushover.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.PushoverConfigs = append(result.PushoverConfigs, newNotifierConfig(receiver, cfg))
+	case "sensugo":
+		cfg, err := sensugo.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.SensugoConfigs = append(result.SensugoConfigs, newNotifierConfig(receiver, cfg))
+	case "slack":
+		cfg, err := slack.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.SlackConfigs = append(result.SlackConfigs, newNotifierConfig(receiver, cfg))
+	case "teams":
+		cfg, err := teams.NewConfig(receiver.Settings)
+		if err != nil {
+			return err
+		}
+		result.TeamsConfigs = append(result.TeamsConfigs, newNotifierConfig(receiver, cfg))
+	case "telegram":
+		cfg, err := telegram.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.TelegramConfigs = append(result.TelegramConfigs, newNotifierConfig(receiver, cfg))
+	case "threema":
+		cfg, err := threema.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.ThreemaConfigs = append(result.ThreemaConfigs, newNotifierConfig(receiver, cfg))
+	case "victorops":
+		cfg, err := victorops.NewConfig(receiver.Settings)
+		if err != nil {
+			return err
+		}
+		result.VictoropsConfigs = append(result.VictoropsConfigs, newNotifierConfig(receiver, cfg))
+	case "webhook":
+		cfg, err := webhook.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.WebhookConfigs = append(result.WebhookConfigs, newNotifierConfig(receiver, cfg))
+	case "wecom":
+		cfg, err := wecom.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.WecomConfigs = append(result.WecomConfigs, newNotifierConfig(receiver, cfg))
+	case "webex":
+		cfg, err := webex.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.WebexConfigs = append(result.WebexConfigs, newNotifierConfig(receiver, cfg))
+	default:
+		return fmt.Errorf("notifier %s is not supported", receiver.Type)
+	}
+	return nil
+}
+
+func decodeSecretsFromBase64(secrets map[string]string) (map[string][]byte, error) {
+	secureSettings := make(map[string][]byte, len(secrets))
+	if secrets == nil {
+		return secureSettings, nil
+	}
+	for k, v := range secrets {
+		d, err := base64.StdEncoding.DecodeString(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode secure settings key %s: %w", k, err)
+		}
+		secureSettings[k] = d
+	}
+	return secureSettings, nil
+}
+
+func newNotifierConfig[T interface{}](receiver *GrafanaReceiver, settings T) *NotifierConfig[T] {
+	return &NotifierConfig[T]{
+		Metadata: receivers.Metadata{
+			UID:                   receiver.UID,
+			Name:                  receiver.Name,
+			Type:                  receiver.Type,
+			DisableResolveMessage: receiver.DisableResolveMessage,
+		},
+		Settings: settings,
+	}
+}
+
+type ReceiverValidationError struct {
+	Err error
+	Cfg *GrafanaReceiver
+}
+
+func (e ReceiverValidationError) Error() string {
+	name := ""
+	if e.Cfg.Name != "" {
+		name = fmt.Sprintf("%q ", e.Cfg.Name)
+	}
+	s := fmt.Sprintf("failed to validate receiver %sof type %q: %s", name, e.Cfg.Type, e.Err.Error())
+	return s
+}
+
+func (e ReceiverValidationError) Unwrap() error { return e.Err }

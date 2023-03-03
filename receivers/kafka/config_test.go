@@ -107,17 +107,8 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Extracts all fields",
-			settings: `{
-				"kafkaRestProxy": "http://localhost/", 
-				"kafkaTopic" : "test-topic", 
-				"description" : "test-description", 
-				"details": "test-details", 
-				"username": "test-user", 
-				"password": "password", 
-				"apiVersion": "v2", 
-				"kafkaClusterId": "12345"
-			}`,
+			name:     "Extracts all fields",
+			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				Endpoint:       "http://localhost",
 				Topic:          "test-topic",
@@ -130,24 +121,18 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Should override password from secrets",
-			settings: `{
-				"kafkaRestProxy": "http://localhost/", 
-				"kafkaTopic" : "test-topic", 
-				"password": "password" 
-			}`,
-			secureSettings: map[string][]byte{
-				"password": []byte("test-password"),
-			},
+			name:           "Should override password from secrets",
+			settings:       FullValidConfigForTesting,
+			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
 				Endpoint:       "http://localhost",
 				Topic:          "test-topic",
-				Description:    templates.DefaultMessageTitleEmbed,
-				Details:        templates.DefaultMessageEmbed,
-				Username:       "",
+				Description:    "test-description",
+				Details:        "test-details",
+				Username:       "test-user",
 				Password:       "test-password",
-				APIVersion:     apiVersionV2,
-				KafkaClusterID: "",
+				APIVersion:     "v2",
+				KafkaClusterID: "12345",
 			},
 		},
 		{
