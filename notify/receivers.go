@@ -347,7 +347,7 @@ type NotifierConfig[T interface{}] struct {
 	Settings T
 }
 
-// BuildReceiverConfiguration parses, decrypts and validates the APIReceiver. GrafanaReceiverConfig that contains configurations of all notifiers configurations for this receiver
+// BuildReceiverConfiguration parses, decrypts and validates the APIReceiver.
 func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt receivers.GetDecryptedValueFn) (GrafanaReceiverConfig, error) {
 	result := GrafanaReceiverConfig{
 		Name: api.Name,
@@ -364,7 +364,7 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt r
 	return result, nil
 }
 
-// parseNotifier parses receivers and populates corresponding field in GrafanaReceiverConfig. Returns error if configuration cannot be parsed
+// parseNotifier parses receivers and populates the corresponding field in GrafanaReceiverConfig. Returns an error if the configuration cannot be parsed.
 func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *GrafanaReceiver, decrypt receivers.GetDecryptedValueFn) error {
 	secureSettings, err := decodeSecretsFromBase64(receiver.SecureSettings)
 	if err != nil {
