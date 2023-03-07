@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/prometheus/alertmanager/types"
+
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 )
 
 func newFakeMaintanenceOptions(t *testing.T) *fakeMaintenanceOptions {
@@ -83,4 +85,8 @@ func (f *fakeNotifier) Notify(_ context.Context, _ ...*types.Alert) (bool, error
 
 func (f *fakeNotifier) SendResolved() bool {
 	return true
+}
+
+func GetDecryptedValueFnForTesting(_ context.Context, sjd map[string][]byte, key string, fallback string) string {
+	return receiversTesting.DecryptForTesting(sjd)(key, fallback)
 }

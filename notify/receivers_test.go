@@ -106,14 +106,7 @@ func TestProcessNotifierError(t *testing.T) {
 }
 
 func TestBuildReceiverConfiguration(t *testing.T) {
-	var decrypt GetDecryptedValueFn = func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-		v, ok := sjd[key]
-		if !ok {
-			return fallback
-		}
-		return string(v)
-	}
-
+	decrypt := GetDecryptedValueFnForTesting
 	t.Run("should decode secrets from base64", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for notifierType, cfg := range allKnownConfigs {
