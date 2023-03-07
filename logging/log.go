@@ -1,6 +1,6 @@
 package logging
 
-type LoggerFactory func(ctx ...interface{}) Logger
+type LoggerFactory func(loggerName string, ctx ...interface{}) Logger
 
 type Logger interface {
 	// New returns a new contextual Logger that has this logger's context plus the given context.

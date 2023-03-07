@@ -46,7 +46,7 @@ func BuildReceiverIntegrations(
 	var integrations []*Integration
 
 	createIntegration := func(idx int, cfg receivers.Metadata, f func(logger logging.Logger) NotificationChannel) {
-		logger := newLogger("ngalert.notifier." + cfg.Type) // TODO add more context here
+		logger := newLogger("ngalert.notifier."+cfg.Type, "notifierUID", cfg.UID)
 		n := f(logger)
 		i := NewIntegration(n, n, cfg.Type, idx)
 		integrations = append(integrations, i)
