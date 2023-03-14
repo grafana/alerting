@@ -17,13 +17,24 @@ const (
 	DefaultClient   = "Grafana"
 )
 
-func defaultCustomDetails() map[string]string {
-	return map[string]string{
-		"firing":       `{{ template "__text_alert_list" .Alerts.Firing }}`,
-		"resolved":     `{{ template "__text_alert_list" .Alerts.Resolved }}`,
-		"num_firing":   `{{ .Alerts.Firing | len }}`,
-		"num_resolved": `{{ .Alerts.Resolved | len }}`,
+var defaultCustomDetails = map[string]string{
+	"firing":       `{{ template "__text_alert_list" .Alerts.Firing }}`,
+	"resolved":     `{{ template "__text_alert_list" .Alerts.Resolved }}`,
+	"num_firing":   `{{ .Alerts.Firing | len }}`,
+	"num_resolved": `{{ .Alerts.Resolved | len }}`,
+}
+
+// mergeCustomDetails merges the default custom details with the user-defined ones.
+// Default values get overwritten in case of duplicate keys.
+func mergeCustomDetails(userDefinedCustomDetails map[string]string) map[string]string {
+	mergedCustomDetails := make(map[string]string)
+	for k, v := range defaultCustomDetails {
+		mergedCustomDetails[k] = v
 	}
+	for k, v := range userDefinedCustomDetails {
+		mergedCustomDetails[k] = v
+	}
+	return mergedCustomDetails
 }
 
 var getHostname = func() (string, error) {
@@ -33,7 +44,7 @@ var getHostname = func() (string, error) {
 type Config struct {
 	Key           string            `json:"integrationKey,omitempty" yaml:"integrationKey,omitempty"`
 	Severity      string            `json:"severity,omitempty" yaml:"severity,omitempty"`
-	CustomDetails map[string]string `json:"-" yaml:"-"` // TODO support the settings in the config
+	CustomDetails map[string]string `json:"custom_details,omitempty" yaml:"custom_details,omitempty"`
 	Class         string            `json:"class,omitempty" yaml:"class,omitempty"`
 	Component     string            `json:"component,omitempty" yaml:"component,omitempty"`
 	Group         string            `json:"group,omitempty" yaml:"group,omitempty"`
@@ -55,7 +66,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		return Config{}, errors.New("could not find integration key property in settings")
 	}
 
-	settings.CustomDetails = defaultCustomDetails()
+	settings.CustomDetails = mergeCustomDetails(settings.CustomDetails)
 
 	if settings.Severity == "" {
 		settings.Severity = DefaultSeverity

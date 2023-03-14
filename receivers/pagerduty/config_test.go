@@ -46,7 +46,7 @@ func TestNewConfig(t *testing.T) {
 			expectedConfig: Config{
 				Key:           "test-api-key",
 				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         DefaultClass,
 				Component:     "Grafana",
 				Group:         DefaultGroup,
@@ -65,7 +65,7 @@ func TestNewConfig(t *testing.T) {
 			expectedConfig: Config{
 				Key:           "test-api-key",
 				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         DefaultClass,
 				Component:     "Grafana",
 				Group:         DefaultGroup,
@@ -84,7 +84,7 @@ func TestNewConfig(t *testing.T) {
 			expectedConfig: Config{
 				Key:           "test-api-key",
 				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         DefaultClass,
 				Component:     "Grafana",
 				Group:         DefaultGroup,
@@ -113,7 +113,7 @@ func TestNewConfig(t *testing.T) {
 			expectedConfig: Config{
 				Key:           "test-api-key",
 				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         DefaultClass,
 				Component:     "Grafana",
 				Group:         DefaultGroup,
@@ -129,7 +129,7 @@ func TestNewConfig(t *testing.T) {
 			expectedConfig: Config{
 				Key:           "test-api-key",
 				Severity:      "test-severity",
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         "test-class",
 				Component:     "test-component",
 				Group:         "test-group",
@@ -146,7 +146,7 @@ func TestNewConfig(t *testing.T) {
 			expectedConfig: Config{
 				Key:           "test-secret-api-key",
 				Severity:      "test-severity",
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         "test-class",
 				Component:     "test-component",
 				Group:         "test-group",
@@ -157,29 +157,33 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Should ignore custom details",
+			name: "Shouldn't ignore custom details",
 			secureSettings: map[string][]byte{
 				"integrationKey": []byte("test-api-key"),
 			},
 			settings: `{
 				"custom_details" : {
-					"test" : "test"
-				},
-				"CustomDetails" : {
-					"test" : "test"
+					"test" : "test",
+					"resolved": "test"
 				}
 			}`,
 			expectedConfig: Config{
-				Key:           "test-api-key",
-				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails(),
-				Class:         DefaultClass,
-				Component:     "Grafana",
-				Group:         DefaultGroup,
-				Summary:       templates.DefaultMessageTitleEmbed,
-				Source:        hostName,
-				Client:        DefaultClient,
-				ClientURL:     "{{ .ExternalURL }}",
+				Key:      "test-api-key",
+				Severity: DefaultSeverity,
+				CustomDetails: map[string]string{
+					"firing":       "{{ template \"__text_alert_list\" .Alerts.Firing }}",
+					"resolved":     "test",
+					"num_firing":   "{{ .Alerts.Firing | len }}",
+					"num_resolved": "{{ .Alerts.Resolved | len }}",
+					"test":         "test",
+				},
+				Class:     DefaultClass,
+				Component: "Grafana",
+				Group:     DefaultGroup,
+				Summary:   templates.DefaultMessageTitleEmbed,
+				Source:    hostName,
+				Client:    DefaultClient,
+				ClientURL: "{{ .ExternalURL }}",
 			},
 		},
 		{
@@ -196,7 +200,7 @@ func TestNewConfig(t *testing.T) {
 			expectedConfig: Config{
 				Key:           "test-api-key",
 				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         DefaultClass,
 				Component:     "Grafana",
 				Group:         DefaultGroup,

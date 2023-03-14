@@ -42,7 +42,7 @@ func TestNotify(t *testing.T) {
 			settings: Config{
 				Key:           "abcdefgh0123456789",
 				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         DefaultClass,
 				Component:     "Grafana",
 				Group:         DefaultGroup,
@@ -88,7 +88,7 @@ func TestNotify(t *testing.T) {
 			settings: Config{
 				Key:           "abcdefgh0123456789",
 				Severity:      "{{ .CommonLabels.severity }}",
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         DefaultClass,
 				Component:     "Grafana",
 				Group:         DefaultGroup,
@@ -134,7 +134,7 @@ func TestNotify(t *testing.T) {
 			settings: Config{
 				Key:           "abcdefgh0123456789",
 				Severity:      "{{ .CommonLabels.severity }}",
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         "{{ .CommonLabels.class }}",
 				Component:     "{{ .CommonLabels.component }}",
 				Group:         "{{ .CommonLabels.group }}",
@@ -180,7 +180,7 @@ func TestNotify(t *testing.T) {
 			settings: Config{
 				Key:           "abcdefgh0123456789",
 				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         DefaultClass,
 				Component:     "Grafana",
 				Group:         DefaultGroup,
@@ -225,7 +225,7 @@ func TestNotify(t *testing.T) {
 			settings: Config{
 				Key:           "abcdefgh0123456789",
 				Severity:      "warning",
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         "{{ .Status }}",
 				Component:     "My Grafana",
 				Group:         "my_group",
@@ -276,7 +276,7 @@ func TestNotify(t *testing.T) {
 			settings: Config{
 				Key:           "abcdefgh0123456789",
 				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails(),
+				CustomDetails: defaultCustomDetails,
 				Class:         DefaultClass,
 				Component:     "Grafana",
 				Group:         DefaultGroup,
