@@ -84,6 +84,8 @@ func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		return false, fmt.Errorf("failed to encode PagerDuty message: %w", err)
 	}
 
+	// This payload size check is taken from the original implementation of the notifier in Alertmanager.
+	// https://github.com/prometheus/alertmanager/blob/41eb1213bb1c7ce0aa9e6464e297976d9c81cfe5/notify/pagerduty/pagerduty.go#L126-L142
 	if buf.Len() > pagerDutyMaxEventSize {
 		bufSize := units.MetricBytes(buf.Len()).String()
 		maxEventSize := units.MetricBytes(pagerDutyMaxEventSize).String()
