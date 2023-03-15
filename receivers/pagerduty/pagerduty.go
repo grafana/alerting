@@ -1,11 +1,14 @@
 package pagerduty
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/alecthomas/units"
+	"github.com/pkg/errors"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
@@ -20,6 +23,8 @@ import (
 const (
 	// https://developer.pagerduty.com/docs/ZG9jOjExMDI5NTgx-send-an-alert-event - 1024 characters or runes.
 	pagerDutyMaxV2SummaryLenRunes = 1024
+	// https://developer.pagerduty.com/docs/ZG9jOjExMDI5NTgw-events-api-v2-overview#size-limits - 512 KB.
+	pagerDutyMaxEventSize int = 512000
 )
 
 const (
@@ -74,15 +79,28 @@ func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		return false, fmt.Errorf("build pagerduty message: %w", err)
 	}
 
-	body, err := json.Marshal(msg)
-	if err != nil {
-		return false, fmt.Errorf("marshal json: %w", err)
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(msg); err != nil {
+		return false, fmt.Errorf("failed to encode PagerDuty message: %w", err)
+	}
+
+	if buf.Len() > pagerDutyMaxEventSize {
+		bufSize := units.MetricBytes(buf.Len()).String()
+		maxEventSize := units.MetricBytes(pagerDutyMaxEventSize).String()
+		truncatedMsg := fmt.Sprintf("Custom details have been removed because the original event exceeds the maximum size of %s", maxEventSize)
+		msg.Payload.CustomDetails = map[string]string{"error": truncatedMsg}
+		pn.log.Warn("Truncated details", "maxSize", maxEventSize, "actualSize", bufSize)
+
+		buf.Reset()
+		if err := json.NewEncoder(&buf).Encode(msg); err != nil {
+			return false, errors.Wrap(err, "failed to encode PagerDuty message")
+		}
 	}
 
 	pn.log.Info("notifying Pagerduty", "event_type", eventType)
 	cmd := &receivers.SendWebhookSettings{
 		URL:        APIURL,
-		Body:       string(body),
+		Body:       buf.String(),
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{
 			"Content-Type": "application/json",

@@ -423,6 +423,51 @@ func TestNotify(t *testing.T) {
 			},
 			expMsgError: nil,
 		},
+		{
+			name: "Should remove custom details if the payload is too large",
+			settings: Config{
+				Key:      "abcdefgh0123456789",
+				Severity: DefaultSeverity,
+				Details: map[string]string{
+					"long": strings.Repeat("a", pagerDutyMaxEventSize+1),
+				},
+				Class:     DefaultClass,
+				Component: "Grafana",
+				Group:     DefaultGroup,
+				Summary:   templates.DefaultMessageTitleEmbed,
+				Source:    hostname,
+				Client:    DefaultClient,
+				ClientURL: "{{ .ExternalURL }}",
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: &pagerDutyMessage{
+				RoutingKey:  "abcdefgh0123456789",
+				DedupKey:    "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
+				EventAction: "trigger",
+				Payload: pagerDutyPayload{
+					Summary:   "[FIRING:1]  (val1)",
+					Source:    hostname,
+					Severity:  DefaultSeverity,
+					Class:     "default",
+					Component: "Grafana",
+					Group:     "default",
+					CustomDetails: map[string]string{
+						"error": "Custom details have been removed because the original event exceeds the maximum size of 512KB",
+					},
+				},
+				Client:    "Grafana",
+				ClientURL: "http://localhost",
+				Links:     []pagerDutyLink{{HRef: "http://localhost", Text: "External URL"}},
+			},
+			expMsgError: nil,
+		},
 	}
 
 	for _, c := range cases {
