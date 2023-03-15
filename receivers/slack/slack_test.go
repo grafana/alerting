@@ -560,9 +560,15 @@ func TestSendSlackRequest(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "No response body",
+			name:        "No JSON response body",
 			statusCode:  http.StatusOK,
 			contentType: "application/json",
+			expectError: true,
+		},
+		{
+			name:        "No HTML response body",
+			statusCode:  http.StatusOK,
+			contentType: "text/html",
 			expectError: true,
 		},
 		{
@@ -585,6 +591,20 @@ func TestSendSlackRequest(t *testing.T) {
 			response:    `{"ok": false, "error": "test error"}`,
 			contentType: "application/json",
 			expectError: true,
+		},
+		{
+			name:        "Success case, HTML ok",
+			statusCode:  http.StatusOK,
+			response:    "ok",
+			contentType: "text/html",
+			expectError: false,
+		},
+		{
+			name:        "Success case, text/plain ok",
+			statusCode:  http.StatusOK,
+			response:    "ok",
+			contentType: "text/plain",
+			expectError: false,
 		},
 	}
 
