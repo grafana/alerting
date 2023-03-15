@@ -157,7 +157,7 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name: "Shouldn't ignore details",
+			name: "Should merge default details with user-defined ones",
 			secureSettings: map[string][]byte{
 				"integrationKey": []byte("test-api-key"),
 			},
