@@ -44,16 +44,16 @@ func TestNewConfig(t *testing.T) {
 			name:     "Minimal valid configuration",
 			settings: `{"integrationKey": "test-api-key" }`,
 			expectedConfig: Config{
-				Key:           "test-api-key",
-				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails,
-				Class:         DefaultClass,
-				Component:     "Grafana",
-				Group:         DefaultGroup,
-				Summary:       templates.DefaultMessageTitleEmbed,
-				Source:        hostName,
-				Client:        DefaultClient,
-				ClientURL:     "{{ .ExternalURL }}",
+				Key:       "test-api-key",
+				Severity:  DefaultSeverity,
+				Details:   defaultDetails,
+				Class:     DefaultClass,
+				Component: "Grafana",
+				Group:     DefaultGroup,
+				Summary:   templates.DefaultMessageTitleEmbed,
+				Source:    hostName,
+				Client:    DefaultClient,
+				ClientURL: "{{ .ExternalURL }}",
 			},
 		},
 		{
@@ -63,16 +63,16 @@ func TestNewConfig(t *testing.T) {
 				"integrationKey": []byte("test-api-key"),
 			},
 			expectedConfig: Config{
-				Key:           "test-api-key",
-				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails,
-				Class:         DefaultClass,
-				Component:     "Grafana",
-				Group:         DefaultGroup,
-				Summary:       templates.DefaultMessageTitleEmbed,
-				Source:        hostName,
-				Client:        DefaultClient,
-				ClientURL:     "{{ .ExternalURL }}",
+				Key:       "test-api-key",
+				Severity:  DefaultSeverity,
+				Details:   defaultDetails,
+				Class:     DefaultClass,
+				Component: "Grafana",
+				Group:     DefaultGroup,
+				Summary:   templates.DefaultMessageTitleEmbed,
+				Source:    hostName,
+				Client:    DefaultClient,
+				ClientURL: "{{ .ExternalURL }}",
 			},
 		},
 		{
@@ -82,16 +82,16 @@ func TestNewConfig(t *testing.T) {
 				"integrationKey": []byte("test-api-key"),
 			},
 			expectedConfig: Config{
-				Key:           "test-api-key",
-				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails,
-				Class:         DefaultClass,
-				Component:     "Grafana",
-				Group:         DefaultGroup,
-				Summary:       templates.DefaultMessageTitleEmbed,
-				Source:        hostName,
-				Client:        DefaultClient,
-				ClientURL:     "{{ .ExternalURL }}",
+				Key:       "test-api-key",
+				Severity:  DefaultSeverity,
+				Details:   defaultDetails,
+				Class:     DefaultClass,
+				Component: "Grafana",
+				Group:     DefaultGroup,
+				Summary:   templates.DefaultMessageTitleEmbed,
+				Source:    hostName,
+				Client:    DefaultClient,
+				ClientURL: "{{ .ExternalURL }}",
 			},
 		},
 		{
@@ -111,32 +111,32 @@ func TestNewConfig(t *testing.T) {
 				"client_url": ""
 			}`,
 			expectedConfig: Config{
-				Key:           "test-api-key",
-				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails,
-				Class:         DefaultClass,
-				Component:     "Grafana",
-				Group:         DefaultGroup,
-				Summary:       templates.DefaultMessageTitleEmbed,
-				Source:        hostName,
-				Client:        DefaultClient,
-				ClientURL:     "{{ .ExternalURL }}",
+				Key:       "test-api-key",
+				Severity:  DefaultSeverity,
+				Details:   defaultDetails,
+				Class:     DefaultClass,
+				Component: "Grafana",
+				Group:     DefaultGroup,
+				Summary:   templates.DefaultMessageTitleEmbed,
+				Source:    hostName,
+				Client:    DefaultClient,
+				ClientURL: "{{ .ExternalURL }}",
 			},
 		},
 		{
 			name:     "Extract all fields",
 			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
-				Key:           "test-api-key",
-				Severity:      "test-severity",
-				CustomDetails: defaultCustomDetails,
-				Class:         "test-class",
-				Component:     "test-component",
-				Group:         "test-group",
-				Summary:       "test-summary",
-				Source:        "test-source",
-				Client:        "test-client",
-				ClientURL:     "test-client-url",
+				Key:       "test-api-key",
+				Severity:  "test-severity",
+				Details:   defaultDetails,
+				Class:     "test-class",
+				Component: "test-component",
+				Group:     "test-group",
+				Summary:   "test-summary",
+				Source:    "test-source",
+				Client:    "test-client",
+				ClientURL: "test-client-url",
 			},
 		},
 		{
@@ -144,25 +144,25 @@ func TestNewConfig(t *testing.T) {
 			settings:       FullValidConfigForTesting,
 			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
-				Key:           "test-secret-api-key",
-				Severity:      "test-severity",
-				CustomDetails: defaultCustomDetails,
-				Class:         "test-class",
-				Component:     "test-component",
-				Group:         "test-group",
-				Summary:       "test-summary",
-				Source:        "test-source",
-				Client:        "test-client",
-				ClientURL:     "test-client-url",
+				Key:       "test-secret-api-key",
+				Severity:  "test-severity",
+				Details:   defaultDetails,
+				Class:     "test-class",
+				Component: "test-component",
+				Group:     "test-group",
+				Summary:   "test-summary",
+				Source:    "test-source",
+				Client:    "test-client",
+				ClientURL: "test-client-url",
 			},
 		},
 		{
-			name: "Shouldn't ignore custom details",
+			name: "Shouldn't ignore details",
 			secureSettings: map[string][]byte{
 				"integrationKey": []byte("test-api-key"),
 			},
 			settings: `{
-				"custom_details" : {
+				"details" : {
 					"test-field" : "test",
 					"test-field-2": "test-2"
 				}
@@ -170,7 +170,7 @@ func TestNewConfig(t *testing.T) {
 			expectedConfig: Config{
 				Key:      "test-api-key",
 				Severity: DefaultSeverity,
-				CustomDetails: map[string]string{
+				Details: map[string]string{
 					"firing":       `{{ template "__text_alert_list" .Alerts.Firing }}`,
 					"resolved":     `{{ template "__text_alert_list" .Alerts.Resolved }}`,
 					"num_firing":   `{{ .Alerts.Firing | len }}`,
@@ -193,7 +193,7 @@ func TestNewConfig(t *testing.T) {
 				"integrationKey": []byte("test-api-key"),
 			},
 			settings: `{
-				"custom_details" : {
+				"details" : {
 					"firing" : "test",
 					"resolved": "maybe",
 					"num_firing": "a lot",
@@ -203,7 +203,7 @@ func TestNewConfig(t *testing.T) {
 			expectedConfig: Config{
 				Key:      "test-api-key",
 				Severity: DefaultSeverity,
-				CustomDetails: map[string]string{
+				Details: map[string]string{
 					"firing":       "test",
 					"resolved":     "maybe",
 					"num_firing":   "a lot",
@@ -224,7 +224,7 @@ func TestNewConfig(t *testing.T) {
 				"integrationKey": []byte("test-api-key"),
 			},
 			settings: `{
-				"custom_details" : {
+				"details" : {
 					"Firing" : "test",
 					"Resolved": "maybe",
 					"nuM_firing": "a lot",
@@ -234,7 +234,7 @@ func TestNewConfig(t *testing.T) {
 			expectedConfig: Config{
 				Key:      "test-api-key",
 				Severity: DefaultSeverity,
-				CustomDetails: map[string]string{
+				Details: map[string]string{
 					"firing":       `{{ template "__text_alert_list" .Alerts.Firing }}`,
 					"resolved":     `{{ template "__text_alert_list" .Alerts.Resolved }}`,
 					"num_firing":   `{{ .Alerts.Firing | len }}`,
@@ -265,16 +265,16 @@ func TestNewConfig(t *testing.T) {
 				return "", errors.New("test")
 			},
 			expectedConfig: Config{
-				Key:           "test-api-key",
-				Severity:      DefaultSeverity,
-				CustomDetails: defaultCustomDetails,
-				Class:         DefaultClass,
-				Component:     "Grafana",
-				Group:         DefaultGroup,
-				Summary:       templates.DefaultMessageTitleEmbed,
-				Source:        "test-client",
-				Client:        "test-client",
-				ClientURL:     "{{ .ExternalURL }}",
+				Key:       "test-api-key",
+				Severity:  DefaultSeverity,
+				Details:   defaultDetails,
+				Class:     DefaultClass,
+				Component: "Grafana",
+				Group:     DefaultGroup,
+				Summary:   templates.DefaultMessageTitleEmbed,
+				Source:    "test-client",
+				Client:    "test-client",
+				ClientURL: "{{ .ExternalURL }}",
 			},
 		},
 	}

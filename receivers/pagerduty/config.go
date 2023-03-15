@@ -17,24 +17,24 @@ const (
 	DefaultClient   = "Grafana"
 )
 
-var defaultCustomDetails = map[string]string{
+var defaultDetails = map[string]string{
 	"firing":       `{{ template "__text_alert_list" .Alerts.Firing }}`,
 	"resolved":     `{{ template "__text_alert_list" .Alerts.Resolved }}`,
 	"num_firing":   `{{ .Alerts.Firing | len }}`,
 	"num_resolved": `{{ .Alerts.Resolved | len }}`,
 }
 
-// mergeCustomDetails merges the default custom details with the user-defined ones.
+// mergeDetails merges the default details with the user-defined ones.
 // Default values get overwritten in case of duplicate keys.
-func mergeCustomDetails(userDefinedCustomDetails map[string]string) map[string]string {
-	mergedCustomDetails := make(map[string]string)
-	for k, v := range defaultCustomDetails {
-		mergedCustomDetails[k] = v
+func mergeDetails(userDefinedDetails map[string]string) map[string]string {
+	mergedDetails := make(map[string]string)
+	for k, v := range defaultDetails {
+		mergedDetails[k] = v
 	}
-	for k, v := range userDefinedCustomDetails {
-		mergedCustomDetails[k] = v
+	for k, v := range userDefinedDetails {
+		mergedDetails[k] = v
 	}
-	return mergedCustomDetails
+	return mergedDetails
 }
 
 var getHostname = func() (string, error) {
@@ -42,16 +42,16 @@ var getHostname = func() (string, error) {
 }
 
 type Config struct {
-	Key           string            `json:"integrationKey,omitempty" yaml:"integrationKey,omitempty"`
-	Severity      string            `json:"severity,omitempty" yaml:"severity,omitempty"`
-	CustomDetails map[string]string `json:"custom_details,omitempty" yaml:"custom_details,omitempty"`
-	Class         string            `json:"class,omitempty" yaml:"class,omitempty"`
-	Component     string            `json:"component,omitempty" yaml:"component,omitempty"`
-	Group         string            `json:"group,omitempty" yaml:"group,omitempty"`
-	Summary       string            `json:"summary,omitempty" yaml:"summary,omitempty"`
-	Source        string            `json:"source,omitempty" yaml:"source,omitempty"`
-	Client        string            `json:"client,omitempty" yaml:"client,omitempty"`
-	ClientURL     string            `json:"client_url,omitempty" yaml:"client_url,omitempty"`
+	Key       string            `json:"integrationKey,omitempty" yaml:"integrationKey,omitempty"`
+	Severity  string            `json:"severity,omitempty" yaml:"severity,omitempty"`
+	Details   map[string]string `json:"details,omitempty" yaml:"details,omitempty"`
+	Class     string            `json:"class,omitempty" yaml:"class,omitempty"`
+	Component string            `json:"component,omitempty" yaml:"component,omitempty"`
+	Group     string            `json:"group,omitempty" yaml:"group,omitempty"`
+	Summary   string            `json:"summary,omitempty" yaml:"summary,omitempty"`
+	Source    string            `json:"source,omitempty" yaml:"source,omitempty"`
+	Client    string            `json:"client,omitempty" yaml:"client,omitempty"`
+	ClientURL string            `json:"client_url,omitempty" yaml:"client_url,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
@@ -66,7 +66,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		return Config{}, errors.New("could not find integration key property in settings")
 	}
 
-	settings.CustomDetails = mergeCustomDetails(settings.CustomDetails)
+	settings.Details = mergeDetails(settings.Details)
 
 	if settings.Severity == "" {
 		settings.Severity = DefaultSeverity

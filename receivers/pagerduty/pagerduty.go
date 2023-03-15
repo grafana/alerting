@@ -109,8 +109,8 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 	var tmplErr error
 	tmpl, data := template2.TmplText(ctx, pn.tmpl, as, pn.log, &tmplErr)
 
-	details := make(map[string]string, len(pn.settings.CustomDetails))
-	for k, v := range pn.settings.CustomDetails {
+	details := make(map[string]string, len(pn.settings.Details))
+	for k, v := range pn.settings.Details {
 		detail, err := pn.tmpl.ExecuteTextString(v, data)
 		if err != nil {
 			return nil, "", fmt.Errorf("%q: failed to template %q: %w", k, v, err)
