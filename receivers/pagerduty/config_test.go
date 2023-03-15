@@ -163,19 +163,86 @@ func TestNewConfig(t *testing.T) {
 			},
 			settings: `{
 				"custom_details" : {
-					"test" : "test",
-					"resolved": "test"
+					"test-field" : "test",
+					"test-field-2": "test-2"
 				}
 			}`,
 			expectedConfig: Config{
 				Key:      "test-api-key",
 				Severity: DefaultSeverity,
 				CustomDetails: map[string]string{
-					"firing":       "{{ template \"__text_alert_list\" .Alerts.Firing }}",
-					"resolved":     "test",
-					"num_firing":   "{{ .Alerts.Firing | len }}",
-					"num_resolved": "{{ .Alerts.Resolved | len }}",
-					"test":         "test",
+					"firing":       `{{ template "__text_alert_list" .Alerts.Firing }}`,
+					"resolved":     `{{ template "__text_alert_list" .Alerts.Resolved }}`,
+					"num_firing":   `{{ .Alerts.Firing | len }}`,
+					"num_resolved": `{{ .Alerts.Resolved | len }}`,
+					"test-field":   "test",
+					"test-field-2": "test-2",
+				},
+				Class:     DefaultClass,
+				Component: "Grafana",
+				Group:     DefaultGroup,
+				Summary:   templates.DefaultMessageTitleEmbed,
+				Source:    hostName,
+				Client:    DefaultClient,
+				ClientURL: "{{ .ExternalURL }}",
+			},
+		},
+		{
+			name: "Should overwrite default details with user-defined ones when keys are duplicated",
+			secureSettings: map[string][]byte{
+				"integrationKey": []byte("test-api-key"),
+			},
+			settings: `{
+				"custom_details" : {
+					"firing" : "test",
+					"resolved": "maybe",
+					"num_firing": "a lot",
+					"num_resolved": "just a few"
+				}
+			}`,
+			expectedConfig: Config{
+				Key:      "test-api-key",
+				Severity: DefaultSeverity,
+				CustomDetails: map[string]string{
+					"firing":       "test",
+					"resolved":     "maybe",
+					"num_firing":   "a lot",
+					"num_resolved": "just a few",
+				},
+				Class:     DefaultClass,
+				Component: "Grafana",
+				Group:     DefaultGroup,
+				Summary:   templates.DefaultMessageTitleEmbed,
+				Source:    hostName,
+				Client:    DefaultClient,
+				ClientURL: "{{ .ExternalURL }}",
+			},
+		},
+		{
+			name: "Custom details should be case-sensitive",
+			secureSettings: map[string][]byte{
+				"integrationKey": []byte("test-api-key"),
+			},
+			settings: `{
+				"custom_details" : {
+					"Firing" : "test",
+					"Resolved": "maybe",
+					"nuM_firing": "a lot",
+					"num_reSolved": "just a few"
+				}
+			}`,
+			expectedConfig: Config{
+				Key:      "test-api-key",
+				Severity: DefaultSeverity,
+				CustomDetails: map[string]string{
+					"firing":       `{{ template "__text_alert_list" .Alerts.Firing }}`,
+					"resolved":     `{{ template "__text_alert_list" .Alerts.Resolved }}`,
+					"num_firing":   `{{ .Alerts.Firing | len }}`,
+					"num_resolved": `{{ .Alerts.Resolved | len }}`,
+					"Firing":       "test",
+					"Resolved":     "maybe",
+					"nuM_firing":   "a lot",
+					"num_reSolved": "just a few",
 				},
 				Class:     DefaultClass,
 				Component: "Grafana",
