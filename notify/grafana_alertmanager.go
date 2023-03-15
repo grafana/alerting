@@ -223,7 +223,7 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 
 	am.wg.Add(1)
 	go func() {
-		am.notificationLog.Maintenance(config.Nflog.MaintenanceFrequency(), config.Silences.Filepath(), am.stopc, func() (int64, error) {
+		am.notificationLog.Maintenance(config.Nflog.MaintenanceFrequency(), config.Nflog.Filepath(), am.stopc, func() (int64, error) {
 			if _, err := am.notificationLog.GC(); err != nil {
 				level.Error(am.logger).Log("notification log garbage collection", "err", err)
 			}
