@@ -198,7 +198,7 @@ func TestNotify_IncomingWebhook(t *testing.T) {
 	}
 }
 
-func TestNotigy_PostMessage(t *testing.T) {
+func TestNotify_PostMessage(t *testing.T) {
 	tests := []struct {
 		name            string
 		alerts          []*types.Alert
