@@ -131,16 +131,15 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name:     "Should overwrite token from secrets",
-			settings: `{"url": "http://localhost", "token": "test" }`,
+			settings: `{ "recipient": "test-recipient", "token": "test" }`,
 			secureSettings: map[string][]byte{
-				"url":   []byte("http://slack.local/some-webhook"),
 				"token": []byte("test-token"),
 			},
 			expectedConfig: Config{
+				URL:            APIURL,
 				EndpointURL:    APIURL,
-				URL:            "http://slack.local/some-webhook",
 				Token:          "test-token",
-				Recipient:      "",
+				Recipient:      "test-recipient",
 				Text:           templates.DefaultMessageEmbed,
 				Title:          templates.DefaultMessageTitleEmbed,
 				Username:       "Grafana",
@@ -256,7 +255,7 @@ func TestNewConfig(t *testing.T) {
 			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				EndpointURL:    "http://localhost/endpoint_url",
-				URL:            "http://localhost/url",
+				URL:            "http://localhost/endpoint_url",
 				Token:          "test-token",
 				Recipient:      "test-recipient",
 				Text:           "test-text",
@@ -275,7 +274,7 @@ func TestNewConfig(t *testing.T) {
 			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
 				EndpointURL:    "http://localhost/endpoint_url",
-				URL:            "http://localhost/url-secret",
+				URL:            "http://localhost/endpoint_url",
 				Token:          "test-secret-token",
 				Recipient:      "test-recipient",
 				Text:           "test-text",

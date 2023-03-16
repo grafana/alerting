@@ -33,14 +33,20 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
+	// Here slackURL must be the URL of an incoming webhook
+	slackURL := decryptFn("url", settings.URL)
+	token := decryptFn("token", settings.Token)
+	// It is an error to have a token with an incoming webhook
+	if slackURL != "" && token != "" {
+		return Config{}, errors.New("must use either token or incoming webhooks")
+	}
+
 	if settings.EndpointURL == "" {
 		settings.EndpointURL = APIURL
 	}
-	slackURL := decryptFn("url", settings.URL)
 	if slackURL == "" {
 		slackURL = settings.EndpointURL
 	}
-
 	apiURL, err := url.Parse(slackURL)
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid URL %q", slackURL)
