@@ -71,6 +71,7 @@ func BuildReceiverIntegrations(
 		}
 	)
 
+// Range through each notification channel in the receiver and create an integration for it.
 	for i, cfg := range receiver.AlertmanagerConfigs {
 		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return alertmanager.New(cfg.Settings, cfg.Metadata, img, l)
