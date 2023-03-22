@@ -58,6 +58,7 @@ func BuildReceiverIntegrations(
 			i := NewIntegration(n, n, cfg.Type, idx)
 			integrations = append(integrations, i)
 		}
+                // Helper function to create an integration for a notification channel that requires a webhook sender.
 		createIntegrationWithWebhook = func(idx int, cfg receivers.Metadata, f func(logger logging.Logger, w receivers.WebhookSender) notificationChannel) {
 			w, e := newWebhookSender(cfg)
 			if e != nil {
