@@ -31,7 +31,8 @@ import (
 	"github.com/grafana/alerting/receivers/wecom"
 )
 
-// BuildReceiverIntegrations builds notifiers of the receiver and wraps each of them in Integration.
+// BuildReceiverIntegrations creates integrations for each configured notification channel in GrafanaReceiverConfig.
+// It returns a slice of Integration objects, one for each notification channel, along with any errors that occurred.
 func BuildReceiverIntegrations(
 	receiver GrafanaReceiverConfig,
 	tmpl *template.Template,
