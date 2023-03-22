@@ -51,6 +51,7 @@ func BuildReceiverIntegrations(
 	var (
 		integrations      []*Integration
 		errors            types.MultiError
+                // Helper function to create an integration for a notification channel and add it to the integrations slice.
 		createIntegration = func(idx int, cfg receivers.Metadata, f func(logger logging.Logger) notificationChannel) {
 			logger := newLogger("ngalert.notifier."+cfg.Type, "notifierUID", cfg.UID)
 			n := f(logger)
