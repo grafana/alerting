@@ -47,18 +47,17 @@ func BuildReceiverIntegrations(
 		notify.Notifier
 		notify.ResolvedSender
 	}
-
 	var (
-		integrations      []*Integration
-		errors            types.MultiError
-                // Helper function to create an integration for a notification channel and add it to the integrations slice.
+		integrations []*Integration
+		errors       types.MultiError
+		// Helper function to create an integration for a notification channel and add it to the integrations slice.
 		createIntegration = func(idx int, cfg receivers.Metadata, f func(logger logging.Logger) notificationChannel) {
 			logger := newLogger("ngalert.notifier."+cfg.Type, "notifierUID", cfg.UID)
 			n := f(logger)
 			i := NewIntegration(n, n, cfg.Type, idx)
 			integrations = append(integrations, i)
 		}
-                // Helper function to create an integration for a notification channel that requires a webhook sender.
+		// Helper function to create an integration for a notification channel that requires a webhook sender.
 		createIntegrationWithWebhook = func(idx int, cfg receivers.Metadata, f func(logger logging.Logger, w receivers.WebhookSender) notificationChannel) {
 			w, e := newWebhookSender(cfg)
 			if e != nil {
@@ -70,8 +69,7 @@ func BuildReceiverIntegrations(
 			})
 		}
 	)
-
-// Range through each notification channel in the receiver and create an integration for it.
+	// Range through each notification channel in the receiver and create an integration for it.
 	for i, cfg := range receiver.AlertmanagerConfigs {
 		createIntegration(i, cfg.Metadata, func(l logging.Logger) notificationChannel {
 			return alertmanager.New(cfg.Settings, cfg.Metadata, img, l)
