@@ -42,7 +42,6 @@ func BuildReceiverIntegrations(
 	orgID int64,
 	version string,
 ) ([]*Integration, error) {
-
 	type notificationChannel interface {
 		notify.Notifier
 		notify.ResolvedSender
