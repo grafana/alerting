@@ -23,8 +23,6 @@ import (
 	"github.com/prometheus/alertmanager/provider/mem"
 	"github.com/prometheus/alertmanager/silence"
 	pb "github.com/prometheus/alertmanager/silence/silencepb"
-	"github.com/prometheus/alertmanager/template"
-
 	"github.com/prometheus/alertmanager/timeinterval"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -316,7 +314,7 @@ func (am *GrafanaAlertmanager) WithLock(fn func()) {
 
 // TemplateFromPaths returns a set of *Templates based on the paths given.
 func (am *GrafanaAlertmanager) TemplateFromPaths(u string, paths ...string) (*templates.Template, error) {
-	tmpl, err := template.FromGlobs(paths)
+	tmpl, err := templates.FromGlobs(paths)
 	if err != nil {
 		return nil, err
 	}
