@@ -82,20 +82,16 @@ type discordAttachment struct {
 	state     model.AlertStatus
 }
 
-func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := NewConfig(fc.Config.Settings)
-	if err != nil {
-		return nil, err
-	}
+func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
-		Base:       receivers.NewBase(fc.Config),
-		log:        fc.Logger,
-		ns:         fc.NotificationService,
-		images:     fc.ImageStore,
-		tmpl:       fc.Template,
-		settings:   settings,
-		appVersion: fc.GrafanaBuildVersion,
-	}, nil
+		Base:       receivers.NewBase(meta),
+		log:        logger,
+		ns:         sender,
+		images:     images,
+		tmpl:       template,
+		settings:   cfg,
+		appVersion: appVersion,
+	}
 }
 
 func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {

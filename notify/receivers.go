@@ -347,8 +347,12 @@ type NotifierConfig[T interface{}] struct {
 	Settings T
 }
 
+// GetDecryptedValueFn is a function that returns the decrypted value of
+// the given key. If the key is not present, then it returns the fallback value.
+type GetDecryptedValueFn func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string
+
 // BuildReceiverConfiguration parses, decrypts and validates the APIReceiver.
-func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt receivers.GetDecryptedValueFn) (GrafanaReceiverConfig, error) {
+func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt GetDecryptedValueFn) (GrafanaReceiverConfig, error) {
 	result := GrafanaReceiverConfig{
 		Name: api.Name,
 	}
@@ -365,7 +369,7 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt r
 }
 
 // parseNotifier parses receivers and populates the corresponding field in GrafanaReceiverConfig. Returns an error if the configuration cannot be parsed.
-func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *GrafanaReceiver, decrypt receivers.GetDecryptedValueFn) error {
+func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *GrafanaReceiver, decrypt GetDecryptedValueFn) error {
 	secureSettings, err := decodeSecretsFromBase64(receiver.SecureSettings)
 	if err != nil {
 		return err

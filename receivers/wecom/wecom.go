@@ -28,18 +28,14 @@ type Notifier struct {
 	group       singleflight.Group
 }
 
-func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := NewConfig(factoryConfig.Config.Settings, factoryConfig.Decrypt)
-	if err != nil {
-		return nil, err
-	}
+func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, logger logging.Logger) *Notifier {
 	return &Notifier{
-		Base:     receivers.NewBase(factoryConfig.Config),
-		tmpl:     factoryConfig.Template,
-		log:      factoryConfig.Logger,
-		ns:       factoryConfig.NotificationService,
-		settings: settings,
-	}, nil
+		Base:     receivers.NewBase(meta),
+		tmpl:     template,
+		log:      logger,
+		ns:       sender,
+		settings: cfg,
+	}
 }
 
 // Notify send an alert notification to WeCom.

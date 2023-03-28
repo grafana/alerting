@@ -23,19 +23,14 @@ type Notifier struct {
 	settings Config
 }
 
-// New is the constructor for the Dingding notifier
-func New(fc receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := NewConfig(fc.Config.Settings)
-	if err != nil {
-		return nil, err
-	}
+func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, logger logging.Logger) *Notifier {
 	return &Notifier{
-		Base:     receivers.NewBase(fc.Config),
-		log:      fc.Logger,
-		ns:       fc.NotificationService,
-		tmpl:     fc.Template,
-		settings: settings,
-	}, nil
+		Base:     receivers.NewBase(meta),
+		log:      logger,
+		ns:       sender,
+		tmpl:     template,
+		settings: cfg,
+	}
 }
 
 // Notify sends the alert notification to dingding.

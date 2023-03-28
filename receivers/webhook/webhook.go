@@ -30,20 +30,16 @@ type Notifier struct {
 
 // New is the constructor for
 // the WebHook notifier.
-func New(factoryConfig receivers.FactoryConfig) (*Notifier, error) {
-	settings, err := NewConfig(factoryConfig.Config.Settings, factoryConfig.Decrypt)
-	if err != nil {
-		return nil, err
-	}
+func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, orgID int64) *Notifier {
 	return &Notifier{
-		Base:     receivers.NewBase(factoryConfig.Config),
-		orgID:    factoryConfig.Config.OrgID,
-		log:      factoryConfig.Logger,
-		ns:       factoryConfig.NotificationService,
-		images:   factoryConfig.ImageStore,
-		tmpl:     factoryConfig.Template,
-		settings: settings,
-	}, nil
+		Base:     receivers.NewBase(meta),
+		orgID:    orgID,
+		log:      logger,
+		ns:       sender,
+		images:   images,
+		tmpl:     template,
+		settings: cfg,
+	}
 }
 
 // webhookMessage defines the JSON object send to webhook endpoints.

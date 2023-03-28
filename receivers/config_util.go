@@ -7,6 +7,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type DecryptFunc func(key string, fallback string) string
+
 type CommaSeparatedStrings []string
 
 func (r *CommaSeparatedStrings) UnmarshalJSON(b []byte) error {
