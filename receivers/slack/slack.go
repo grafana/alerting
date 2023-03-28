@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	net "net"
+	"net"
 	"net/http"
 	"net/url"
 	"os"

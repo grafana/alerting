@@ -82,7 +82,7 @@ type discordAttachment struct {
 	state     model.AlertStatus
 }
 
-func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, buildVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:       receivers.NewBase(meta),
 		log:        logger,
@@ -90,7 +90,7 @@ func New(cfg Config, meta receivers.Metadata, template *template.Template, sende
 		images:     images,
 		tmpl:       template,
 		settings:   cfg,
-		appVersion: buildVersion,
+		appVersion: appVersion,
 	}
 }
 
