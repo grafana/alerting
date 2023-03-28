@@ -123,9 +123,7 @@ type MaintenanceOptions interface {
 }
 
 var NewIntegration = notify.NewIntegration
-var FromGlobs = template.FromGlobs
 
-type Template = template.Template
 type InhibitRule = config.InhibitRule
 type MuteTimeInterval = config.MuteTimeInterval
 type TimeInterval = timeinterval.TimeInterval

@@ -18,6 +18,11 @@ import (
 	"github.com/grafana/alerting/models"
 )
 
+type Template = template.Template
+type KV = template.KV
+
+var FromGlobs = template.FromGlobs
+
 type ExtendedAlert struct {
 	Status        string             `json:"status"`
 	Labels        template.KV        `json:"labels"`
