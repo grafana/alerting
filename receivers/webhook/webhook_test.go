@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
@@ -72,11 +71,11 @@ func TestNotify(t *testing.T) {
 					Alerts: templates.ExtendedAlerts{
 						{
 							Status: "firing",
-							Labels: template.KV{
+							Labels: templates.KV{
 								"alertname": "alert1",
 								"lbl1":      "val1",
 							},
-							Annotations: template.KV{
+							Annotations: templates.KV{
 								"ann1": "annv1",
 							},
 							Fingerprint:  "fac0861a85de433a",
@@ -85,14 +84,14 @@ func TestNotify(t *testing.T) {
 							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
 						},
 					},
-					GroupLabels: template.KV{
+					GroupLabels: templates.KV{
 						"alertname": "",
 					},
-					CommonLabels: template.KV{
+					CommonLabels: templates.KV{
 						"alertname": "alert1",
 						"lbl1":      "val1",
 					},
-					CommonAnnotations: template.KV{
+					CommonAnnotations: templates.KV{
 						"ann1": "annv1",
 					},
 					ExternalURL: "http://localhost",
@@ -149,35 +148,35 @@ func TestNotify(t *testing.T) {
 					Alerts: templates.ExtendedAlerts{
 						{
 							Status: "firing",
-							Labels: template.KV{
+							Labels: templates.KV{
 								"alertname": "alert1",
 								"lbl1":      "val1",
 							},
-							Annotations: template.KV{
+							Annotations: templates.KV{
 								"ann1": "annv1",
 							},
 							Fingerprint: "fac0861a85de433a",
 							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
 						}, {
 							Status: "firing",
-							Labels: template.KV{
+							Labels: templates.KV{
 								"alertname": "alert1",
 								"lbl1":      "val2",
 							},
-							Annotations: template.KV{
+							Annotations: templates.KV{
 								"ann1": "annv2",
 							},
 							Fingerprint: "fab6861a85d5eeb5",
 							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2",
 						},
 					},
-					GroupLabels: template.KV{
+					GroupLabels: templates.KV{
 						"alertname": "",
 					},
-					CommonLabels: template.KV{
+					CommonLabels: templates.KV{
 						"alertname": "alert1",
 					},
-					CommonAnnotations: template.KV{},
+					CommonAnnotations: templates.KV{},
 					ExternalURL:       "http://localhost",
 				},
 				Version:         "1",
@@ -226,35 +225,35 @@ func TestNotify(t *testing.T) {
 					Alerts: templates.ExtendedAlerts{
 						{
 							Status: "firing",
-							Labels: template.KV{
+							Labels: templates.KV{
 								"alertname": "alert1",
 								"lbl1":      "val1",
 							},
-							Annotations: template.KV{
+							Annotations: templates.KV{
 								"ann1": "annv1",
 							},
 							Fingerprint: "fac0861a85de433a",
 							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
 						}, {
 							Status: "firing",
-							Labels: template.KV{
+							Labels: templates.KV{
 								"alertname": "alert1",
 								"lbl1":      "val2",
 							},
-							Annotations: template.KV{
+							Annotations: templates.KV{
 								"ann1": "annv2",
 							},
 							Fingerprint: "fab6861a85d5eeb5",
 							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2",
 						},
 					},
-					GroupLabels: template.KV{
+					GroupLabels: templates.KV{
 						"alertname": "",
 					},
-					CommonLabels: template.KV{
+					CommonLabels: templates.KV{
 						"alertname": "alert1",
 					},
-					CommonAnnotations: template.KV{},
+					CommonAnnotations: templates.KV{},
 					ExternalURL:       "http://localhost",
 				},
 				Version:         "1",
@@ -296,11 +295,11 @@ func TestNotify(t *testing.T) {
 					Alerts: templates.ExtendedAlerts{
 						{
 							Status: "firing",
-							Labels: template.KV{
+							Labels: templates.KV{
 								"alertname": "alert1",
 								"lbl1":      "val1",
 							},
-							Annotations: template.KV{
+							Annotations: templates.KV{
 								"ann1": "annv1",
 							},
 							Fingerprint:  "fac0861a85de433a",
@@ -309,14 +308,14 @@ func TestNotify(t *testing.T) {
 							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
 						},
 					},
-					GroupLabels: template.KV{
+					GroupLabels: templates.KV{
 						"alertname": "",
 					},
-					CommonLabels: template.KV{
+					CommonLabels: templates.KV{
 						"alertname": "alert1",
 						"lbl1":      "val1",
 					},
-					CommonAnnotations: template.KV{
+					CommonAnnotations: templates.KV{
 						"ann1": "annv1",
 					},
 					ExternalURL: "http://localhost",

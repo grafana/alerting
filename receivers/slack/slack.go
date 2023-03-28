@@ -19,7 +19,7 @@ import (
 
 	amConfig "github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/template"
+
 	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/images"
@@ -66,7 +66,7 @@ const slackMaxTitleLenRunes = 1024
 type Notifier struct {
 	*receivers.Base
 	log           logging.Logger
-	tmpl          *template.Template
+	tmpl          *templates.Template
 	images        images.ImageStore
 	webhookSender receivers.WebhookSender
 	sendFn        sendFunc
@@ -90,7 +90,7 @@ func uploadURL(s Config) (string, error) {
 	return u.String(), nil
 }
 
-func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		settings: cfg,

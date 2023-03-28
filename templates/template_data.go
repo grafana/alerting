@@ -25,8 +25,8 @@ var FromGlobs = template.FromGlobs
 
 type ExtendedAlert struct {
 	Status        string             `json:"status"`
-	Labels        template.KV        `json:"labels"`
-	Annotations   template.KV        `json:"annotations"`
+	Labels        KV                 `json:"labels"`
+	Annotations   KV                 `json:"annotations"`
 	StartsAt      time.Time          `json:"startsAt"`
 	EndsAt        time.Time          `json:"endsAt"`
 	GeneratorURL  string             `json:"generatorURL"`
@@ -47,9 +47,9 @@ type ExtendedData struct {
 	Status   string         `json:"status"`
 	Alerts   ExtendedAlerts `json:"alerts"`
 
-	GroupLabels       template.KV `json:"groupLabels"`
-	CommonLabels      template.KV `json:"commonLabels"`
-	CommonAnnotations template.KV `json:"commonAnnotations"`
+	GroupLabels       KV `json:"groupLabels"`
+	CommonLabels      KV `json:"commonLabels"`
+	CommonAnnotations KV `json:"commonAnnotations"`
 
 	ExternalURL string `json:"externalURL"`
 }

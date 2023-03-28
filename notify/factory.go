@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/template"
+
 	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/images"
@@ -29,13 +29,14 @@ import (
 	"github.com/grafana/alerting/receivers/webex"
 	"github.com/grafana/alerting/receivers/webhook"
 	"github.com/grafana/alerting/receivers/wecom"
+	"github.com/grafana/alerting/templates"
 )
 
 // BuildReceiverIntegrations creates integrations for each configured notification channel in GrafanaReceiverConfig.
 // It returns a slice of Integration objects, one for each notification channel, along with any errors that occurred.
 func BuildReceiverIntegrations(
 	receiver GrafanaReceiverConfig,
-	tmpl *template.Template,
+	tmpl *templates.Template,
 	img images.ImageStore,
 	logger logging.LoggerFactory,
 	newWebhookSender func(n receivers.Metadata) (receivers.WebhookSender, error),

@@ -7,19 +7,18 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"golang.org/x/sync/singleflight"
 
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
-	template2 "github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/templates"
 )
 
 // Notifier is responsible for sending alert notifications to WeCom.
 type Notifier struct {
 	*receivers.Base
-	tmpl        *template.Template
+	tmpl        *templates.Template
 	log         logging.Logger
 	ns          receivers.WebhookSender
 	settings    Config
@@ -28,7 +27,7 @@ type Notifier struct {
 	group       singleflight.Group
 }
 
-func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		tmpl:     template,
@@ -43,7 +42,7 @@ func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	w.log.Info("executing WeCom notification", "notification", w.Name)
 
 	var tmplErr error
-	tmpl, _ := template2.TmplText(ctx, w.tmpl, as, w.log, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, w.tmpl, as, w.log, &tmplErr)
 
 	bodyMsg := map[string]interface{}{
 		"msgtype": w.settings.MsgType,

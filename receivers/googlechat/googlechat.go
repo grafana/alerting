@@ -7,13 +7,12 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
-	template2 "github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/templates"
 )
 
 // Notifier is responsible for sending
@@ -23,7 +22,7 @@ type Notifier struct {
 	log        logging.Logger
 	ns         receivers.WebhookSender
 	images     images.ImageStore
-	tmpl       *template.Template
+	tmpl       *templates.Template
 	settings   Config
 	appVersion string
 }
@@ -33,7 +32,7 @@ var (
 	timeNow = time.Now
 )
 
-func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:       receivers.NewBase(meta),
 		log:        logger,
@@ -50,7 +49,7 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	gcn.log.Debug("executing Google Chat notification")
 
 	var tmplErr error
-	tmpl, _ := template2.TmplText(ctx, gcn.tmpl, as, gcn.log, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, gcn.tmpl, as, gcn.log, &tmplErr)
 
 	var widgets []widget
 

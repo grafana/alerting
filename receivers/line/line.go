@@ -6,12 +6,11 @@ import (
 	"net/url"
 	"path"
 
-	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
-	template2 "github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/templates"
 )
 
 var (
@@ -25,11 +24,11 @@ type Notifier struct {
 	*receivers.Base
 	log      logging.Logger
 	ns       receivers.WebhookSender
-	tmpl     *template.Template
+	tmpl     *templates.Template
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		log:      logger,
@@ -74,7 +73,7 @@ func (ln *Notifier) buildMessage(ctx context.Context, as ...*types.Alert) string
 	ruleURL := path.Join(ln.tmpl.ExternalURL.String(), "/alerting/list")
 
 	var tmplErr error
-	tmpl, _ := template2.TmplText(ctx, ln.tmpl, as, ln.log, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, ln.tmpl, as, ln.log, &tmplErr)
 
 	body := fmt.Sprintf(
 		"%s\n%s\n\n%s",
