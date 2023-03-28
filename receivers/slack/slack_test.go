@@ -198,7 +198,7 @@ func TestNotify_IncomingWebhook(t *testing.T) {
 	}
 }
 
-func TestNotigy_PostMessage(t *testing.T) {
+func TestNotify_PostMessage(t *testing.T) {
 	tests := []struct {
 		name            string
 		alerts          []*types.Alert
@@ -514,6 +514,7 @@ func TestSendSlackRequest(t *testing.T) {
 		name        string
 		response    string
 		statusCode  int
+		contentType string
 		expectError bool
 	}{
 		{
@@ -523,11 +524,13 @@ func TestSendSlackRequest(t *testing.T) {
 					"error": "too_many_attachments"
 				}`,
 			statusCode:  http.StatusBadRequest,
+			contentType: "application/json",
 			expectError: true,
 		},
 		{
 			name:        "Non 200 status code, no response body",
 			statusCode:  http.StatusMovedPermanently,
+			contentType: "",
 			expectError: true,
 		},
 		{
@@ -553,36 +556,64 @@ func TestSendSlackRequest(t *testing.T) {
 				}
 			}`,
 			statusCode:  http.StatusOK,
+			contentType: "application/json",
 			expectError: false,
 		},
 		{
-			name:        "No response body",
+			name:        "No JSON response body",
 			statusCode:  http.StatusOK,
+			contentType: "application/json",
+			expectError: true,
+		},
+		{
+			name:        "No HTML response body",
+			statusCode:  http.StatusOK,
+			contentType: "text/html",
 			expectError: true,
 		},
 		{
 			name:        "Success case, unexpected response body",
 			statusCode:  http.StatusOK,
 			response:    `{"test": true}`,
+			contentType: "application/json",
 			expectError: true,
 		},
 		{
 			name:        "Success case, ok: true",
 			statusCode:  http.StatusOK,
 			response:    `{"ok": true}`,
+			contentType: "application/json",
 			expectError: false,
 		},
 		{
 			name:        "200 status code, error in body",
 			statusCode:  http.StatusOK,
 			response:    `{"ok": false, "error": "test error"}`,
+			contentType: "application/json",
 			expectError: true,
+		},
+		{
+			name:        "Success case, HTML ok",
+			statusCode:  http.StatusOK,
+			response:    "ok",
+			contentType: "text/html",
+			expectError: false,
+		},
+		{
+			name:        "Success case, text/plain ok",
+			statusCode:  http.StatusOK,
+			response:    "ok",
+			contentType: "text/plain",
+			expectError: false,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(tt *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if test.contentType != "" {
+					w.Header().Set("Content-Type", test.contentType)
+				}
 				w.WriteHeader(test.statusCode)
 				_, err := w.Write([]byte(test.response))
 				require.NoError(tt, err)
