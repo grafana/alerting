@@ -20,6 +20,7 @@ import (
 
 type Template = template.Template
 type KV = template.KV
+type Data = template.Data
 
 var FromGlobs = template.FromGlobs
 
@@ -156,8 +157,8 @@ func setOrgIDQueryParam(url *url.URL, orgID string) string {
 	return url.String()
 }
 
-func ExtendData(data *template.Data, logger logging.Logger) *ExtendedData {
-	alerts := []ExtendedAlert{}
+func ExtendData(data *Data, logger logging.Logger) *ExtendedData {
+	alerts := make([]ExtendedAlert, 0, len(data.Alerts))
 
 	for _, alert := range data.Alerts {
 		extendedAlert := extendAlert(alert, data.ExternalURL, logger)
@@ -177,7 +178,7 @@ func ExtendData(data *template.Data, logger logging.Logger) *ExtendedData {
 	return extended
 }
 
-func TmplText(ctx context.Context, tmpl *template.Template, alerts []*types.Alert, l logging.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
+func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l logging.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
 	promTmplData := notify.GetTemplateData(ctx, tmpl, alerts, l)
 	data := ExtendData(promTmplData, l)
 
