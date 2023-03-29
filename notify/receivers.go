@@ -151,7 +151,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 				Name:   next.Config.Name,
 				UID:    next.Config.UID,
 				Status: status,
-				Error:  ProcessNotifierError(next.Config, next.Error),
+				Error:  ProcessIntegrationError(next.Config, next.Error),
 			})
 			m[next.ReceiverName] = tmp
 		}
@@ -283,7 +283,7 @@ func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time
 	return alert
 }
 
-func ProcessNotifierError(config *GrafanaIntegrationConfig, err error) error {
+func ProcessIntegrationError(config *GrafanaIntegrationConfig, err error) error {
 	if err == nil {
 		return nil
 	}
