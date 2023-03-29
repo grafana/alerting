@@ -36,8 +36,8 @@ import (
 )
 
 func TestReceiverTimeoutError_Error(t *testing.T) {
-	e := ReceiverTimeoutError{
-		Receiver: &GrafanaIntegrationConfig{
+	e := IntegrationTimeoutError{
+		Integration: &GrafanaIntegrationConfig{
 			Name: "test",
 			UID:  "uid",
 		},
@@ -62,9 +62,9 @@ func TestProcessNotifierError(t *testing.T) {
 			Name: "test",
 			UID:  "uid",
 		}
-		require.Equal(t, ReceiverTimeoutError{
-			Receiver: r,
-			Err:      context.DeadlineExceeded,
+		require.Equal(t, IntegrationTimeoutError{
+			Integration: r,
+			Err:         context.DeadlineExceeded,
 		}, ProcessNotifierError(r, context.DeadlineExceeded))
 	})
 
@@ -78,9 +78,9 @@ func TestProcessNotifierError(t *testing.T) {
 			URL: "https://grafana.net",
 			Err: timeoutError{},
 		}
-		require.Equal(t, ReceiverTimeoutError{
-			Receiver: r,
-			Err:      urlError,
+		require.Equal(t, IntegrationTimeoutError{
+			Integration: r,
+			Err:         urlError,
 		}, ProcessNotifierError(r, urlError))
 	})
 

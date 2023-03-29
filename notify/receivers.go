@@ -95,12 +95,12 @@ type TestReceiversConfigAlertParams struct {
 	Labels      model.LabelSet `yaml:"labels,omitempty" json:"labels,omitempty"`
 }
 
-type ReceiverTimeoutError struct {
-	Receiver *GrafanaIntegrationConfig
-	Err      error
+type IntegrationTimeoutError struct {
+	Integration *GrafanaIntegrationConfig
+	Err         error
 }
 
-func (e ReceiverTimeoutError) Error() string {
+func (e IntegrationTimeoutError) Error() string {
 	return fmt.Sprintf("the receiver timed out: %s", e.Err)
 }
 
@@ -291,17 +291,17 @@ func ProcessNotifierError(config *GrafanaIntegrationConfig, err error) error {
 	var urlError *url.Error
 	if errors.As(err, &urlError) {
 		if urlError.Timeout() {
-			return ReceiverTimeoutError{
-				Receiver: config,
-				Err:      err,
+			return IntegrationTimeoutError{
+				Integration: config,
+				Err:         err,
 			}
 		}
 	}
 
 	if errors.Is(err, context.DeadlineExceeded) {
-		return ReceiverTimeoutError{
-			Receiver: config,
-			Err:      err,
+		return IntegrationTimeoutError{
+			Integration: config,
+			Err:         err,
 		}
 	}
 
