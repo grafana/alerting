@@ -55,10 +55,10 @@ type TestReceiversResult struct {
 
 type TestReceiverResult struct {
 	Name    string
-	Configs []TestReceiverConfigResult
+	Configs []TestIntegrationConfigResult
 }
 
-type TestReceiverConfigResult struct {
+type TestIntegrationConfigResult struct {
 	Name   string
 	UID    string
 	Status string
@@ -138,7 +138,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 			m[receiver.Name] = TestReceiverResult{
 				Name: receiver.Name,
 				// A Grafana receiver can have multiple nested receivers
-				Configs: make([]TestReceiverConfigResult, 0, len(receiver.Integrations)),
+				Configs: make([]TestIntegrationConfigResult, 0, len(receiver.Integrations)),
 			}
 		}
 		for _, next := range results {
@@ -147,7 +147,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 			if next.Error != nil {
 				status = "failed"
 			}
-			tmp.Configs = append(tmp.Configs, TestReceiverConfigResult{
+			tmp.Configs = append(tmp.Configs, TestIntegrationConfigResult{
 				Name:   next.Config.Name,
 				UID:    next.Config.UID,
 				Status: status,
