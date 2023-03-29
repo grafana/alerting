@@ -6,13 +6,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
-	template2 "github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/templates"
 )
 
 // Notifier is responsible for sending alert notifications as webex messages.
@@ -21,12 +20,12 @@ type Notifier struct {
 	ns       receivers.WebhookSender
 	log      logging.Logger
 	images   images.ImageStore
-	tmpl     *template.Template
+	tmpl     *templates.Template
 	orgID    int64
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, orgID int64) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, orgID int64) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		orgID:    orgID,
@@ -48,7 +47,7 @@ type webexMessage struct {
 // Notify implements the Notifier interface.
 func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var tmplErr error
-	tmpl, data := template2.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
 
 	message, truncated := receivers.TruncateInBytes(tmpl(wn.settings.Message), 4096)
 	if truncated {

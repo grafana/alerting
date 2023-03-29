@@ -6,14 +6,13 @@ import (
 	"fmt"
 
 	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
-	template2 "github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/templates"
 )
 
 // Notifier is responsible for sending
@@ -23,14 +22,14 @@ type Notifier struct {
 	log      logging.Logger
 	ns       receivers.WebhookSender
 	images   images.ImageStore
-	tmpl     *template.Template
+	tmpl     *templates.Template
 	orgID    int64
 	settings Config
 }
 
 // New is the constructor for
 // the WebHook notifier.
-func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, orgID int64) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, orgID int64) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		orgID:    orgID,
@@ -44,7 +43,7 @@ func New(cfg Config, meta receivers.Metadata, template *template.Template, sende
 
 // webhookMessage defines the JSON object send to webhook endpoints.
 type webhookMessage struct {
-	*template2.ExtendedData
+	*templates.ExtendedData
 
 	// The protocol version.
 	Version         string `json:"version"`
@@ -65,7 +64,7 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 
 	as, numTruncated := truncateAlerts(wn.settings.MaxAlerts, as)
 	var tmplErr error
-	tmpl, data := template2.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
 
 	// Augment our Alert data with ImageURLs if available.
 	_ = images.WithStoredImages(ctx, wn.log, wn.images,

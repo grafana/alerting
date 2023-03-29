@@ -23,13 +23,13 @@ import (
 	"github.com/prometheus/alertmanager/provider/mem"
 	"github.com/prometheus/alertmanager/silence"
 	pb "github.com/prometheus/alertmanager/silence/silencepb"
-	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/timeinterval"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/templates"
 )
 
 const (
@@ -87,7 +87,7 @@ type GrafanaAlertmanager struct {
 	inhibitor       *inhibit.Inhibitor
 	silencer        *silence.Silencer
 	silences        *silence.Silences
-	templates       *Template
+	templates       *templates.Template
 
 	// muteTimes is a map where the key is the name of the mute_time_interval
 	// and the value represents all configured time_interval(s)
@@ -100,7 +100,7 @@ type GrafanaAlertmanager struct {
 	configHash                   [16]byte
 	config                       []byte
 	receivers                    []*notify.Receiver
-	buildReceiverIntegrationFunc func(next *GrafanaReceiver, tmpl *Template) (Notifier, error)
+	buildReceiverIntegrationFunc func(next *GrafanaReceiver, tmpl *templates.Template) (Notifier, error)
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -123,9 +123,7 @@ type MaintenanceOptions interface {
 }
 
 var NewIntegration = notify.NewIntegration
-var FromGlobs = template.FromGlobs
 
-type Template = template.Template
 type InhibitRule = config.InhibitRule
 type MuteTimeInterval = config.MuteTimeInterval
 type TimeInterval = timeinterval.TimeInterval
@@ -143,10 +141,10 @@ type Configuration interface {
 	InhibitRules() []InhibitRule
 	MuteTimeIntervals() []MuteTimeInterval
 	ReceiverIntegrations() (map[string][]*Integration, error)
-	BuildReceiverIntegrationsFunc() func(next *GrafanaReceiver, tmpl *Template) (Notifier, error)
+	BuildReceiverIntegrationsFunc() func(next *GrafanaReceiver, tmpl *templates.Template) (Notifier, error)
 
 	RoutingTree() *Route
-	Templates() *Template
+	Templates() *templates.Template
 
 	Hash() [16]byte
 	Raw() []byte
@@ -315,8 +313,8 @@ func (am *GrafanaAlertmanager) WithLock(fn func()) {
 }
 
 // TemplateFromPaths returns a set of *Templates based on the paths given.
-func (am *GrafanaAlertmanager) TemplateFromPaths(u string, paths ...string) (*Template, error) {
-	tmpl, err := template.FromGlobs(paths)
+func (am *GrafanaAlertmanager) TemplateFromPaths(u string, paths ...string) (*templates.Template, error) {
+	tmpl, err := templates.FromGlobs(paths)
 	if err != nil {
 		return nil, err
 	}
@@ -602,7 +600,7 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 	return d + am.waitFunc()
 }
 
-func (am *GrafanaAlertmanager) getTemplate() (*template.Template, error) {
+func (am *GrafanaAlertmanager) getTemplate() (*templates.Template, error) {
 	am.reloadConfigMtx.RLock()
 	defer am.reloadConfigMtx.RUnlock()
 	if !am.ready() {
@@ -616,6 +614,6 @@ func (am *GrafanaAlertmanager) tenantString() string {
 	return fmt.Sprintf("%d", am.tenantID)
 }
 
-func (am *GrafanaAlertmanager) buildReceiverIntegration(next *GrafanaReceiver, tmpl *template.Template) (Notifier, error) {
+func (am *GrafanaAlertmanager) buildReceiverIntegration(next *GrafanaReceiver, tmpl *templates.Template) (Notifier, error) {
 	return am.buildReceiverIntegrationFunc(next, tmpl)
 }

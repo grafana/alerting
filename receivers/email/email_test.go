@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
@@ -82,17 +81,17 @@ func TestNotify(t *testing.T) {
 				"Alerts": templates.ExtendedAlerts{
 					templates.ExtendedAlert{
 						Status:       "firing",
-						Labels:       template.KV{"alertname": "AlwaysFiring", "severity": "warning"},
-						Annotations:  template.KV{"runbook_url": "http://fix.me"},
+						Labels:       templates.KV{"alertname": "AlwaysFiring", "severity": "warning"},
+						Annotations:  templates.KV{"runbook_url": "http://fix.me"},
 						Fingerprint:  "15a37193dce72bab",
 						SilenceURL:   "http://localhost/base/alerting/silence/new?alertmanager=grafana&matcher=alertname%3DAlwaysFiring&matcher=severity%3Dwarning",
 						DashboardURL: "http://localhost/base/d/abc",
 						PanelURL:     "http://localhost/base/d/abc?viewPanel=5",
 					},
 				},
-				"GroupLabels":       template.KV{},
-				"CommonLabels":      template.KV{"alertname": "AlwaysFiring", "severity": "warning"},
-				"CommonAnnotations": template.KV{"runbook_url": "http://fix.me"},
+				"GroupLabels":       templates.KV{},
+				"CommonLabels":      templates.KV{"alertname": "AlwaysFiring", "severity": "warning"},
+				"CommonAnnotations": templates.KV{"runbook_url": "http://fix.me"},
 				"ExternalURL":       "http://localhost/base",
 				"RuleUrl":           "http://localhost/base/alerting/list",
 				"AlertPageUrl":      "http://localhost/base/alerting/list?alertState=firing&view=state",

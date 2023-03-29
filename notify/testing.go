@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/alertmanager/types"
 
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
+	"github.com/grafana/alerting/templates"
 )
 
 func newFakeMaintanenceOptions(t *testing.T) *fakeMaintenanceOptions {
@@ -62,7 +63,7 @@ func (f *FakeConfig) RoutingTree() *Route {
 	panic("implement me")
 }
 
-func (f *FakeConfig) Templates() *Template {
+func (f *FakeConfig) Templates() *templates.Template {
 	// TODO implement me
 	panic("implement me")
 }

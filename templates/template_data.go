@@ -18,10 +18,16 @@ import (
 	"github.com/grafana/alerting/models"
 )
 
+type Template = template.Template
+type KV = template.KV
+type Data = template.Data
+
+var FromGlobs = template.FromGlobs
+
 type ExtendedAlert struct {
 	Status        string             `json:"status"`
-	Labels        template.KV        `json:"labels"`
-	Annotations   template.KV        `json:"annotations"`
+	Labels        KV                 `json:"labels"`
+	Annotations   KV                 `json:"annotations"`
 	StartsAt      time.Time          `json:"startsAt"`
 	EndsAt        time.Time          `json:"endsAt"`
 	GeneratorURL  string             `json:"generatorURL"`
@@ -42,9 +48,9 @@ type ExtendedData struct {
 	Status   string         `json:"status"`
 	Alerts   ExtendedAlerts `json:"alerts"`
 
-	GroupLabels       template.KV `json:"groupLabels"`
-	CommonLabels      template.KV `json:"commonLabels"`
-	CommonAnnotations template.KV `json:"commonAnnotations"`
+	GroupLabels       KV `json:"groupLabels"`
+	CommonLabels      KV `json:"commonLabels"`
+	CommonAnnotations KV `json:"commonAnnotations"`
 
 	ExternalURL string `json:"externalURL"`
 }
@@ -151,8 +157,8 @@ func setOrgIDQueryParam(url *url.URL, orgID string) string {
 	return url.String()
 }
 
-func ExtendData(data *template.Data, logger logging.Logger) *ExtendedData {
-	alerts := []ExtendedAlert{}
+func ExtendData(data *Data, logger logging.Logger) *ExtendedData {
+	alerts := make([]ExtendedAlert, 0, len(data.Alerts))
 
 	for _, alert := range data.Alerts {
 		extendedAlert := extendAlert(alert, data.ExternalURL, logger)
@@ -172,7 +178,7 @@ func ExtendData(data *template.Data, logger logging.Logger) *ExtendedData {
 	return extended
 }
 
-func TmplText(ctx context.Context, tmpl *template.Template, alerts []*types.Alert, l logging.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
+func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l logging.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
 	promTmplData := notify.GetTemplateData(ctx, tmpl, alerts, l)
 	data := ExtendData(promTmplData, l)
 

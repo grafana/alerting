@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/template"
+
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
@@ -31,14 +31,14 @@ var (
 // Notifier is responsible for sending alert notifications to Opsgenie.
 type Notifier struct {
 	*receivers.Base
-	tmpl     *template.Template
+	tmpl     *templates.Template
 	log      logging.Logger
 	ns       receivers.WebhookSender
 	images   images.ImageStore
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		log:      logger,

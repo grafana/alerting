@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
@@ -99,7 +98,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	_, err = f.WriteString(DefaultTemplateString)
 	require.NoError(t, err)
 
-	tmpl, err := template.FromGlobs([]string{f.Name()})
+	tmpl, err := FromGlobs([]string{f.Name()})
 	require.NoError(t, err)
 
 	externalURL, err := url.Parse("http://localhost/grafana")

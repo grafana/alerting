@@ -10,14 +10,14 @@ import (
 	"github.com/alecthomas/units"
 	"github.com/pkg/errors"
 	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/template"
+
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
-	template2 "github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/templates"
 )
 
 const (
@@ -42,7 +42,7 @@ var (
 // alert notifications to pagerduty
 type Notifier struct {
 	*receivers.Base
-	tmpl     *template.Template
+	tmpl     *templates.Template
 	log      logging.Logger
 	ns       receivers.WebhookSender
 	images   images.ImageStore
@@ -50,7 +50,7 @@ type Notifier struct {
 }
 
 // New is the constructor for the PagerDuty notifier
-func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		log:      logger,
@@ -122,7 +122,7 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 	}
 
 	var tmplErr error
-	tmpl, data := template2.TmplText(ctx, pn.tmpl, as, pn.log, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, pn.tmpl, as, pn.log, &tmplErr)
 
 	details := make(map[string]string, len(pn.settings.Details))
 	for k, v := range pn.settings.Details {

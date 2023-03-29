@@ -13,14 +13,14 @@ import (
 	"strings"
 
 	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/template"
+
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
-	template2 "github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/templates"
 )
 
 // Constants and models are set according to the official documentation https://discord.com/developers/docs/resources/webhook#execute-webhook-jsonform-params
@@ -69,7 +69,7 @@ type Notifier struct {
 	log        logging.Logger
 	ns         receivers.WebhookSender
 	images     images.ImageStore
-	tmpl       *template.Template
+	tmpl       *templates.Template
 	settings   Config
 	appVersion string
 }
@@ -82,7 +82,7 @@ type discordAttachment struct {
 	state     model.AlertStatus
 }
 
-func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:       receivers.NewBase(meta),
 		log:        logger,
@@ -104,7 +104,7 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 	}
 
 	var tmplErr error
-	tmpl, _ := template2.TmplText(ctx, d.tmpl, as, d.log, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, d.tmpl, as, d.log, &tmplErr)
 
 	msg.Content = tmpl(d.settings.Message)
 	if tmplErr != nil {

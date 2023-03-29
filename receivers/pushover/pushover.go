@@ -11,14 +11,14 @@ import (
 	"strings"
 
 	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/template"
+
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
-	template2 "github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/templates"
 )
 
 const (
@@ -40,7 +40,7 @@ var (
 // alert notifications to Pushover
 type Notifier struct {
 	*receivers.Base
-	tmpl     *template.Template
+	tmpl     *templates.Template
 	log      logging.Logger
 	images   images.ImageStore
 	ns       receivers.WebhookSender
@@ -48,7 +48,7 @@ type Notifier struct {
 }
 
 // New is the constructor for the pushover notifier
-func New(cfg Config, meta receivers.Metadata, template *template.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		log:      logger,
@@ -103,7 +103,7 @@ func (pn *Notifier) genPushoverBody(ctx context.Context, as ...*types.Alert) (ma
 	}
 
 	var tmplErr error
-	tmpl, _ := template2.TmplText(ctx, pn.tmpl, as, pn.log, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, pn.tmpl, as, pn.log, &tmplErr)
 
 	if err := w.WriteField("user", tmpl(pn.settings.UserKey)); err != nil {
 		return nil, b, fmt.Errorf("failed to write the user: %w", err)
