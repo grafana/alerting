@@ -35,17 +35,6 @@ import (
 	"github.com/grafana/alerting/receivers/wecom"
 )
 
-func TestInvalidReceiverError_Error(t *testing.T) {
-	e := InvalidReceiverError{
-		Receiver: &GrafanaReceiver{
-			Name: "test",
-			UID:  "uid",
-		},
-		Err: errors.New("this is an error"),
-	}
-	require.Equal(t, "the receiver is invalid: this is an error", e.Error())
-}
-
 func TestReceiverTimeoutError_Error(t *testing.T) {
 	e := ReceiverTimeoutError{
 		Receiver: &GrafanaIntegrationConfig{

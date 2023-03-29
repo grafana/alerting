@@ -65,11 +65,6 @@ type TestReceiverConfigResult struct {
 	Error  error
 }
 
-type InvalidReceiverError struct {
-	Receiver *GrafanaIntegrationConfig
-	Err      error
-}
-
 type GrafanaIntegrationConfig struct {
 	UID                   string            `json:"uid"`
 	Name                  string            `json:"name"`
@@ -98,10 +93,6 @@ type TestReceiversConfigBodyParams struct {
 type TestReceiversConfigAlertParams struct {
 	Annotations model.LabelSet `yaml:"annotations,omitempty" json:"annotations,omitempty"`
 	Labels      model.LabelSet `yaml:"labels,omitempty" json:"labels,omitempty"`
-}
-
-func (e InvalidReceiverError) Error() string {
-	return fmt.Sprintf("the receiver is invalid: %s", e.Err)
 }
 
 type ReceiverTimeoutError struct {
