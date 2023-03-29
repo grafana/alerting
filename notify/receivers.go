@@ -66,11 +66,11 @@ type TestReceiverConfigResult struct {
 }
 
 type InvalidReceiverError struct {
-	Receiver *GrafanaReceiver
+	Receiver *GrafanaIntegrationConfig
 	Err      error
 }
 
-type GrafanaReceiver struct {
+type GrafanaIntegrationConfig struct {
 	UID                   string            `json:"uid"`
 	Name                  string            `json:"name"`
 	Type                  string            `json:"type"`
@@ -87,7 +87,7 @@ type APIReceiver struct {
 }
 
 type GrafanaIntegrations struct {
-	Integrations []*GrafanaReceiver `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
+	Integrations []*GrafanaIntegrationConfig `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
 }
 
 type TestReceiversConfigBodyParams struct {
@@ -105,7 +105,7 @@ func (e InvalidReceiverError) Error() string {
 }
 
 type ReceiverTimeoutError struct {
-	Receiver *GrafanaReceiver
+	Receiver *GrafanaIntegrationConfig
 	Err      error
 }
 
@@ -128,14 +128,14 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 
 	// job contains all metadata required to test a receiver
 	type job struct {
-		Config       *GrafanaReceiver
+		Config       *GrafanaIntegrationConfig
 		ReceiverName string
 		Notifier     notify.Notifier
 	}
 
 	// result contains the receiver that was tested and an error that is non-nil if the test failed
 	type result struct {
-		Config       *GrafanaReceiver
+		Config       *GrafanaIntegrationConfig
 		ReceiverName string
 		Error        error
 	}
@@ -292,7 +292,7 @@ func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time
 	return alert
 }
 
-func ProcessNotifierError(config *GrafanaReceiver, err error) error {
+func ProcessNotifierError(config *GrafanaIntegrationConfig, err error) error {
 	if err == nil {
 		return nil
 	}
@@ -341,7 +341,7 @@ type GrafanaReceiverConfig struct {
 	WebexConfigs        []*NotifierConfig[webex.Config]
 }
 
-// NotifierConfig represents parsed GrafanaReceiver.
+// NotifierConfig represents parsed GrafanaIntegrationConfig.
 type NotifierConfig[T interface{}] struct {
 	receivers.Metadata
 	Settings T
@@ -369,7 +369,7 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt G
 }
 
 // parseNotifier parses receivers and populates the corresponding field in GrafanaReceiverConfig. Returns an error if the configuration cannot be parsed.
-func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *GrafanaReceiver, decrypt GetDecryptedValueFn) error {
+func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *GrafanaIntegrationConfig, decrypt GetDecryptedValueFn) error {
 	secureSettings, err := decodeSecretsFromBase64(receiver.SecureSettings)
 	if err != nil {
 		return err
@@ -515,7 +515,7 @@ func decodeSecretsFromBase64(secrets map[string]string) (map[string][]byte, erro
 	return secureSettings, nil
 }
 
-func newNotifierConfig[T interface{}](receiver *GrafanaReceiver, settings T) *NotifierConfig[T] {
+func newNotifierConfig[T interface{}](receiver *GrafanaIntegrationConfig, settings T) *NotifierConfig[T] {
 	return &NotifierConfig[T]{
 		Metadata: receivers.Metadata{
 			UID:                   receiver.UID,
@@ -529,7 +529,7 @@ func newNotifierConfig[T interface{}](receiver *GrafanaReceiver, settings T) *No
 
 type ReceiverValidationError struct {
 	Err error
-	Cfg *GrafanaReceiver
+	Cfg *GrafanaIntegrationConfig
 }
 
 func (e ReceiverValidationError) Error() string {

@@ -48,7 +48,7 @@ func TestInvalidReceiverError_Error(t *testing.T) {
 
 func TestReceiverTimeoutError_Error(t *testing.T) {
 	e := ReceiverTimeoutError{
-		Receiver: &GrafanaReceiver{
+		Receiver: &GrafanaIntegrationConfig{
 			Name: "test",
 			UID:  "uid",
 		},
@@ -69,7 +69,7 @@ func (e timeoutError) Timeout() bool {
 
 func TestProcessNotifierError(t *testing.T) {
 	t.Run("assert ReceiverTimeoutError is returned for context deadline exceeded", func(t *testing.T) {
-		r := &GrafanaReceiver{
+		r := &GrafanaIntegrationConfig{
 			Name: "test",
 			UID:  "uid",
 		}
@@ -80,7 +80,7 @@ func TestProcessNotifierError(t *testing.T) {
 	})
 
 	t.Run("assert ReceiverTimeoutError is returned for *url.Error timeout", func(t *testing.T) {
-		r := &GrafanaReceiver{
+		r := &GrafanaIntegrationConfig{
 			Name: "test",
 			UID:  "uid",
 		}
@@ -96,7 +96,7 @@ func TestProcessNotifierError(t *testing.T) {
 	})
 
 	t.Run("assert unknown error is returned unmodified", func(t *testing.T) {
-		r := &GrafanaReceiver{
+		r := &GrafanaIntegrationConfig{
 			Name: "test",
 			UID:  "uid",
 		}
@@ -125,7 +125,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		for notifierType, cfg := range allKnownConfigs {
 			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
 		}
-		bad := &GrafanaReceiver{
+		bad := &GrafanaIntegrationConfig{
 			UID:      "invalid-test",
 			Name:     "invalid-test",
 			Type:     "slack",
@@ -174,7 +174,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		for notifierType, cfg := range allKnownConfigs {
 			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
 		}
-		bad := &GrafanaReceiver{
+		bad := &GrafanaIntegrationConfig{
 			UID:      "test",
 			Name:     "test",
 			Type:     fmt.Sprintf("invalid-%d", rand.Uint32()),
@@ -245,7 +245,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 				require.NotEmptyf(t, meta.Type, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
 				require.NotEmptyf(t, meta.UID, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
 				require.NotEmptyf(t, meta.Name, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
-				var notifierRaw *GrafanaReceiver
+				var notifierRaw *GrafanaIntegrationConfig
 				for _, receiver := range recCfg.Integrations {
 					if receiver.Type == meta.Type && receiver.UID == meta.UID && receiver.Name == meta.Name {
 						notifierRaw = receiver
@@ -377,7 +377,7 @@ type notifierConfigTest struct {
 	secrets      string
 }
 
-func (n notifierConfigTest) getRawNotifierConfig(name string) *GrafanaReceiver {
+func (n notifierConfigTest) getRawNotifierConfig(name string) *GrafanaIntegrationConfig {
 	secrets := make(map[string]string)
 	if n.secrets != "" {
 		err := json.Unmarshal([]byte(n.secrets), &secrets)
@@ -388,7 +388,7 @@ func (n notifierConfigTest) getRawNotifierConfig(name string) *GrafanaReceiver {
 			secrets[key] = base64.StdEncoding.EncodeToString([]byte(value))
 		}
 	}
-	return &GrafanaReceiver{
+	return &GrafanaIntegrationConfig{
 		UID:                   fmt.Sprintf("%s-%d", name, rand.Uint32()),
 		Name:                  name,
 		Type:                  n.notifierType,

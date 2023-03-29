@@ -100,7 +100,7 @@ type GrafanaAlertmanager struct {
 	configHash                   [16]byte
 	config                       []byte
 	receivers                    []*notify.Receiver
-	buildReceiverIntegrationFunc func(next *GrafanaReceiver, tmpl *templates.Template) (Notifier, error)
+	buildReceiverIntegrationFunc func(next *GrafanaIntegrationConfig, tmpl *templates.Template) (Notifier, error)
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -141,7 +141,7 @@ type Configuration interface {
 	InhibitRules() []InhibitRule
 	MuteTimeIntervals() []MuteTimeInterval
 	ReceiverIntegrations() (map[string][]*Integration, error)
-	BuildReceiverIntegrationsFunc() func(next *GrafanaReceiver, tmpl *templates.Template) (Notifier, error)
+	BuildReceiverIntegrationsFunc() func(next *GrafanaIntegrationConfig, tmpl *templates.Template) (Notifier, error)
 
 	RoutingTree() *Route
 	Templates() *templates.Template
@@ -614,6 +614,6 @@ func (am *GrafanaAlertmanager) tenantString() string {
 	return fmt.Sprintf("%d", am.tenantID)
 }
 
-func (am *GrafanaAlertmanager) buildReceiverIntegration(next *GrafanaReceiver, tmpl *templates.Template) (Notifier, error) {
+func (am *GrafanaAlertmanager) buildReceiverIntegration(next *GrafanaIntegrationConfig, tmpl *templates.Template) (Notifier, error) {
 	return am.buildReceiverIntegrationFunc(next, tmpl)
 }
