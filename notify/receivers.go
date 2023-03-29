@@ -350,9 +350,9 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt G
 	for _, receiver := range api.Integrations {
 		err := parseNotifier(ctx, &result, receiver, decrypt)
 		if err != nil {
-			return GrafanaReceiverConfig{}, &ReceiverValidationError{
-				Cfg: receiver,
-				Err: fmt.Errorf("failed to parse notifier %s (UID: %s): %w", receiver.Name, receiver.UID, err),
+			return GrafanaReceiverConfig{}, &IntegrationValidationError{
+				Integration: receiver,
+				Err:         err,
 			}
 		}
 	}
@@ -518,18 +518,18 @@ func newNotifierConfig[T interface{}](receiver *GrafanaIntegrationConfig, settin
 	}
 }
 
-type ReceiverValidationError struct {
-	Err error
-	Cfg *GrafanaIntegrationConfig
+type IntegrationValidationError struct {
+	Err         error
+	Integration *GrafanaIntegrationConfig
 }
 
-func (e ReceiverValidationError) Error() string {
+func (e IntegrationValidationError) Error() string {
 	name := ""
-	if e.Cfg.Name != "" {
-		name = fmt.Sprintf("%q ", e.Cfg.Name)
+	if e.Integration.Name != "" {
+		name = fmt.Sprintf("%q ", e.Integration.Name)
 	}
-	s := fmt.Sprintf("failed to validate receiver %sof type %q: %s", name, e.Cfg.Type, e.Err.Error())
+	s := fmt.Sprintf("failed to validate integration %s(UID %s) of type %q: %s", name, e.Integration.UID, e.Integration.Type, e.Err.Error())
 	return s
 }
 
-func (e ReceiverValidationError) Unwrap() error { return e.Err }
+func (e IntegrationValidationError) Unwrap() error { return e.Err }

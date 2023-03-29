@@ -57,7 +57,7 @@ func (e timeoutError) Timeout() bool {
 }
 
 func TestProcessNotifierError(t *testing.T) {
-	t.Run("assert ReceiverTimeoutError is returned for context deadline exceeded", func(t *testing.T) {
+	t.Run("assert IntegrationTimeoutError is returned for context deadline exceeded", func(t *testing.T) {
 		r := &GrafanaIntegrationConfig{
 			Name: "test",
 			UID:  "uid",
@@ -68,7 +68,7 @@ func TestProcessNotifierError(t *testing.T) {
 		}, ProcessNotifierError(r, context.DeadlineExceeded))
 	})
 
-	t.Run("assert ReceiverTimeoutError is returned for *url.Error timeout", func(t *testing.T) {
+	t.Run("assert IntegrationTimeoutError is returned for *url.Error timeout", func(t *testing.T) {
 		r := &GrafanaIntegrationConfig{
 			Name: "test",
 			UID:  "uid",
@@ -125,11 +125,11 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
 		require.NotNil(t, err)
 		require.Equal(t, GrafanaReceiverConfig{}, parsed)
-		require.IsType(t, &ReceiverValidationError{}, err)
-		typedError := err.(*ReceiverValidationError)
-		require.NotNil(t, typedError.Cfg)
-		require.Equal(t, bad, typedError.Cfg)
-		require.ErrorContains(t, err, fmt.Sprintf(`failed to validate receiver "%s" of type "%s"`, bad.Name, bad.Type))
+		require.IsType(t, &IntegrationValidationError{}, err)
+		typedError := err.(*IntegrationValidationError)
+		require.NotNil(t, typedError.Integration)
+		require.Equal(t, bad, typedError.Integration)
+		require.ErrorContains(t, err, fmt.Sprintf(`failed to validate integration "%s" (UID %s) of type "%s"`, bad.Name, bad.UID, bad.Type))
 	})
 	t.Run("should accept empty config", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
@@ -153,9 +153,9 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
 		require.NotNil(t, err)
 		require.Equal(t, GrafanaReceiverConfig{}, parsed)
-		require.IsType(t, &ReceiverValidationError{}, err)
-		typedError := err.(*ReceiverValidationError)
-		require.NotNil(t, typedError.Cfg)
+		require.IsType(t, &IntegrationValidationError{}, err)
+		typedError := err.(*IntegrationValidationError)
+		require.NotNil(t, typedError.Integration)
 		require.ErrorContains(t, err, "failed to decode secure settings")
 	})
 	t.Run("should fail if notifier type is unknown", func(t *testing.T) {
@@ -174,10 +174,10 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
 		require.NotNil(t, err)
 		require.Equal(t, GrafanaReceiverConfig{}, parsed)
-		require.IsType(t, &ReceiverValidationError{}, err)
-		typedError := err.(*ReceiverValidationError)
-		require.NotNil(t, typedError.Cfg)
-		require.Equal(t, bad, typedError.Cfg)
+		require.IsType(t, &IntegrationValidationError{}, err)
+		typedError := err.(*IntegrationValidationError)
+		require.NotNil(t, typedError.Integration)
+		require.Equal(t, bad, typedError.Integration)
 		require.ErrorContains(t, err, fmt.Sprintf("notifier %s is not supported", bad.Type))
 	})
 	t.Run("should recognize all known types", func(t *testing.T) {
