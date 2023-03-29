@@ -110,7 +110,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	t.Run("should decode secrets from base64", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for notifierType, cfg := range allKnownConfigs {
-			recCfg.Receivers = append(recCfg.Receivers, cfg.getRawNotifierConfig(notifierType))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
 		}
 		counter := 0
 		decryptCount := func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
@@ -123,7 +123,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	t.Run("should fail if at least one config is invalid", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for notifierType, cfg := range allKnownConfigs {
-			recCfg.Receivers = append(recCfg.Receivers, cfg.getRawNotifierConfig(notifierType))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
 		}
 		bad := &GrafanaReceiver{
 			UID:      "invalid-test",
@@ -131,7 +131,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 			Type:     "slack",
 			Settings: json.RawMessage(`{ "test" : "test" }`),
 		}
-		recCfg.Receivers = append(recCfg.Receivers, bad)
+		recCfg.Integrations = append(recCfg.Integrations, bad)
 
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
 		require.NotNil(t, err)
@@ -158,7 +158,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 			for key := range notifierRaw.SecureSettings {
 				notifierRaw.SecureSettings[key] = "bad base-64"
 			}
-			recCfg.Receivers = append(recCfg.Receivers, notifierRaw)
+			recCfg.Integrations = append(recCfg.Integrations, notifierRaw)
 		}
 
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
@@ -172,7 +172,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	t.Run("should fail if notifier type is unknown", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for notifierType, cfg := range allKnownConfigs {
-			recCfg.Receivers = append(recCfg.Receivers, cfg.getRawNotifierConfig(notifierType))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
 		}
 		bad := &GrafanaReceiver{
 			UID:      "test",
@@ -180,7 +180,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 			Type:     fmt.Sprintf("invalid-%d", rand.Uint32()),
 			Settings: json.RawMessage(`{ "test" : "test" }`),
 		}
-		recCfg.Receivers = append(recCfg.Receivers, bad)
+		recCfg.Integrations = append(recCfg.Integrations, bad)
 
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
 		require.NotNil(t, err)
@@ -194,7 +194,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	t.Run("should recognize all known types", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for notifierType, cfg := range allKnownConfigs {
-			recCfg.Receivers = append(recCfg.Receivers, cfg.getRawNotifierConfig(notifierType))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
 		require.NoError(t, err)
@@ -246,7 +246,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 				require.NotEmptyf(t, meta.UID, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
 				require.NotEmptyf(t, meta.Name, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
 				var notifierRaw *GrafanaReceiver
-				for _, receiver := range recCfg.Receivers {
+				for _, receiver := range recCfg.Integrations {
 					if receiver.Type == meta.Type && receiver.UID == meta.UID && receiver.Name == meta.Name {
 						notifierRaw = receiver
 						break
@@ -262,7 +262,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		for notifierType, cfg := range allKnownConfigs {
 			notifierRaw := cfg.getRawNotifierConfig(notifierType)
 			notifierRaw.Type = strings.ToUpper(notifierRaw.Type)
-			recCfg.Receivers = append(recCfg.Receivers, cfg.getRawNotifierConfig(notifierType))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
 		require.NoError(t, err)

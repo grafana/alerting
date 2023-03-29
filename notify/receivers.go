@@ -82,12 +82,12 @@ type GrafanaReceiver struct {
 type ConfigReceiver = config.Receiver
 
 type APIReceiver struct {
-	ConfigReceiver   `yaml:",inline"`
-	GrafanaReceivers `yaml:",inline"`
+	ConfigReceiver      `yaml:",inline"`
+	GrafanaIntegrations `yaml:",inline"`
 }
 
-type GrafanaReceivers struct {
-	Receivers []*GrafanaReceiver `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
+type GrafanaIntegrations struct {
+	Integrations []*GrafanaReceiver `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
 }
 
 type TestReceiversConfigBodyParams struct {
@@ -147,7 +147,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 			m[receiver.Name] = TestReceiverResult{
 				Name: receiver.Name,
 				// A Grafana receiver can have multiple nested receivers
-				Configs: make([]TestReceiverConfigResult, 0, len(receiver.Receivers)),
+				Configs: make([]TestReceiverConfigResult, 0, len(receiver.Integrations)),
 			}
 		}
 		for _, next := range results {
@@ -186,7 +186,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 	jobs := make([]job, 0, len(c.Receivers))
 
 	for _, receiver := range c.Receivers {
-		for _, next := range receiver.Receivers {
+		for _, next := range receiver.Integrations {
 			n, err := am.buildReceiverIntegration(next, tmpl)
 			if err != nil {
 				invalid = append(invalid, result{
@@ -356,7 +356,7 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt G
 	result := GrafanaReceiverConfig{
 		Name: api.Name,
 	}
-	for _, receiver := range api.Receivers {
+	for _, receiver := range api.Integrations {
 		err := parseNotifier(ctx, &result, receiver, decrypt)
 		if err != nil {
 			return GrafanaReceiverConfig{}, &ReceiverValidationError{
