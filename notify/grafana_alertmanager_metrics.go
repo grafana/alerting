@@ -33,7 +33,7 @@ func NewGrafanaAlertmanagerMetrics(r prometheus.Registerer) *GrafanaAlertmanager
 			Namespace: namesapce,
 			Subsystem: subsystem,
 			Name:      "alertmanager_integrations",
-			Help:      "Number of configured receivers.",
+			Help:      "Number of configured integrations.",
 		}, []string{"org", "type"}),
 	}
 }

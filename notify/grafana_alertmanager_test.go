@@ -332,7 +332,7 @@ func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
 	am.setReceiverMetrics(receivers, 2)
 
 	require.NoError(t, testutil.GatherAndCompare(reg, bytes.NewBufferString(`
-        	            	# HELP grafana_alerting_alertmanager_integrations Number of configured receivers.
+        	            	# HELP grafana_alerting_alertmanager_integrations Number of configured integrations.
         	            	# TYPE grafana_alerting_alertmanager_integrations gauge
         	            	grafana_alerting_alertmanager_integrations{org="1",type="grafana-oncall"} 2
         	            	grafana_alerting_alertmanager_integrations{org="1",type="sns"} 2

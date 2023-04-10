@@ -55,22 +55,17 @@ type TestReceiversResult struct {
 
 type TestReceiverResult struct {
 	Name    string
-	Configs []TestReceiverConfigResult
+	Configs []TestIntegrationConfigResult
 }
 
-type TestReceiverConfigResult struct {
+type TestIntegrationConfigResult struct {
 	Name   string
 	UID    string
 	Status string
 	Error  error
 }
 
-type InvalidReceiverError struct {
-	Receiver *GrafanaReceiver
-	Err      error
-}
-
-type GrafanaReceiver struct {
+type GrafanaIntegrationConfig struct {
 	UID                   string            `json:"uid"`
 	Name                  string            `json:"name"`
 	Type                  string            `json:"type"`
@@ -82,12 +77,12 @@ type GrafanaReceiver struct {
 type ConfigReceiver = config.Receiver
 
 type APIReceiver struct {
-	ConfigReceiver   `yaml:",inline"`
-	GrafanaReceivers `yaml:",inline"`
+	ConfigReceiver      `yaml:",inline"`
+	GrafanaIntegrations `yaml:",inline"`
 }
 
-type GrafanaReceivers struct {
-	Receivers []*GrafanaReceiver `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
+type GrafanaIntegrations struct {
+	Integrations []*GrafanaIntegrationConfig `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
 }
 
 type TestReceiversConfigBodyParams struct {
@@ -100,16 +95,12 @@ type TestReceiversConfigAlertParams struct {
 	Labels      model.LabelSet `yaml:"labels,omitempty" json:"labels,omitempty"`
 }
 
-func (e InvalidReceiverError) Error() string {
-	return fmt.Sprintf("the receiver is invalid: %s", e.Err)
+type IntegrationTimeoutError struct {
+	Integration *GrafanaIntegrationConfig
+	Err         error
 }
 
-type ReceiverTimeoutError struct {
-	Receiver *GrafanaReceiver
-	Err      error
-}
-
-func (e ReceiverTimeoutError) Error() string {
+func (e IntegrationTimeoutError) Error() string {
 	return fmt.Sprintf("the receiver timed out: %s", e.Err)
 }
 
@@ -128,14 +119,14 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 
 	// job contains all metadata required to test a receiver
 	type job struct {
-		Config       *GrafanaReceiver
+		Config       *GrafanaIntegrationConfig
 		ReceiverName string
 		Notifier     notify.Notifier
 	}
 
 	// result contains the receiver that was tested and an error that is non-nil if the test failed
 	type result struct {
-		Config       *GrafanaReceiver
+		Config       *GrafanaIntegrationConfig
 		ReceiverName string
 		Error        error
 	}
@@ -147,7 +138,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 			m[receiver.Name] = TestReceiverResult{
 				Name: receiver.Name,
 				// A Grafana receiver can have multiple nested receivers
-				Configs: make([]TestReceiverConfigResult, 0, len(receiver.Receivers)),
+				Configs: make([]TestIntegrationConfigResult, 0, len(receiver.Integrations)),
 			}
 		}
 		for _, next := range results {
@@ -156,11 +147,11 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 			if next.Error != nil {
 				status = "failed"
 			}
-			tmp.Configs = append(tmp.Configs, TestReceiverConfigResult{
+			tmp.Configs = append(tmp.Configs, TestIntegrationConfigResult{
 				Name:   next.Config.Name,
 				UID:    next.Config.UID,
 				Status: status,
-				Error:  ProcessNotifierError(next.Config, next.Error),
+				Error:  ProcessIntegrationError(next.Config, next.Error),
 			})
 			m[next.ReceiverName] = tmp
 		}
@@ -186,7 +177,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 	jobs := make([]job, 0, len(c.Receivers))
 
 	for _, receiver := range c.Receivers {
-		for _, next := range receiver.Receivers {
+		for _, next := range receiver.Integrations {
 			n, err := am.buildReceiverIntegration(next, tmpl)
 			if err != nil {
 				invalid = append(invalid, result{
@@ -292,7 +283,7 @@ func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time
 	return alert
 }
 
-func ProcessNotifierError(config *GrafanaReceiver, err error) error {
+func ProcessIntegrationError(config *GrafanaIntegrationConfig, err error) error {
 	if err == nil {
 		return nil
 	}
@@ -300,17 +291,17 @@ func ProcessNotifierError(config *GrafanaReceiver, err error) error {
 	var urlError *url.Error
 	if errors.As(err, &urlError) {
 		if urlError.Timeout() {
-			return ReceiverTimeoutError{
-				Receiver: config,
-				Err:      err,
+			return IntegrationTimeoutError{
+				Integration: config,
+				Err:         err,
 			}
 		}
 	}
 
 	if errors.Is(err, context.DeadlineExceeded) {
-		return ReceiverTimeoutError{
-			Receiver: config,
-			Err:      err,
+		return IntegrationTimeoutError{
+			Integration: config,
+			Err:         err,
 		}
 	}
 
@@ -341,7 +332,7 @@ type GrafanaReceiverConfig struct {
 	WebexConfigs        []*NotifierConfig[webex.Config]
 }
 
-// NotifierConfig represents parsed GrafanaReceiver.
+// NotifierConfig represents parsed GrafanaIntegrationConfig.
 type NotifierConfig[T interface{}] struct {
 	receivers.Metadata
 	Settings T
@@ -356,12 +347,12 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt G
 	result := GrafanaReceiverConfig{
 		Name: api.Name,
 	}
-	for _, receiver := range api.Receivers {
+	for _, receiver := range api.Integrations {
 		err := parseNotifier(ctx, &result, receiver, decrypt)
 		if err != nil {
-			return GrafanaReceiverConfig{}, &ReceiverValidationError{
-				Cfg: receiver,
-				Err: fmt.Errorf("failed to parse notifier %s (UID: %s): %w", receiver.Name, receiver.UID, err),
+			return GrafanaReceiverConfig{}, &IntegrationValidationError{
+				Integration: receiver,
+				Err:         err,
 			}
 		}
 	}
@@ -369,7 +360,7 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt G
 }
 
 // parseNotifier parses receivers and populates the corresponding field in GrafanaReceiverConfig. Returns an error if the configuration cannot be parsed.
-func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *GrafanaReceiver, decrypt GetDecryptedValueFn) error {
+func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *GrafanaIntegrationConfig, decrypt GetDecryptedValueFn) error {
 	secureSettings, err := decodeSecretsFromBase64(receiver.SecureSettings)
 	if err != nil {
 		return err
@@ -515,7 +506,7 @@ func decodeSecretsFromBase64(secrets map[string]string) (map[string][]byte, erro
 	return secureSettings, nil
 }
 
-func newNotifierConfig[T interface{}](receiver *GrafanaReceiver, settings T) *NotifierConfig[T] {
+func newNotifierConfig[T interface{}](receiver *GrafanaIntegrationConfig, settings T) *NotifierConfig[T] {
 	return &NotifierConfig[T]{
 		Metadata: receivers.Metadata{
 			UID:                   receiver.UID,
@@ -527,18 +518,18 @@ func newNotifierConfig[T interface{}](receiver *GrafanaReceiver, settings T) *No
 	}
 }
 
-type ReceiverValidationError struct {
-	Err error
-	Cfg *GrafanaReceiver
+type IntegrationValidationError struct {
+	Err         error
+	Integration *GrafanaIntegrationConfig
 }
 
-func (e ReceiverValidationError) Error() string {
+func (e IntegrationValidationError) Error() string {
 	name := ""
-	if e.Cfg.Name != "" {
-		name = fmt.Sprintf("%q ", e.Cfg.Name)
+	if e.Integration.Name != "" {
+		name = fmt.Sprintf("%q ", e.Integration.Name)
 	}
-	s := fmt.Sprintf("failed to validate receiver %sof type %q: %s", name, e.Cfg.Type, e.Err.Error())
+	s := fmt.Sprintf("failed to validate integration %s(UID %s) of type %q: %s", name, e.Integration.UID, e.Integration.Type, e.Err.Error())
 	return s
 }
 
-func (e ReceiverValidationError) Unwrap() error { return e.Err }
+func (e IntegrationValidationError) Unwrap() error { return e.Err }
