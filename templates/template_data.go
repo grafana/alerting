@@ -86,6 +86,18 @@ func extendAlert(alert template.Alert, externalURL string, logger logging.Logger
 		return extended
 	}
 	externalPath := u.Path
+
+	generatorURL, err := url.Parse(extended.GeneratorURL)
+	if err != nil {
+		logger.Debug("failed to parse generator URL while extending template data", "url", extended.GeneratorURL, "err", err.Error())
+		return extended
+	}
+
+	orgID := alert.Annotations[models.OrgIDAnnotation]
+	if len(orgID) > 0 {
+		extended.GeneratorURL = setOrgIDQueryParam(generatorURL, orgID)
+	}
+
 	dashboardUID := alert.Annotations[models.DashboardUIDAnnotation]
 	if len(dashboardUID) > 0 {
 		u.Path = path.Join(externalPath, "/d/", dashboardUID)
@@ -95,24 +107,14 @@ func extendAlert(alert template.Alert, externalURL string, logger logging.Logger
 			u.RawQuery = "viewPanel=" + panelID
 			extended.PanelURL = u.String()
 		}
-
-		generatorURL, err := url.Parse(extended.GeneratorURL)
-		if err != nil {
-			logger.Debug("failed to parse generator URL while extending template data", "url", extended.GeneratorURL, "err", err.Error())
-			return extended
-		}
-
 		dashboardURL, err := url.Parse(extended.DashboardURL)
 		if err != nil {
 			logger.Debug("failed to parse dashboard URL while extending template data", "url", extended.DashboardURL, "err", err.Error())
 			return extended
 		}
-
-		orgID := alert.Annotations[models.OrgIDAnnotation]
 		if len(orgID) > 0 {
 			extended.DashboardURL = setOrgIDQueryParam(dashboardURL, orgID)
 			extended.PanelURL = setOrgIDQueryParam(u, orgID)
-			extended.GeneratorURL = setOrgIDQueryParam(generatorURL, orgID)
 		}
 	}
 
