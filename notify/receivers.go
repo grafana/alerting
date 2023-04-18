@@ -350,7 +350,7 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt G
 	for _, receiver := range api.Integrations {
 		err := parseNotifier(ctx, &result, receiver, decrypt)
 		if err != nil {
-			return GrafanaReceiverConfig{}, &IntegrationValidationError{
+			return GrafanaReceiverConfig{}, IntegrationValidationError{
 				Integration: receiver,
 				Err:         err,
 			}
