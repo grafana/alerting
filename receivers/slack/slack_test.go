@@ -478,7 +478,7 @@ func setupSlackForTests(t *testing.T, settings Config) (*Notifier, *slackRequest
 		}
 	})
 
-	images := &images.FakeImageProvider{
+	images := &images.FakeProvider{
 		Images: []*images.Image{{
 			Token: "image-on-disk",
 			Path:  f.Name(),

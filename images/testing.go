@@ -9,12 +9,12 @@ import (
 	"time"
 )
 
-type FakeImageProvider struct {
+type FakeProvider struct {
 	Images []*Image
 }
 
 // GetImage returns an image with the same token.
-func (f *FakeImageProvider) GetImage(_ context.Context, token string) (*Image, error) {
+func (f *FakeProvider) GetImage(_ context.Context, token string) (*Image, error) {
 	for _, img := range f.Images {
 		if img.Token == token {
 			return img, nil
@@ -23,10 +23,10 @@ func (f *FakeImageProvider) GetImage(_ context.Context, token string) (*Image, e
 	return nil, ErrImageNotFound
 }
 
-// NewFakeImageProvider returns an image provider with N test images.
+// NewFakeProvider returns an image provider with N test images.
 // Each image has a token and a URL, but does not have a file on disk.
-func NewFakeImageProvider(n int) ImageProvider {
-	p := FakeImageProvider{}
+func NewFakeProvider(n int) Provider {
+	p := FakeProvider{}
 	for i := 1; i <= n; i++ {
 		p.Images = append(p.Images, &Image{
 			Token:     fmt.Sprintf("test-image-%d", i),
@@ -37,15 +37,15 @@ func NewFakeImageProvider(n int) ImageProvider {
 	return &p
 }
 
-// NewFakeImageProviderWithFile returns an image provider with N test images.
+// NewFakeProviderWithFile returns an image provider with N test images.
 // Each image has a token, path and a URL, where the path is 1x1 transparent
 // PNG on disk. The test should call deleteFunc to delete the images from disk
 // at the end of the test.
 // nolint:deadcode,unused
-func NewFakeImageProviderWithFile(t *testing.T, n int) ImageProvider {
+func NewFakeProviderWithFile(t *testing.T, n int) Provider {
 	var (
 		files []string
-		p     FakeImageProvider
+		p     FakeProvider
 	)
 
 	t.Cleanup(func() {

@@ -19,13 +19,13 @@ type Notifier struct {
 	*receivers.Base
 	ns       receivers.WebhookSender
 	log      logging.Logger
-	images   images.ImageProvider
+	images   images.Provider
 	tmpl     *templates.Template
 	orgID    int64
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageProvider, logger logging.Logger, orgID int64) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger logging.Logger, orgID int64) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		orgID:    orgID,

@@ -31,7 +31,7 @@ const (
 type Notifier struct {
 	*receivers.Base
 	log        logging.Logger
-	images     images.ImageProvider
+	images     images.Provider
 	ns         receivers.WebhookSender
 	tmpl       *templates.Template
 	settings   Config
@@ -40,7 +40,7 @@ type Notifier struct {
 
 // New creates an instance of VictoropsNotifier that
 // handles posting notifications to Victorops REST API
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageProvider, logger logging.Logger, appVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:       receivers.NewBase(meta),
 		log:        logger,

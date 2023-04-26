@@ -28,7 +28,7 @@ func TestNotify(t *testing.T) {
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
 
-	images := images2.NewFakeImageProvider(2)
+	images := images2.NewFakeProvider(2)
 
 	cases := []struct {
 		name        string

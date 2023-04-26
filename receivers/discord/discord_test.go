@@ -345,7 +345,7 @@ func TestNotify(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			webhookSender := receivers.MockNotificationService()
-			imageProvider := &images.UnavailableImageProvider{}
+			imageProvider := &images.UnavailableProvider{}
 			dn := &Notifier{
 				Base: &receivers.Base{
 					Name:                  "",

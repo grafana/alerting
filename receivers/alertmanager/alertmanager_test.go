@@ -20,7 +20,7 @@ import (
 )
 
 func TestNotify(t *testing.T) {
-	imageProvider := images.NewFakeImageProvider(1)
+	imageProvider := images.NewFakeProvider(1)
 	singleURLConfig := Config{
 		URLs: []*url.URL{
 			receiversTesting.ParseURLUnsafe("https://alertmanager.com/api/v1/alerts"),

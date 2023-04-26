@@ -28,13 +28,13 @@ func (i Image) HasURL() bool {
 	return i.URL != ""
 }
 
-type ImageProvider interface {
+type Provider interface {
 	GetImage(ctx context.Context, token string) (*Image, error)
 }
 
-type UnavailableImageProvider struct{}
+type UnavailableProvider struct{}
 
 // GetImage returns the image with the corresponding token, or ErrImageNotFound.
-func (u *UnavailableImageProvider) GetImage(context.Context, string) (*Image, error) {
+func (u *UnavailableProvider) GetImage(context.Context, string) (*Image, error) {
 	return nil, ErrImagesUnavailable
 }

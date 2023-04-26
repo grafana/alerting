@@ -495,7 +495,7 @@ func TestNotify(t *testing.T) {
 			tmpl.ExternalURL = externalURL
 
 			webhookSender := receivers.MockNotificationService()
-			imageProvider := &images.UnavailableImageProvider{}
+			imageProvider := &images.UnavailableProvider{}
 
 			pn := &Notifier{
 				Base: &receivers.Base{

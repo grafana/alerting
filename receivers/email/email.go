@@ -21,12 +21,12 @@ type Notifier struct {
 	*receivers.Base
 	log      logging.Logger
 	ns       receivers.EmailSender
-	images   images.ImageProvider
+	images   images.Provider
 	tmpl     *templates.Template
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.EmailSender, images images.ImageProvider, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.EmailSender, images images.Provider, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		log:      logger,

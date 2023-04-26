@@ -290,7 +290,7 @@ func TestNotify(t *testing.T) {
 				ns:       webhookSender,
 				tmpl:     tmpl,
 				settings: c.settings,
-				images:   &images.UnavailableImageProvider{},
+				images:   &images.UnavailableProvider{},
 			}
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")

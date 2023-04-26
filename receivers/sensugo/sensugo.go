@@ -24,14 +24,14 @@ var (
 type Notifier struct {
 	*receivers.Base
 	log      logging.Logger
-	images   images.ImageProvider
+	images   images.Provider
 	ns       receivers.WebhookSender
 	tmpl     *templates.Template
 	settings Config
 }
 
 // New is the constructor for the SensuGo notifier
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageProvider, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		log:      logger,

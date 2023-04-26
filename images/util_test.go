@@ -29,7 +29,7 @@ func TestWithStoredImages(t *testing.T) {
 			},
 		},
 	}}
-	imageProvider := &FakeImageProvider{Images: []*Image{{
+	imageProvider := &FakeProvider{Images: []*Image{{
 		Token:     "test-image-1",
 		URL:       "https://www.example.com/test-image-1.jpg",
 		CreatedAt: time.Now().UTC(),

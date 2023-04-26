@@ -16,21 +16,21 @@ import (
 )
 
 const (
-	// ImageProviderTimeout should be used by all callers for calles to `Images`
-	ImageProviderTimeout = 500 * time.Millisecond
+	// ProviderTimeout should be used by all callers for calles to `Images`
+	ProviderTimeout = 500 * time.Millisecond
 )
 
 type forEachImageFunc func(index int, image Image) error
 
 // getImage returns the image for the alert or an error. It returns a nil
 // image if the alert does not have an image token or the image does not exist.
-func getImage(ctx context.Context, l logging.Logger, imageProvider ImageProvider, alert types.Alert) (*Image, error) {
+func getImage(ctx context.Context, l logging.Logger, imageProvider Provider, alert types.Alert) (*Image, error) {
 	token := getTokenFromAnnotations(alert.Annotations)
 	if token == "" {
 		return nil, nil
 	}
 
-	ctx, cancelFunc := context.WithTimeout(ctx, ImageProviderTimeout)
+	ctx, cancelFunc := context.WithTimeout(ctx, ProviderTimeout)
 	defer cancelFunc()
 
 	img, err := imageProvider.GetImage(ctx, token)
@@ -51,7 +51,7 @@ func getImage(ctx context.Context, l logging.Logger, imageProvider ImageProvider
 // the error and not iterate the remaining alerts. A forEachFunc can return ErrImagesDone
 // to stop the iteration of remaining alerts if the intended image or maximum number of
 // images have been found.
-func WithStoredImages(ctx context.Context, l logging.Logger, imageProvider ImageProvider, forEachFunc forEachImageFunc, alerts ...*types.Alert) error {
+func WithStoredImages(ctx context.Context, l logging.Logger, imageProvider Provider, forEachFunc forEachImageFunc, alerts ...*types.Alert) error {
 	for index, alert := range alerts {
 		logger := l.New("alert", alert.String())
 		img, err := getImage(ctx, logger, imageProvider, *alert)
