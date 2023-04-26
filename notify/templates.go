@@ -144,7 +144,7 @@ func parseTestTemplate(name string, template string) ([]string, error) {
 	return topLevel, nil
 }
 
-// FindTopLevelTemplates returns the top-level definitions of the given template.
+// findTopLevelTemplates returns the top-level definitions of the given template.
 func findTopLevelTemplates(tmpl *tmpltext.Template) ([]string, error) {
 	// We need to find the names of all defined templates and subtract
 	// the names of all executed templates to find the set of templates that
@@ -154,7 +154,7 @@ func findTopLevelTemplates(tmpl *tmpltext.Template) ([]string, error) {
 		// Check defined templates for an empty outer wrapper template.
 		// This can happen if the template filename does not match the name of any template definition.
 		// Remove if it exists.
-		if def.Name() == tmpl.ParseName && parse.IsEmptyTree(def.Root) && def.Root.Pos == 0 {
+		if def.Name() == tmpl.ParseName && parse.IsEmptyTree(def.Root) {
 			continue
 		}
 		definedTmpls = append(definedTmpls, def)
