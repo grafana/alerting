@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/grafana/alerting/templates"
 	"net/url"
 	"sort"
 	"strings"
@@ -38,6 +37,7 @@ import (
 	"github.com/grafana/alerting/receivers/webex"
 	"github.com/grafana/alerting/receivers/webhook"
 	"github.com/grafana/alerting/receivers/wecom"
+	"github.com/grafana/alerting/templates"
 )
 
 const (

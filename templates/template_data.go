@@ -3,13 +3,14 @@ package templates
 import (
 	"context"
 	"encoding/json"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"net/url"
 	"path"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"

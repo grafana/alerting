@@ -2,18 +2,18 @@ package notify
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/grafana/alerting/templates"
-	v2 "github.com/prometheus/alertmanager/api/v2"
-	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/template"
-	"github.com/prometheus/common/model"
 	tmplhtml "html/template"
 	"net/url"
 	"path/filepath"
 	tmpltext "text/template"
 	"text/template/parse"
+
+	"github.com/grafana/alerting/templates"
+	v2 "github.com/prometheus/alertmanager/api/v2"
+	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/alertmanager/template"
+	"github.com/prometheus/common/model"
 )
 
 type TestTemplatesConfigBodyParams struct {
@@ -87,6 +87,9 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 		newTextTmpl = text
 	}
 	newTmpl, err := templates.FromGlobs(paths, captureTemplate)
+	if err != nil {
+		return nil, err
+	}
 
 	// Parse test template.
 	_, err = newTextTmpl.Parse(c.Template)
@@ -95,7 +98,7 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 		return nil, err
 	}
 
-	externalURL, err := url.Parse(am.ExternalUrl())
+	externalURL, err := url.Parse(am.ExternalURL())
 	if err != nil {
 		return nil, err
 	}
@@ -188,11 +191,12 @@ func findTopLevelTemplates(tmpl *tmpltext.Template) ([]string, error) {
 }
 
 func checkTmpl(tmpl *tmpltext.Template, executedTmpls map[string]struct{}) error {
-	if tr := tmpl.Tree; tr == nil {
-		return errors.New(fmt.Sprintf("Template %s has nil parse tree", tmpl.Name()))
-	} else {
-		checkListNode(tr.Root, executedTmpls)
+	tr := tmpl.Tree
+	if tr == nil {
+		return fmt.Errorf("template %s has nil parse tree", tmpl.Name())
 	}
+	checkListNode(tr.Root, executedTmpls)
+
 	return nil
 }
 

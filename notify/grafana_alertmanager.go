@@ -103,7 +103,7 @@ type GrafanaAlertmanager struct {
 	receivers       []*notify.Receiver
 
 	buildReceiverIntegrationsFunc func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
-	externalUrl                   string
+	externalURL                   string
 	workingDirectory              string
 	templates                     []string
 }
@@ -157,7 +157,7 @@ type Configuration interface {
 
 type GrafanaAlertmanagerConfig struct {
 	WorkingDirectory   string
-	ExternalUrl        string
+	ExternalURL        string
 	AlertStoreCallback mem.AlertStoreCallback
 	PeerTimeout        time.Duration
 
@@ -190,7 +190,7 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		peerTimeout:       config.PeerTimeout,
 		Metrics:           m,
 		tenantID:          tenantID,
-		externalUrl:       config.ExternalUrl,
+		externalURL:       config.ExternalURL,
 		workingDirectory:  config.WorkingDirectory,
 	}
 
@@ -302,8 +302,8 @@ func (am *GrafanaAlertmanager) GetReceivers() []*NotifyReceiver {
 	return am.receivers
 }
 
-func (am *GrafanaAlertmanager) ExternalUrl() string {
-	return am.externalUrl
+func (am *GrafanaAlertmanager) ExternalURL() string {
+	return am.externalURL
 }
 
 func (am *GrafanaAlertmanager) WorkingDirectory() string {
@@ -361,7 +361,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 		paths = append(paths, filepath.Join(am.workingDirectory, name))
 	}
 
-	tmpl, err := am.TemplateFromPaths(am.ExternalUrl(), paths...)
+	tmpl, err := am.TemplateFromPaths(am.ExternalURL(), paths...)
 	if err != nil {
 		return err
 	}
