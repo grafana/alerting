@@ -4,9 +4,14 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/grafana/alerting/models"
+	"github.com/prometheus/alertmanager/types"
 )
 
 type FakeImageStore struct {
@@ -21,6 +26,46 @@ func (f *FakeImageStore) GetImage(_ context.Context, token string) (*Image, erro
 		}
 	}
 	return nil, ErrImageNotFound
+}
+
+// GetImageURL returns the URL of the image associated with a given alert.
+func (f *FakeImageStore) GetImageURL(_ context.Context, alert types.Alert) (string, error) {
+	uri, err := getImageURI(alert)
+	if err != nil {
+		return "", err
+	}
+
+	for _, img := range f.Images {
+		if img.Token == uri || img.URL == uri {
+			return img.URL, nil
+		}
+	}
+	return "", ErrImageNotFound
+}
+
+// GetRawImage returns an io.Reader to read the bytes of the image associated with a given alert.
+func (f *FakeImageStore) GetRawImage(_ context.Context, alert types.Alert) (io.Reader, error) {
+	uri, err := getImageURI(alert)
+	if err != nil {
+		return nil, err
+	}
+
+	uriString := string(uri)
+	for _, img := range f.Images {
+		if img.Token == uriString || img.URL == uriString {
+			return strings.NewReader("test"), nil
+		}
+	}
+	return nil, ErrImageNotFound
+}
+
+// getImageURI is a helper function to retrieve the image URI from the alert annotations as a string.
+func getImageURI(alert types.Alert) (string, error) {
+	uri, ok := alert.Annotations[models.ImageTokenAnnotation]
+	if !ok {
+		return "", fmt.Errorf("no image uri in annotations")
+	}
+	return string(uri), nil
 }
 
 // NewFakeImageStore returns an image store with N test images.
