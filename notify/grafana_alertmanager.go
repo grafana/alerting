@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"sync"
 	"time"
@@ -87,7 +88,7 @@ type GrafanaAlertmanager struct {
 	inhibitor       *inhibit.Inhibitor
 	silencer        *silence.Silencer
 	silences        *silence.Silences
-	templates       *templates.Template
+	template        *templates.Template
 
 	// muteTimes is a map where the key is the name of the mute_time_interval
 	// and the value represents all configured time_interval(s)
@@ -96,11 +97,15 @@ type GrafanaAlertmanager struct {
 	stageMetrics      *notify.Metrics
 	dispatcherMetrics *dispatch.DispatcherMetrics
 
-	reloadConfigMtx              sync.RWMutex
-	configHash                   [16]byte
-	config                       []byte
-	receivers                    []*notify.Receiver
-	buildReceiverIntegrationFunc func(next *GrafanaIntegrationConfig, tmpl *templates.Template) (Notifier, error)
+	reloadConfigMtx sync.RWMutex
+	configHash      [16]byte
+	config          []byte
+	receivers       []*notify.Receiver
+
+	buildReceiverIntegrationsFunc func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
+	externalUrl                   string
+	workingDirectory              string
+	templates                     []string
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -140,11 +145,11 @@ type Configuration interface {
 	DispatcherLimits() DispatcherLimits
 	InhibitRules() []InhibitRule
 	MuteTimeIntervals() []MuteTimeInterval
-	ReceiverIntegrations() (map[string][]*Integration, error)
-	BuildReceiverIntegrationsFunc() func(next *GrafanaIntegrationConfig, tmpl *templates.Template) (Notifier, error)
+	Receivers() map[string]*APIReceiver
+	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
 
 	RoutingTree() *Route
-	Templates() *templates.Template
+	Templates() []string
 
 	Hash() [16]byte
 	Raw() []byte
@@ -152,6 +157,7 @@ type Configuration interface {
 
 type GrafanaAlertmanagerConfig struct {
 	WorkingDirectory   string
+	ExternalUrl        string
 	AlertStoreCallback mem.AlertStoreCallback
 	PeerTimeout        time.Duration
 
@@ -184,6 +190,8 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		peerTimeout:       config.PeerTimeout,
 		Metrics:           m,
 		tenantID:          tenantID,
+		externalUrl:       config.ExternalUrl,
+		workingDirectory:  config.WorkingDirectory,
 	}
 
 	if err := config.Validate(); err != nil {
@@ -294,6 +302,14 @@ func (am *GrafanaAlertmanager) GetReceivers() []*NotifyReceiver {
 	return am.receivers
 }
 
+func (am *GrafanaAlertmanager) ExternalUrl() string {
+	return am.externalUrl
+}
+
+func (am *GrafanaAlertmanager) WorkingDirectory() string {
+	return am.workingDirectory
+}
+
 // ConfigHash returns the hash of the current running configuration.
 // It is not safe to call without a lock.
 func (am *GrafanaAlertmanager) ConfigHash() [16]byte {
@@ -337,10 +353,29 @@ func (am *GrafanaAlertmanager) buildMuteTimesMap(muteTimeIntervals []config.Mute
 // ApplyConfig applies a new configuration by re-initializing all components using the configuration provided.
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
-	// Finally, build the integrations map using the receiver configuration and templates.
-	integrationsMap, err := cfg.ReceiverIntegrations()
+	// Create the template list using the paths.
+	am.templates = cfg.Templates()
+
+	paths := make([]string, 0)
+	for _, name := range am.templates {
+		paths = append(paths, filepath.Join(am.workingDirectory, name))
+	}
+
+	tmpl, err := am.TemplateFromPaths(am.ExternalUrl(), paths...)
 	if err != nil {
-		return fmt.Errorf("failed to build integration map: %w", err)
+		return err
+	}
+	am.template = tmpl
+
+	// Finally, build the integrations map using the receiver configuration and templates.
+	apiReceivers := cfg.Receivers()
+	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
+	for name, apiReceiver := range apiReceivers {
+		integrations, err := cfg.BuildReceiverIntegrationsFunc()(apiReceiver, tmpl)
+		if err != nil {
+			return err
+		}
+		integrationsMap[name] = integrations
 	}
 
 	// Now, let's put together our notification pipeline
@@ -379,7 +414,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	am.setReceiverMetrics(receivers, len(activeReceivers))
 
 	am.receivers = receivers
-	am.buildReceiverIntegrationFunc = cfg.BuildReceiverIntegrationsFunc()
+	am.buildReceiverIntegrationsFunc = cfg.BuildReceiverIntegrationsFunc()
 
 	am.wg.Add(1)
 	go func() {
@@ -395,7 +430,6 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 
 	am.configHash = cfg.Hash()
 	am.config = cfg.Raw()
-	am.templates = cfg.Templates()
 
 	return nil
 }
@@ -607,13 +641,9 @@ func (am *GrafanaAlertmanager) getTemplate() (*templates.Template, error) {
 		return nil, errors.New("alertmanager is not initialized")
 	}
 
-	return am.templates, nil
+	return am.template, nil
 }
 
 func (am *GrafanaAlertmanager) tenantString() string {
 	return fmt.Sprintf("%d", am.tenantID)
-}
-
-func (am *GrafanaAlertmanager) buildReceiverIntegration(next *GrafanaIntegrationConfig, tmpl *templates.Template) (Notifier, error) {
-	return am.buildReceiverIntegrationFunc(next, tmpl)
 }
