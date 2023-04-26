@@ -14,12 +14,12 @@ import (
 	"github.com/prometheus/alertmanager/types"
 )
 
-type FakeImageStore struct {
+type FakeProvider struct {
 	Images []*Image
 }
 
 // GetImage returns an image with the same token.
-func (f *FakeImageStore) GetImage(_ context.Context, token string) (*Image, error) {
+func (f *FakeProvider) GetImage(_ context.Context, token string) (*Image, error) {
 	for _, img := range f.Images {
 		if img.Token == token {
 			return img, nil
@@ -29,7 +29,7 @@ func (f *FakeImageStore) GetImage(_ context.Context, token string) (*Image, erro
 }
 
 // GetImageURL returns the URL of the image associated with a given alert.
-func (f *FakeImageStore) GetImageURL(_ context.Context, alert types.Alert) (string, error) {
+func (f *FakeProvider) GetImageURL(_ context.Context, alert types.Alert) (string, error) {
 	uri, err := getImageURI(alert)
 	if err != nil {
 		return "", err
@@ -44,7 +44,7 @@ func (f *FakeImageStore) GetImageURL(_ context.Context, alert types.Alert) (stri
 }
 
 // GetRawImage returns an io.Reader to read the bytes of the image associated with a given alert.
-func (f *FakeImageStore) GetRawImage(_ context.Context, alert types.Alert) (io.Reader, error) {
+func (f *FakeProvider) GetRawImage(_ context.Context, alert types.Alert) (io.Reader, error) {
 	uri, err := getImageURI(alert)
 	if err != nil {
 		return nil, err
@@ -68,29 +68,29 @@ func getImageURI(alert types.Alert) (string, error) {
 	return string(uri), nil
 }
 
-// NewFakeImageStore returns an image store with N test images.
+// NewFakeProvider returns an image provider with N test images.
 // Each image has a token and a URL, but does not have a file on disk.
-func NewFakeImageStore(n int) ImageStore {
-	s := FakeImageStore{}
+func NewFakeProvider(n int) Provider {
+	p := FakeProvider{}
 	for i := 1; i <= n; i++ {
-		s.Images = append(s.Images, &Image{
+		p.Images = append(p.Images, &Image{
 			Token:     fmt.Sprintf("test-image-%d", i),
 			URL:       fmt.Sprintf("https://www.example.com/test-image-%d.jpg", i),
 			CreatedAt: time.Now().UTC(),
 		})
 	}
-	return &s
+	return &p
 }
 
-// NewFakeImageStoreWithFile returns an image store with N test images.
+// NewFakeProviderWithFile returns an image provider with N test images.
 // Each image has a token, path and a URL, where the path is 1x1 transparent
 // PNG on disk. The test should call deleteFunc to delete the images from disk
 // at the end of the test.
 // nolint:deadcode,unused
-func NewFakeImageStoreWithFile(t *testing.T, n int) ImageStore {
+func NewFakeProviderWithFile(t *testing.T, n int) Provider {
 	var (
 		files []string
-		s     FakeImageStore
+		p     FakeProvider
 	)
 
 	t.Cleanup(func() {
@@ -108,7 +108,7 @@ func NewFakeImageStoreWithFile(t *testing.T, n int) ImageStore {
 			t.Fatalf("failed to create test image: %s", err)
 		}
 		files = append(files, file)
-		s.Images = append(s.Images, &Image{
+		p.Images = append(p.Images, &Image{
 			Token:     fmt.Sprintf("test-image-%d", i),
 			Path:      file,
 			URL:       fmt.Sprintf("https://www.example.com/test-image-%d", i),
@@ -116,7 +116,7 @@ func NewFakeImageStoreWithFile(t *testing.T, n int) ImageStore {
 		})
 	}
 
-	return &s
+	return &p
 }
 
 func newTestImage() (string, error) {

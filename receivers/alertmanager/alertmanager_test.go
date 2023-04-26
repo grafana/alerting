@@ -20,7 +20,7 @@ import (
 )
 
 func TestNotify(t *testing.T) {
-	imageStore := images.NewFakeImageStore(1)
+	imageProvider := images.NewFakeProvider(1)
 	singleURLConfig := Config{
 		URLs: []*url.URL{
 			receiversTesting.ParseURLUnsafe("https://alertmanager.com/api/v1/alerts"),
@@ -93,7 +93,7 @@ func TestNotify(t *testing.T) {
 					UID:                   "",
 					DisableResolveMessage: false,
 				},
-				images:   imageStore,
+				images:   imageProvider,
 				settings: c.settings,
 				logger:   &logging.FakeLogger{},
 			}

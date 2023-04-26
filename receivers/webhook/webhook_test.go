@@ -371,7 +371,7 @@ func TestNotify(t *testing.T) {
 				ns:       webhookSender,
 				tmpl:     tmpl,
 				settings: c.settings,
-				images:   &images.UnavailableImageStore{},
+				images:   &images.UnavailableProvider{},
 				orgID:    1,
 			}
 
