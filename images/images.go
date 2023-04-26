@@ -45,11 +45,11 @@ func (u *UnavailableProvider) GetImage(context.Context, string) (*Image, error) 
 }
 
 // GetImageURL returns the URL of the image associated with a given alert.
-func (u *UnavailableImageStore) GetImageURL(context.Context, types.Alert) (string, error) {
+func (u *UnavailableProvider) GetImageURL(context.Context, types.Alert) (string, error) {
 	return "", ErrImagesUnavailable
 }
 
 // GetRawImage returns an io.Reader to read the bytes of the image associated with a given alert.
-func (u *UnavailableImageStore) GetRawImage(context.Context, types.Alert) (io.Reader, error) {
+func (u *UnavailableProvider) GetRawImage(context.Context, types.Alert) (io.Reader, error) {
 	return nil, ErrImagesUnavailable
 }
