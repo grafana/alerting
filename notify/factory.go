@@ -37,7 +37,7 @@ import (
 func BuildReceiverIntegrations(
 	receiver GrafanaReceiverConfig,
 	tmpl *templates.Template,
-	img images.ImageStore,
+	img images.ImageProvider,
 	logger logging.LoggerFactory,
 	newWebhookSender func(n receivers.Metadata) (receivers.WebhookSender, error),
 	newEmailSender func(n receivers.Metadata) (receivers.EmailSender, error),

@@ -19,7 +19,7 @@ import (
 
 func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
-	images := images2.NewFakeImageStoreWithFile(t, 2)
+	images := images2.NewFakeImageProviderWithFile(t, 2)
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL

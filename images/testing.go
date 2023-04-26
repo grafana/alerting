@@ -9,12 +9,12 @@ import (
 	"time"
 )
 
-type FakeImageStore struct {
+type FakeImageProvider struct {
 	Images []*Image
 }
 
 // GetImage returns an image with the same token.
-func (f *FakeImageStore) GetImage(_ context.Context, token string) (*Image, error) {
+func (f *FakeImageProvider) GetImage(_ context.Context, token string) (*Image, error) {
 	for _, img := range f.Images {
 		if img.Token == token {
 			return img, nil
@@ -23,29 +23,29 @@ func (f *FakeImageStore) GetImage(_ context.Context, token string) (*Image, erro
 	return nil, ErrImageNotFound
 }
 
-// NewFakeImageStore returns an image store with N test images.
+// NewFakeImageProvider returns an image provider with N test images.
 // Each image has a token and a URL, but does not have a file on disk.
-func NewFakeImageStore(n int) ImageStore {
-	s := FakeImageStore{}
+func NewFakeImageProvider(n int) ImageProvider {
+	p := FakeImageProvider{}
 	for i := 1; i <= n; i++ {
-		s.Images = append(s.Images, &Image{
+		p.Images = append(p.Images, &Image{
 			Token:     fmt.Sprintf("test-image-%d", i),
 			URL:       fmt.Sprintf("https://www.example.com/test-image-%d.jpg", i),
 			CreatedAt: time.Now().UTC(),
 		})
 	}
-	return &s
+	return &p
 }
 
-// NewFakeImageStoreWithFile returns an image store with N test images.
+// NewFakeImageProviderWithFile returns an image provider with N test images.
 // Each image has a token, path and a URL, where the path is 1x1 transparent
 // PNG on disk. The test should call deleteFunc to delete the images from disk
 // at the end of the test.
 // nolint:deadcode,unused
-func NewFakeImageStoreWithFile(t *testing.T, n int) ImageStore {
+func NewFakeImageProviderWithFile(t *testing.T, n int) ImageProvider {
 	var (
 		files []string
-		s     FakeImageStore
+		p     FakeImageProvider
 	)
 
 	t.Cleanup(func() {
@@ -63,7 +63,7 @@ func NewFakeImageStoreWithFile(t *testing.T, n int) ImageStore {
 			t.Fatalf("failed to create test image: %s", err)
 		}
 		files = append(files, file)
-		s.Images = append(s.Images, &Image{
+		p.Images = append(p.Images, &Image{
 			Token:     fmt.Sprintf("test-image-%d", i),
 			Path:      file,
 			URL:       fmt.Sprintf("https://www.example.com/test-image-%d", i),
@@ -71,7 +71,7 @@ func NewFakeImageStoreWithFile(t *testing.T, n int) ImageStore {
 		})
 	}
 
-	return &s
+	return &p
 }
 
 func newTestImage() (string, error) {

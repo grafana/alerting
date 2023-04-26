@@ -22,7 +22,7 @@ import (
 func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
-	images := images2.NewFakeImageStore(2)
+	images := images2.NewFakeImageProvider(2)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)

@@ -18,7 +18,7 @@ import (
 func TestBuildReceiverIntegrations(t *testing.T) {
 	var orgID = rand.Int63()
 	var version = fmt.Sprintf("Grafana v%d", rand.Uint32())
-	imageStore := &images.FakeImageStore{}
+	imageProvider := &images.FakeImageProvider{}
 	tmpl := templates.ForTests(t)
 
 	webhookFactory := func(n receivers.Metadata) (receivers.WebhookSender, error) {
@@ -62,7 +62,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return emailFactory(n)
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageStore, logger, wh, em, orgID, version)
+		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, wh, em, orgID, version)
 
 		require.NoError(t, err)
 		require.Len(t, integrations, qty)
@@ -85,7 +85,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return nil, errors.New("bad-test")
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageStore, loggerFactory, failingFactory, emailFactory, orgID, version)
+		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, failingFactory, emailFactory, orgID, version)
 
 		require.Empty(t, integrations)
 		require.NotNil(t, err)
@@ -100,7 +100,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return nil, errors.New("bad-test")
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageStore, loggerFactory, webhookFactory, failingFactory, orgID, version)
+		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, webhookFactory, failingFactory, orgID, version)
 
 		require.Empty(t, integrations)
 		require.NotNil(t, err)
@@ -110,7 +110,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should not produce any integration if config is empty", func(t *testing.T) {
 		cfg := GrafanaReceiverConfig{Name: "test"}
 
-		integrations, err := BuildReceiverIntegrations(cfg, tmpl, imageStore, loggerFactory, webhookFactory, emailFactory, orgID, version)
+		integrations, err := BuildReceiverIntegrations(cfg, tmpl, imageProvider, loggerFactory, webhookFactory, emailFactory, orgID, version)
 
 		require.NoError(t, err)
 		require.Empty(t, integrations)

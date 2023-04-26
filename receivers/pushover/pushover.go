@@ -42,13 +42,13 @@ type Notifier struct {
 	*receivers.Base
 	tmpl     *templates.Template
 	log      logging.Logger
-	images   images.ImageStore
+	images   images.ImageProvider
 	ns       receivers.WebhookSender
 	settings Config
 }
 
 // New is the constructor for the pushover notifier
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageProvider, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		log:      logger,

@@ -67,7 +67,7 @@ type Notifier struct {
 	*receivers.Base
 	log           logging.Logger
 	tmpl          *templates.Template
-	images        images.ImageStore
+	images        images.ImageProvider
 	webhookSender receivers.WebhookSender
 	sendFn        sendFunc
 	settings      Config
@@ -90,7 +90,7 @@ func uploadURL(s Config) (string, error) {
 	return u.String(), nil
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageProvider, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		settings: cfg,

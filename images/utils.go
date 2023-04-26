@@ -16,24 +16,24 @@ import (
 )
 
 const (
-	// ImageStoreTimeout should be used by all callers for calles to `Images`
-	ImageStoreTimeout = 500 * time.Millisecond
+	// ImageProviderTimeout should be used by all callers for calles to `Images`
+	ImageProviderTimeout = 500 * time.Millisecond
 )
 
 type forEachImageFunc func(index int, image Image) error
 
 // getImage returns the image for the alert or an error. It returns a nil
 // image if the alert does not have an image token or the image does not exist.
-func getImage(ctx context.Context, l logging.Logger, imageStore ImageStore, alert types.Alert) (*Image, error) {
+func getImage(ctx context.Context, l logging.Logger, imageProvider ImageProvider, alert types.Alert) (*Image, error) {
 	token := getTokenFromAnnotations(alert.Annotations)
 	if token == "" {
 		return nil, nil
 	}
 
-	ctx, cancelFunc := context.WithTimeout(ctx, ImageStoreTimeout)
+	ctx, cancelFunc := context.WithTimeout(ctx, ImageProviderTimeout)
 	defer cancelFunc()
 
-	img, err := imageStore.GetImage(ctx, token)
+	img, err := imageProvider.GetImage(ctx, token)
 	if errors.Is(err, ErrImageNotFound) || errors.Is(err, ErrImagesUnavailable) {
 		return nil, nil
 	} else if err != nil {
@@ -51,10 +51,10 @@ func getImage(ctx context.Context, l logging.Logger, imageStore ImageStore, aler
 // the error and not iterate the remaining alerts. A forEachFunc can return ErrImagesDone
 // to stop the iteration of remaining alerts if the intended image or maximum number of
 // images have been found.
-func WithStoredImages(ctx context.Context, l logging.Logger, imageStore ImageStore, forEachFunc forEachImageFunc, alerts ...*types.Alert) error {
+func WithStoredImages(ctx context.Context, l logging.Logger, imageProvider ImageProvider, forEachFunc forEachImageFunc, alerts ...*types.Alert) error {
 	for index, alert := range alerts {
 		logger := l.New("alert", alert.String())
-		img, err := getImage(ctx, logger, imageStore, *alert)
+		img, err := getImage(ctx, logger, imageProvider, *alert)
 		if err != nil {
 			return err
 		} else if img != nil {

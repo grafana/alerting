@@ -265,7 +265,7 @@ func TestNotify(t *testing.T) {
 				ns:       webhookSender,
 				tmpl:     tmpl,
 				settings: c.settings,
-				images:   &images.UnavailableImageStore{},
+				images:   &images.UnavailableImageProvider{},
 			}
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")

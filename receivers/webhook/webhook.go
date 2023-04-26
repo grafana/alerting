@@ -21,7 +21,7 @@ type Notifier struct {
 	*receivers.Base
 	log      logging.Logger
 	ns       receivers.WebhookSender
-	images   images.ImageStore
+	images   images.ImageProvider
 	tmpl     *templates.Template
 	orgID    int64
 	settings Config
@@ -29,7 +29,7 @@ type Notifier struct {
 
 // New is the constructor for
 // the WebHook notifier.
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, orgID int64) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageProvider, logger logging.Logger, orgID int64) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		orgID:    orgID,

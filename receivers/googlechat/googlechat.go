@@ -21,7 +21,7 @@ type Notifier struct {
 	*receivers.Base
 	log        logging.Logger
 	ns         receivers.WebhookSender
-	images     images.ImageStore
+	images     images.ImageProvider
 	tmpl       *templates.Template
 	settings   Config
 	appVersion string
@@ -32,7 +32,7 @@ var (
 	timeNow = time.Now
 )
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger, appVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageProvider, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:       receivers.NewBase(meta),
 		log:        logger,

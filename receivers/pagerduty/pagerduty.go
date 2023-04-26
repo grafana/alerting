@@ -45,12 +45,12 @@ type Notifier struct {
 	tmpl     *templates.Template
 	log      logging.Logger
 	ns       receivers.WebhookSender
-	images   images.ImageStore
+	images   images.ImageProvider
 	settings Config
 }
 
 // New is the constructor for the PagerDuty notifier
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageProvider, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		log:      logger,

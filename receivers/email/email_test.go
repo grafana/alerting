@@ -46,7 +46,7 @@ func TestNotify(t *testing.T) {
 			ns:       emailSender,
 			tmpl:     tmpl,
 			settings: settings,
-			images:   &images.UnavailableImageStore{},
+			images:   &images.UnavailableImageProvider{},
 		}
 
 		alerts := []*types.Alert{
