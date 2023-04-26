@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	tmplhtml "html/template"
-	"net/url"
 	"path/filepath"
 	tmpltext "text/template"
 	"text/template/parse"
@@ -18,37 +17,37 @@ import (
 
 type TestTemplatesConfigBodyParams struct {
 	// Alerts to use as data when testing the template.
-	Alerts []*PostableAlert `json:"alerts"`
+	Alerts []*PostableAlert
 
 	// Template string to test.
-	Template string `json:"template"`
+	Template string
 
 	// Name of the template file.
-	Name string `json:"name"`
+	Name string
 }
 
 type TestTemplatesResults struct {
-	Results []TestTemplatesResult      `json:"results"`
-	Errors  []TestTemplatesErrorResult `json:"errors,omitempty"`
+	Results []TestTemplatesResult
+	Errors  []TestTemplatesErrorResult
 }
 
 type TestTemplatesResult struct {
 	// Name of the associated template definition for this result.
-	Name string `json:"name"`
+	Name string
 
 	// Interpolated value of the template.
-	Text string `json:"text"`
+	Text string
 }
 
 type TestTemplatesErrorResult struct {
 	// Name of the associated template for this error. Will be empty if the Kind is "invalid_template".
-	Name string `json:"name,omitempty"`
+	Name string
 
 	// Kind of template error that occurred.
-	Kind TemplateErrorKind `json:"kind"`
+	Kind TemplateErrorKind
 
-	// Error message.
-	Message string `json:"message"`
+	// Error cause.
+	Error error
 }
 
 type TemplateErrorKind string
@@ -65,8 +64,8 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 	if err != nil {
 		return &TestTemplatesResults{
 			Errors: []TestTemplatesErrorResult{{
-				Kind:    InvalidTemplate,
-				Message: err.Error(),
+				Kind:  InvalidTemplate,
+				Error: err,
 			}},
 		}, nil
 	}
@@ -86,23 +85,17 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 	var captureTemplate template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
 		newTextTmpl = text
 	}
-	newTmpl, err := templates.FromGlobs(paths, captureTemplate)
+	newTmpl, err := am.TemplateFromPaths(paths, captureTemplate)
 	if err != nil {
 		return nil, err
 	}
 
 	// Parse test template.
-	_, err = newTextTmpl.Parse(c.Template)
+	_, err = newTextTmpl.New(c.Name).Parse(c.Template)
 	if err != nil {
 		// This shouldn't happen since we already parsed the template above.
 		return nil, err
 	}
-
-	externalURL, err := url.Parse(am.ExternalURL())
-	if err != nil {
-		return nil, err
-	}
-	newTmpl.ExternalURL = externalURL
 
 	// Prepare the context.
 	alerts := v2.OpenAPIAlertsToAlerts(c.Alerts)
@@ -119,9 +112,9 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 		val := templater(s)
 		if tmplErr != nil {
 			results.Errors = append(results.Errors, TestTemplatesErrorResult{
-				Name:    def,
-				Kind:    ExecutionError,
-				Message: tmplErr.Error(),
+				Name:  def,
+				Kind:  ExecutionError,
+				Error: tmplErr,
 			})
 			tmplErr = nil
 			continue
@@ -161,7 +154,7 @@ func findTopLevelTemplates(tmpl *tmpltext.Template) ([]string, error) {
 		// Check defined templates for an empty outer wrapper template.
 		// This can happen if the template filename does not match the name of any template definition.
 		// Remove if it exists.
-		if def.Name() == tmpl.ParseName && def.Root.Nodes == nil && def.Root.Pos == 0 {
+		if def.Name() == tmpl.ParseName && parse.IsEmptyTree(def.Root) && def.Root.Pos == 0 {
 			continue
 		}
 		definedTmpls = append(definedTmpls, def)

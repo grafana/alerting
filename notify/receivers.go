@@ -259,7 +259,7 @@ func (am *GrafanaAlertmanager) buildSingleIntegration(r *GrafanaIntegrationConfi
 	}
 	if len(integrations) == 0 {
 		// This should not happen, but it is better to return some error rather than having a panic.
-		return nil, fmt.Errorf("failed to build integration")
+		return nil, errors.New("failed to build integration")
 	}
 	return integrations[0], nil
 }

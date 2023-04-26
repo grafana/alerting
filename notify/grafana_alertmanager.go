@@ -11,6 +11,8 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/prometheus/alertmanager/template"
+
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
@@ -329,12 +331,12 @@ func (am *GrafanaAlertmanager) WithLock(fn func()) {
 }
 
 // TemplateFromPaths returns a set of *Templates based on the paths given.
-func (am *GrafanaAlertmanager) TemplateFromPaths(u string, paths ...string) (*templates.Template, error) {
-	tmpl, err := templates.FromGlobs(paths)
+func (am *GrafanaAlertmanager) TemplateFromPaths(paths []string, options ...template.Option) (*templates.Template, error) {
+	tmpl, err := templates.FromGlobs(paths, options...)
 	if err != nil {
 		return nil, err
 	}
-	externalURL, err := url.Parse(u)
+	externalURL, err := url.Parse(am.ExternalURL())
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +363,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 		paths = append(paths, filepath.Join(am.workingDirectory, name))
 	}
 
-	tmpl, err := am.TemplateFromPaths(am.ExternalURL(), paths...)
+	tmpl, err := am.TemplateFromPaths(paths)
 	if err != nil {
 		return err
 	}
