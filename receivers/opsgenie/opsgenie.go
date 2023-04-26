@@ -164,7 +164,7 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 			as...)
 
 		if len(imageUrls) != 0 {
-			details["image_urls"] = imageUrls
+			details["image_urls"] = strings.Join(imageUrls, ", ")
 		}
 	}
 
