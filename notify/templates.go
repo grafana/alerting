@@ -3,13 +3,13 @@ package notify
 import (
 	"context"
 	"fmt"
+	"github.com/prometheus/alertmanager/types"
 	tmplhtml "html/template"
 	"path/filepath"
 	tmpltext "text/template"
 	"text/template/parse"
 
 	"github.com/grafana/alerting/templates"
-	v2 "github.com/prometheus/alertmanager/api/v2"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/common/model"
@@ -17,7 +17,7 @@ import (
 
 type TestTemplatesConfigBodyParams struct {
 	// Alerts to use as data when testing the template.
-	Alerts []*PostableAlert
+	Alerts []*types.Alert
 
 	// Template string to test.
 	Template string
@@ -98,12 +98,11 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 	}
 
 	// Prepare the context.
-	alerts := v2.OpenAPIAlertsToAlerts(c.Alerts)
 	ctx = notify.WithReceiverName(ctx, "test receiver")
 	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"group_label": "group_label_value"})
 
 	var tmplErr error
-	templater, _ := templates.TmplText(ctx, newTmpl, alerts, am.logger, &tmplErr)
+	templater, _ := templates.TmplText(ctx, newTmpl, c.Alerts, am.logger, &tmplErr)
 
 	// Iterate over each definition in the template and evaluate it.
 	var results TestTemplatesResults
