@@ -34,11 +34,11 @@ type Notifier struct {
 	tmpl     *templates.Template
 	log      logging.Logger
 	ns       receivers.WebhookSender
-	images   images.ImageStore
+	images   images.Provider
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.ImageStore, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		log:      logger,

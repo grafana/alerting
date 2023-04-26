@@ -13,7 +13,7 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-func New(cfg Config, meta receivers.Metadata, images images.ImageStore, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, images images.Provider, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		images:   images,
@@ -25,7 +25,7 @@ func New(cfg Config, meta receivers.Metadata, images images.ImageStore, logger l
 // Notifier sends alert notifications to the alert manager
 type Notifier struct {
 	*receivers.Base
-	images   images.ImageStore
+	images   images.Provider
 	settings Config
 	logger   logging.Logger
 }
