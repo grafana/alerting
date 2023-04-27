@@ -210,7 +210,7 @@ func TestTemplateSpecialCases(t *testing.T) {
 			Template: `{{ define "slack.title" }}Template Contents{{ end }}{{ template "slack.title" . }}`,
 		},
 		expected: TestTemplatesResults{
-			Results: []TestTemplatesResult{{ //TODO: Is this really the result we want here? Or should "slack.title" be included even through it's not a top-level template?
+			Results: []TestTemplatesResult{{
 				Name: "",
 				Text: "Template Contents",
 			}},
