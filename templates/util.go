@@ -2,6 +2,7 @@ package templates
 
 import (
 	"fmt"
+	"sort"
 	tmpltext "text/template"
 	"text/template/parse"
 )
@@ -42,6 +43,8 @@ func FindTopLevelTemplates(tmpl *tmpltext.Template) ([]string, error) {
 		}
 	}
 
+	// Stable ordering.
+	sort.Strings(results)
 	return results, nil
 }
 
