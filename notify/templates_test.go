@@ -385,15 +385,15 @@ ExternalURL: {{ .ExternalURL }}
 Alerts: {{ len .Alerts }}
 Firing Alerts: {{ len .Alerts.Firing }}
 Resolved Alerts: {{ len .Alerts.Resolved }}
-GroupLabels: {{ .GroupLabels }}
-CommonLabels: {{ .CommonLabels }}
-CommonAnnotations: {{ .CommonAnnotations }}
+GroupLabels: {{ range .GroupLabels.SortedPairs }}{{ .Name }}={{ .Value }}{{ end }}
+CommonLabels: {{ range .CommonLabels.SortedPairs }}{{ .Name }}={{ .Value }}{{ end }}
+CommonAnnotations: {{ range .CommonAnnotations.SortedPairs }}{{ .Name }}={{ .Value }}{{ end }}
 {{ end }}`,
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
 				Name: "slack.title",
-				Text: "\nReceiver: TestReceiver\nStatus: firing\nExternalURL: http://localhost:9093\nAlerts: 1\nFiring Alerts: 1\nResolved Alerts: 0\nGroupLabels: map[group_label:group_label_value]\nCommonLabels: map[alertname:alert1 lbl1:val1]\nCommonAnnotations: map[ann1:annv1]\n",
+				Text: "\nReceiver: TestReceiver\nStatus: firing\nExternalURL: http://localhost:9093\nAlerts: 1\nFiring Alerts: 1\nResolved Alerts: 0\nGroupLabels: group_label=group_label_value\nCommonLabels: alertname=alert1lbl1=val1\nCommonAnnotations: ann1=annv1\n",
 			}},
 			Errors: nil,
 		},
