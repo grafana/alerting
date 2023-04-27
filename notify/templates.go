@@ -1,8 +1,8 @@
 package notify
 
 import (
+	"bytes"
 	"context"
-	"fmt"
 	tmplhtml "html/template"
 	"path/filepath"
 	tmpltext "text/template"
@@ -106,28 +106,26 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 	ctx = notify.WithReceiverName(ctx, DefaultReceiverName)
 	ctx = notify.WithGroupLabels(ctx, model.LabelSet{DefaultGroupLabel: DefaultGroupLabelValue})
 
-	var tmplErr error
-	templater, _ := templates.TmplText(ctx, newTmpl, alerts, am.logger, &tmplErr)
+	promTmplData := notify.GetTemplateData(ctx, newTmpl, alerts, am.logger)
+	data := templates.ExtendData(promTmplData, am.logger)
 
 	// Iterate over each definition in the template and evaluate it.
 	var results TestTemplatesResults
 	for _, def := range definitions {
-		s := fmt.Sprintf(`{{ template "%s" . }}`, def)
-		val := templater(s)
-		if tmplErr != nil {
+		var buf bytes.Buffer
+		err := newTextTmpl.ExecuteTemplate(&buf, def, data)
+		if err != nil {
 			results.Errors = append(results.Errors, TestTemplatesErrorResult{
 				Name:  def,
 				Kind:  ExecutionError,
-				Error: tmplErr,
+				Error: err,
 			})
-			tmplErr = nil
-			continue
+		} else {
+			results.Results = append(results.Results, TestTemplatesResult{
+				Name: def,
+				Text: buf.String(),
+			})
 		}
-
-		results.Results = append(results.Results, TestTemplatesResult{
-			Name: def,
-			Text: val,
-		})
 	}
 
 	return &results, nil

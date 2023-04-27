@@ -188,6 +188,51 @@ func TestTemplateSpecialCases(t *testing.T) {
 			}},
 			Errors: nil,
 		},
+	}, {
+		name: "multiple definitions if wrapper contains non-definition node and name is a defined template",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}Template Contents{{ end }}abcdef`,
+		},
+		expected: TestTemplatesResults{
+			Results: nil,
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  InvalidTemplate,
+				Error: errors.New(`template: slack.title:1: template: multiple definition of template "slack.title"`),
+			}},
+		},
+	}, {
+		name: "empty name and template references itself",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "",
+			Template: `{{ define "slack.title" }}Template Contents{{ end }}{{ template "slack.title" . }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: []TestTemplatesResult{{ //TODO: Is this really the result we want here? Or should "slack.title" be included even through it's not a top-level template?
+				Name: "",
+				Text: "Template Contents",
+			}},
+			Errors: nil,
+		},
+	}, {
+		name: "empty name and extra non-definition node",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "",
+			Template: `{{ define "slack.title" }}Template Contents{{ end }}abcdef`,
+		},
+		expected: TestTemplatesResults{
+			Results: []TestTemplatesResult{{
+				Name: "",
+				Text: "abcdef",
+			}, {
+				Name: "slack.title",
+				Text: "Template Contents",
+			}},
+			Errors: nil,
+		},
 	},
 	}
 
