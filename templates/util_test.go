@@ -54,6 +54,16 @@ func TestFindTemplates(t *testing.T) {
 		tmplName: "foo",
 		tmplText: `{{ define "baz" }}The labels are {{.Labels }}{{ end }}{{ define "bar" }}{{ with .Alerts }}{{ template "baz" . }}{{ end }}{{ end }}`,
 		expected: []string{"bar"},
+	}, {
+		name:     "multiple top-level templates",
+		tmplName: "foo",
+		tmplText: `{{ define "bar" }}{{ range .Alerts }}{{ end }}{{ end }}{{ define "baz" }}{{ range .Alerts }}{{ end }}{{ end }}`,
+		expected: []string{"bar", "baz"},
+	}, {
+		name:     "multiple top-level templates with inner",
+		tmplName: "foo",
+		tmplText: `{{ define "bar" }}{{ range .Alerts }}{{ end }}{{ end }}{{ define "inner" }}{{ range .Alerts }}{{ end }}{{ end }}{{ define "baz" }}{{template "inner" . }}{{ end }}`,
+		expected: []string{"bar", "baz"},
 	}}
 
 	for _, test := range tests {

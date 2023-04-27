@@ -55,6 +55,12 @@ const (
 	ExecutionError  TemplateErrorKind = "execution_error"
 )
 
+const (
+	DefaultReceiverName    = "TestReceiver"
+	DefaultGroupLabel      = "group_label"
+	DefaultGroupLabelValue = "group_label_value"
+)
+
 // TestTemplate tests the given template string against the given alerts. Existing templates are used to provide context for the test.
 // If an existing template of the same filename as the one being tested is found, it will not be used as context.
 func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams) (*TestTemplatesResults, error) {
@@ -97,8 +103,8 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 
 	// Prepare the context.
 	alerts := OpenAPIAlertsToAlerts(c.Alerts)
-	ctx = notify.WithReceiverName(ctx, "test receiver")
-	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"group_label": "group_label_value"})
+	ctx = notify.WithReceiverName(ctx, DefaultReceiverName)
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{DefaultGroupLabel: DefaultGroupLabelValue})
 
 	var tmplErr error
 	templater, _ := templates.TmplText(ctx, newTmpl, alerts, am.logger, &tmplErr)
