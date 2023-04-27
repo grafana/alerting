@@ -132,8 +132,8 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 }
 
 // parseTestTemplate parses the test template and returns the top-level definitions that should be interpolated as results.
-func parseTestTemplate(name string, template string) ([]string, error) {
-	tmpl, err := tmpltext.New(name).Parse(template)
+func parseTestTemplate(name string, text string) ([]string, error) {
+	tmpl, err := tmpltext.New(name).Funcs(tmpltext.FuncMap(template.DefaultFuncs)).Parse(text)
 	if err != nil {
 		return nil, err
 	}

@@ -47,6 +47,34 @@ func TestTemplateSimple(t *testing.T) {
 			Errors: nil,
 		},
 	}, {
+		name: "valid template with builtin function",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}{{ "Template Contents" | len }}{{ end }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: []TestTemplatesResult{{
+				Name: "slack.title",
+				Text: "17",
+			}},
+			Errors: nil,
+		},
+	}, {
+		name: "valid template with default function",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}{{ "Template Contents" | toUpper }}{{ end }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: []TestTemplatesResult{{
+				Name: "slack.title",
+				Text: "TEMPLATE CONTENTS",
+			}},
+			Errors: nil,
+		},
+	}, {
 		name: "invalid template",
 		input: TestTemplatesConfigBodyParams{
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
