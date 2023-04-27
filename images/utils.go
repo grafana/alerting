@@ -47,7 +47,7 @@ func getImage(ctx context.Context, l logging.Logger, imageProvider Provider, ale
 // WithStoredImages retrieves the image for each alert and then calls forEachFunc
 // with the index of the alert and the retrieved image struct. If the alert does
 // not have an image token, or the image does not exist then forEachFunc will not be
-// called for that alert. If forEachFunc returns an error, withStoredImages will return
+// called for that alert. If forEachFunc returns an error, WithStoredImages will return
 // the error and not iterate the remaining alerts. A forEachFunc can return ErrImagesDone
 // to stop the iteration of remaining alerts if the intended image or maximum number of
 // images have been found.
