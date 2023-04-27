@@ -10,12 +10,15 @@ import (
 )
 
 var (
-	ErrImageNotFound = errors.New("image not found")
-
 	// ErrImagesDone is used to stop iteration of subsequent images. It should be
 	// returned from forEachFunc when either the intended image has been found or
 	// the maximum number of images has been iterated.
 	ErrImagesDone = errors.New("images done")
+
+	ErrImageNotFound = errors.New("image not found")
+
+	// ErrImagesNoURL is returned whenever an image is found but has no URL.
+	ErrImagesNoURL = errors.New("no URL for image")
 
 	ErrImagesUnavailable = errors.New("alert screenshots are unavailable")
 )
@@ -33,8 +36,13 @@ func (i Image) HasURL() bool {
 
 type Provider interface {
 	GetImage(ctx context.Context, token string) (*Image, error)
-	GetImageURL(ctx context.Context, alert types.Alert) (string, error)
-	GetRawImage(ctx context.Context, alert types.Alert) (io.Reader, error)
+
+	// GetImageURL returns the URL of an image associated with a given alert.
+	GetImageURL(ctx context.Context, alert *types.Alert) (string, error)
+
+	// GetRawImage returns an io.Reader to read the bytes of an image associated with a given alert,
+	// a string representing the filename, and an optional error.
+	GetRawImage(ctx context.Context, alert *types.Alert) (io.Reader, string, error)
 }
 
 type UnavailableProvider struct{}
@@ -44,12 +52,10 @@ func (u *UnavailableProvider) GetImage(context.Context, string) (*Image, error) 
 	return nil, ErrImagesUnavailable
 }
 
-// GetImageURL returns the URL of the image associated with a given alert.
-func (u *UnavailableProvider) GetImageURL(context.Context, types.Alert) (string, error) {
+func (u *UnavailableProvider) GetImageURL(context.Context, *types.Alert) (string, error) {
 	return "", ErrImagesUnavailable
 }
 
-// GetRawImage returns an io.Reader to read the bytes of the image associated with a given alert.
-func (u *UnavailableProvider) GetRawImage(context.Context, types.Alert) (io.Reader, error) {
-	return nil, ErrImagesUnavailable
+func (u *UnavailableProvider) GetRawImage(context.Context, *types.Alert) (io.Reader, string, error) {
+	return nil, "", ErrImagesUnavailable
 }

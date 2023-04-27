@@ -29,7 +29,7 @@ func (f *FakeProvider) GetImage(_ context.Context, token string) (*Image, error)
 }
 
 // GetImageURL returns the URL of the image associated with a given alert.
-func (f *FakeProvider) GetImageURL(_ context.Context, alert types.Alert) (string, error) {
+func (f *FakeProvider) GetImageURL(_ context.Context, alert *types.Alert) (string, error) {
 	uri, err := getImageURI(alert)
 	if err != nil {
 		return "", err
@@ -44,23 +44,23 @@ func (f *FakeProvider) GetImageURL(_ context.Context, alert types.Alert) (string
 }
 
 // GetRawImage returns an io.Reader to read the bytes of the image associated with a given alert.
-func (f *FakeProvider) GetRawImage(_ context.Context, alert types.Alert) (io.Reader, error) {
+func (f *FakeProvider) GetRawImage(_ context.Context, alert *types.Alert) (io.Reader, string, error) {
 	uri, err := getImageURI(alert)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	uriString := string(uri)
 	for _, img := range f.Images {
 		if img.Token == uriString || img.URL == uriString {
-			return strings.NewReader("test"), nil
+			return strings.NewReader("test"), "test.png", nil
 		}
 	}
-	return nil, ErrImageNotFound
+	return nil, "", ErrImageNotFound
 }
 
 // getImageURI is a helper function to retrieve the image URI from the alert annotations as a string.
-func getImageURI(alert types.Alert) (string, error) {
+func getImageURI(alert *types.Alert) (string, error) {
 	uri, ok := alert.Annotations[models.ImageTokenAnnotation]
 	if !ok {
 		return "", fmt.Errorf("no image uri in annotations")
