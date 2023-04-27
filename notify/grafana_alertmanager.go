@@ -152,7 +152,7 @@ type Configuration interface {
 	DispatcherLimits() DispatcherLimits
 	InhibitRules() []InhibitRule
 	MuteTimeIntervals() []MuteTimeInterval
-	Receivers() map[string]*APIReceiver
+	Receivers() []*APIReceiver
 	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
 
 	RoutingTree() *Route
@@ -377,12 +377,12 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	// Finally, build the integrations map using the receiver configuration and templates.
 	apiReceivers := cfg.Receivers()
 	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
-	for name, apiReceiver := range apiReceivers {
+	for _, apiReceiver := range apiReceivers {
 		integrations, err := cfg.BuildReceiverIntegrationsFunc()(apiReceiver, tmpl)
 		if err != nil {
 			return err
 		}
-		integrationsMap[name] = integrations
+		integrationsMap[apiReceiver.Name] = integrations
 	}
 
 	// Now, let's put together our notification pipeline
