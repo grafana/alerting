@@ -90,7 +90,9 @@ type GrafanaAlertmanager struct {
 	inhibitor       *inhibit.Inhibitor
 	silencer        *silence.Silencer
 	silences        *silence.Silences
-	template        *templates.Template
+
+	// template is the current parsed template used for notification rendering.
+	template *templates.Template
 
 	// muteTimes is a map where the key is the name of the mute_time_interval
 	// and the value represents all configured time_interval(s)
@@ -104,10 +106,13 @@ type GrafanaAlertmanager struct {
 	config          []byte
 	receivers       []*notify.Receiver
 
+	// buildReceiverIntegrationsFunc builds the integrations for a receiver based on its APIReceiver configuration and the current parsed template.
 	buildReceiverIntegrationsFunc func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
 	externalURL                   string
 	workingDirectory              string
-	templates                     []string
+
+	// templates contains the filenames (not full paths) of the persisted templates that were used to construct the current parsed template.
+	templates []string
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -355,9 +360,9 @@ func (am *GrafanaAlertmanager) buildMuteTimesMap(muteTimeIntervals []config.Mute
 // ApplyConfig applies a new configuration by re-initializing all components using the configuration provided.
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
-	// Create the template list using the paths.
 	am.templates = cfg.Templates()
 
+	// Create the parsed template using the template paths.
 	paths := make([]string, 0)
 	for _, name := range am.templates {
 		paths = append(paths, filepath.Join(am.workingDirectory, name))
