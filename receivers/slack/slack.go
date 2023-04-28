@@ -205,11 +205,11 @@ var sendSlackRequest = func(ctx context.Context, req *http.Request, logger loggi
 	}
 
 	content := resp.Header.Get("Content-Type")
-	// If the response is text/html it could be the response to an incoming webhook
-	if strings.HasPrefix(content, "text/html") {
-		return handleSlackIncomingWebhookResponse(resp, logger)
+	if strings.HasPrefix(content, "application/json") {
+		return handleSlackJSONResponse(resp, logger)
 	}
-	return handleSlackJSONResponse(resp, logger)
+	// If the response is not JSON it could be the response to an incoming webhook
+	return handleSlackIncomingWebhookResponse(resp, logger)
 }
 
 func handleSlackIncomingWebhookResponse(resp *http.Response, logger logging.Logger) (string, error) {
