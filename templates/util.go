@@ -35,7 +35,7 @@ func TopTemplates(tmpl *template.Template) ([]string, error) {
 	for _, next := range candidateTmpls {
 		err := checkTmpl(next, executedTmpls)
 		if err != nil {
-			return nil, fmt.Errorf("failed to check for occurences of 'template': %w", err)
+			return nil, fmt.Errorf("failed to check for occurrences of 'template': %w", err)
 		}
 	}
 
@@ -52,18 +52,18 @@ func TopTemplates(tmpl *template.Template) ([]string, error) {
 	return results, nil
 }
 
-// checkTmpl looks for all occurences of {{ template "name" }} in the template.
+// checkTmpl looks for all occurrences of {{ template "name" }} in the template.
 // It adds the name of each template executed in executedTmpls.
 func checkTmpl(tmpl *template.Template, executedTmpls map[string]struct{}) error {
 	if tr := tmpl.Tree; tr == nil {
 		return fmt.Errorf("template %s has nil parse tree", tmpl.Name())
-	} else {
+	} else { //nolint
 		checkListNode(tr.Root, executedTmpls)
 		return nil
 	}
 }
 
-// checkBranchNode checks the if and else branch for occurences of
+// checkBranchNode checks the if and else branch for occurrences of
 // {{ template "name" }} in if, for and with statements.
 func checkBranchNode(node *parse.BranchNode, executedTmpls map[string]struct{}) {
 	if node.List != nil {
