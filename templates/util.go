@@ -55,10 +55,11 @@ func TopTemplates(tmpl *template.Template) ([]string, error) {
 // checkTmpl looks for all occurences of {{ template "name" }} in the template.
 // It adds the name of each template executed in executedTmpls.
 func checkTmpl(tmpl *template.Template, executedTmpls map[string]struct{}) error {
-	if tr := tmpl.Tree; tr != nil {
-		checkListNode(tr.Root, executedTmpls)
-	} else {
+	if tr := tmpl.Tree; tr == nil {
 		return fmt.Errorf("template %s has nil parse tree", tmpl.Name())
+	} else {
+		checkListNode(tr.Root, executedTmpls)
+		return nil
 	}
 }
 
