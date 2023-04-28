@@ -11,7 +11,7 @@ import (
 // executed from a {{ template "name" }} block.
 //
 // All templates in text/template have a name and some text. In most cases,
-// the name isset when the template is created using template.New(name) and
+// the name is set when the template is created using template.New(name) and
 // the text is parsed when calling tmpl.Parse(text). This text can include
 // actions for the template called "name", but also define other named templates
 // using either {{ block "name" pipeline }}{{ end }} or {{ define "name" }}{{ end }}.
