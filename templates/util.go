@@ -57,7 +57,6 @@ func TopTemplates(tmpl *template.Template) ([]string, error) {
 func checkTmpl(tmpl *template.Template, executedTmpls map[string]struct{}) error {
 	if tr := tmpl.Tree; tr != nil {
 		checkListNode(tr.Root, executedTmpls)
-		return nil
 	} else {
 		return fmt.Errorf("template %s has nil parse tree", tmpl.Name())
 	}
