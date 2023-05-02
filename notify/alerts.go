@@ -30,6 +30,8 @@ type Receiver = amv2.Receiver
 type PostableAlerts = amv2.PostableAlerts
 type PostableAlert = amv2.PostableAlert
 
+var OpenAPIAlertsToAlerts = v2.OpenAPIAlertsToAlerts
+
 func (am *GrafanaAlertmanager) GetAlerts(active, silenced, inhibited bool, filter []string, receivers string) (GettableAlerts, error) {
 	var (
 		// Initialize result slice to prevent api returning `null` when there
