@@ -211,8 +211,11 @@ func (d Notifier) constructAttachments(ctx context.Context, alerts []*types.Aler
 
 		attachment, err := d.getAttachmentFromURL(ctx, alert)
 		if err != nil {
-			if errors.Is(err, images.ErrImagesNoURL) {
-				// The image has no public URL, use the bytes for the attachment.
+			if errors.Is(err, images.ErrImagesNoURI) {
+				// There's no image for this alert, continue.
+				continue
+			} else if errors.Is(err, images.ErrImagesNoURL) {
+				// There's an image but it has no public URL, use the bytes for the attachment.
 				attachment, err = d.getAttachmentFromBytes(ctx, alert)
 				if err != nil {
 					d.log.Error("failed to create an attachment for Discord using the image bytes", "error", err)

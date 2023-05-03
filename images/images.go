@@ -17,11 +17,14 @@ var (
 
 	ErrImageNotFound = errors.New("image not found")
 
-	// ErrImagesNoURL is returned whenever an image is found but has no URL.
-	ErrImagesNoURL = errors.New("no URL for image")
-
 	// ErrImagesNoURL is returned whenever an image is found but has no path on disk.
 	ErrImagesNoPath = errors.New("no path for image")
+
+	// ErrImagesNoURI is returned when no image identifier is found in the alert annotations.
+	ErrImagesNoURI = errors.New("no image uri in annotations")
+
+	// ErrImagesNoURL is returned whenever an image is found but has no URL.
+	ErrImagesNoURL = errors.New("no URL for image")
 
 	ErrImagesUnavailable = errors.New("alert screenshots are unavailable")
 )
