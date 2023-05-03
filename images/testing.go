@@ -69,7 +69,7 @@ func (f *FakeProvider) GetRawImage(_ context.Context, alert *types.Alert) (io.Re
 func getImageURI(alert *types.Alert) (string, error) {
 	uri, ok := alert.Annotations[models.ImageTokenAnnotation]
 	if !ok {
-		return "", ErrImagesNoURI
+		return "", ErrNoImageForAlert
 	}
 	return string(uri), nil
 }

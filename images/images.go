@@ -20,13 +20,13 @@ var (
 	// ErrImagesNoURL is returned whenever an image is found but has no path on disk.
 	ErrImagesNoPath = errors.New("no path for image")
 
-	// ErrImagesNoURI is returned when no image identifier is found in the alert annotations.
-	ErrImagesNoURI = errors.New("no image uri in annotations")
-
 	// ErrImagesNoURL is returned whenever an image is found but has no URL.
 	ErrImagesNoURL = errors.New("no URL for image")
 
 	ErrImagesUnavailable = errors.New("alert screenshots are unavailable")
+
+	// ErrNoImageForAlert is returned when no image is associated to a given alert.
+	ErrNoImageForAlert = errors.New("no image for alert")
 )
 
 type Image struct {
@@ -43,11 +43,11 @@ func (i Image) HasURL() bool {
 type Provider interface {
 	GetImage(ctx context.Context, token string) (*Image, error)
 
-	// GetImageURL returns the URL of an image associated with a given alert.
+	// GetImageURL returns the URL of an image associated with a given alert. Returns `ErrImageNotFound` if no image is found.
 	GetImageURL(ctx context.Context, alert *types.Alert) (string, error)
 
-	// GetRawImage returns an io.Reader to read the bytes of an image associated with a given alert,
-	// a string representing the filename, and an optional error.
+	// GetRawImage returns an io.Reader to read the bytes of an image associated with a given alert
+	// and a string representing the filename. Returns `ErrImageNotFound` if no image is found.
 	GetRawImage(ctx context.Context, alert *types.Alert) (io.ReadCloser, string, error)
 }
 

@@ -211,7 +211,7 @@ func (d Notifier) constructAttachments(ctx context.Context, alerts []*types.Aler
 
 		attachment, err := d.getAttachmentFromURL(ctx, alert)
 		if err != nil {
-			if errors.Is(err, images.ErrImagesNoURI) {
+			if errors.Is(err, images.ErrNoImageForAlert) {
 				// There's no image for this alert, continue.
 				continue
 			} else if errors.Is(err, images.ErrImagesNoURL) {
