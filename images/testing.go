@@ -44,7 +44,7 @@ func (f *FakeProvider) GetImageURL(_ context.Context, alert *types.Alert) (strin
 }
 
 // GetRawImage returns an io.Reader to read the bytes of the image associated with a given alert.
-func (f *FakeProvider) GetRawImage(_ context.Context, alert *types.Alert) (io.Reader, string, error) {
+func (f *FakeProvider) GetRawImage(_ context.Context, alert *types.Alert) (io.ReadCloser, string, error) {
 	uri, err := getImageURI(alert)
 	if err != nil {
 		return nil, "", err
@@ -53,7 +53,7 @@ func (f *FakeProvider) GetRawImage(_ context.Context, alert *types.Alert) (io.Re
 	uriString := string(uri)
 	for _, img := range f.Images {
 		if img.Token == uriString || img.URL == uriString {
-			return strings.NewReader("test"), "test.png", nil
+			return io.NopCloser(strings.NewReader("test")), "test.png", nil
 		}
 	}
 	return nil, "", ErrImageNotFound

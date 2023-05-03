@@ -20,6 +20,9 @@ var (
 	// ErrImagesNoURL is returned whenever an image is found but has no URL.
 	ErrImagesNoURL = errors.New("no URL for image")
 
+	// ErrImagesNoURL is returned whenever an image is found but has no path on disk.
+	ErrImagesNoPath = errors.New("no path for image")
+
 	ErrImagesUnavailable = errors.New("alert screenshots are unavailable")
 )
 
@@ -42,7 +45,7 @@ type Provider interface {
 
 	// GetRawImage returns an io.Reader to read the bytes of an image associated with a given alert,
 	// a string representing the filename, and an optional error.
-	GetRawImage(ctx context.Context, alert *types.Alert) (io.Reader, string, error)
+	GetRawImage(ctx context.Context, alert *types.Alert) (io.ReadCloser, string, error)
 }
 
 type UnavailableProvider struct{}
@@ -56,6 +59,6 @@ func (u *UnavailableProvider) GetImageURL(context.Context, *types.Alert) (string
 	return "", ErrImagesUnavailable
 }
 
-func (u *UnavailableProvider) GetRawImage(context.Context, *types.Alert) (io.Reader, string, error) {
+func (u *UnavailableProvider) GetRawImage(context.Context, *types.Alert) (io.ReadCloser, string, error) {
 	return nil, "", ErrImagesUnavailable
 }
