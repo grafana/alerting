@@ -1,13 +1,17 @@
 package discord
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"mime"
+	"mime/multipart"
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
@@ -16,6 +20,7 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -377,6 +382,177 @@ func TestNotify(t *testing.T) {
 			require.NoError(t, err)
 
 			require.JSONEq(t, string(expBody), webhookSender.Webhook.Body)
+		})
+	}
+}
+
+func TestNotify_WithImages(t *testing.T) {
+	imageWithURL := images.Image{
+		Token:     "test-image-1",
+		URL:       "https://www.example.com/test-image-1.jpg",
+		CreatedAt: time.Now().UTC(),
+	}
+	imageWithoutURL := images.Image{
+		Token:     "test-image-2",
+		Path:      "/test/test2/test-image-2.jpg",
+		CreatedAt: time.Now().UTC(),
+	}
+	expectedBytes := []byte("test bytes")
+	imageProvider := &images.FakeProvider{Images: []*images.Image{&imageWithURL, &imageWithoutURL}, Bytes: expectedBytes}
+	tmpl := templates.ForTests(t)
+
+	externalURL, err := url.Parse("http://localhost")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+	appVersion := fmt.Sprintf("%d.0.0", rand.Uint32())
+
+	cases := []struct {
+		name        string
+		settings    Config
+		alerts      []*types.Alert
+		expMsg      map[string]interface{}
+		expMsgError error
+		expBytes    []byte
+	}{
+		{
+			name: "Default config with one alert, one image with URL",
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            templates.DefaultMessageEmbed,
+				AvatarURL:          "",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.ImageTokenAnnotation: model.LabelValue(imageWithURL.Token)},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"embeds": []interface{}{map[string]interface{}{
+					"color": 1.4037554e+07,
+					"footer": map[string]interface{}{
+						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+						"text":     "Grafana v" + appVersion,
+					},
+					"title": "[FIRING:1]  (val1)",
+					"url":   "http://localhost/alerting/list",
+					"type":  "rich",
+				},
+					map[string]interface{}{
+						"image": map[string]interface{}{
+							"url": imageWithURL.URL,
+						},
+						"title": "alert1",
+						"color": 1.4037554e+07,
+					}},
+				"username": "Grafana",
+			},
+			expMsgError: nil,
+		},
+		{
+			name: "Default config with one alert, one image without URL",
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            templates.DefaultMessageEmbed,
+				AvatarURL:          "",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.ImageTokenAnnotation: model.LabelValue(imageWithoutURL.Token)},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"embeds": []interface{}{map[string]interface{}{
+					"color": 1.4037554e+07,
+					"footer": map[string]interface{}{
+						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+						"text":     "Grafana v" + appVersion,
+					},
+					"title": "[FIRING:1]  (val1)",
+					"url":   "http://localhost/alerting/list",
+					"type":  "rich",
+				},
+					map[string]interface{}{
+						"image": map[string]interface{}{
+							"url": "attachment://test-image-2.jpg",
+						},
+						"title": "alert1",
+						"color": 1.4037554e+07,
+					}},
+				"username": "Grafana",
+			},
+			expMsgError: nil,
+			expBytes:    expectedBytes,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(tt *testing.T) {
+			webhookSender := receivers.MockNotificationService()
+			dn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
+				},
+				log:        &logging.FakeLogger{},
+				ns:         webhookSender,
+				tmpl:       tmpl,
+				settings:   c.settings,
+				images:     imageProvider,
+				appVersion: appVersion,
+			}
+
+			ctx := notify.WithGroupKey(context.Background(), "alertname")
+			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+			ok, err := dn.Notify(ctx, c.alerts...)
+			if c.expMsgError != nil {
+				require.False(t, ok)
+				require.Error(t, err)
+				require.Equal(t, c.expMsgError.Error(), err.Error())
+				return
+			}
+			require.NoError(tt, err)
+			require.True(tt, ok)
+
+			expBody, err := json.Marshal(c.expMsg)
+			require.NoError(tt, err)
+
+			mediaType, params, err := mime.ParseMediaType(webhookSender.Webhook.ContentType)
+			require.NoError(tt, err)
+			require.Equal(tt, "multipart/form-data", mediaType)
+
+			reader := multipart.NewReader(strings.NewReader(webhookSender.Webhook.Body), params["boundary"])
+			part, err := reader.NextPart()
+			require.NoError(tt, err)
+			require.Equal(tt, "payload_json", part.FormName())
+
+			buf := bytes.Buffer{}
+			_, err = buf.ReadFrom(part)
+			require.NoError(tt, err)
+			require.JSONEq(tt, string(expBody), buf.String())
+
+			if c.expBytes != nil {
+				buf.Reset()
+				part, err = reader.NextPart()
+				require.NoError(tt, err)
+
+				_, err = buf.ReadFrom(part)
+				require.NoError(tt, err)
+				require.Equal(tt, c.expBytes, buf.Bytes())
+			}
 		})
 	}
 }

@@ -1,12 +1,13 @@
 package images
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 type FakeProvider struct {
 	Images []*Image
+	Bytes  []byte
 }
 
 // GetImage returns an image with the same token.
@@ -37,6 +39,9 @@ func (f *FakeProvider) GetImageURL(_ context.Context, alert *types.Alert) (strin
 
 	for _, img := range f.Images {
 		if img.Token == uri || img.URL == uri {
+			if !img.HasURL() {
+				return "", ErrImagesNoURL
+			}
 			return img.URL, nil
 		}
 	}
@@ -53,7 +58,8 @@ func (f *FakeProvider) GetRawImage(_ context.Context, alert *types.Alert) (io.Re
 	uriString := string(uri)
 	for _, img := range f.Images {
 		if img.Token == uriString || img.URL == uriString {
-			return io.NopCloser(strings.NewReader("test")), "test.png", nil
+			filename := filepath.Base(img.Path)
+			return io.NopCloser(bytes.NewReader(f.Bytes)), filename, nil
 		}
 	}
 	return nil, "", ErrImageNotFound
