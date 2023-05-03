@@ -17,7 +17,7 @@ var (
 
 	ErrImageNotFound = errors.New("image not found")
 
-	// ErrImagesNoURL is returned whenever an image is found but has no path on disk.
+	// ErrImagesNoPath is returned whenever an image is found but has no path on disk.
 	ErrImagesNoPath = errors.New("no path for image")
 
 	// ErrImagesNoURL is returned whenever an image is found but has no URL.
