@@ -203,9 +203,11 @@ func (d Notifier) SendResolved() bool {
 
 func (d Notifier) constructAttachments(ctx context.Context, alerts []*types.Alert, embedQuota int) []discordAttachment {
 	attachments := make([]discordAttachment, 0, embedQuota)
+	embedsUsed := 0
 	for _, alert := range alerts {
 		// Check if the image limit has been reached at the start of each iteration.
-		if embedQuota < 1 {
+		if embedsUsed >= embedQuota {
+			d.log.Warn("Discord embed quota reached, not creating more attachments for this notification", "embedQuota", embedQuota)
 			break
 		}
 
@@ -229,7 +231,7 @@ func (d Notifier) constructAttachments(ctx context.Context, alerts []*types.Aler
 
 		// We got an attachment, either using the image URL or bytes.
 		attachments = append(attachments, attachment)
-		embedQuota--
+		embedsUsed++
 	}
 
 	return attachments
