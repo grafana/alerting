@@ -49,11 +49,15 @@ type Provider interface {
 	// Use any of those two methods instead.
 	GetImage(ctx context.Context, token string) (*Image, error)
 
-	// GetImageURL returns the URL of an image associated with a given alert. Returns `ErrImageNotFound` if no image is found.
+	// GetImageURL returns the URL of an image associated with a given alert.
+	//	- Returns `ErrImageNotFound` if no image is found.
+	//	- Returns `ErrImagesNoURL` if the image doesn't have a URL.
 	GetImageURL(ctx context.Context, alert *types.Alert) (string, error)
 
 	// GetRawImage returns an io.Reader to read the bytes of an image associated with a given alert
-	// and a string representing the filename. Returns `ErrImageNotFound` if no image is found.
+	// and a string representing the filename.
+	//	- Returns `ErrImageNotFound` if no image is found.
+	//	- Returns `ErrImagesNoPath` if the image doesn't have a path on disk.
 	GetRawImage(ctx context.Context, alert *types.Alert) (io.ReadCloser, string, error)
 }
 
