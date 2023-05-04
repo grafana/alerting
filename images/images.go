@@ -41,6 +41,12 @@ func (i Image) HasURL() bool {
 }
 
 type Provider interface {
+	// GetImage takes a token (identifier) and returns the image that token belongs to.
+	// Returns `ErrImageNotFound` if there's no image for said token.
+	//
+	// Deprecated: This method will be removed when all integrations use GetImageURL and/or GetRawImage,
+	// which allow integrations to get just the data they need for adding images to notifications.
+	// Use any of those two methods instead.
 	GetImage(ctx context.Context, token string) (*Image, error)
 
 	// GetImageURL returns the URL of an image associated with a given alert. Returns `ErrImageNotFound` if no image is found.
