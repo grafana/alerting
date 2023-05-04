@@ -138,7 +138,7 @@ func parseTestTemplate(name string, text string) ([]string, error) {
 		return nil, err
 	}
 
-	topLevel, err := templates.FindTopLevelTemplates(tmpl)
+	topLevel, err := templates.TopTemplates(tmpl)
 	if err != nil {
 		return nil, err
 	}
