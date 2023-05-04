@@ -10,12 +10,12 @@ import (
 )
 
 var (
+	ErrImageNotFound = errors.New("image not found")
+
 	// ErrImagesDone is used to stop iteration of subsequent images. It should be
 	// returned from forEachFunc when either the intended image has been found or
 	// the maximum number of images has been iterated.
 	ErrImagesDone = errors.New("images done")
-
-	ErrImageNotFound = errors.New("image not found")
 
 	// ErrImagesNoPath is returned whenever an image is found but has no path on disk.
 	ErrImagesNoPath = errors.New("no path for image")
