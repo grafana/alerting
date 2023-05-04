@@ -211,18 +211,13 @@ func (d Notifier) constructAttachments(ctx context.Context, alerts []*types.Aler
 			break
 		}
 
-		attachment, err := d.getAttachmentFromURL(ctx, alert)
-		if errors.Is(err, images.ErrNoImageForAlert) {
-			// There's no image for this alert, continue.
-			continue
-		}
-		if errors.Is(err, images.ErrImagesNoURL) {
-			// There's an image but it has no public URL, use the bytes for the attachment.
-			attachment, err = d.getAttachmentFromBytes(ctx, alert)
-		}
-		// This check catches unhandled errors both from getAttachmentFromURL and getAttachmentFromBytes.
+		attachment, err := d.getAttachment(ctx, alert)
 		if err != nil {
-			d.log.Error("failed to create an attachment for Discord", "error", err)
+			if errors.Is(err, images.ErrNoImageForAlert) {
+				// There's no image for this alert, continue.
+				continue
+			}
+			d.log.Error("failed to create an attachment for Discord", "alert", alert, "error", err)
 			continue
 		}
 
@@ -232,6 +227,18 @@ func (d Notifier) constructAttachments(ctx context.Context, alerts []*types.Aler
 	}
 
 	return attachments
+}
+
+// getAttachment takes an alert and generates a Discord attachment containing an image for it.
+// If the image has no public URL, it uses the raw bytes for uploading directly to Discord.
+func (d Notifier) getAttachment(ctx context.Context, alert *types.Alert) (discordAttachment, error) {
+	attachment, err := d.getAttachmentFromURL(ctx, alert)
+	if errors.Is(err, images.ErrImagesNoURL) {
+		// There's an image but it has no public URL, use the bytes for the attachment.
+		return d.getAttachmentFromBytes(ctx, alert)
+	}
+
+	return attachment, err
 }
 
 func (d Notifier) getAttachmentFromURL(ctx context.Context, alert *types.Alert) (discordAttachment, error) {
