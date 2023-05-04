@@ -75,7 +75,7 @@ type Notifier struct {
 
 type discordAttachment struct {
 	url       string
-	reader    io.Reader
+	reader    io.ReadCloser
 	name      string
 	alertName string
 	state     model.AlertStatus
@@ -300,6 +300,7 @@ func (d Notifier) buildRequest(url string, body []byte, attachments []discordAtt
 	for _, a := range attachments {
 		if a.reader != nil { // We have an image to upload.
 			err = func() error {
+				defer func() { _ = a.reader.Close() }()
 				part, err := w.CreateFormFile("", a.name)
 				if err != nil {
 					return err
