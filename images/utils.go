@@ -3,9 +3,6 @@ package images
 import (
 	"context"
 	"errors"
-	"io"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/prometheus/alertmanager/types"
@@ -68,26 +65,6 @@ func WithStoredImages(ctx context.Context, l logging.Logger, imageProvider Provi
 		}
 	}
 	return nil
-}
-
-// OpenImage returns an the io representation of an image from the given path.
-// The path argument here comes from reading internal image storage, not User
-// input, so we ignore the security check here.
-//
-//nolint:gosec
-func OpenImage(path string) (io.ReadCloser, error) {
-	fp := filepath.Clean(path)
-	_, err := os.Stat(fp)
-	if os.IsNotExist(err) || os.IsPermission(err) {
-		return nil, ErrImageNotFound
-	}
-
-	f, err := os.Open(fp)
-	if err != nil {
-		return nil, err
-	}
-
-	return f, nil
 }
 
 func getTokenFromAnnotations(annotations model.LabelSet) string {

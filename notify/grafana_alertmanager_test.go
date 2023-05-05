@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-openapi/strfmt"
-	"github.com/prometheus/alertmanager/api/v2/models"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/provider/mem"
@@ -51,33 +50,33 @@ func TestPutAlert(t *testing.T) {
 			title: "Valid alerts with different start/end set",
 			postableAlerts: amv2.PostableAlerts{
 				{ // Start and end set.
-					Annotations: models.LabelSet{"msg": "Alert1 annotation"},
-					Alert: models.Alert{
-						Labels:       models.LabelSet{"alertname": "Alert1"},
+					Annotations: amv2.LabelSet{"msg": "Alert1 annotation"},
+					Alert: amv2.Alert{
+						Labels:       amv2.LabelSet{"alertname": "Alert1"},
 						GeneratorURL: "http://localhost/url1",
 					},
 					StartsAt: strfmt.DateTime(startTime),
 					EndsAt:   strfmt.DateTime(endTime),
 				}, { // Only end is set.
-					Annotations: models.LabelSet{"msg": "Alert2 annotation"},
-					Alert: models.Alert{
-						Labels:       models.LabelSet{"alertname": "Alert2"},
+					Annotations: amv2.LabelSet{"msg": "Alert2 annotation"},
+					Alert: amv2.Alert{
+						Labels:       amv2.LabelSet{"alertname": "Alert2"},
 						GeneratorURL: "http://localhost/url2",
 					},
 					StartsAt: strfmt.DateTime{},
 					EndsAt:   strfmt.DateTime(endTime),
 				}, { // Only start is set.
-					Annotations: models.LabelSet{"msg": "Alert3 annotation"},
-					Alert: models.Alert{
-						Labels:       models.LabelSet{"alertname": "Alert3"},
+					Annotations: amv2.LabelSet{"msg": "Alert3 annotation"},
+					Alert: amv2.Alert{
+						Labels:       amv2.LabelSet{"alertname": "Alert3"},
 						GeneratorURL: "http://localhost/url3",
 					},
 					StartsAt: strfmt.DateTime(startTime),
 					EndsAt:   strfmt.DateTime{},
 				}, { // Both start and end are not set.
-					Annotations: models.LabelSet{"msg": "Alert4 annotation"},
-					Alert: models.Alert{
-						Labels:       models.LabelSet{"alertname": "Alert4"},
+					Annotations: amv2.LabelSet{"msg": "Alert4 annotation"},
+					Alert: amv2.Alert{
+						Labels:       amv2.LabelSet{"alertname": "Alert4"},
 						GeneratorURL: "http://localhost/url4",
 					},
 					StartsAt: strfmt.DateTime{},
@@ -131,9 +130,9 @@ func TestPutAlert(t *testing.T) {
 			title: "Removing empty labels and annotations",
 			postableAlerts: amv2.PostableAlerts{
 				{
-					Annotations: models.LabelSet{"msg": "Alert4 annotation", "empty": ""},
-					Alert: models.Alert{
-						Labels:       models.LabelSet{"alertname": "Alert4", "emptylabel": ""},
+					Annotations: amv2.LabelSet{"msg": "Alert4 annotation", "empty": ""},
+					Alert: amv2.Alert{
+						Labels:       amv2.LabelSet{"alertname": "Alert4", "emptylabel": ""},
 						GeneratorURL: "http://localhost/url1",
 					},
 					StartsAt: strfmt.DateTime{},
@@ -159,9 +158,9 @@ func TestPutAlert(t *testing.T) {
 			title: "Allow spaces in label and annotation name",
 			postableAlerts: amv2.PostableAlerts{
 				{
-					Annotations: models.LabelSet{"Dashboard URL": "http://localhost:3000"},
-					Alert: models.Alert{
-						Labels:       models.LabelSet{"alertname": "Alert4", "Spaced Label": "works"},
+					Annotations: amv2.LabelSet{"Dashboard URL": "http://localhost:3000"},
+					Alert: amv2.Alert{
+						Labels:       amv2.LabelSet{"alertname": "Alert4", "Spaced Label": "works"},
 						GeneratorURL: "http://localhost/url1",
 					},
 					StartsAt: strfmt.DateTime{},
@@ -187,8 +186,8 @@ func TestPutAlert(t *testing.T) {
 			title: "Special characters in labels",
 			postableAlerts: amv2.PostableAlerts{
 				{
-					Alert: models.Alert{
-						Labels: models.LabelSet{"alertname$": "Alert1", "az3-- __...++!!!£@@312312": "1"},
+					Alert: amv2.Alert{
+						Labels: amv2.LabelSet{"alertname$": "Alert1", "az3-- __...++!!!£@@312312": "1"},
 					},
 				},
 			},
@@ -211,9 +210,9 @@ func TestPutAlert(t *testing.T) {
 			title: "Special characters in annotations",
 			postableAlerts: amv2.PostableAlerts{
 				{
-					Annotations: models.LabelSet{"az3-- __...++!!!£@@312312": "Alert4 annotation"},
-					Alert: models.Alert{
-						Labels: models.LabelSet{"alertname": "Alert4"},
+					Annotations: amv2.LabelSet{"az3-- __...++!!!£@@312312": "Alert4 annotation"},
+					Alert: amv2.Alert{
+						Labels: amv2.LabelSet{"alertname": "Alert4"},
 					},
 				},
 			},
@@ -236,16 +235,16 @@ func TestPutAlert(t *testing.T) {
 			title: "No labels after removing empty",
 			postableAlerts: amv2.PostableAlerts{
 				{
-					Alert: models.Alert{
-						Labels: models.LabelSet{"alertname": ""},
+					Alert: amv2.Alert{
+						Labels: amv2.LabelSet{"alertname": ""},
 					},
 				},
 			},
 			expError: &AlertValidationError{
 				Alerts: amv2.PostableAlerts{
 					{
-						Alert: models.Alert{
-							Labels: models.LabelSet{"alertname": ""},
+						Alert: amv2.Alert{
+							Labels: amv2.LabelSet{"alertname": ""},
 						},
 					},
 				},
@@ -255,8 +254,8 @@ func TestPutAlert(t *testing.T) {
 			title: "Start should be before end",
 			postableAlerts: amv2.PostableAlerts{
 				{
-					Alert: models.Alert{
-						Labels: models.LabelSet{"alertname": ""},
+					Alert: amv2.Alert{
+						Labels: amv2.LabelSet{"alertname": ""},
 					},
 					StartsAt: strfmt.DateTime(endTime),
 					EndsAt:   strfmt.DateTime(startTime),
@@ -265,8 +264,8 @@ func TestPutAlert(t *testing.T) {
 			expError: &AlertValidationError{
 				Alerts: amv2.PostableAlerts{
 					{
-						Alert: models.Alert{
-							Labels: models.LabelSet{"alertname": ""},
+						Alert: amv2.Alert{
+							Labels: amv2.LabelSet{"alertname": ""},
 						},
 						StartsAt: strfmt.DateTime(endTime),
 						EndsAt:   strfmt.DateTime(startTime),
@@ -353,10 +352,10 @@ func TestSilenceCleanup(t *testing.T) {
 	dt := func(t time.Time) strfmt.DateTime { return strfmt.DateTime(t) }
 
 	makeSilence := func(comment string, createdBy string,
-		startsAt, endsAt strfmt.DateTime, matchers models.Matchers) *PostableSilence {
+		startsAt, endsAt strfmt.DateTime, matchers amv2.Matchers) *PostableSilence {
 		return &PostableSilence{
 			ID: "",
-			Silence: models.Silence{
+			Silence: amv2.Silence{
 				Comment:   &comment,
 				CreatedBy: &createdBy,
 				StartsAt:  &startsAt,
@@ -368,7 +367,7 @@ func TestSilenceCleanup(t *testing.T) {
 
 	tru := true
 	testString := "testName"
-	matchers := models.Matchers{&models.Matcher{Name: &testString, IsEqual: &tru, IsRegex: &tru, Value: &testString}}
+	matchers := amv2.Matchers{&amv2.Matcher{Name: &testString, IsEqual: &tru, IsRegex: &tru, Value: &testString}}
 	// Create silences - one in the future, one currently active, one expired but
 	// retained, one expired and not retained.
 	silences := []*PostableSilence{

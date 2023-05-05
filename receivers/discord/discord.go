@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -202,50 +201,71 @@ func (d Notifier) SendResolved() bool {
 	return !d.GetDisableResolveMessage()
 }
 
-func (d Notifier) constructAttachments(ctx context.Context, as []*types.Alert, embedQuota int) []discordAttachment {
-	attachments := make([]discordAttachment, 0)
+func (d Notifier) constructAttachments(ctx context.Context, alerts []*types.Alert, embedQuota int) []discordAttachment {
+	attachments := make([]discordAttachment, 0, embedQuota)
+	embedsUsed := 0
+	for _, alert := range alerts {
+		// Check if the image limit has been reached at the start of each iteration.
+		if embedsUsed >= embedQuota {
+			d.log.Warn("Discord embed quota reached, not creating more attachments for this notification", "embedQuota", embedQuota)
+			break
+		}
 
-	_ = images.WithStoredImages(ctx, d.log, d.images,
-		func(index int, image images.Image) error {
-			if embedQuota < 1 {
-				return images.ErrImagesDone
+		attachment, err := d.getAttachment(ctx, alert)
+		if err != nil {
+			if errors.Is(err, images.ErrNoImageForAlert) {
+				// There's no image for this alert, continue.
+				continue
 			}
+			d.log.Error("failed to create an attachment for Discord", "alert", alert, "error", err)
+			continue
+		}
 
-			if len(image.URL) > 0 {
-				attachments = append(attachments, discordAttachment{
-					url:       image.URL,
-					state:     as[index].Status(),
-					alertName: as[index].Name(),
-				})
-				embedQuota--
-				return nil
-			}
-
-			// If we have a local file, but no public URL, upload the image as an attachment.
-			if len(image.Path) > 0 {
-				base := filepath.Base(image.Path)
-				url := fmt.Sprintf("attachment://%s", base)
-				reader, err := images.OpenImage(image.Path)
-				if err != nil && !errors.Is(err, images.ErrImageNotFound) {
-					d.log.Warn("failed to retrieve image data from store", "error", err)
-					return nil
-				}
-
-				attachments = append(attachments, discordAttachment{
-					url:       url,
-					name:      base,
-					reader:    reader,
-					state:     as[index].Status(),
-					alertName: as[index].Name(),
-				})
-				embedQuota--
-			}
-			return nil
-		},
-		as...,
-	)
+		// We got an attachment, either using the image URL or bytes.
+		attachments = append(attachments, attachment)
+		embedsUsed++
+	}
 
 	return attachments
+}
+
+// getAttachment takes an alert and generates a Discord attachment containing an image for it.
+// If the image has no public URL, it uses the raw bytes for uploading directly to Discord.
+func (d Notifier) getAttachment(ctx context.Context, alert *types.Alert) (discordAttachment, error) {
+	attachment, err := d.getAttachmentFromURL(ctx, alert)
+	if errors.Is(err, images.ErrImagesNoURL) {
+		// There's an image but it has no public URL, use the bytes for the attachment.
+		return d.getAttachmentFromBytes(ctx, alert)
+	}
+
+	return attachment, err
+}
+
+func (d Notifier) getAttachmentFromURL(ctx context.Context, alert *types.Alert) (discordAttachment, error) {
+	url, err := d.images.GetImageURL(ctx, alert)
+	if err != nil {
+		return discordAttachment{}, err
+	}
+
+	return discordAttachment{
+		url:       url,
+		state:     alert.Status(),
+		alertName: alert.Name(),
+	}, nil
+}
+
+func (d Notifier) getAttachmentFromBytes(ctx context.Context, alert *types.Alert) (discordAttachment, error) {
+	r, name, err := d.images.GetRawImage(ctx, alert)
+	if err != nil {
+		return discordAttachment{}, err
+	}
+	return discordAttachment{
+		url:       "attachment://" + name,
+		name:      name,
+		reader:    r,
+		state:     alert.Status(),
+		alertName: alert.Name(),
+	}, nil
 }
 
 func (d Notifier) buildRequest(url string, body []byte, attachments []discordAttachment) (*receivers.SendWebhookSettings, error) {
