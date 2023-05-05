@@ -402,7 +402,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 		}
 		result.DingdingConfigs = append(result.DingdingConfigs, newNotifierConfig(receiver, cfg))
 	case "discord":
-		cfg, err := discord.NewConfig(receiver.Settings)
+		cfg, err := discord.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
 		}
