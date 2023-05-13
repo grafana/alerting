@@ -29,7 +29,7 @@ func TestWithStoredImages(t *testing.T) {
 			},
 		},
 	}}
-	imageStore := &FakeImageStore{Images: []*Image{{
+	imageProvider := &FakeProvider{Images: []*Image{{
 		Token:     "test-image-1",
 		URL:       "https://www.example.com/test-image-1.jpg",
 		CreatedAt: time.Now().UTC(),
@@ -45,7 +45,7 @@ func TestWithStoredImages(t *testing.T) {
 	)
 
 	// should iterate all images
-	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageStore, func(index int, image Image) error {
+	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageProvider, func(index int, image Image) error {
 		i++
 		return nil
 	}, alerts...)
@@ -54,7 +54,7 @@ func TestWithStoredImages(t *testing.T) {
 
 	// should iterate just the first image
 	i = 0
-	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageStore, func(index int, image Image) error {
+	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageProvider, func(index int, image Image) error {
 		i++
 		return ErrImagesDone
 	}, alerts...)

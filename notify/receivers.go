@@ -37,6 +37,7 @@ import (
 	"github.com/grafana/alerting/receivers/webex"
 	"github.com/grafana/alerting/receivers/webhook"
 	"github.com/grafana/alerting/receivers/wecom"
+	"github.com/grafana/alerting/templates"
 )
 
 const (
@@ -178,7 +179,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 
 	for _, receiver := range c.Receivers {
 		for _, next := range receiver.Integrations {
-			n, err := am.buildReceiverIntegration(next, tmpl)
+			n, err := am.buildSingleIntegration(next, tmpl)
 			if err != nil {
 				invalid = append(invalid, result{
 					Config:       next,
@@ -244,6 +245,23 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 	}
 
 	return newTestReceiversResult(testAlert, append(invalid, results...), now), nil
+}
+
+func (am *GrafanaAlertmanager) buildSingleIntegration(r *GrafanaIntegrationConfig, tmpl *templates.Template) (*Integration, error) {
+	apiReceiver := &APIReceiver{
+		GrafanaIntegrations: GrafanaIntegrations{
+			Integrations: []*GrafanaIntegrationConfig{r},
+		},
+	}
+	integrations, err := am.buildReceiverIntegrationsFunc(apiReceiver, tmpl)
+	if err != nil {
+		return nil, err
+	}
+	if len(integrations) == 0 {
+		// This should not happen, but it is better to return some error rather than having a panic.
+		return nil, errors.New("failed to build integration")
+	}
+	return integrations[0], nil
 }
 
 func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time) types.Alert {
@@ -350,7 +368,7 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decrypt G
 	for _, receiver := range api.Integrations {
 		err := parseNotifier(ctx, &result, receiver, decrypt)
 		if err != nil {
-			return GrafanaReceiverConfig{}, &IntegrationValidationError{
+			return GrafanaReceiverConfig{}, IntegrationValidationError{
 				Integration: receiver,
 				Err:         err,
 			}
