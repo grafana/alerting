@@ -147,9 +147,11 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	}
 
 	u.RawQuery = query.Encode()
-
-	extended.SilenceURL = u.String()
-
+	if len(orgID) > 0 {
+		extended.SilenceURL = setOrgIDQueryParam(u, orgID)
+	} else {
+		extended.SilenceURL = u.String()
+	}
 	return extended
 }
 
