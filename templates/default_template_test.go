@@ -49,7 +49,7 @@ func TestDefaultTemplateString(t *testing.T) {
 				EndsAt:       time.Now().Add(2 * time.Hour),
 				GeneratorURL: "http://localhost/alert2",
 			},
-		}, { // Resolved with dashboard and panel ID.
+		}, { // Firing with OrgID and without dashboard and panel ID.
 			Alert: model.Alert{
 				Labels: model.LabelSet{
 					"alertname": "alert1",
@@ -58,16 +58,14 @@ func TestDefaultTemplateString(t *testing.T) {
 				Annotations: model.LabelSet{
 					"ann1":             "annv3",
 					"__orgId__":        "1",
-					"__dashboardUid__": "dbuid456",
-					"__panelId__":      "puid456",
 					"__values__":       "{\"A\": 1234}",
 					"__value_string__": "1234",
 				},
-				StartsAt:     time.Now().Add(-1 * time.Hour),
-				EndsAt:       time.Now().Add(-30 * time.Minute),
-				GeneratorURL: "http://localhost/alert3",
+				StartsAt:     time.Now(),
+				EndsAt:       time.Now().Add(2 * time.Hour),
+				GeneratorURL: "http://localhost/alert3?orgId=1",
 			},
-		}, { // Resolved without dashboard and panel ID.
+		}, { // Resolved with dashboard and panel ID.
 			Alert: model.Alert{
 				Labels: model.LabelSet{
 					"alertname": "alert1",
@@ -75,12 +73,46 @@ func TestDefaultTemplateString(t *testing.T) {
 				},
 				Annotations: model.LabelSet{
 					"ann1":             "annv4",
+					"__orgId__":        "1",
+					"__dashboardUid__": "dbuid456",
+					"__panelId__":      "puid456",
+					"__values__":       "{\"A\": 1234}",
+					"__value_string__": "1234",
+				},
+				StartsAt:     time.Now().Add(-1 * time.Hour),
+				EndsAt:       time.Now().Add(-30 * time.Minute),
+				GeneratorURL: "http://localhost/alert4?orgId=1",
+			},
+		}, { // Resolved without dashboard and panel ID.
+			Alert: model.Alert{
+				Labels: model.LabelSet{
+					"alertname": "alert1",
+					"lbl1":      "val5",
+				},
+				Annotations: model.LabelSet{
+					"ann1":             "annv5",
+					"__values__":       "{\"A\": 1234, \"B\": 5678, \"C\": 9}",
+					"__value_string__": "1234",
+				},
+				StartsAt:     time.Now().Add(-2 * time.Hour),
+				EndsAt:       time.Now().Add(-3 * time.Hour),
+				GeneratorURL: "http://localhost/alert5",
+			},
+		}, { // Resolved with OrgID and without dashboard and panel ID.
+			Alert: model.Alert{
+				Labels: model.LabelSet{
+					"alertname": "alert1",
+					"lbl1":      "val6",
+				},
+				Annotations: model.LabelSet{
+					"ann1":             "annv6",
+					"__orgId__":        "1",
 					"__values__":       "{\"A\": 1234}",
 					"__value_string__": "1234",
 				},
 				StartsAt:     time.Now().Add(-2 * time.Hour),
 				EndsAt:       time.Now().Add(-3 * time.Hour),
-				GeneratorURL: "http://localhost/alert4",
+				GeneratorURL: "http://localhost/alert6?orgId=1",
 			},
 		},
 	}
@@ -115,7 +147,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	}{
 		{
 			templateString: DefaultMessageTitleEmbed,
-			expected:       `[FIRING:2, RESOLVED:2]  (alert1)`,
+			expected:       `[FIRING:3, RESOLVED:3]  (alert1)`,
 		},
 		{
 			templateString: DefaultMessageEmbed,
@@ -141,9 +173,6 @@ Annotations:
 Source: http://localhost/alert2
 Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2
 
-
-**Resolved**
-
 Value: A=1234
 Labels:
  - alertname = alert1
@@ -152,8 +181,9 @@ Annotations:
  - ann1 = annv3
 Source: http://localhost/alert3?orgId=1
 Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval3
-Dashboard: http://localhost/grafana/d/dbuid456?orgId=1
-Panel: http://localhost/grafana/d/dbuid456?orgId=1&viewPanel=puid456
+
+
+**Resolved**
 
 Value: A=1234
 Labels:
@@ -161,8 +191,28 @@ Labels:
  - lbl1 = val4
 Annotations:
  - ann1 = annv4
-Source: http://localhost/alert4
+Source: http://localhost/alert4?orgId=1
 Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval4
+Dashboard: http://localhost/grafana/d/dbuid456?orgId=1
+Panel: http://localhost/grafana/d/dbuid456?orgId=1&viewPanel=puid456
+
+Value: A=1234, B=5678, C=9
+Labels:
+ - alertname = alert1
+ - lbl1 = val5
+Annotations:
+ - ann1 = annv5
+Source: http://localhost/alert5
+Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval5
+
+Value: A=1234
+Labels:
+ - alertname = alert1
+ - lbl1 = val6
+Annotations:
+ - ann1 = annv6
+Source: http://localhost/alert6?orgId=1
+Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval6
 `,
 		},
 		{
@@ -201,9 +251,6 @@ Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&mat
 
 
 
-
-**Resolved**
-
 Value: A=1234
 Labels:
  - alertname = alert1
@@ -216,11 +263,10 @@ Source: [http://localhost/alert3?orgId=1](http://localhost/alert3?orgId=1)
 
 Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval3](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval3)
 
-Dashboard: [http://localhost/grafana/d/dbuid456?orgId=1](http://localhost/grafana/d/dbuid456?orgId=1)
-
-Panel: [http://localhost/grafana/d/dbuid456?orgId=1&viewPanel=puid456](http://localhost/grafana/d/dbuid456?orgId=1&viewPanel=puid456)
 
 
+
+**Resolved**
 
 Value: A=1234
 Labels:
@@ -230,9 +276,41 @@ Labels:
 Annotations:
  - ann1 = annv4
 
-Source: [http://localhost/alert4](http://localhost/alert4)
+Source: [http://localhost/alert4?orgId=1](http://localhost/alert4?orgId=1)
 
 Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval4](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval4)
+
+Dashboard: [http://localhost/grafana/d/dbuid456?orgId=1](http://localhost/grafana/d/dbuid456?orgId=1)
+
+Panel: [http://localhost/grafana/d/dbuid456?orgId=1&viewPanel=puid456](http://localhost/grafana/d/dbuid456?orgId=1&viewPanel=puid456)
+
+
+
+Value: A=1234, B=5678, C=9
+Labels:
+ - alertname = alert1
+ - lbl1 = val5
+
+Annotations:
+ - ann1 = annv5
+
+Source: [http://localhost/alert5](http://localhost/alert5)
+
+Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval5](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval5)
+
+
+
+Value: A=1234
+Labels:
+ - alertname = alert1
+ - lbl1 = val6
+
+Annotations:
+ - ann1 = annv6
+
+Source: [http://localhost/alert6?orgId=1](http://localhost/alert6?orgId=1)
+
+Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval6](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval6)
 
 
 `,
