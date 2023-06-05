@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -13,6 +14,7 @@ func TestNewConfig(t *testing.T) {
 	cases := []struct {
 		name              string
 		settings          string
+		secrets           map[string][]byte
 		expectedConfig    Config
 		expectedInitError string
 	}{
@@ -34,6 +36,20 @@ func TestNewConfig(t *testing.T) {
 		{
 			name:     "Minimal valid configuration",
 			settings: `{"url": "http://localhost"}`,
+			expectedConfig: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            templates.DefaultMessageEmbed,
+				AvatarURL:          "",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
+		},
+		{
+			name:     "Minimal valid configuration from secure settings",
+			settings: `{}`,
+			secrets: map[string][]byte{
+				"url": []byte("http://localhost"),
+			},
 			expectedConfig: Config{
 				Title:              templates.DefaultMessageTitleEmbed,
 				Message:            templates.DefaultMessageEmbed,
@@ -68,7 +84,7 @@ func TestNewConfig(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			actual, err := NewConfig(json.RawMessage(c.settings))
+			actual, err := NewConfig(json.RawMessage(c.settings), receiversTesting.DecryptForTesting(c.secrets))
 
 			if c.expectedInitError != "" {
 				require.ErrorContains(t, err, c.expectedInitError)

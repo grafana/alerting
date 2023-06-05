@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -16,12 +17,13 @@ type Config struct {
 	UseDiscordUsername bool   `json:"use_discord_username,omitempty" yaml:"use_discord_username,omitempty"`
 }
 
-func NewConfig(jsonData json.RawMessage) (Config, error) {
+func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	var settings Config
 	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
+	settings.WebhookURL = decryptFn("url", settings.WebhookURL)
 	if settings.WebhookURL == "" {
 		return Config{}, errors.New("could not find webhook url property in settings")
 	}
