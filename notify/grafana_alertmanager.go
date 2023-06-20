@@ -520,6 +520,14 @@ func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) err
 			continue
 		}
 
+		level.Debug(am.logger).Log("msg",
+			"Putting alert",
+			"alert",
+			alert,
+			"starts_at",
+			alert.StartsAt,
+			"ends_at",
+			alert.EndsAt)
 		alerts = append(alerts, alert)
 	}
 
