@@ -75,6 +75,20 @@ func TestTemplateSimple(t *testing.T) {
 			Errors: nil,
 		},
 	}, {
+		name: "valid template with sprig function",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}{{ " Template Contents Long  " | trim | abbrev 20 }}{{ end }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: []TestTemplatesResult{{
+				Name: "slack.title",
+				Text: "Template Contents...",
+			}},
+			Errors: nil,
+		},
+	}, {
 		name: "invalid template",
 		input: TestTemplatesConfigBodyParams{
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},

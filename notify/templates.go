@@ -95,7 +95,7 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 	}
 
 	// Parse test template.
-	_, err = newTextTmpl.New(c.Name).Parse(c.Template)
+	_, err = newTextTmpl.New(c.Name).Funcs(tmpltext.FuncMap(templates.DefaultFuncs)).Parse(c.Template)
 	if err != nil {
 		// This shouldn't happen since we already parsed the template above.
 		return nil, err
@@ -133,7 +133,7 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 
 // parseTestTemplate parses the test template and returns the top-level definitions that should be interpolated as results.
 func parseTestTemplate(name string, text string) ([]string, error) {
-	tmpl, err := tmpltext.New(name).Funcs(tmpltext.FuncMap(template.DefaultFuncs)).Parse(text)
+	tmpl, err := tmpltext.New(name).Funcs(tmpltext.FuncMap(templates.DefaultFuncs)).Parse(text)
 	if err != nil {
 		return nil, err
 	}
