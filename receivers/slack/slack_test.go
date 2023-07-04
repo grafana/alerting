@@ -263,8 +263,8 @@ func TestNotify_PostMessage(t *testing.T) {
 		},
 		alerts: []*types.Alert{{
 			Alert: model.Alert{
-				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-				Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+				Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
 				GeneratorURL: "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
 			},
 		}},
@@ -303,14 +303,14 @@ func TestNotify_PostMessage(t *testing.T) {
 		},
 		alerts: []*types.Alert{{
 			Alert: model.Alert{
-				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-				Annotations: model.LabelSet{"ann1": "annv1"},
+				Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations:  model.LabelSet{"ann1": "annv1"},
 				GeneratorURL: "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
 			},
 		}, {
 			Alert: model.Alert{
-				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
-				Annotations: model.LabelSet{"ann1": "annv2"},
+				Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+				Annotations:  model.LabelSet{"ann1": "annv2"},
 				GeneratorURL: "http://localhost/alerting/f23a674b-bb6b-46df-8723-1234567test2",
 			},
 		}},
@@ -349,14 +349,14 @@ func TestNotify_PostMessage(t *testing.T) {
 		},
 		alerts: []*types.Alert{{
 			Alert: model.Alert{
-				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-				Annotations: model.LabelSet{"ann1": "annv1"},
+				Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations:  model.LabelSet{"ann1": "annv1"},
 				GeneratorURL: "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
 			},
 		}, {
 			Alert: model.Alert{
-				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
-				Annotations: model.LabelSet{"ann1": "annv2"},
+				Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+				Annotations:  model.LabelSet{"ann1": "annv2"},
 				GeneratorURL: "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
 			},
 		}},
