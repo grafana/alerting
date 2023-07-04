@@ -283,11 +283,29 @@ func handleSlackJSONResponse(resp *http.Response, logger logging.Logger) (string
 	return result.Ts, nil
 }
 
+func (sn *Notifier) commonAlertGeneratorURL(ctx context.Context, alerts []*types.Alert) bool {
+	if len(alerts[0].GeneratorURL) == 0  {
+		return false
+	}
+	firstUrl := alerts[0].GeneratorURL
+	for _, a := range alerts {
+		if a.GeneratorURL != firstUrl {
+			return false
+		}
+	}
+	return true
+}
+
 func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert) (*slackMessage, error) {
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, sn.log, &tmplErr)
 
 	ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", sn.log)
+
+	// If all alerts have the same GeneratorURL, use that.
+	if sn.commonAlertGeneratorURL(ctx, alerts) {
+		ruleURL = alerts[0].GeneratorURL
+	}
 
 	title, truncated := receivers.TruncateInRunes(tmpl(sn.settings.Title), slackMaxTitleLenRunes)
 	if truncated {

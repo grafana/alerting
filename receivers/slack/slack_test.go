@@ -246,6 +246,138 @@ func TestNotify_PostMessage(t *testing.T) {
 			},
 		},
 	}, {
+		name: "Message is sent with a single alert and a GeneratorURL",
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            APIURL,
+			Token:          "1234",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          templates.DefaultMessageTitleEmbed,
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+		},
+		alerts: []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+				GeneratorURL: "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
+			},
+		}},
+		expectedMessage: &slackMessage{
+			Channel:   "#test",
+			Username:  "Grafana",
+			IconEmoji: ":emoji:",
+			Attachments: []attachment{
+				{
+					Title:      "[FIRING:1]  (val1)",
+					TitleLink:  "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
+					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					Fallback:   "[FIRING:1]  (val1)",
+					Fields:     nil,
+					Footer:     "Grafana v" + appVersion,
+					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color:      "#D63232",
+				},
+			},
+		},
+	}, {
+		name: "Message is sent with two firing alerts with different GeneratorURLs",
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            APIURL,
+			Token:          "1234",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          "{{ .Alerts.Firing | len }} firing, {{ .Alerts.Resolved | len }} resolved",
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+		},
+		alerts: []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+				GeneratorURL: "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
+			},
+		}, {
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+				Annotations: model.LabelSet{"ann1": "annv2"},
+				GeneratorURL: "http://localhost/alerting/f23a674b-bb6b-46df-8723-1234567test2",
+			},
+		}},
+		expectedMessage: &slackMessage{
+			Channel:   "#test",
+			Username:  "Grafana",
+			IconEmoji: ":emoji:",
+			Attachments: []attachment{
+				{
+					Title:      "2 firing, 0 resolved",
+					TitleLink:  "http://localhost/alerting/list",
+					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-1234567test2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+					Fallback:   "2 firing, 0 resolved",
+					Fields:     nil,
+					Footer:     "Grafana v" + appVersion,
+					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color:      "#D63232",
+				},
+			},
+		},
+	}, {
+		name: "Message is sent with two firing alerts with the same GeneratorURLs",
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            APIURL,
+			Token:          "1234",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          "{{ .Alerts.Firing | len }} firing, {{ .Alerts.Resolved | len }} resolved",
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+		},
+		alerts: []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+				GeneratorURL: "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
+			},
+		}, {
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+				Annotations: model.LabelSet{"ann1": "annv2"},
+				GeneratorURL: "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
+			},
+		}},
+		expectedMessage: &slackMessage{
+			Channel:   "#test",
+			Username:  "Grafana",
+			IconEmoji: ":emoji:",
+			Attachments: []attachment{
+				{
+					Title:      "2 firing, 0 resolved",
+					TitleLink:  "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
+					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+					Fallback:   "2 firing, 0 resolved",
+					Fields:     nil,
+					Footer:     "Grafana v" + appVersion,
+					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color:      "#D63232",
+				},
+			},
+		},
+	}, {
 		name: "Message is sent with two firing alerts",
 		settings: Config{
 			EndpointURL:    APIURL,
