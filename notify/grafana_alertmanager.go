@@ -139,7 +139,6 @@ var NewIntegration = notify.NewIntegration
 type InhibitRule = config.InhibitRule
 type MuteTimeInterval = config.MuteTimeInterval
 type TimeInterval = timeinterval.TimeInterval
-type Route = config.Route
 type Integration = notify.Integration
 type DispatcherLimits = dispatch.Limits
 type Notifier = notify.Notifier
@@ -377,9 +376,16 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	// Finally, build the integrations map using the receiver configuration and templates.
 	apiReceivers := cfg.Receivers()
 	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
+	usedReceivers := AllReceivers(cfg.RoutingTree())
 	for _, apiReceiver := range apiReceivers {
 		integrations, err := cfg.BuildReceiverIntegrationsFunc()(apiReceiver, tmpl)
 		if err != nil {
+			// If an invalid receiver configuration somehow passed validation but isn't actually used anywhere,
+			// we just log the event and move on. It's not necessary to fail the entire configuration reload.
+			if _, ok := usedReceivers[apiReceiver.Name]; !ok {
+				level.Info(am.logger).Log("msg", "Unused receiver has an error. Skipping.", "receiver", apiReceiver.Name, "error", err)
+				continue
+			}
 			return err
 		}
 		integrationsMap[apiReceiver.Name] = integrations
