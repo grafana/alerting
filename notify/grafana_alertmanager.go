@@ -383,7 +383,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 			// If an invalid receiver configuration somehow passed validation but isn't actually used anywhere,
 			// we just log the event and move on. It's not necessary to fail the entire configuration reload.
 			if _, ok := usedReceivers[apiReceiver.Name]; !ok {
-				level.Info(am.logger).Log("msg", "Unused receiver has an error. Skipping.", "receiver", apiReceiver.Name, "error", err)
+				level.Warn(am.logger).Log("msg", "Unused receiver has a validation error, excluding from Alertmanager configuration.", "receiver", apiReceiver.Name, "error", err)
 				continue
 			}
 			return err
