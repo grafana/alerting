@@ -15,6 +15,7 @@ import (
 	"github.com/grafana/alerting/receivers/discord"
 	"github.com/grafana/alerting/receivers/email"
 	"github.com/grafana/alerting/receivers/googlechat"
+	"github.com/grafana/alerting/receivers/jsm"
 	"github.com/grafana/alerting/receivers/kafka"
 	"github.com/grafana/alerting/receivers/line"
 	"github.com/grafana/alerting/receivers/opsgenie"
@@ -97,6 +98,9 @@ func BuildReceiverIntegrations(
 	}
 	for i, cfg := range receiver.OpsgenieConfigs {
 		ci(i, cfg.Metadata, opsgenie.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))
+	}
+	for i, cfg := range receiver.JsmConfigs {
+		ci(i, cfg.Metadata, jsm.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.PagerdutyConfigs {
 		ci(i, cfg.Metadata, pagerduty.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))

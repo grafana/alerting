@@ -19,6 +19,7 @@ import (
 	"github.com/grafana/alerting/receivers/discord"
 	"github.com/grafana/alerting/receivers/email"
 	"github.com/grafana/alerting/receivers/googlechat"
+	"github.com/grafana/alerting/receivers/jsm"
 	"github.com/grafana/alerting/receivers/kafka"
 	"github.com/grafana/alerting/receivers/line"
 	"github.com/grafana/alerting/receivers/opsgenie"
@@ -196,6 +197,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.Len(t, parsed.KafkaConfigs, 1)
 		require.Len(t, parsed.LineConfigs, 1)
 		require.Len(t, parsed.OpsgenieConfigs, 1)
+		require.Len(t, parsed.JsmConfigs, 1)
 		require.Len(t, parsed.PagerdutyConfigs, 1)
 		require.Len(t, parsed.PushoverConfigs, 1)
 		require.Len(t, parsed.SensugoConfigs, 1)
@@ -218,6 +220,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 			all = append(all, getMetadata(parsed.KafkaConfigs)...)
 			all = append(all, getMetadata(parsed.LineConfigs)...)
 			all = append(all, getMetadata(parsed.OpsgenieConfigs)...)
+			all = append(all, getMetadata(parsed.JsmConfigs)...)
 			all = append(all, getMetadata(parsed.PagerdutyConfigs)...)
 			all = append(all, getMetadata(parsed.PushoverConfigs)...)
 			all = append(all, getMetadata(parsed.SensugoConfigs)...)
@@ -263,6 +266,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.Len(t, parsed.KafkaConfigs, 1)
 		require.Len(t, parsed.LineConfigs, 1)
 		require.Len(t, parsed.OpsgenieConfigs, 1)
+		require.Len(t, parsed.JsmConfigs, 1)
 		require.Len(t, parsed.PagerdutyConfigs, 1)
 		require.Len(t, parsed.PushoverConfigs, 1)
 		require.Len(t, parsed.SensugoConfigs, 1)
@@ -315,6 +319,10 @@ var allKnownConfigs = map[string]notifierConfigTest{
 	"opsgenie": {notifierType: "opsgenie",
 		config:  opsgenie.FullValidConfigForTesting,
 		secrets: opsgenie.FullValidSecretsForTesting,
+	},
+	"jsm": {notifierType: "jsm",
+		config:  jsm.FullValidConfigForTesting,
+		secrets: jsm.FullValidSecretsForTesting,
 	},
 	"pagerduty": {notifierType: "pagerduty",
 		config:  pagerduty.FullValidConfigForTesting,
