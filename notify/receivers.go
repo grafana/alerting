@@ -25,6 +25,7 @@ import (
 	"github.com/grafana/alerting/receivers/googlechat"
 	"github.com/grafana/alerting/receivers/kafka"
 	"github.com/grafana/alerting/receivers/line"
+	"github.com/grafana/alerting/receivers/oncall"
 	"github.com/grafana/alerting/receivers/opsgenie"
 	"github.com/grafana/alerting/receivers/pagerduty"
 	"github.com/grafana/alerting/receivers/pushover"
@@ -338,6 +339,7 @@ type GrafanaReceiverConfig struct {
 	LineConfigs         []*NotifierConfig[line.Config]
 	OpsgenieConfigs     []*NotifierConfig[opsgenie.Config]
 	PagerdutyConfigs    []*NotifierConfig[pagerduty.Config]
+	OnCallConfigs       []*NotifierConfig[oncall.Config]
 	PushoverConfigs     []*NotifierConfig[pushover.Config]
 	SensugoConfigs      []*NotifierConfig[sensugo.Config]
 	SlackConfigs        []*NotifierConfig[slack.Config]
@@ -443,6 +445,12 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.PagerdutyConfigs = append(result.PagerdutyConfigs, newNotifierConfig(receiver, cfg))
+	case "oncall":
+		cfg, err := oncall.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.OnCallConfigs = append(result.OnCallConfigs, newNotifierConfig(receiver, cfg))
 	case "pushover":
 		cfg, err := pushover.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
