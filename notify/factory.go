@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/prometheus/alertmanager/notify"
-
 	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/images"
@@ -17,6 +16,7 @@ import (
 	"github.com/grafana/alerting/receivers/googlechat"
 	"github.com/grafana/alerting/receivers/kafka"
 	"github.com/grafana/alerting/receivers/line"
+	"github.com/grafana/alerting/receivers/oncall"
 	"github.com/grafana/alerting/receivers/opsgenie"
 	"github.com/grafana/alerting/receivers/pagerduty"
 	"github.com/grafana/alerting/receivers/pushover"
@@ -94,6 +94,9 @@ func BuildReceiverIntegrations(
 	}
 	for i, cfg := range receiver.LineConfigs {
 		ci(i, cfg.Metadata, line.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), nl(cfg.Metadata)))
+	}
+	for i, cfg := range receiver.OnCallConfigs {
+		ci(i, cfg.Metadata, oncall.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), orgID))
 	}
 	for i, cfg := range receiver.OpsgenieConfigs {
 		ci(i, cfg.Metadata, opsgenie.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))
