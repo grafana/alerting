@@ -41,33 +41,44 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 	}
 }
 
-// webhookMessage defines the JSON object send to webhook endpoints.
-type webhookMessage struct {
+// oncallMessage defines the JSON object send to Grafana on-call.
+type oncallMessage struct {
 	*templates.ExtendedData
 
 	// The protocol version.
 	Version         string `json:"version"`
 	GroupKey        string `json:"groupKey"`
-	TruncatedAlerts int    `json:"truncatedAlerts"`
 	OrgID           int64  `json:"orgId"`
 	Title           string `json:"title"`
 	State           string `json:"state"`
 	Message         string `json:"message"`
+	FiringAlerts    uint64 `json:"firingAlerts"`
+	ResolvedAlerts  uint64 `json:"resolvedAlerts"`
+	TruncatedAlerts uint64 `json:"truncatedAlerts"`
 }
 
 // Notify implements the Notifier interface.
-func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	groupKey, err := notify.ExtractGroupKey(ctx)
 	if err != nil {
 		return false, err
 	}
 
-	as, numTruncated := truncateAlerts(wn.settings.MaxAlerts, as)
+	var numFiring, numResolved uint64
+	for _, a := range as {
+		if a.Resolved() {
+			numResolved++
+		} else {
+			numFiring++
+		}
+	}
+
+	as, numTruncated := truncateAlerts(n.settings.MaxAlerts, as)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, n.tmpl, as, n.log, &tmplErr)
 
 	// Augment our Alert data with ImageURLs if available.
-	_ = images.WithStoredImages(ctx, wn.log, wn.images,
+	_ = images.WithStoredImages(ctx, n.log, n.images,
 		func(index int, image images.Image) error {
 			if len(image.URL) != 0 {
 				data.Alerts[index].ImageURL = image.URL
@@ -76,14 +87,16 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		},
 		as...)
 
-	msg := &webhookMessage{
+	msg := &oncallMessage{
 		Version:         "1",
 		ExtendedData:    data,
 		GroupKey:        groupKey.String(),
-		TruncatedAlerts: numTruncated,
-		OrgID:           wn.orgID,
-		Title:           tmpl(wn.settings.Title),
-		Message:         tmpl(wn.settings.Message),
+		OrgID:           n.orgID,
+		Title:           tmpl(n.settings.Title),
+		Message:         tmpl(n.settings.Message),
+		FiringAlerts:    numFiring,
+		ResolvedAlerts:  numResolved,
+		TruncatedAlerts: uint64(numTruncated),
 	}
 	if types.Alerts(as...).Status() == model.AlertFiring {
 		msg.State = string(receivers.AlertStateAlerting)
@@ -92,7 +105,7 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	if tmplErr != nil {
-		wn.log.Warn("failed to template webhook message", "error", tmplErr.Error())
+		n.log.Warn("failed to template webhook message", "error", tmplErr.Error())
 		tmplErr = nil
 	}
 
@@ -102,25 +115,25 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	headers := make(map[string]string)
-	if wn.settings.AuthorizationScheme != "" && wn.settings.AuthorizationCredentials != "" {
-		headers["Authorization"] = fmt.Sprintf("%s %s", wn.settings.AuthorizationScheme, wn.settings.AuthorizationCredentials)
+	if n.settings.AuthorizationScheme != "" && n.settings.AuthorizationCredentials != "" {
+		headers["Authorization"] = fmt.Sprintf("%s %s", n.settings.AuthorizationScheme, n.settings.AuthorizationCredentials)
 	}
 
-	parsedURL := tmpl(wn.settings.URL)
+	parsedURL := tmpl(n.settings.URL)
 	if tmplErr != nil {
 		return false, tmplErr
 	}
 
 	cmd := &receivers.SendWebhookSettings{
 		URL:        parsedURL,
-		User:       wn.settings.User,
-		Password:   wn.settings.Password,
+		User:       n.settings.User,
+		Password:   n.settings.Password,
 		Body:       string(body),
-		HTTPMethod: wn.settings.HTTPMethod,
+		HTTPMethod: n.settings.HTTPMethod,
 		HTTPHeader: headers,
 	}
 
-	if err := wn.ns.SendWebhook(ctx, cmd); err != nil {
+	if err := n.ns.SendWebhook(ctx, cmd); err != nil {
 		return false, err
 	}
 
@@ -135,6 +148,6 @@ func truncateAlerts(maxAlerts int, alerts []*types.Alert) ([]*types.Alert, int) 
 	return alerts, 0
 }
 
-func (wn *Notifier) SendResolved() bool {
-	return !wn.GetDisableResolveMessage()
+func (n *Notifier) SendResolved() bool {
+	return !n.GetDisableResolveMessage()
 }

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/benbjohnson/clock"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -33,7 +34,7 @@ func TestNotify(t *testing.T) {
 		settings Config
 		alerts   []*types.Alert
 
-		expMsg        *webhookMessage
+		expMsg        *oncallMessage
 		expURL        string
 		expUsername   string
 		expPassword   string
@@ -64,7 +65,7 @@ func TestNotify(t *testing.T) {
 			},
 			expURL:        "http://localhost/test",
 			expHTTPMethod: "POST",
-			expMsg: &webhookMessage{
+			expMsg: &oncallMessage{
 				ExtendedData: &templates.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
@@ -96,12 +97,13 @@ func TestNotify(t *testing.T) {
 					},
 					ExternalURL: "http://localhost",
 				},
-				Version:  "1",
-				GroupKey: "alertname",
-				Title:    "[FIRING:1]  (val1)",
-				State:    "alerting",
-				Message:  "Custom message",
-				OrgID:    orgID,
+				Version:      "1",
+				GroupKey:     "alertname",
+				Title:        "[FIRING:1]  (val1)",
+				State:        "alerting",
+				Message:      "Custom message",
+				OrgID:        orgID,
+				FiringAlerts: 1,
 			},
 			expMsgError: nil,
 			expHeaders:  map[string]string{},
@@ -141,7 +143,7 @@ func TestNotify(t *testing.T) {
 			expHTTPMethod: "PUT",
 			expUsername:   "user1",
 			expPassword:   "mysecret",
-			expMsg: &webhookMessage{
+			expMsg: &oncallMessage{
 				ExtendedData: &templates.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
@@ -186,6 +188,7 @@ func TestNotify(t *testing.T) {
 				State:           "alerting",
 				Message:         "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
 				OrgID:           orgID,
+				FiringAlerts:    3,
 			},
 			expMsgError: nil,
 			expHeaders:  map[string]string{},
@@ -218,7 +221,7 @@ func TestNotify(t *testing.T) {
 			},
 			expURL:        "http://localhost/test?numAlerts=2&status=firing",
 			expHTTPMethod: "POST",
-			expMsg: &webhookMessage{
+			expMsg: &oncallMessage{
 				ExtendedData: &templates.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
@@ -263,6 +266,7 @@ func TestNotify(t *testing.T) {
 				State:           "alerting",
 				Message:         "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
 				OrgID:           orgID,
+				FiringAlerts:    2,
 			},
 			expMsgError: nil,
 			expHeaders:  map[string]string{},
@@ -288,7 +292,7 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsg: &webhookMessage{
+			expMsg: &oncallMessage{
 				ExtendedData: &templates.ExtendedData{
 					Receiver: "my_receiver",
 					Status:   "firing",
@@ -320,12 +324,13 @@ func TestNotify(t *testing.T) {
 					},
 					ExternalURL: "http://localhost",
 				},
-				Version:  "1",
-				GroupKey: "alertname",
-				Title:    "[FIRING:1]  (val1)",
-				State:    "alerting",
-				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
-				OrgID:    orgID,
+				Version:      "1",
+				GroupKey:     "alertname",
+				Title:        "[FIRING:1]  (val1)",
+				State:        "alerting",
+				Message:      "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				OrgID:        orgID,
+				FiringAlerts: 1,
 			},
 			expURL:        "http://localhost/test1",
 			expHTTPMethod: "POST",
@@ -353,6 +358,150 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsgError: fmt.Errorf("template: :1: function \"Alerts\" not defined"),
+		}, {
+			name: "Resolved alert",
+			settings: Config{
+				URL:                      "http://localhost/test",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                0,
+				AuthorizationScheme:      "",
+				AuthorizationCredentials: "",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  "Custom message",
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+						EndsAt:      clock.NewMock().Now(),
+					},
+				},
+			},
+			expURL:        "http://localhost/test",
+			expHTTPMethod: "POST",
+			expMsg: &oncallMessage{
+				ExtendedData: &templates.ExtendedData{
+					Receiver: "my_receiver",
+					Status:   "resolved",
+					Alerts: templates.ExtendedAlerts{
+						{
+							Status: "resolved",
+							Labels: templates.KV{
+								"alertname": "alert1",
+								"lbl1":      "val1",
+							},
+							Annotations: templates.KV{
+								"ann1": "annv1",
+							},
+							EndsAt:      clock.NewMock().Now(),
+							Fingerprint: "fac0861a85de433a",
+							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+						},
+					},
+					GroupLabels: templates.KV{
+						"alertname": "",
+					},
+					CommonLabels: templates.KV{
+						"alertname": "alert1",
+						"lbl1":      "val1",
+					},
+					CommonAnnotations: templates.KV{
+						"ann1": "annv1",
+					},
+					ExternalURL: "http://localhost",
+				},
+				Version:        "1",
+				GroupKey:       "alertname",
+				Title:          "[RESOLVED]  (val1)",
+				State:          "ok",
+				Message:        "Custom message",
+				OrgID:          orgID,
+				ResolvedAlerts: 1,
+			},
+			expMsgError: nil,
+			expHeaders:  map[string]string{},
+		}, {
+			name: "Firing and resolved alert",
+			settings: Config{
+				URL:                      "http://localhost/test",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                0,
+				AuthorizationScheme:      "",
+				AuthorizationCredentials: "",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  "Custom message",
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+					},
+				}, {
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+						Annotations: model.LabelSet{"ann1": "annv2"},
+						EndsAt:      clock.NewMock().Now(),
+					},
+				},
+			},
+			expURL:        "http://localhost/test",
+			expHTTPMethod: "POST",
+			expMsg: &oncallMessage{
+				ExtendedData: &templates.ExtendedData{
+					Receiver: "my_receiver",
+					Status:   "firing",
+					Alerts: templates.ExtendedAlerts{
+						{
+							Status: "firing",
+							Labels: templates.KV{
+								"alertname": "alert1",
+								"lbl1":      "val1",
+							},
+							Annotations: templates.KV{
+								"ann1": "annv1",
+							},
+							Fingerprint: "fac0861a85de433a",
+							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+						}, {
+							Status: "resolved",
+							Labels: templates.KV{
+								"alertname": "alert1",
+								"lbl1":      "val2",
+							},
+							Annotations: templates.KV{
+								"ann1": "annv2",
+							},
+							EndsAt:      clock.NewMock().Now(),
+							Fingerprint: "fab6861a85d5eeb5",
+							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2",
+						},
+					},
+					GroupLabels: templates.KV{
+						"alertname": "",
+					},
+					CommonLabels: templates.KV{
+						"alertname": "alert1",
+					},
+					CommonAnnotations: templates.KV{},
+					ExternalURL:       "http://localhost",
+				},
+				Version:        "1",
+				GroupKey:       "alertname",
+				Title:          "[FIRING:1]  ",
+				State:          "alerting",
+				Message:        "Custom message",
+				OrgID:          orgID,
+				FiringAlerts:   1,
+				ResolvedAlerts: 1,
+			},
+			expMsgError: nil,
+			expHeaders:  map[string]string{},
 		},
 	}
 
