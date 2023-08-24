@@ -105,7 +105,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	}
 
 	if tmplErr != nil {
-		n.log.Warn("failed to template webhook message", "error", tmplErr.Error())
+		n.log.Warn("failed to template oncall message", "error", tmplErr.Error())
 		tmplErr = nil
 	}
 
