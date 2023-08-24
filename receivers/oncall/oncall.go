@@ -52,8 +52,6 @@ type oncallMessage struct {
 	Title           string `json:"title"`
 	State           string `json:"state"`
 	Message         string `json:"message"`
-	FiringAlerts    uint64 `json:"firingAlerts"`
-	ResolvedAlerts  uint64 `json:"resolvedAlerts"`
 	TruncatedAlerts uint64 `json:"truncatedAlerts"`
 }
 
@@ -94,8 +92,6 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		OrgID:           n.orgID,
 		Title:           tmpl(n.settings.Title),
 		Message:         tmpl(n.settings.Message),
-		FiringAlerts:    numFiring,
-		ResolvedAlerts:  numResolved,
 		TruncatedAlerts: uint64(numTruncated),
 	}
 	if types.Alerts(as...).Status() == model.AlertFiring {
