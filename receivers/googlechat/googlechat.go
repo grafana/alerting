@@ -191,7 +191,7 @@ func (gcn *Notifier) buildScreenshotCard(ctx context.Context, alerts []*types.Al
 }
 
 // Structs used to build a custom Google Hangouts Chat message card.
-// See: https://developers.google.com/hangouts/chat/reference/message-formats/cards
+// https://developers.google.com/chat/api/guides/message-formats/cards
 type outerStruct struct {
 	PreviewText  string `json:"previewText"`
 	FallbackText string `json:"fallbackText"`
