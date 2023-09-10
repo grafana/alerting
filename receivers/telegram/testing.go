@@ -6,6 +6,8 @@ const FullValidConfigForTesting = `{
 	"chatid" :"12345678",
 	"message" :"test-message",
 	"parse_mode" :"html",
+	"disable_web_page_preview" :true,
+	"protect_content" :true,
 	"disable_notifications" :true
 }`
 

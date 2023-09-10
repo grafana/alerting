@@ -34,11 +34,13 @@ func TestNotify(t *testing.T) {
 		{
 			name: "A single alert with default template",
 			settings: Config{
-				BotToken:             "abcdefgh0123456789",
-				ChatID:               "someid",
-				Message:              templates.DefaultMessageEmbed,
-				ParseMode:            "Markdown",
-				DisableNotifications: true,
+				BotToken:              "abcdefgh0123456789",
+				ChatID:                "someid",
+				Message:               templates.DefaultMessageEmbed,
+				ParseMode:             "Markdown",
+				DisableWebPagePreview: true,
+				ProtectContent:        true,
+				DisableNotifications:  true,
 			},
 			alerts: []*types.Alert{
 				{
@@ -50,9 +52,11 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]string{
-				"parse_mode":           "Markdown",
-				"text":                 "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
-				"disable_notification": "true",
+				"parse_mode":               "Markdown",
+				"text":                     "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"disable_web_page_preview": "true",
+				"protect_content":          "true",
+				"disable_notification":     "true",
 			},
 			expMsgError: nil,
 		}, {
