@@ -132,6 +132,12 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert)
 	if tn.settings.ParseMode != "" {
 		m["parse_mode"] = tn.settings.ParseMode
 	}
+	if tn.settings.DisableWebPagePreview {
+		m["disable_web_page_preview"] = "true"
+	}
+	if tn.settings.ProtectContent {
+		m["protect_content"] = "true"
+	}
 	if tn.settings.DisableNotifications {
 		m["disable_notification"] = "true"
 	}
