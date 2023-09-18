@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/alertmanager/cluster"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/dispatch"
+	"github.com/prometheus/alertmanager/featurecontrol"
 	"github.com/prometheus/alertmanager/inhibit"
 	"github.com/prometheus/alertmanager/nflog"
 	"github.com/prometheus/alertmanager/nflog/nflogpb"
@@ -191,7 +192,7 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		stopc:             make(chan struct{}),
 		logger:            log.With(logger, "component", "alertmanager", tenantKey, tenantID),
 		marker:            types.NewMarker(m.Registerer),
-		stageMetrics:      notify.NewMetrics(m.Registerer),
+		stageMetrics:      notify.NewMetrics(m.Registerer, featurecontrol.NoopFlags{}),
 		dispatcherMetrics: dispatch.NewDispatcherMetrics(false, m.Registerer),
 		peer:              peer,
 		peerTimeout:       config.PeerTimeout,

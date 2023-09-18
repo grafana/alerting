@@ -315,8 +315,8 @@ func TestPutAlert(t *testing.T) {
 func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
 	fn := &fakeNotifier{}
 	integrations := []*notify.Integration{
-		notify.NewIntegration(fn, fn, "grafana-oncall", 0),
-		notify.NewIntegration(fn, fn, "sns", 1),
+		notify.NewIntegration(fn, fn, "grafana-oncall", 0, "test-grafana-oncall"),
+		notify.NewIntegration(fn, fn, "sns", 1, "test-sns"),
 	}
 
 	am, reg := setupAMTest(t)
