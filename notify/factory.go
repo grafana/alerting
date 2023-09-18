@@ -55,7 +55,7 @@ func BuildReceiverIntegrations(
 			return logger("ngalert.notifier."+meta.Type, "notifierUID", meta.UID)
 		}
 		ci = func(idx int, cfg receivers.Metadata, n notificationChannel) {
-			i := NewIntegration(n, n, cfg.Type, idx)
+			i := NewIntegration(n, n, cfg.Type, idx, cfg.Name)
 			integrations = append(integrations, i)
 		}
 		nw = func(cfg receivers.Metadata) receivers.WebhookSender {
