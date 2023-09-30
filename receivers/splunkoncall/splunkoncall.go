@@ -1,4 +1,4 @@
-package victorops
+package splunkoncall
 
 import (
 	"context"
@@ -18,16 +18,16 @@ import (
 )
 
 // https://help.victorops.com/knowledge-base/incident-fields-glossary/ - 20480 characters.
-const victorOpsMaxMessageLenRunes = 20480
+const splunkOnCallMaxMessageLenRunes = 20480
 
 const (
-	// victoropsAlertStateRecovery - VictorOps "RECOVERY" message type
-	victoropsAlertStateRecovery = "RECOVERY"
+	// splunkOnCallAlertStateRecovery - Splunk OnCall "RECOVERY" message type
+	splunkOnCallAlertStateRecovery = "RECOVERY"
 )
 
-// Notifier defines URL property for Victorops REST API
+// Notifier defines URL property for Splunk OnCall REST API
 // and handles notification process by formatting POST body according to
-// Victorops specifications (http://victorops.force.com/knowledgebase/articles/Integration/Alert-Ingestion-API-Documentation/)
+// Splunk OnCall specifications (http://victorops.force.com/knowledgebase/articles/Integration/Alert-Ingestion-API-Documentation/)
 type Notifier struct {
 	*receivers.Base
 	log        logging.Logger
@@ -38,8 +38,8 @@ type Notifier struct {
 	appVersion string
 }
 
-// New creates an instance of VictoropsNotifier that
-// handles posting notifications to Victorops REST API
+// New creates an instance of SplunkOnCallNotifier that
+// handles posting notifications to Splunk OnCall REST API
 func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:       receivers.NewBase(meta),
@@ -52,7 +52,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 	}
 }
 
-// Notify sends notification to Victorops via POST to URL endpoint
+// Notify sends notification to Splunk OnCall via POST to URL endpoint
 func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	vn.log.Debug("sending notification", "notification", vn.Name)
 
@@ -66,9 +66,9 @@ func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		return false, err
 	}
 
-	stateMessage, truncated := receivers.TruncateInRunes(tmpl(vn.settings.Description), victorOpsMaxMessageLenRunes)
+	stateMessage, truncated := receivers.TruncateInRunes(tmpl(vn.settings.Description), splunkOnCallMaxMessageLenRunes)
 	if truncated {
-		vn.log.Warn("Truncated stateMessage", "incident", groupKey, "max_runes", victorOpsMaxMessageLenRunes)
+		vn.log.Warn("Truncated stateMessage", "incident", groupKey, "max_runes", splunkOnCallMaxMessageLenRunes)
 	}
 
 	bodyJSON := map[string]interface{}{
@@ -127,7 +127,7 @@ func (vn *Notifier) SendResolved() bool {
 
 func buildMessageType(l logging.Logger, tmpl func(string) string, msgType string, as ...*types.Alert) string {
 	if types.Alerts(as...).Status() == model.AlertResolved {
-		return victoropsAlertStateRecovery
+		return splunkOnCallAlertStateRecovery
 	}
 	if messageType := strings.ToUpper(tmpl(msgType)); messageType != "" {
 		return messageType
