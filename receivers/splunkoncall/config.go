@@ -1,4 +1,4 @@
-package victorops
+package splunkoncall
 
 import (
 	"encoding/json"
@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	// DefaultMessageType - Victorops uses "CRITICAL" string to indicate "Alerting" state
+	// DefaultMessageType - Splunk OnCall uses "CRITICAL" string to indicate "Alerting" state
 	DefaultMessageType = "CRITICAL"
 )
 
@@ -27,7 +27,7 @@ func NewConfig(jsonData json.RawMessage) (Config, error) {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 	if settings.URL == "" {
-		return settings, errors.New("could not find victorops url property in settings")
+		return settings, errors.New("could not find Splunk OnCall url property in settings")
 	}
 	if settings.MessageType == "" {
 		settings.MessageType = DefaultMessageType

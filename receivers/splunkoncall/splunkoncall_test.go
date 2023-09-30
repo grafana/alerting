@@ -1,4 +1,4 @@
-package victorops
+package splunkoncall
 
 import (
 	"context"

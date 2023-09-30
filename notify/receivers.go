@@ -31,10 +31,10 @@ import (
 	"github.com/grafana/alerting/receivers/pushover"
 	"github.com/grafana/alerting/receivers/sensugo"
 	"github.com/grafana/alerting/receivers/slack"
+	"github.com/grafana/alerting/receivers/splunkoncall"
 	"github.com/grafana/alerting/receivers/teams"
 	"github.com/grafana/alerting/receivers/telegram"
 	"github.com/grafana/alerting/receivers/threema"
-	"github.com/grafana/alerting/receivers/victorops"
 	"github.com/grafana/alerting/receivers/webex"
 	"github.com/grafana/alerting/receivers/webhook"
 	"github.com/grafana/alerting/receivers/wecom"
@@ -346,7 +346,7 @@ type GrafanaReceiverConfig struct {
 	TeamsConfigs        []*NotifierConfig[teams.Config]
 	TelegramConfigs     []*NotifierConfig[telegram.Config]
 	ThreemaConfigs      []*NotifierConfig[threema.Config]
-	VictoropsConfigs    []*NotifierConfig[victorops.Config]
+	SplunkOnCallConfigs []*NotifierConfig[splunkoncall.Config]
 	WebhookConfigs      []*NotifierConfig[webhook.Config]
 	WecomConfigs        []*NotifierConfig[wecom.Config]
 	WebexConfigs        []*NotifierConfig[webex.Config]
@@ -487,12 +487,12 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.ThreemaConfigs = append(result.ThreemaConfigs, newNotifierConfig(receiver, cfg))
-	case "victorops":
-		cfg, err := victorops.NewConfig(receiver.Settings)
+	case "splunkoncall":
+		cfg, err := splunkoncall.NewConfig(receiver.Settings)
 		if err != nil {
 			return err
 		}
-		result.VictoropsConfigs = append(result.VictoropsConfigs, newNotifierConfig(receiver, cfg))
+		result.SplunkOnCallConfigs = append(result.SplunkOnCallConfigs, newNotifierConfig(receiver, cfg))
 	case "webhook":
 		cfg, err := webhook.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {

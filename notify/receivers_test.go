@@ -26,10 +26,10 @@ import (
 	"github.com/grafana/alerting/receivers/pushover"
 	"github.com/grafana/alerting/receivers/sensugo"
 	"github.com/grafana/alerting/receivers/slack"
+	"github.com/grafana/alerting/receivers/splunkoncall"
 	"github.com/grafana/alerting/receivers/teams"
 	"github.com/grafana/alerting/receivers/telegram"
 	"github.com/grafana/alerting/receivers/threema"
-	"github.com/grafana/alerting/receivers/victorops"
 	"github.com/grafana/alerting/receivers/webex"
 	"github.com/grafana/alerting/receivers/webhook"
 	"github.com/grafana/alerting/receivers/wecom"
@@ -203,7 +203,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.Len(t, parsed.TeamsConfigs, 1)
 		require.Len(t, parsed.TelegramConfigs, 1)
 		require.Len(t, parsed.ThreemaConfigs, 1)
-		require.Len(t, parsed.VictoropsConfigs, 1)
+		require.Len(t, parsed.SplunkOnCallConfigs, 1)
 		require.Len(t, parsed.WebhookConfigs, 1)
 		require.Len(t, parsed.WecomConfigs, 1)
 		require.Len(t, parsed.WebexConfigs, 1)
@@ -225,7 +225,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 			all = append(all, getMetadata(parsed.TeamsConfigs)...)
 			all = append(all, getMetadata(parsed.TelegramConfigs)...)
 			all = append(all, getMetadata(parsed.ThreemaConfigs)...)
-			all = append(all, getMetadata(parsed.VictoropsConfigs)...)
+			all = append(all, getMetadata(parsed.SplunkOnCallConfigs)...)
 			all = append(all, getMetadata(parsed.WebhookConfigs)...)
 			all = append(all, getMetadata(parsed.WecomConfigs)...)
 			all = append(all, getMetadata(parsed.WebexConfigs)...)
@@ -270,7 +270,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.Len(t, parsed.TeamsConfigs, 1)
 		require.Len(t, parsed.TelegramConfigs, 1)
 		require.Len(t, parsed.ThreemaConfigs, 1)
-		require.Len(t, parsed.VictoropsConfigs, 1)
+		require.Len(t, parsed.SplunkOnCallConfigs, 1)
 		require.Len(t, parsed.WebhookConfigs, 1)
 		require.Len(t, parsed.WecomConfigs, 1)
 		require.Len(t, parsed.WebexConfigs, 1)
@@ -343,8 +343,8 @@ var allKnownConfigs = map[string]notifierConfigTest{
 		config:  threema.FullValidConfigForTesting,
 		secrets: threema.FullValidSecretsForTesting,
 	},
-	"victorops": {notifierType: "victorops",
-		config: victorops.FullValidConfigForTesting,
+	"splunkoncall": {notifierType: "splunkoncall",
+		config: splunkoncall.FullValidConfigForTesting,
 	},
 	"webhook": {notifierType: "webhook",
 		config:  webhook.FullValidConfigForTesting,

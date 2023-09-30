@@ -22,10 +22,10 @@ import (
 	"github.com/grafana/alerting/receivers/pushover"
 	"github.com/grafana/alerting/receivers/sensugo"
 	"github.com/grafana/alerting/receivers/slack"
+	"github.com/grafana/alerting/receivers/splunkoncall"
 	"github.com/grafana/alerting/receivers/teams"
 	"github.com/grafana/alerting/receivers/telegram"
 	"github.com/grafana/alerting/receivers/threema"
-	"github.com/grafana/alerting/receivers/victorops"
 	"github.com/grafana/alerting/receivers/webex"
 	"github.com/grafana/alerting/receivers/webhook"
 	"github.com/grafana/alerting/receivers/wecom"
@@ -122,8 +122,8 @@ func BuildReceiverIntegrations(
 	for i, cfg := range receiver.ThreemaConfigs {
 		ci(i, cfg.Metadata, threema.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))
 	}
-	for i, cfg := range receiver.VictoropsConfigs {
-		ci(i, cfg.Metadata, victorops.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), version))
+	for i, cfg := range receiver.SplunkOnCallConfigs {
+		ci(i, cfg.Metadata, splunkoncall.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), version))
 	}
 	for i, cfg := range receiver.WebhookConfigs {
 		ci(i, cfg.Metadata, webhook.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), orgID))

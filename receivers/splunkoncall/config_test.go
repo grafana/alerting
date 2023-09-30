@@ -1,4 +1,4 @@
-package victorops
+package splunkoncall
 
 import (
 	"encoding/json"
@@ -24,7 +24,7 @@ func TestNewConfig(t *testing.T) {
 		{
 			name:              "Error if empty JSON object",
 			settings:          `{}`,
-			expectedInitError: `could not find victorops url property in settings`,
+			expectedInitError: `could not find Splunk OnCall url property in settings`,
 		},
 		{
 			name:     "Minimal valid configuration",
