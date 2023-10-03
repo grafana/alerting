@@ -2,7 +2,6 @@ package notify
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,25 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/receivers/alertmanager"
-	"github.com/grafana/alerting/receivers/dinding"
-	"github.com/grafana/alerting/receivers/discord"
-	"github.com/grafana/alerting/receivers/email"
-	"github.com/grafana/alerting/receivers/googlechat"
-	"github.com/grafana/alerting/receivers/kafka"
-	"github.com/grafana/alerting/receivers/line"
-	"github.com/grafana/alerting/receivers/opsgenie"
-	"github.com/grafana/alerting/receivers/pagerduty"
-	"github.com/grafana/alerting/receivers/pushover"
-	"github.com/grafana/alerting/receivers/sensugo"
-	"github.com/grafana/alerting/receivers/slack"
-	"github.com/grafana/alerting/receivers/teams"
-	"github.com/grafana/alerting/receivers/telegram"
-	"github.com/grafana/alerting/receivers/threema"
-	"github.com/grafana/alerting/receivers/victorops"
-	"github.com/grafana/alerting/receivers/webex"
-	"github.com/grafana/alerting/receivers/webhook"
-	"github.com/grafana/alerting/receivers/wecom"
 )
 
 func TestReceiverTimeoutError_Error(t *testing.T) {
@@ -98,8 +78,8 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	decrypt := GetDecryptedValueFnForTesting
 	t.Run("should decode secrets from base64", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
-		for notifierType, cfg := range allKnownConfigs {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
+		for notifierType, cfg := range AllKnownConfigsForTesting {
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
 		}
 		counter := 0
 		decryptCount := func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
@@ -111,8 +91,8 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	})
 	t.Run("should fail if at least one config is invalid", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
-		for notifierType, cfg := range allKnownConfigs {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
+		for notifierType, cfg := range AllKnownConfigsForTesting {
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
 		}
 		bad := &GrafanaIntegrationConfig{
 			UID:      "invalid-test",
@@ -139,8 +119,8 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	})
 	t.Run("should fail if secrets decoding fails", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
-		for notifierType, cfg := range allKnownConfigs {
-			notifierRaw := cfg.getRawNotifierConfig(notifierType)
+		for notifierType, cfg := range AllKnownConfigsForTesting {
+			notifierRaw := cfg.GetRawNotifierConfig(notifierType)
 			if len(notifierRaw.SecureSettings) == 0 {
 				continue
 			}
@@ -160,8 +140,8 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	})
 	t.Run("should fail if notifier type is unknown", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
-		for notifierType, cfg := range allKnownConfigs {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
+		for notifierType, cfg := range AllKnownConfigsForTesting {
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
 		}
 		bad := &GrafanaIntegrationConfig{
 			UID:      "test",
@@ -182,8 +162,8 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	})
 	t.Run("should recognize all known types", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
-		for notifierType, cfg := range allKnownConfigs {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
+		for notifierType, cfg := range AllKnownConfigsForTesting {
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
 		require.NoError(t, err)
@@ -248,10 +228,10 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	})
 	t.Run("should recognize type in any case", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
-		for notifierType, cfg := range allKnownConfigs {
-			notifierRaw := cfg.getRawNotifierConfig(notifierType)
+		for notifierType, cfg := range AllKnownConfigsForTesting {
+			notifierRaw := cfg.GetRawNotifierConfig(notifierType)
 			notifierRaw.Type = strings.ToUpper(notifierRaw.Type)
-			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
 		require.NoError(t, err)
@@ -284,105 +264,4 @@ func getMetadata[T any](notifiers []*NotifierConfig[T]) []receivers.Metadata {
 		result = append(result, notifier.Metadata)
 	}
 	return result
-}
-
-var allKnownConfigs = map[string]notifierConfigTest{
-	"prometheus-alertmanager": {
-		notifierType: "prometheus-alertmanager",
-		config:       alertmanager.FullValidConfigForTesting,
-		secrets:      alertmanager.FullValidSecretsForTesting,
-	},
-	"dingding": {notifierType: "dingding",
-		config: dinding.FullValidConfigForTesting,
-	},
-	"discord": {notifierType: "discord",
-		config: discord.FullValidConfigForTesting,
-	},
-	"email": {notifierType: "email",
-		config: email.FullValidConfigForTesting,
-	},
-	"googlechat": {notifierType: "googlechat",
-		config: googlechat.FullValidConfigForTesting,
-	},
-	"kafka": {notifierType: "kafka",
-		config:  kafka.FullValidConfigForTesting,
-		secrets: kafka.FullValidSecretsForTesting,
-	},
-	"line": {notifierType: "line",
-		config:  line.FullValidConfigForTesting,
-		secrets: line.FullValidSecretsForTesting,
-	},
-	"opsgenie": {notifierType: "opsgenie",
-		config:  opsgenie.FullValidConfigForTesting,
-		secrets: opsgenie.FullValidSecretsForTesting,
-	},
-	"pagerduty": {notifierType: "pagerduty",
-		config:  pagerduty.FullValidConfigForTesting,
-		secrets: pagerduty.FullValidSecretsForTesting,
-	},
-	"pushover": {notifierType: "pushover",
-		config:  pushover.FullValidConfigForTesting,
-		secrets: pushover.FullValidSecretsForTesting,
-	},
-	"sensugo": {notifierType: "sensugo",
-		config:  sensugo.FullValidConfigForTesting,
-		secrets: sensugo.FullValidSecretsForTesting,
-	},
-	"slack": {notifierType: "slack",
-		config:  slack.FullValidConfigForTesting,
-		secrets: slack.FullValidSecretsForTesting,
-	},
-	"teams": {notifierType: "teams",
-		config: teams.FullValidConfigForTesting,
-	},
-	"telegram": {notifierType: "telegram",
-		config:  telegram.FullValidConfigForTesting,
-		secrets: telegram.FullValidSecretsForTesting,
-	},
-	"threema": {notifierType: "threema",
-		config:  threema.FullValidConfigForTesting,
-		secrets: threema.FullValidSecretsForTesting,
-	},
-	"victorops": {notifierType: "victorops",
-		config: victorops.FullValidConfigForTesting,
-	},
-	"webhook": {notifierType: "webhook",
-		config:  webhook.FullValidConfigForTesting,
-		secrets: webhook.FullValidSecretsForTesting,
-	},
-	"wecom": {notifierType: "wecom",
-		config:  wecom.FullValidConfigForTesting,
-		secrets: wecom.FullValidSecretsForTesting,
-	},
-	"webex": {notifierType: "webex",
-		config:  webex.FullValidConfigForTesting,
-		secrets: webex.FullValidSecretsForTesting,
-	},
-}
-
-type notifierConfigTest struct {
-	notifierType string
-	config       string
-	secrets      string
-}
-
-func (n notifierConfigTest) getRawNotifierConfig(name string) *GrafanaIntegrationConfig {
-	secrets := make(map[string]string)
-	if n.secrets != "" {
-		err := json.Unmarshal([]byte(n.secrets), &secrets)
-		if err != nil {
-			panic(err)
-		}
-		for key, value := range secrets {
-			secrets[key] = base64.StdEncoding.EncodeToString([]byte(value))
-		}
-	}
-	return &GrafanaIntegrationConfig{
-		UID:                   fmt.Sprintf("%s-%d", name, rand.Uint32()),
-		Name:                  name,
-		Type:                  n.notifierType,
-		DisableResolveMessage: rand.Int()%2 == 0,
-		Settings:              json.RawMessage(n.config),
-		SecureSettings:        secrets,
-	}
 }
