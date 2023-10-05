@@ -78,6 +78,43 @@ func TestNotify(t *testing.T) {
 			expMsgError: nil,
 		},
 		{
+			name: "Upload is false",
+			settings: Config{
+				UserKey:          "<userKey>",
+				APIToken:         "<apiToken>",
+				AlertingPriority: 0,
+				OkPriority:       0,
+				Retry:            0,
+				Expire:           0,
+				Device:           "",
+				AlertingSound:    "",
+				OkSound:          "",
+				Upload:           false,
+				Title:            templates.DefaultMessageTitleEmbed,
+				Message:          templates.DefaultMessageEmbed,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"__alert_rule_uid__": "rule uid", "alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", "__alertImageToken__": "test-image-1"},
+					},
+				},
+			},
+			expMsg: map[string]string{
+				"user":      "<userKey>",
+				"token":     "<apiToken>",
+				"priority":  "0",
+				"sound":     "",
+				"title":     "[FIRING:1]  (val1)",
+				"url":       "http://localhost/alerting/list",
+				"url_title": "Show alert rule",
+				"message":   "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh",
+				"html":      "1",
+			},
+			expMsgError: nil,
+		},
+		{
 			name: "Custom title",
 			settings: Config{
 				UserKey:          "<userKey>",

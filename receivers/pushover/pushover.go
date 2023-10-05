@@ -175,7 +175,11 @@ func (pn *Notifier) genPushoverBody(ctx context.Context, as ...*types.Alert) (ma
 		return nil, b, fmt.Errorf("failed write the message: %w", err)
 	}
 
-	pn.writeImageParts(ctx, w, as...)
+	if pn.settings.Upload {
+		pn.writeImageParts(ctx, w, as...)
+	} else {
+		pn.log.Debug("skip uploading image because of the configuration")
+	}
 
 	var sound string
 	if status == model.AlertResolved {
@@ -211,7 +215,7 @@ func (pn *Notifier) genPushoverBody(ctx context.Context, as ...*types.Alert) (ma
 func (pn *Notifier) writeImageParts(ctx context.Context, w *multipart.Writer, as ...*types.Alert) {
 	// Pushover supports at most one image attachment with a maximum size of pushoverMaxFileSize.
 	// If the image is larger than pushoverMaxFileSize then return an error.
-	_ = images.WithStoredImages(ctx, pn.log, pn.images, func(index int, image images.Image) error {
+	err := images.WithStoredImages(ctx, pn.log, pn.images, func(index int, image images.Image) error {
 		f, err := os.Open(image.Path)
 		if err != nil {
 			return fmt.Errorf("failed to open the image: %w", err)
@@ -242,4 +246,7 @@ func (pn *Notifier) writeImageParts(ctx context.Context, w *multipart.Writer, as
 
 		return images.ErrImagesDone
 	}, as...)
+	if err != nil {
+		pn.log.Error("failed to fetch image for the notification", "error", err)
+	}
 }
