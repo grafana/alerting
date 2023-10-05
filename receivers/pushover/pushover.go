@@ -175,7 +175,11 @@ func (pn *Notifier) genPushoverBody(ctx context.Context, as ...*types.Alert) (ma
 		return nil, b, fmt.Errorf("failed write the message: %w", err)
 	}
 
-	pn.writeImageParts(ctx, w, as...)
+	if pn.settings.Upload {
+		pn.writeImageParts(ctx, w, as...)
+	} else {
+		pn.log.Debug("skip uploading image because of the configuration")
+	}
 
 	var sound string
 	if status == model.AlertResolved {
