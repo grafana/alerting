@@ -33,8 +33,8 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 
 	getFullConfig := func(t *testing.T) (GrafanaReceiverConfig, int) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
-		for notifierType, cfg := range allKnownConfigs {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.getRawNotifierConfig(notifierType))
+		for notifierType, cfg := range AllKnownConfigsForTesting {
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, GetDecryptedValueFnForTesting)
 		require.NoError(t, err)
