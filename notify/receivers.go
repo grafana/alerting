@@ -111,9 +111,6 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 	now := time.Now()
 	testAlert := newTestAlert(c, now, now)
 
-	// we must set a group key that is unique per test as some receivers use this key to deduplicate alerts
-	ctx = notify.WithGroupKey(ctx, testAlert.Labels.String()+now.String())
-
 	tmpl, err := am.getTemplate()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get template: %w", err)
@@ -221,6 +218,12 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 	for i := 0; i < numWorkers; i++ {
 		g.Go(func() error {
 			for next := range workCh {
+				ctx = notify.WithGroupKey(ctx, fmt.Sprintf("%s-%s-%d",
+					next.ReceiverName,
+					testAlert.Labels.Fingerprint(),
+					now.Unix()))
+				ctx = notify.WithGroupLabels(ctx, testAlert.Labels)
+				ctx = notify.WithReceiverName(ctx, next.ReceiverName)
 				v := result{
 					Config:       next.Config,
 					ReceiverName: next.ReceiverName,
