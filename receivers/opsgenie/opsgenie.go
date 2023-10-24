@@ -176,6 +176,39 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 	}
 	sort.Strings(tags)
 
+	responders := make([]opsGenieCreateMessageResponder, 0, len(on.settings.Responders))
+	for idx, r := range on.settings.Responders {
+		responder := opsGenieCreateMessageResponder{
+			ID:       tmpl(r.ID),
+			Name:     tmpl(r.Name),
+			Username: tmpl(r.Username),
+			Type:     tmpl(r.Type),
+		}
+
+		if responder == (opsGenieCreateMessageResponder{}) {
+			on.log.Warn("templates in the responder were expanded to empty responder. Skipping it", "idx", idx)
+			// Filter out empty responders. This is useful if you want to fill
+			// responders dynamically from alert's common labels.
+			continue
+		}
+
+		if responder.Type == "teams" {
+			teams := strings.Split(responder.Name, ",")
+			for _, team := range teams {
+				if team == "" {
+					continue
+				}
+				newResponder := opsGenieCreateMessageResponder{
+					Name: tmpl(team),
+					Type: "team",
+				}
+				responders = append(responders, newResponder)
+			}
+			continue
+		}
+		responders = append(responders, responder)
+	}
+
 	result := opsGenieCreateMessage{
 		Alias:       key.Hash(),
 		Description: description,
@@ -184,6 +217,7 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 		Message:     message,
 		Details:     details,
 		Priority:    priority,
+		Responders:  responders,
 	}
 
 	apiURL = tmpl(on.settings.APIUrl)

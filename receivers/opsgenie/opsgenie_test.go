@@ -251,6 +251,136 @@ func TestNotify(t *testing.T) {
 			expMsgError: nil,
 		},
 		{
+			name: "Config with responders",
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          templates.DefaultMessageTitleEmbed,
+				Description:      "",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendBoth,
+				Responders: []MessageResponder{
+					{
+						Name: "Test User",
+						Type: "user",
+					},
+					{
+						Name: "{{ .CommonAnnotations.user }}",
+						Type: "{{ .CommonAnnotations.type }}",
+					},
+					{
+						ID:   "{{ .CommonAnnotations.user }}",
+						Type: "user",
+					},
+					{
+						Username: "{{ .CommonAnnotations.user }}",
+						Type:     "team",
+					},
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"user": "test", "type": "team"},
+					},
+				}, {
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+						Annotations: model.LabelSet{"user": "test", "type": "team"},
+					},
+				},
+			},
+			expMsg: `{
+				"alias": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
+				"description": "[FIRING:2]  \nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+				"details": {
+					"alertname": "alert1",
+					"url": "http://localhost/alerting/list"
+				},
+				"message": "[FIRING:2]  ",
+				"source": "Grafana",
+				"tags": ["alertname:alert1"],
+                "responders": [
+                    {
+                        "name": "Test User",
+						"type": "user"
+					},
+					{
+                        "name": "test",
+						"type": "team"
+					},
+					{
+                        "id": "test",
+						"type": "user"
+					},
+					{
+                        "username": "test",
+						"type": "team"
+					}
+				]
+			}`,
+			expMsgError: nil,
+		},
+		{
+			name: "Config with teams responders should be exploded",
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          templates.DefaultMessageTitleEmbed,
+				Description:      "",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendBoth,
+				Responders: []MessageResponder{
+					{
+						Name: "team1,team2,{{ .CommonAnnotations.user }}",
+						Type: "teams",
+					},
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"user": "test", "type": "team"},
+					},
+				}, {
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+						Annotations: model.LabelSet{"user": "test", "type": "team"},
+					},
+				},
+			},
+			expMsg: `{
+				"alias": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
+				"description": "[FIRING:2]  \nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+				"details": {
+					"alertname": "alert1",
+					"url": "http://localhost/alerting/list"
+				},
+				"message": "[FIRING:2]  ",
+				"source": "Grafana",
+				"tags": ["alertname:alert1"],
+                "responders": [
+                    {
+                        "name": "team1",
+						"type": "team"
+					},
+					{
+                        "name": "team2",
+						"type": "team"
+					},
+					{
+                        "name": "test",
+						"type": "team"
+					}
+				]
+			}`,
+			expMsgError: nil,
+		},
+		{
 			name: "Resolved is not sent when auto close is false",
 			settings: Config{
 				APIKey:           "abcdefgh0123456789",
