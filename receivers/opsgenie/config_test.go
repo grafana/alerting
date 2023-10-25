@@ -140,6 +140,16 @@ func TestNewConfig(t *testing.T) {
 			expectedInitError: `responder at index [0] has unsupported type. Supported only: team,teams,user,escalation,schedule`,
 		},
 		{
+			name: "Error if responder type is teams and name is empty",
+			settings: `{ "responders" : [
+				{ "type" : "teams", "id": "test" } 
+			] }`,
+			secureSettings: map[string][]byte{
+				"apiKey": []byte("test-api-key"),
+			},
+			expectedInitError: `responder at index [0] has type 'teams' but empty name. Must be comma-separated string of names`,
+		},
+		{
 			name: "Error if responder type is not supported",
 			settings: `{ "responders" : [
 				{ "type" : "test-123", "id": "test" } 

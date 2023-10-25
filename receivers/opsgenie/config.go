@@ -108,6 +108,9 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 				return Config{}, fmt.Errorf("responder at index [%d] has unsupported type. Supported only: %s", idx, strings.Join(SupportedResponderTypes, ","))
 			}
 		}
+		if r.Type == "teams" && r.Name == "" {
+			return Config{}, fmt.Errorf("responder at index [%d] has type 'teams' but empty name. Must be comma-separated string of names", idx)
+		}
 	}
 
 	return Config{
