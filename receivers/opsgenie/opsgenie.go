@@ -199,7 +199,7 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 					continue
 				}
 				newResponder := opsGenieCreateMessageResponder{
-					Name: tmpl(team),
+					Name: team,
 					Type: "team",
 				}
 				responders = append(responders, newResponder)
