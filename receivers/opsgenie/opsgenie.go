@@ -194,6 +194,7 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 
 		if responder.Type == "teams" {
 			teams := strings.Split(responder.Name, ",")
+			teamResponders := make([]opsGenieCreateMessageResponder, 0, len(teams))
 			for _, team := range teams {
 				if team == "" {
 					continue
@@ -202,8 +203,12 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 					Name: team,
 					Type: "team",
 				}
-				responders = append(responders, newResponder)
+				teamResponders = append(teamResponders, newResponder)
 			}
+			if len(teamResponders) == 0 {
+				on.log.Warn("teams responder were expanded to 0 team responders. Skipping it", "idx", idx)
+			}
+			responders = append(responders, teamResponders...)
 			continue
 		}
 		responders = append(responders, responder)
