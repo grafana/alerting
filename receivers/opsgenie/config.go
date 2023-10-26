@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"text/template"
 
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
@@ -18,6 +19,15 @@ const (
 	DefaultAlertsURL = "https://api.opsgenie.com/v2/alerts"
 )
 
+var SupportedResponderTypes = []string{"team", "teams", "user", "escalation", "schedule"}
+
+type MessageResponder struct {
+	ID       string `json:"id,omitempty" yaml:"id,omitempty"`
+	Name     string `json:"name,omitempty" yaml:"name,omitempty"`
+	Username string `json:"username,omitempty" yaml:"username,omitempty"`
+	Type     string `json:"type" yaml:"type"` // team, user, escalation, schedule etc.
+}
+
 type Config struct {
 	APIKey           string
 	APIUrl           string
@@ -26,17 +36,19 @@ type Config struct {
 	AutoClose        bool
 	OverridePriority bool
 	SendTagsAs       string
+	Responders       []MessageResponder
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	type rawSettings struct {
-		APIKey           string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
-		APIUrl           string `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`
-		Message          string `json:"message,omitempty" yaml:"message,omitempty"`
-		Description      string `json:"description,omitempty" yaml:"description,omitempty"`
-		AutoClose        *bool  `json:"autoClose,omitempty" yaml:"autoClose,omitempty"`
-		OverridePriority *bool  `json:"overridePriority,omitempty" yaml:"overridePriority,omitempty"`
-		SendTagsAs       string `json:"sendTagsAs,omitempty" yaml:"sendTagsAs,omitempty"`
+		APIKey           string             `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
+		APIUrl           string             `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`
+		Message          string             `json:"message,omitempty" yaml:"message,omitempty"`
+		Description      string             `json:"description,omitempty" yaml:"description,omitempty"`
+		AutoClose        *bool              `json:"autoClose,omitempty" yaml:"autoClose,omitempty"`
+		OverridePriority *bool              `json:"overridePriority,omitempty" yaml:"overridePriority,omitempty"`
+		SendTagsAs       string             `json:"sendTagsAs,omitempty" yaml:"sendTagsAs,omitempty"`
+		Responders       []MessageResponder `json:"responders,omitempty" yaml:"responders,omitempty"`
 	}
 
 	raw := rawSettings{}
@@ -74,6 +86,33 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		raw.OverridePriority = &overridePriority
 	}
 
+	for idx, r := range raw.Responders {
+		if r.ID == "" && r.Username == "" && r.Name == "" {
+			return Config{}, fmt.Errorf("responder at index [%d] must have at least one of id, username or name specified", idx)
+		}
+		if strings.Contains(r.Type, "{{") {
+			_, err := template.New("").Parse(r.Type)
+			if err != nil {
+				return Config{}, fmt.Errorf("responder at index [%d] type is not a valid template: %v", idx, err)
+			}
+		} else {
+			r.Type = strings.ToLower(r.Type)
+			match := false
+			for _, t := range SupportedResponderTypes {
+				if r.Type == t {
+					match = true
+					break
+				}
+			}
+			if !match {
+				return Config{}, fmt.Errorf("responder at index [%d] has unsupported type. Supported only: %s", idx, strings.Join(SupportedResponderTypes, ","))
+			}
+		}
+		if r.Type == "teams" && r.Name == "" {
+			return Config{}, fmt.Errorf("responder at index [%d] has type 'teams' but empty name. Must be comma-separated string of names", idx)
+		}
+	}
+
 	return Config{
 		APIKey:           raw.APIKey,
 		APIUrl:           raw.APIUrl,
@@ -82,5 +121,6 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		AutoClose:        *raw.AutoClose,
 		OverridePriority: *raw.OverridePriority,
 		SendTagsAs:       raw.SendTagsAs,
+		Responders:       raw.Responders,
 	}, nil
 }
