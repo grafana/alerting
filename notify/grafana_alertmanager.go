@@ -402,7 +402,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 
 	meshStage := notify.NewGossipSettleStage(am.peer)
 	inhibitionStage := notify.NewMuteStage(am.inhibitor)
-	timeMuteStage := notify.NewTimeMuteStage(am.muteTimes)
+	timeMuteStage := notify.NewTimeMuteStage(timeinterval.NewIntervener(am.muteTimes))
 	silencingStage := notify.NewMuteStage(am.silencer)
 
 	am.route = dispatch.NewRoute(cfg.RoutingTree(), nil)
