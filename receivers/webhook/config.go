@@ -21,6 +21,8 @@ type Config struct {
 	// HTTP Basic Authentication.
 	User     string
 	Password string
+	// Extra Headers
+	ExtraHeaders map[string]string
 
 	Title   string
 	Message string
@@ -38,6 +40,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		Password                 string                   `json:"password,omitempty" yaml:"password,omitempty"`
 		Title                    string                   `json:"title,omitempty" yaml:"title,omitempty"`
 		Message                  string                   `json:"message,omitempty" yaml:"message,omitempty"`
+		ExtraHeaders             map[string]string        `json:"extra_headers,omitempty" yaml:"extra_headers,omitempty"`
 	}{}
 
 	err := json.Unmarshal(jsonData, &rawSettings)
@@ -49,6 +52,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	}
 	settings.URL = rawSettings.URL
 	settings.AuthorizationScheme = rawSettings.AuthorizationScheme
+	settings.ExtraHeaders = rawSettings.ExtraHeaders
 
 	if rawSettings.HTTPMethod == "" {
 		rawSettings.HTTPMethod = http.MethodPost
