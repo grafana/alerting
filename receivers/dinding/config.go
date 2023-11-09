@@ -13,6 +13,7 @@ type Config struct {
 	MessageType string `json:"msgType,omitempty" yaml:"msgType,omitempty"`
 	Title       string `json:"title,omitempty" yaml:"title,omitempty"`
 	Message     string `json:"message,omitempty" yaml:"message,omitempty"`
+	ToUser      string `json:"touser,omitempty" yaml:"touser,omitempty"`
 }
 
 const defaultDingdingMsgType = "link"
