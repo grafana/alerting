@@ -13,6 +13,7 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
+// refer: https://open.dingtalk.com/document/orgapp/custom-robots-send-group-messages
 // Notifier is responsible for sending alert notifications to ding ding.
 type Notifier struct {
 	*receivers.Base
