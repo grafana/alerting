@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/prometheus/alertmanager/types"
 
@@ -46,7 +47,9 @@ func (dd *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	title := tmpl(dd.settings.Title)
 
 	msgType := tmpl(dd.settings.MessageType)
-	b, err := buildBody(dingDingURL, msgType, title, message)
+	toUser := dd.settings.ToUser
+
+	b, err := buildBody(dingDingURL, msgType, title, message, toUser)
 	if err != nil {
 		return false, err
 	}
@@ -86,7 +89,13 @@ func buildDingDingURL(dd *Notifier) string {
 	return "dingtalk://dingtalkclient/page/link?" + q.Encode()
 }
 
-func buildBody(url string, msgType string, title string, msg string) (string, error) {
+func buildBody(url string, msgType string, title string, msg string, toUser string) (string, error) {
+	var atUsers []string
+	isAtAll := toUser == "all"
+
+	if toUser != "all" {
+		atUsers = strings.Split(toUser, ",")
+	}
 	var bodyMsg map[string]interface{}
 	if msgType == "actionCard" {
 		bodyMsg = map[string]interface{}{
@@ -98,13 +107,36 @@ func buildBody(url string, msgType string, title string, msg string) (string, er
 				"singleURL":   url,
 			},
 		}
-	} else {
+	} else if msgType == "link" {
 		bodyMsg = map[string]interface{}{
 			"msgtype": "link",
 			"link": map[string]string{
 				"text":       msg,
 				"title":      title,
 				"messageUrl": url,
+			},
+		}
+	} else if msgType == "text" {
+		bodyMsg = map[string]interface{}{
+			"msgtype": "text",
+			"text": map[string]string{
+				"content": msg,
+			},
+			"at": map[string]interface{}{
+				"atMobiles": atUsers,
+				"isAtAll":   isAtAll,
+			},
+		}
+	} else if msgType == "markdown" {
+		bodyMsg = map[string]interface{}{
+			"msgtype": "markdown",
+			"markdown": map[string]string{
+				"text":  msg,
+				"title": title,
+			},
+			"at": map[string]interface{}{
+				"atMobiles": atUsers,
+				"isAtAll":   isAtAll,
 			},
 		}
 	}
