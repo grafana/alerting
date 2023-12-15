@@ -36,6 +36,7 @@ func TestNotify(t *testing.T) {
 			settings: Config{
 				BotToken:              "abcdefgh0123456789",
 				ChatID:                "someid",
+				MessageThreadID:       "threadid",
 				Message:               templates.DefaultMessageEmbed,
 				ParseMode:             "Markdown",
 				DisableWebPagePreview: true,
@@ -52,6 +53,7 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]string{
+				"message_thread_id":        "threadid",
 				"parse_mode":               "Markdown",
 				"text":                     "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				"disable_web_page_preview": "true",
@@ -62,10 +64,10 @@ func TestNotify(t *testing.T) {
 		}, {
 			name: "Multiple alerts with custom template",
 			settings: Config{
-				BotToken:  "abcdefgh0123456789",
-				ChatID:    "someid",
-				Message:   "__Custom Firing__\n{{len .Alerts.Firing}} Firing\n{{ template \"__text_alert_list\" .Alerts.Firing }}",
-				ParseMode: DefaultTelegramParseMode,
+				BotToken:        "abcdefgh0123456789",
+				ChatID:          "someid",
+				Message:         "__Custom Firing__\n{{len .Alerts.Firing}} Firing\n{{ template \"__text_alert_list\" .Alerts.Firing }}",
+				ParseMode:       DefaultTelegramParseMode,
 			},
 			alerts: []*types.Alert{
 				{
