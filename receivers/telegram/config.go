@@ -19,6 +19,7 @@ var SupportedParseMode = map[string]string{"Markdown": "Markdown", "MarkdownV2":
 type Config struct {
 	BotToken              string `json:"bottoken,omitempty" yaml:"bottoken,omitempty"`
 	ChatID                string `json:"chatid,omitempty" yaml:"chatid,omitempty"`
+	MessageThreadID       string `json:"message_thread_id,omitempty" yaml:"message_thread_id,omitempty"`
 	Message               string `json:"message,omitempty" yaml:"message,omitempty"`
 	ParseMode             string `json:"parse_mode,omitempty" yaml:"parse_mode,omitempty"`
 	DisableWebPagePreview bool   `json:"disable_web_page_preview,omitempty" yaml:"disable_web_page_preview,omitempty"`
