@@ -19,6 +19,7 @@ const (
 
 type forEachImageFunc func(index int, image Image) error
 
+// nolint:revive
 // getImage returns the image for the alert or an error. It returns a nil
 // image if the alert does not have an image token or the image does not exist.
 //

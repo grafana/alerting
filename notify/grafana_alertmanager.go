@@ -6,12 +6,8 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
-	"regexp"
 	"sync"
 	"time"
-	"unicode/utf8"
-
-	"github.com/prometheus/alertmanager/template"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -21,12 +17,13 @@ import (
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/featurecontrol"
 	"github.com/prometheus/alertmanager/inhibit"
+	"github.com/prometheus/alertmanager/matchers/compat"
 	"github.com/prometheus/alertmanager/nflog"
 	"github.com/prometheus/alertmanager/nflog/nflogpb"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/provider/mem"
 	"github.com/prometheus/alertmanager/silence"
-	pb "github.com/prometheus/alertmanager/silence/silencepb"
+	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/timeinterval"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -45,21 +42,10 @@ const (
 )
 
 func init() {
-	silence.ValidateMatcher = func(m *pb.Matcher) error {
-		switch m.Type {
-		case pb.Matcher_EQUAL, pb.Matcher_NOT_EQUAL:
-			if !model.LabelValue(m.Pattern).IsValid() {
-				return fmt.Errorf("invalid label value %q", m.Pattern)
-			}
-		case pb.Matcher_REGEXP, pb.Matcher_NOT_REGEXP:
-			if _, err := regexp.Compile(m.Pattern); err != nil {
-				return fmt.Errorf("invalid regular expression %q: %s", m.Pattern, err)
-			}
-		default:
-			return fmt.Errorf("unknown matcher type %q", m.Type)
-		}
-		return nil
-	}
+	// This initializes the compat package in fallback mode. It parses first using the UTF-8 parser
+	// and then fallsback to the classic parser on error. UTF-8 is permitted in label names.
+	// This should be removed when the compat package is removed from Alertmanager.
+	compat.InitFromFlags(log.NewNopLogger(), compat.RegisteredMetrics, featurecontrol.NoopFlags{})
 }
 
 type ClusterPeer interface {
@@ -516,7 +502,7 @@ func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) err
 			am.Metrics.Resolved().Inc()
 		}
 
-		if err := validateAlert(alert); err != nil {
+		if err := alert.Validate(); err != nil {
 			if validationErr == nil {
 				validationErr = &AlertValidationError{}
 			}
@@ -546,51 +532,6 @@ func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) err
 		return validationErr
 	}
 	return nil
-}
-
-// validateAlert is a.Validate() while additionally allowing
-// space for label and annotation names.
-func validateAlert(a *types.Alert) error {
-	if a.StartsAt.IsZero() {
-		return fmt.Errorf("start time missing")
-	}
-	if !a.EndsAt.IsZero() && a.EndsAt.Before(a.StartsAt) {
-		return fmt.Errorf("start time must be before end time")
-	}
-	if err := validateLabelSet(a.Labels); err != nil {
-		return fmt.Errorf("invalid label set: %s", err)
-	}
-	if len(a.Labels) == 0 {
-		return fmt.Errorf("at least one label pair required")
-	}
-	if err := validateLabelSet(a.Annotations); err != nil {
-		return fmt.Errorf("invalid annotations: %s", err)
-	}
-	return nil
-}
-
-// validateLabelSet is ls.Validate() while additionally allowing
-// space for label names.
-func validateLabelSet(ls model.LabelSet) error {
-	for ln, lv := range ls {
-		if !isValidLabelName(ln) {
-			return fmt.Errorf("invalid name %q", ln)
-		}
-		if !lv.IsValid() {
-			return fmt.Errorf("invalid value %q", lv)
-		}
-	}
-	return nil
-}
-
-// isValidLabelName is ln.IsValid() without restrictions other than it can not be empty.
-// The regex for Prometheus data model is ^[a-zA-Z_][a-zA-Z0-9_]*$.
-func isValidLabelName(ln model.LabelName) bool {
-	if len(ln) == 0 {
-		return false
-	}
-
-	return utf8.ValidString(string(ln))
 }
 
 // AlertValidationError is the error capturing the validation errors
