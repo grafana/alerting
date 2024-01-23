@@ -40,7 +40,7 @@ func NewGrafanaAlertmanagerMetrics(r prometheus.Registerer) *GrafanaAlertmanager
 			Namespace: namespace,
 			Subsystem: subsystem,
 			Name:      "alertmanager_inhibition_rules",
-			Help:      "Number configured of inhibition rules.",
+			Help:      "Number of configured inhibition rules.",
 		}, []string{"org"}),
 	}
 }
