@@ -336,7 +336,7 @@ func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
 	am.setInhibitionRulesMetrics(r)
 
 	require.NoError(t, testutil.GatherAndCompare(reg, bytes.NewBufferString(`
-							# HELP grafana_alerting_alertmanager_inhibition_rules Number configured of inhibition rules.
+							# HELP grafana_alerting_alertmanager_inhibition_rules Number of configured inhibition rules.
         	            	# TYPE grafana_alerting_alertmanager_inhibition_rules gauge
         	            	grafana_alerting_alertmanager_inhibition_rules{org="1"} 2
 `), "grafana_alerting_alertmanager_inhibition_rules"))
