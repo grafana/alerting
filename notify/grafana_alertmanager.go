@@ -420,6 +420,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	}
 
 	am.setReceiverMetrics(receivers, len(activeReceivers))
+	am.setInhibitionRulesMetrics(cfg.InhibitRules())
 
 	am.receivers = receivers
 	am.buildReceiverIntegrationsFunc = cfg.BuildReceiverIntegrationsFunc()
@@ -440,6 +441,10 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	am.config = cfg.Raw()
 
 	return nil
+}
+
+func (am *GrafanaAlertmanager) setInhibitionRulesMetrics(r []InhibitRule) {
+	am.Metrics.configuredInhibitionRules.WithLabelValues(am.tenantString()).Set(float64(len(r)))
 }
 
 func (am *GrafanaAlertmanager) setReceiverMetrics(receivers []*notify.Receiver, countActiveReceivers int) {
