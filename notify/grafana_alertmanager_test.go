@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/prometheus/alertmanager/config"
+	"github.com/prometheus/alertmanager/pkg/labels"
 	"sort"
 	"testing"
 	"time"
@@ -310,6 +312,34 @@ func TestPutAlert(t *testing.T) {
 			require.Equal(t, expAlerts, alerts)
 		})
 	}
+}
+
+func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
+	am, reg := setupAMTest(t)
+
+	m1, err := labels.NewMatcher(labels.MatchEqual, "foo", "bar")
+	require.NoError(t, err)
+	m2, err := labels.NewMatcher(labels.MatchEqual, "bar", "baz")
+	require.NoError(t, err)
+	m3, err := labels.NewMatcher(labels.MatchEqual, "baz", "qux")
+	require.NoError(t, err)
+	m4, err := labels.NewMatcher(labels.MatchEqual, "qux", "corge")
+	require.NoError(t, err)
+
+	r := []InhibitRule{{
+		SourceMatchers: config.Matchers{m1},
+		TargetMatchers: config.Matchers{m2},
+	}, {
+		SourceMatchers: config.Matchers{m3},
+		TargetMatchers: config.Matchers{m4},
+	}}
+	am.setInhibitionRulesMetrics(r)
+
+	require.NoError(t, testutil.GatherAndCompare(reg, bytes.NewBufferString(`
+							# HELP grafana_alerting_alertmanager_inhibition_rules Number configured of inhibition rules.
+        	            	# TYPE grafana_alerting_alertmanager_inhibition_rules gauge
+        	            	grafana_alerting_alertmanager_inhibition_rules{org="1"} 2
+`), "grafana_alerting_alertmanager_inhibition_rules"))
 }
 
 func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
