@@ -221,7 +221,7 @@ func parseReceivers(receivers string) (*regexp.Regexp, error) {
 func parseFilter(filter []string) ([]*labels.Matcher, error) {
 	matchers := make([]*labels.Matcher, 0, len(filter))
 	for _, matcherString := range filter {
-		matcher, err := compat.Matcher(matcherString, "unknown")
+		matcher, err := compat.Matcher(matcherString, "api")
 		if err != nil {
 			return nil, err
 		}
