@@ -46,4 +46,4 @@ drone: .drone/drone.yml
 	GOPATH=$(CURDIR)/.tools go install github.com/fatih/faillint@v1.10.0
 
 .tools/bin/golangci-lint: .tools
-	GOPATH=$(CURDIR)/.tools go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.46.2
+	GOPATH=$(CURDIR)/.tools go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2

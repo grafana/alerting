@@ -145,7 +145,7 @@ type Integration = notify.Integration
 type DispatcherLimits = dispatch.Limits
 type Notifier = notify.Notifier
 
-//nolint:golint
+//nolint:revive
 type NotifyReceiver = notify.Receiver
 
 // Configuration is an interface for accessing Alertmanager configuration.

@@ -24,22 +24,28 @@ type Logger interface {
 type FakeLogger struct {
 }
 
+//nolint:revive
 func (f FakeLogger) New(ctx ...interface{}) Logger {
 	return f
 }
 
+//nolint:revive
 func (f FakeLogger) Log(keyvals ...interface{}) error {
 	return nil
 }
 
+//nolint:revive
 func (f FakeLogger) Debug(msg string, ctx ...interface{}) {
 }
 
+//nolint:revive
 func (f FakeLogger) Info(msg string, ctx ...interface{}) {
 }
 
+//nolint:revive
 func (f FakeLogger) Warn(msg string, ctx ...interface{}) {
 }
 
+//nolint:revive
 func (f FakeLogger) Error(msg string, ctx ...interface{}) {
 }
