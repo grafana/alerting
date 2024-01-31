@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/grafana/alerting/receivers"
@@ -42,6 +43,18 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	}
 	if settings.Message == "" {
 		settings.Message = templates.DefaultMessageEmbed
+	}
+
+	var messageThreadId int
+	if settings.MessageThreadID != "" {
+		messageThreadId, err = strconv.Atoi(settings.MessageThreadID)
+		if err != nil {
+			return settings, errors.New("message thread id must be an integer")
+		}
+
+		if messageThreadId != int(int32(messageThreadId)) {
+			return settings, errors.New("message thread id must be an int32")
+		}
 	}
 	// if field is missing, then we fall back to the previous default: HTML
 	if settings.ParseMode == "" {
