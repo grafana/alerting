@@ -314,6 +314,143 @@ func TestPutAlert(t *testing.T) {
 	}
 }
 
+func TestCreateSilence(t *testing.T) {
+	am, _ := setupAMTest(t)
+
+	cases := []struct {
+		name    string
+		silence PostableSilence
+		expErr  string
+	}{{
+		name: "can create silence for foo=bar",
+		silence: PostableSilence{
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr("foo"),
+					Value:   ptr("bar"),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
+	}, {
+		name: "can create silence for _foo1=bar",
+		silence: PostableSilence{
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr("_foo1"),
+					Value:   ptr("bar"),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
+	}, {
+		name: "can create silence for 0foo=bar",
+		silence: PostableSilence{
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr("0foo"),
+					Value:   ptr("bar"),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
+	}, {
+		name: "can create silence for foo=🙂bar",
+		silence: PostableSilence{
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr("foo"),
+					Value:   ptr("🙂bar"),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
+	}, {
+		name: "can create silence for foo🙂=bar",
+		silence: PostableSilence{
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr("foo🙂"),
+					Value:   ptr("bar"),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
+	}, {
+		name: "can't create silence for missing label name",
+		silence: PostableSilence{
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr(""),
+					Value:   ptr("bar"),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
+		expErr: "unable to save silence: silence invalid: invalid label matcher 0: invalid label name \"\": unable to create silence",
+	}, {
+		name: "can't create silence for missing label value",
+		silence: PostableSilence{
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr("foo"),
+					Value:   ptr(""),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
+		expErr: "unable to save silence: silence invalid: at least one matcher must not match the empty string: unable to create silence",
+	}}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			silenceID, err := am.CreateSilence(&c.silence)
+			if c.expErr != "" {
+				require.EqualError(t, err, c.expErr)
+				require.Empty(t, silenceID)
+			} else {
+				require.NoError(t, err)
+				require.NotEmpty(t, silenceID)
+			}
+		})
+	}
+}
+
 func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
 	am, reg := setupAMTest(t)
 

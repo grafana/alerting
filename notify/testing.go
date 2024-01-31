@@ -33,6 +33,10 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
+func ptr[T any](v T) *T {
+	return &v
+}
+
 func newFakeMaintanenceOptions(t *testing.T) *fakeMaintenanceOptions {
 	t.Helper()
 
