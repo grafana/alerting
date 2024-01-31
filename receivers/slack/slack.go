@@ -283,7 +283,7 @@ func handleSlackJSONResponse(resp *http.Response, logger logging.Logger) (string
 	return result.Ts, nil
 }
 
-func (sn *Notifier) commonAlertGeneratorURL(ctx context.Context, alerts []*types.Alert) bool {
+func (sn *Notifier) commonAlertGeneratorURL(_ context.Context, alerts []*types.Alert) bool {
 	if len(alerts[0].GeneratorURL) == 0 {
 		return false
 	}

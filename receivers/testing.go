@@ -10,11 +10,11 @@ type NotificationServiceMock struct {
 	ShouldError error
 }
 
-func (ns *NotificationServiceMock) SendWebhook(ctx context.Context, cmd *SendWebhookSettings) error {
+func (ns *NotificationServiceMock) SendWebhook(_ context.Context, cmd *SendWebhookSettings) error {
 	ns.Webhook = *cmd
 	return ns.ShouldError
 }
-func (ns *NotificationServiceMock) SendEmail(ctx context.Context, cmd *SendEmailSettings) error {
+func (ns *NotificationServiceMock) SendEmail(_ context.Context, cmd *SendEmailSettings) error {
 	ns.EmailSync = *cmd
 	return ns.ShouldError
 }

@@ -15,8 +15,8 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/grafana/alerting/cluster"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
-	"github.com/prometheus/alertmanager/cluster"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/featurecontrol"
@@ -145,7 +145,7 @@ type Integration = notify.Integration
 type DispatcherLimits = dispatch.Limits
 type Notifier = notify.Notifier
 
-//nolint:golint
+//nolint:revive
 type NotifyReceiver = notify.Receiver
 
 // Configuration is an interface for accessing Alertmanager configuration.
@@ -420,6 +420,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	}
 
 	am.setReceiverMetrics(receivers, len(activeReceivers))
+	am.setInhibitionRulesMetrics(cfg.InhibitRules())
 
 	am.receivers = receivers
 	am.buildReceiverIntegrationsFunc = cfg.BuildReceiverIntegrationsFunc()
@@ -440,6 +441,10 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	am.config = cfg.Raw()
 
 	return nil
+}
+
+func (am *GrafanaAlertmanager) setInhibitionRulesMetrics(r []InhibitRule) {
+	am.Metrics.configuredInhibitionRules.WithLabelValues(am.tenantString()).Set(float64(len(r)))
 }
 
 func (am *GrafanaAlertmanager) setReceiverMetrics(receivers []*notify.Receiver, countActiveReceivers int) {

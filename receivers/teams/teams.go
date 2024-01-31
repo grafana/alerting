@@ -320,6 +320,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	return true, nil
 }
 
+//nolint:revive
 func validateResponse(b []byte, statusCode int) error {
 	// The request succeeded if the response is "1"
 	// https://docs.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/connectors-using?tabs=cURL#send-messages-using-curl-and-powershell
