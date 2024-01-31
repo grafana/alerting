@@ -7,21 +7,21 @@
          "commands": [
             "make mod-check"
          ],
-         "image": "golang:1.18.4",
+         "image": "golang:1.21.6",
          "name": "make-mod-check"
       },
       {
          "commands": [
             "make lint"
          ],
-         "image": "golang:1.18.4",
+         "image": "golang:1.21.6",
          "name": "make-lint"
       },
       {
          "commands": [
             "make test"
          ],
-         "image": "golang:1.18.4",
+         "image": "golang:1.21.6",
          "name": "make-test"
       }
    ]

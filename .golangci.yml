@@ -4,10 +4,10 @@ output:
 linters:
   enable:
     - goimports
-    - golint
     - gofmt
     - misspell
     - errorlint
+    - revive
 
 linters-settings:
   errcheck:

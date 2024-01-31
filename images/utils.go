@@ -21,6 +21,8 @@ type forEachImageFunc func(index int, image Image) error
 
 // getImage returns the image for the alert or an error. It returns a nil
 // image if the alert does not have an image token or the image does not exist.
+//
+//nolint:revive
 func getImage(ctx context.Context, l logging.Logger, imageProvider Provider, alert types.Alert) (*Image, error) {
 	token := getTokenFromAnnotations(alert.Annotations)
 	if token == "" {

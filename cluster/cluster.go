@@ -18,6 +18,6 @@ var (
 	Create = cluster.Create
 )
 
-type ClusterChannel = cluster.ClusterChannel //nolint:golint
+type ClusterChannel = cluster.ClusterChannel //nolint:revive
 type Peer = cluster.Peer
 type State = cluster.State
