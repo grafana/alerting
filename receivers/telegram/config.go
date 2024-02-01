@@ -45,14 +45,14 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		settings.Message = templates.DefaultMessageEmbed
 	}
 
-	var messageThreadId int
+	var messageThreadID int
 	if settings.MessageThreadID != "" {
-		messageThreadId, err = strconv.Atoi(settings.MessageThreadID)
+		messageThreadID, err = strconv.Atoi(settings.MessageThreadID)
 		if err != nil {
 			return settings, errors.New("message thread id must be an integer")
 		}
 
-		if messageThreadId != int(int32(messageThreadId)) {
+		if messageThreadID != int(int32(messageThreadID)) {
 			return settings, errors.New("message thread id must be an int32")
 		}
 	}
