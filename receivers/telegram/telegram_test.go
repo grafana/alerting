@@ -64,10 +64,10 @@ func TestNotify(t *testing.T) {
 		}, {
 			name: "Multiple alerts with custom template",
 			settings: Config{
-				BotToken:        "abcdefgh0123456789",
-				ChatID:          "someid",
-				Message:         "__Custom Firing__\n{{len .Alerts.Firing}} Firing\n{{ template \"__text_alert_list\" .Alerts.Firing }}",
-				ParseMode:       DefaultTelegramParseMode,
+				BotToken:  "abcdefgh0123456789",
+				ChatID:    "someid",
+				Message:   "__Custom Firing__\n{{len .Alerts.Firing}} Firing\n{{ template \"__text_alert_list\" .Alerts.Firing }}",
+				ParseMode: DefaultTelegramParseMode,
 			},
 			alerts: []*types.Alert{
 				{
