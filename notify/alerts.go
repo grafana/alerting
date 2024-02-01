@@ -10,6 +10,7 @@ import (
 	v2 "github.com/prometheus/alertmanager/api/v2"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/alertmanager/dispatch"
+	"github.com/prometheus/alertmanager/matchers/compat"
 	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/prometheus/alertmanager/types"
 	prometheus_model "github.com/prometheus/common/model"
@@ -220,7 +221,7 @@ func parseReceivers(receivers string) (*regexp.Regexp, error) {
 func parseFilter(filter []string) ([]*labels.Matcher, error) {
 	matchers := make([]*labels.Matcher, 0, len(filter))
 	for _, matcherString := range filter {
-		matcher, err := labels.ParseMatcher(matcherString)
+		matcher, err := compat.Matcher(matcherString, "api")
 		if err != nil {
 			return nil, err
 		}

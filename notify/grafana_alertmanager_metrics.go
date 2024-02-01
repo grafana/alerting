@@ -23,7 +23,7 @@ type GrafanaAlertmanagerMetrics struct {
 func NewGrafanaAlertmanagerMetrics(r prometheus.Registerer) *GrafanaAlertmanagerMetrics {
 	return &GrafanaAlertmanagerMetrics{
 		Registerer: r,
-		Alerts:     metrics.NewAlerts("grafana", r),
+		Alerts:     metrics.NewAlerts(r),
 		configuredReceivers: promauto.With(r).NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,

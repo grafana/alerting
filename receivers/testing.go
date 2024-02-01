@@ -14,6 +14,7 @@ func (ns *NotificationServiceMock) SendWebhook(_ context.Context, cmd *SendWebho
 	ns.Webhook = *cmd
 	return ns.ShouldError
 }
+
 func (ns *NotificationServiceMock) SendEmail(_ context.Context, cmd *SendEmailSettings) error {
 	ns.EmailSync = *cmd
 	return ns.ShouldError
