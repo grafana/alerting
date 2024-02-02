@@ -5,6 +5,7 @@ const FullValidConfigForTesting = `{
 	"bottoken" :"test-token",
 	"chatid" :"12345678",
 	"message" :"test-message",
+	"message_thread_id" :"13579",
 	"parse_mode" :"html",
 	"disable_web_page_preview" :true,
 	"protect_content" :true,

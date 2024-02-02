@@ -112,6 +112,7 @@ func TestNewConfig(t *testing.T) {
 				BotToken:              "test-token",
 				ChatID:                "12345678",
 				Message:               "test-message",
+				MessageThreadID:       "13579",
 				ParseMode:             "HTML",
 				DisableWebPagePreview: true,
 				ProtectContent:        true,
@@ -126,6 +127,7 @@ func TestNewConfig(t *testing.T) {
 				BotToken:              "test-secret-token",
 				ChatID:                "12345678",
 				Message:               "test-message",
+				MessageThreadID:       "13579",
 				ParseMode:             "HTML",
 				DisableWebPagePreview: true,
 				ProtectContent:        true,
@@ -187,6 +189,22 @@ func TestNewConfig(t *testing.T) {
 				ProtectContent:        false,
 				DisableNotifications:  false,
 			},
+		},
+		{
+			name:     "should fail if message_thread_id is not an int",
+			settings: `{"chatid": "12345678", "message_thread_id": "notanint"}`,
+			secureSettings: map[string][]byte{
+				"bottoken": []byte("test-token"),
+			},
+			expectedInitError: "message thread id must be an integer",
+		},
+		{
+			name:     "should fail if message_thread_id is not a valid int32",
+			settings: `{"chatid": "12345678", "message_thread_id": "21474836471"}`,
+			secureSettings: map[string][]byte{
+				"bottoken": []byte("test-token"),
+			},
+			expectedInitError: "message thread id must be an int32",
 		},
 	}
 

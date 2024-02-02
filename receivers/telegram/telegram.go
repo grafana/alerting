@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/prometheus/alertmanager/notify"
-
 	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/images"
@@ -129,6 +128,9 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert)
 
 	m := make(map[string]string)
 	m["text"] = messageText
+	if tn.settings.MessageThreadID != "" {
+		m["message_thread_id"] = tn.settings.MessageThreadID
+	}
 	if tn.settings.ParseMode != "" {
 		m["parse_mode"] = tn.settings.ParseMode
 	}
