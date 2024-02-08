@@ -45,7 +45,7 @@ func init() {
 	// This initializes the compat package in fallback mode. It parses first using the UTF-8 parser
 	// and then fallsback to the classic parser on error. UTF-8 is permitted in label names.
 	// This should be removed when the compat package is removed from Alertmanager.
-	compat.InitFromFlags(log.NewNopLogger(), compat.RegisteredMetrics, featurecontrol.NoopFlags{})
+	compat.InitFromFlags(log.NewNopLogger(), featurecontrol.NoopFlags{})
 }
 
 type ClusterPeer interface {
