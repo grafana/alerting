@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	tmplhtml "html/template"
+	"sort"
 	tmpltext "text/template"
 
 	"github.com/grafana/alerting/templates"
@@ -83,6 +84,11 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 		}
 		templateContents = append(templateContents, tc)
 	}
+
+	// Simple sort for consistency in template rendering. Could improve later by sorting based on the template name or defined order.
+	sort.Slice(templateContents, func(i, j int) bool {
+		return templateContents[i] < templateContents[j]
+	})
 
 	// Capture the underlying text template so we can use ExecuteTemplate.
 	var newTextTmpl *tmpltext.Template

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"sync"
 	"time"
 
@@ -351,6 +352,11 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	for _, tc := range am.templates {
 		tmpls = append(tmpls, tc)
 	}
+
+	// Simple sort for consistency in template rendering. Could improve later by sorting based on the template name or defined order.
+	sort.Slice(tmpls, func(i, j int) bool {
+		return tmpls[i] < tmpls[j]
+	})
 
 	tmpl, err := am.TemplateFromContent(tmpls)
 	if err != nil {
