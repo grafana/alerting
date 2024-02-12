@@ -95,7 +95,6 @@ type GrafanaAlertmanager struct {
 	// buildReceiverIntegrationsFunc builds the integrations for a receiver based on its APIReceiver configuration and the current parsed template.
 	buildReceiverIntegrationsFunc func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
 	externalURL                   string
-	workingDirectory              string
 
 	// templates contains the template name -> template contents for each user-defined template.
 	templates map[string]string
@@ -151,7 +150,6 @@ type Configuration interface {
 }
 
 type GrafanaAlertmanagerConfig struct {
-	WorkingDirectory   string
 	ExternalURL        string
 	AlertStoreCallback mem.AlertStoreCallback
 	PeerTimeout        time.Duration
@@ -186,7 +184,6 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		Metrics:           m,
 		tenantID:          tenantID,
 		externalURL:       config.ExternalURL,
-		workingDirectory:  config.WorkingDirectory,
 		templates:         make(map[string]string),
 	}
 
@@ -300,10 +297,6 @@ func (am *GrafanaAlertmanager) GetReceivers() []*NotifyReceiver {
 
 func (am *GrafanaAlertmanager) ExternalURL() string {
 	return am.externalURL
-}
-
-func (am *GrafanaAlertmanager) WorkingDirectory() string {
-	return am.workingDirectory
 }
 
 // ConfigHash returns the hash of the current running configuration.
