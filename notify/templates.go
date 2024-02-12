@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	tmplhtml "html/template"
-	"path/filepath"
 	tmpltext "text/template"
 
 	"github.com/grafana/alerting/templates"
@@ -74,30 +73,24 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 		}, nil
 	}
 
-	// Recreate the current template without the definition blocks that are being tested. This is so that any blocks that were removed don't get defined.
-	paths := make([]string, 0)
-	for _, name := range am.templates {
+	// Recreate the current template replacing the definition blocks that are being tested. This is so that any blocks that were removed don't get defined.
+	templateContents := make([]string, 0, len(am.templates)+1)
+	templateContents = append(templateContents, c.Template)
+	for name, tc := range am.templates {
 		if name == c.Name {
-			// Skip the existing template of the same name as we're going to parse the one for testing instead.
+			// This is the template we are testing, we already included the new template contents so skip it.
 			continue
 		}
-		paths = append(paths, filepath.Join(am.workingDirectory, name))
+		templateContents = append(templateContents, tc)
 	}
 
-	// Parse current templates.
+	// Capture the underlying text template so we can use ExecuteTemplate.
 	var newTextTmpl *tmpltext.Template
 	var captureTemplate template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
 		newTextTmpl = text
 	}
-	newTmpl, err := am.TemplateFromPaths(paths, captureTemplate)
+	newTmpl, err := am.TemplateFromContent(templateContents, captureTemplate)
 	if err != nil {
-		return nil, err
-	}
-
-	// Parse test template.
-	_, err = newTextTmpl.New(c.Name).Parse(c.Template)
-	if err != nil {
-		// This shouldn't happen since we already parsed the template above.
 		return nil, err
 	}
 

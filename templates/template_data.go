@@ -57,6 +57,24 @@ type ExtendedData struct {
 	ExternalURL string `json:"externalURL"`
 }
 
+// FromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
+func FromContent(templateContents []string, options ...template.Option) (*Template, error) {
+	// Create new template with only defaults.
+	t, err := FromGlobs(nil, options...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse all provided templates.
+	for _, tc := range templateContents {
+		err := t.Parse(strings.NewReader(tc))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return t, nil
+}
+
 func removePrivateItems(kv template.KV) template.KV {
 	for key := range kv {
 		if strings.HasPrefix(key, "__") && strings.HasSuffix(key, "__") {

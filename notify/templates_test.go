@@ -102,7 +102,7 @@ func TestTemplateSimple(t *testing.T) {
 				Kind: ExecutionError,
 				Error: template.ExecError{
 					Name: "slack.title",
-					Err:  errors.New(`template: slack.title:1:38: executing "slack.title" at <{{template "missing" .}}>: template "missing" not defined`),
+					Err:  errors.New(`template: :1:38: executing "slack.title" at <{{template "missing" .}}>: template "missing" not defined`),
 				},
 			}},
 		},
@@ -154,7 +154,7 @@ func TestTemplateSimple(t *testing.T) {
 				Kind: ExecutionError,
 				Error: template.ExecError{
 					Name: "other",
-					Err:  errors.New(`template: slack.title:1:91: executing "other" at <{{template "missing" .}}>: template "missing" not defined`),
+					Err:  errors.New(`template: :1:91: executing "other" at <{{template "missing" .}}>: template "missing" not defined`),
 				},
 			}},
 		},
@@ -275,13 +275,6 @@ func TestTemplateSpecialCases(t *testing.T) {
 
 func TestTemplateWithExistingTemplates(t *testing.T) {
 	am, _ := setupAMTest(t)
-	tmpDir, err := os.MkdirTemp("", "test-templates")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, os.RemoveAll(tmpDir))
-	})
-
-	am.workingDirectory = tmpDir
 
 	tests := []struct {
 		name              string
@@ -354,7 +347,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 				Kind: ExecutionError,
 				Error: template.ExecError{
 					Name: "slack.title",
-					Err:  errors.New(`template: slack.title:1:38: executing "slack.title" at <{{template "slack.alternate_title" .}}>: template "slack.alternate_title" not defined`),
+					Err:  errors.New(`template: :1:38: executing "slack.title" at <{{template "slack.alternate_title" .}}>: template "slack.alternate_title" not defined`),
 				},
 			}},
 		},
@@ -381,10 +374,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if len(test.existingTemplates) > 0 {
-				for name, tmpl := range test.existingTemplates {
-					createTemplate(t, tmpDir, name, tmpl)
-					am.templates = append(am.templates, name)
-				}
+				am.templates = test.existingTemplates
 			}
 			res, err := am.TestTemplate(context.Background(), test.input)
 			require.NoError(t, err)

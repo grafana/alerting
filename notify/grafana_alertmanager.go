@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -98,8 +97,8 @@ type GrafanaAlertmanager struct {
 	externalURL                   string
 	workingDirectory              string
 
-	// templates contains the filenames (not full paths) of the persisted templates that were used to construct the current parsed template.
-	templates []string
+	// templates contains the template name -> template contents for each user-defined template.
+	templates map[string]string
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -145,7 +144,7 @@ type Configuration interface {
 	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
 
 	RoutingTree() *Route
-	Templates() []string
+	Templates() map[string]string
 
 	Hash() [16]byte
 	Raw() []byte
@@ -188,6 +187,7 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		tenantID:          tenantID,
 		externalURL:       config.ExternalURL,
 		workingDirectory:  config.WorkingDirectory,
+		templates:         make(map[string]string),
 	}
 
 	if err := config.Validate(); err != nil {
@@ -324,9 +324,9 @@ func (am *GrafanaAlertmanager) WithLock(fn func()) {
 	fn()
 }
 
-// TemplateFromPaths returns a set of *Templates based on the paths given.
-func (am *GrafanaAlertmanager) TemplateFromPaths(paths []string, options ...template.Option) (*templates.Template, error) {
-	tmpl, err := templates.FromGlobs(paths, options...)
+// TemplateFromContent returns a *Template based on defaults and the provided template contents.
+func (am *GrafanaAlertmanager) TemplateFromContent(tmpls []string, options ...template.Option) (*templates.Template, error) {
+	tmpl, err := templates.FromContent(tmpls, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -354,13 +354,12 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	am.templates = cfg.Templates()
 
-	// Create the parsed template using the template paths.
-	paths := make([]string, 0)
-	for _, name := range am.templates {
-		paths = append(paths, filepath.Join(am.workingDirectory, name))
+	tmpls := make([]string, 0, len(am.templates))
+	for _, tc := range am.templates {
+		tmpls = append(tmpls, tc)
 	}
 
-	tmpl, err := am.TemplateFromPaths(paths)
+	tmpl, err := am.TemplateFromContent(tmpls)
 	if err != nil {
 		return err
 	}
