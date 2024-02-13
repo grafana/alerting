@@ -33,7 +33,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		if uS == "" {
 			continue
 		}
-		uS = strings.TrimSuffix(uS, "/") + "/api/v1/alerts"
+		uS = strings.TrimSuffix(uS, "/") + "/api/v2/alerts"
 		u, err := url.Parse(uS)
 		if err != nil {
 			return Config{}, fmt.Errorf("invalid url property in settings: %w", err)

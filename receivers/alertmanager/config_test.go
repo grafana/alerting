@@ -27,7 +27,7 @@ func TestNewConfig(t *testing.T) {
 			settings: `{
 				"url": "://alertmanager.com"
 			}`,
-			expectedInitError: `invalid url property in settings: parse "://alertmanager.com/api/v1/alerts": missing protocol scheme`,
+			expectedInitError: `invalid url property in settings: parse "://alertmanager.com/api/v2/alerts": missing protocol scheme`,
 		},
 		{
 			name: "Error in initing: empty URL",
@@ -48,7 +48,7 @@ func TestNewConfig(t *testing.T) {
 			settings: `{
 				"url": "https://alertmanager-01.com,://url"
 			}`,
-			expectedInitError: "invalid url property in settings: parse \"://url/api/v1/alerts\": missing protocol scheme",
+			expectedInitError: "invalid url property in settings: parse \"://url/api/v2/alerts\": missing protocol scheme",
 		}, {
 			name: "Single URL",
 			settings: `{
@@ -56,7 +56,7 @@ func TestNewConfig(t *testing.T) {
 			}`,
 			expectedConfig: Config{
 				URLs: []*url.URL{
-					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v2/alerts"),
 				},
 				User:     "",
 				Password: "",
@@ -69,9 +69,9 @@ func TestNewConfig(t *testing.T) {
 			}`,
 			expectedConfig: Config{
 				URLs: []*url.URL{
-					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
-					receiversTesting.ParseURLUnsafe("https://alertmanager-02.com/api/v1/alerts"),
-					receiversTesting.ParseURLUnsafe("https://alertmanager-03.com/api/v1/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v2/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-02.com/api/v2/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-03.com/api/v2/alerts"),
 				},
 				User:     "",
 				Password: "",
@@ -86,7 +86,7 @@ func TestNewConfig(t *testing.T) {
 			}`,
 			expectedConfig: Config{
 				URLs: []*url.URL{
-					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v2/alerts"),
 				},
 				User:     "grafana",
 				Password: "admin",
@@ -98,7 +98,7 @@ func TestNewConfig(t *testing.T) {
 			secrets:  receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
 				URLs: []*url.URL{
-					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v1/alerts"),
+					receiversTesting.ParseURLUnsafe("https://alertmanager-01.com/api/v2/alerts"),
 				},
 				User:     "grafana",
 				Password: "grafana-admin",
