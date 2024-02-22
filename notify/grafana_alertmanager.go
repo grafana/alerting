@@ -81,9 +81,9 @@ type GrafanaAlertmanager struct {
 	// template is the current parsed template used for notification rendering.
 	template *templates.Template
 
-	// muteTimes is a map where the key is the name of the mute_time_interval
-	// and the value represents all configured time_interval(s)
-	muteTimes map[string][]timeinterval.TimeInterval
+	// timeIntervals is the set of all time_intervals and mute_time_intervals from
+	// the configuration.
+	timeIntervals map[string][]timeinterval.TimeInterval
 
 	stageMetrics      *notify.Metrics
 	dispatcherMetrics *dispatch.DispatcherMetrics
@@ -125,7 +125,7 @@ var NewIntegration = notify.NewIntegration
 
 type InhibitRule = config.InhibitRule
 type MuteTimeInterval = config.MuteTimeInterval
-type TimeInterval = timeinterval.TimeInterval
+type TimeInterval = config.TimeInterval
 type Route = config.Route
 type Integration = notify.Integration
 type DispatcherLimits = dispatch.Limits
@@ -138,6 +138,8 @@ type NotifyReceiver = notify.Receiver
 type Configuration interface {
 	DispatcherLimits() DispatcherLimits
 	InhibitRules() []InhibitRule
+	TimeIntervals() []TimeInterval
+	// Deprecated: MuteTimeIntervals are deprecated in Alertmanager and will be removed in future versions.
 	MuteTimeIntervals() []MuteTimeInterval
 	Receivers() []*APIReceiver
 	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
@@ -336,8 +338,11 @@ func (am *GrafanaAlertmanager) TemplateFromPaths(paths []string, options ...temp
 	return tmpl, nil
 }
 
-func (am *GrafanaAlertmanager) buildMuteTimesMap(muteTimeIntervals []config.MuteTimeInterval) map[string][]timeinterval.TimeInterval {
-	muteTimes := make(map[string][]timeinterval.TimeInterval, len(muteTimeIntervals))
+func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInterval, muteTimeIntervals []config.MuteTimeInterval) map[string][]timeinterval.TimeInterval {
+	muteTimes := make(map[string][]timeinterval.TimeInterval, len(timeIntervals)+len(muteTimeIntervals))
+	for _, ti := range timeIntervals {
+		muteTimes[ti.Name] = ti.TimeIntervals
+	}
 	for _, ti := range muteTimeIntervals {
 		muteTimes[ti.Name] = ti.TimeIntervals
 	}
@@ -383,12 +388,12 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	}
 
 	am.inhibitor = inhibit.NewInhibitor(am.alerts, cfg.InhibitRules(), am.marker, am.logger)
-	am.muteTimes = am.buildMuteTimesMap(cfg.MuteTimeIntervals())
+	am.timeIntervals = am.buildTimeIntervals(cfg.TimeIntervals(), cfg.MuteTimeIntervals())
 	am.silencer = silence.NewSilencer(am.silences, am.marker, am.logger)
 
 	meshStage := notify.NewGossipSettleStage(am.peer)
 	inhibitionStage := notify.NewMuteStage(am.inhibitor)
-	timeMuteStage := notify.NewTimeMuteStage(timeinterval.NewIntervener(am.muteTimes))
+	timeMuteStage := notify.NewTimeMuteStage(timeinterval.NewIntervener(am.timeIntervals))
 	silencingStage := notify.NewMuteStage(am.silencer)
 
 	am.route = dispatch.NewRoute(cfg.RoutingTree(), nil)
