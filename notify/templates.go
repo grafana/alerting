@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	tmplhtml "html/template"
-	"sort"
 	tmpltext "text/template"
 
 	"github.com/grafana/alerting/templates"
@@ -75,20 +74,22 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 	}
 
 	// Recreate the current template replacing the definition blocks that are being tested. This is so that any blocks that were removed don't get defined.
+	var found bool
 	templateContents := make([]string, 0, len(am.templates)+1)
-	templateContents = append(templateContents, c.Template)
-	for name, tc := range am.templates {
-		if name == c.Name {
-			// This is the template we are testing, we already included the new template contents so skip it.
+	for _, td := range am.templates {
+		if td.Name == c.Name {
+			// Template already exists, test with the new definition replacing the old one.
+			templateContents = append(templateContents, c.Template)
+			found = true
 			continue
 		}
-		templateContents = append(templateContents, tc)
+		templateContents = append(templateContents, td.Template)
 	}
 
-	// Simple sort for consistency in template rendering. Could improve later by sorting based on the template name or defined order.
-	sort.Slice(templateContents, func(i, j int) bool {
-		return templateContents[i] < templateContents[j]
-	})
+	if !found {
+		// Template is a new one, add it to the list.
+		templateContents = append(templateContents, c.Template)
+	}
 
 	// Capture the underlying text template so we can use ExecuteTemplate.
 	var newTextTmpl *tmpltext.Template

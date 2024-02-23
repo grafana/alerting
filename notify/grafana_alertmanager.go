@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"sort"
 	"sync"
 	"time"
 
@@ -98,7 +97,7 @@ type GrafanaAlertmanager struct {
 	externalURL                   string
 
 	// templates contains the template name -> template contents for each user-defined template.
-	templates map[string]string
+	templates []templates.TemplateDefinition
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -144,7 +143,7 @@ type Configuration interface {
 	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
 
 	RoutingTree() *Route
-	Templates() map[string]string
+	Templates() []templates.TemplateDefinition
 
 	Hash() [16]byte
 	Raw() []byte
@@ -185,7 +184,6 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		Metrics:           m,
 		tenantID:          tenantID,
 		externalURL:       config.ExternalURL,
-		templates:         make(map[string]string),
 	}
 
 	if err := config.Validate(); err != nil {
@@ -348,15 +346,16 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	am.templates = cfg.Templates()
 
+	seen := make(map[string]struct{})
 	tmpls := make([]string, 0, len(am.templates))
 	for _, tc := range am.templates {
-		tmpls = append(tmpls, tc)
+		if _, ok := seen[tc.Name]; ok {
+			level.Warn(am.logger).Log("msg", "template with same name is defined multiple times, skipping...", "template_name", tc.Name)
+			continue
+		}
+		tmpls = append(tmpls, tc.Template)
+		seen[tc.Name] = struct{}{}
 	}
-
-	// Simple sort for consistency in template rendering. Could improve later by sorting based on the template name or defined order.
-	sort.Slice(tmpls, func(i, j int) bool {
-		return tmpls[i] < tmpls[j]
-	})
 
 	tmpl, err := am.TemplateFromContent(tmpls)
 	if err != nil {

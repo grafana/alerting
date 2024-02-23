@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"errors"
+	"github.com/grafana/alerting/templates"
 	"os"
 	"path/filepath"
 	"testing"
@@ -278,7 +279,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 
 	tests := []struct {
 		name              string
-		existingTemplates map[string]string
+		existingTemplates []templates.TemplateDefinition
 		input             TestTemplatesConfigBodyParams
 		expected          TestTemplatesResults
 	}{{
@@ -303,9 +304,10 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "existing" . }}{{ end }}`,
 		},
-		existingTemplates: map[string]string{
-			"existing": `{{ define "existing" }}Some existing template{{ end }}`,
-		},
+		existingTemplates: []templates.TemplateDefinition{{
+			Name:     "existing",
+			Template: `{{ define "existing" }}Some existing template{{ end }}`,
+		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
 				Name: "slack.title",
@@ -320,9 +322,10 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}New template{{ end }}`,
 		},
-		existingTemplates: map[string]string{
-			"slack.title": `{{ define "slack.title" }}Some existing template{{ end }}`,
-		},
+		existingTemplates: []templates.TemplateDefinition{{
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}Some existing template{{ end }}`,
+		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
 				Name: "slack.title",
@@ -337,9 +340,10 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.alternate_title" . }}{{ end }}`,
 		},
-		existingTemplates: map[string]string{
-			"slack.title": `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
-		},
+		existingTemplates: []templates.TemplateDefinition{{
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+		}},
 		expected: TestTemplatesResults{
 			Results: nil,
 			Errors: []TestTemplatesErrorResult{{
@@ -358,9 +362,10 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.alternate_title" . }}{{ end }}{{ define "slack.alternate_title" }}Some new alternate template{{ end }}`,
 		},
-		existingTemplates: map[string]string{
-			"slack.title": `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
-		},
+		existingTemplates: []templates.TemplateDefinition{{
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
 				Name: "slack.title",

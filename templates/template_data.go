@@ -26,6 +26,13 @@ type Data = template.Data
 
 var FromGlobs = template.FromGlobs
 
+type TemplateDefinition struct {
+	// Name of the template. Used to identify the template in the UI and when testing.
+	Name string
+	// Template string that contains the template definition.
+	Template string
+}
+
 type ExtendedAlert struct {
 	Status        string             `json:"status"`
 	Labels        KV                 `json:"labels"`
