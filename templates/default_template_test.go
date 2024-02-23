@@ -3,7 +3,6 @@ package templates
 import (
 	"context"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
@@ -117,20 +116,7 @@ func TestDefaultTemplateString(t *testing.T) {
 		},
 	}
 
-	f, err := os.CreateTemp("/tmp", "template")
-	require.NoError(t, err)
-	defer func(f *os.File) {
-		_ = f.Close()
-	}(f)
-
-	t.Cleanup(func() {
-		require.NoError(t, os.RemoveAll(f.Name()))
-	})
-
-	_, err = f.WriteString(DefaultTemplateString)
-	require.NoError(t, err)
-
-	tmpl, err := FromGlobs([]string{f.Name()})
+	tmpl, err := FromContent([]string{DefaultTemplateString})
 	require.NoError(t, err)
 
 	externalURL, err := url.Parse("http://localhost/grafana")
