@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/grafana/alerting/templates"
-	"os"
-	"path/filepath"
 	"testing"
 	"text/template"
 
@@ -430,19 +428,4 @@ CommonAnnotations: {{ range .CommonAnnotations.SortedPairs }}{{ .Name }}={{ .Val
 			assert.Equal(t, test.expected, *res)
 		})
 	}
-}
-
-func createTemplate(t *testing.T, tmpDir string, name string, tmpl string) {
-	f, err := os.Create(filepath.Join(tmpDir, name))
-	require.NoError(t, err)
-	defer func(f *os.File) {
-		_ = f.Close()
-	}(f)
-
-	t.Cleanup(func() {
-		require.NoError(t, os.RemoveAll(f.Name()))
-	})
-
-	_, err = f.WriteString(tmpl)
-	require.NoError(t, err)
 }
