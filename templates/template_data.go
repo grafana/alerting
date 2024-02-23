@@ -66,11 +66,14 @@ type ExtendedData struct {
 
 // FromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
 func FromContent(templateContents []string, options ...template.Option) (*Template, error) {
-	// Create new template with only defaults.
+	// Create new template with only file-based defaults. Done this way to simplify transition to FromContent.
 	t, err := FromGlobs(nil, options...)
 	if err != nil {
 		return nil, err
 	}
+
+	// Parse default template string.
+	err = t.Parse(strings.NewReader(DefaultTemplateString))
 
 	// Parse all provided templates.
 	for _, tc := range templateContents {

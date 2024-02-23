@@ -116,7 +116,7 @@ func TestDefaultTemplateString(t *testing.T) {
 		},
 	}
 
-	tmpl, err := FromContent([]string{DefaultTemplateString})
+	tmpl, err := FromContent(nil)
 	require.NoError(t, err)
 
 	externalURL, err := url.Parse("http://localhost/grafana")
