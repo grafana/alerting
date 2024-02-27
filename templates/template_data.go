@@ -72,10 +72,9 @@ func FromContent(tmpls []string, options ...template.Option) (*Template, error) 
 		return nil, err
 	}
 
-	// Parse default template strings defined as files. Copied from template.FromGlobs.
-	// TODO: Consider removing this and defining them as strings. This would be a breaking change for those who defined custom default files.
-	defaultFileBasedTemplates := []string{"default.tmpl", "email.tmpl"}
-	for _, file := range defaultFileBasedTemplates {
+	// Parse prometheus default templates. Copied from template.FromGlobs.
+	defaultPrometheusTemplates := []string{"default.tmpl", "email.tmpl"}
+	for _, file := range defaultPrometheusTemplates {
 		f, err := asset.Assets.Open(path.Join("/templates", file))
 		if err != nil {
 			return nil, err
