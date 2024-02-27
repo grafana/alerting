@@ -29,7 +29,7 @@ var FromGlobs = template.FromGlobs
 type TemplateDefinition struct {
 	// Name of the template. Used to identify the template in the UI and when testing.
 	Name string
-	// Template string that contains the template definition.
+	// Template string that contains the template text.
 	Template string
 }
 
@@ -65,7 +65,7 @@ type ExtendedData struct {
 }
 
 // FromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
-func FromContent(templateContents []string, options ...template.Option) (*Template, error) {
+func FromContent(tmpls []string, options ...template.Option) (*Template, error) {
 	// Create new template with only file-based defaults. Done this way to simplify transition to FromContent.
 	t, err := FromGlobs(nil, options...)
 	if err != nil {
@@ -79,7 +79,7 @@ func FromContent(templateContents []string, options ...template.Option) (*Templa
 	}
 
 	// Parse all provided templates.
-	for _, tc := range templateContents {
+	for _, tc := range tmpls {
 		err := t.Parse(strings.NewReader(tc))
 		if err != nil {
 			return nil, err
