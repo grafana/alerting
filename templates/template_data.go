@@ -74,6 +74,9 @@ func FromContent(templateContents []string, options ...template.Option) (*Templa
 
 	// Parse default template string.
 	err = t.Parse(strings.NewReader(DefaultTemplateString))
+	if err != nil {
+		return nil, err
+	}
 
 	// Parse all provided templates.
 	for _, tc := range templateContents {

@@ -3,9 +3,10 @@ package notify
 import (
 	"context"
 	"errors"
-	"github.com/grafana/alerting/templates"
 	"testing"
 	"text/template"
+
+	"github.com/grafana/alerting/templates"
 
 	"github.com/go-openapi/strfmt"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
