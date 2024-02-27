@@ -12,6 +12,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
+	"github.com/prometheus/alertmanager/asset"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
@@ -24,7 +25,7 @@ type Template = template.Template
 type KV = template.KV
 type Data = template.Data
 
-var FromGlobs = template.FromGlobs
+var New = template.New
 
 type TemplateDefinition struct {
 	// Name of the template. Used to identify the template in the UI and when testing.
@@ -66,10 +67,24 @@ type ExtendedData struct {
 
 // FromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
 func FromContent(tmpls []string, options ...template.Option) (*Template, error) {
-	// Create new template with only file-based defaults. Done this way to simplify transition to FromContent.
-	t, err := FromGlobs(nil, options...)
+	t, err := New(options...)
 	if err != nil {
 		return nil, err
+	}
+
+	// Parse default template strings defined as files. Copied from template.FromGlobs.
+	// TODO: Consider removing this and defining them as strings. This would be a breaking change for those who defined custom default files.
+	defaultFileBasedTemplates := []string{"default.tmpl", "email.tmpl"}
+	for _, file := range defaultFileBasedTemplates {
+		f, err := asset.Assets.Open(path.Join("/templates", file))
+		if err != nil {
+			return nil, err
+		}
+		if err := t.Parse(f); err != nil {
+			f.Close()
+			return nil, err
+		}
+		f.Close()
 	}
 
 	// Parse default template string.
