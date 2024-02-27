@@ -1,10 +1,8 @@
 package templates
 
 import (
-	"os"
 	"testing"
 
-	"github.com/prometheus/alertmanager/template"
 	"github.com/stretchr/testify/require"
 )
 
@@ -102,21 +100,7 @@ Labels:
 `
 
 func ForTests(t *testing.T) *Template {
-	f, err := os.CreateTemp("/tmp", "template")
+	tmpl, err := FromContent([]string{TemplateForTestsString})
 	require.NoError(t, err)
-	defer func(f *os.File) {
-		_ = f.Close()
-	}(f)
-
-	t.Cleanup(func() {
-		require.NoError(t, os.RemoveAll(f.Name()))
-	})
-
-	_, err = f.WriteString(TemplateForTestsString)
-	require.NoError(t, err)
-
-	tmpl, err := template.FromGlobs([]string{f.Name()})
-	require.NoError(t, err)
-
 	return tmpl
 }
