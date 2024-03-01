@@ -57,7 +57,7 @@ func (r *Route) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	return r.validateChild()
+	return r.ValidateChild()
 }
 
 // AsAMRoute returns an Alertmanager route from a Grafana route. The ObjectMatchers are converted to Matchers.
