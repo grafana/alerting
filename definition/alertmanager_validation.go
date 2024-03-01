@@ -10,8 +10,8 @@ import (
 // groupByAll is a special value defined by alertmanager that can be used in a Route's GroupBy field to aggregate by all possible labels.
 const groupByAll = "..."
 
-// Validate normalizes a possibly nested Route r, and returns errors if r is invalid.
-func (r *Route) validateChild() error {
+// ValidateChild normalizes a possibly nested Route r, and returns errors if r is invalid.
+func (r *Route) ValidateChild() error {
 	r.GroupBy = nil
 	r.GroupByAll = false
 	for _, l := range r.GroupByStr {
@@ -45,7 +45,7 @@ func (r *Route) validateChild() error {
 	// Routes are a self-referential structure.
 	if r.Routes != nil {
 		for _, child := range r.Routes {
-			err := child.validateChild()
+			err := child.ValidateChild()
 			if err != nil {
 				return err
 			}
@@ -66,7 +66,7 @@ func (r *Route) Validate() error {
 	if len(r.MuteTimeIntervals) > 0 {
 		return fmt.Errorf("root route must not have any mute time intervals")
 	}
-	return r.validateChild()
+	return r.ValidateChild()
 }
 
 func (r *Route) ValidateReceivers(receivers map[string]struct{}) error {
