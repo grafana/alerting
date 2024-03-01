@@ -25,7 +25,7 @@ type Template = template.Template
 type KV = template.KV
 type Data = template.Data
 
-var New = template.New
+var newTemplate = template.New
 
 type TemplateDefinition struct {
 	// Name of the template. Used to identify the template in the UI and when testing.
@@ -67,7 +67,7 @@ type ExtendedData struct {
 
 // FromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
 func FromContent(tmpls []string, options ...template.Option) (*Template, error) {
-	t, err := New(options...)
+	t, err := newTemplate(options...)
 	if err != nil {
 		return nil, err
 	}
