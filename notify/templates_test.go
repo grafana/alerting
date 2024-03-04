@@ -3,10 +3,10 @@ package notify
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 	"text/template"
+
+	"github.com/grafana/alerting/templates"
 
 	"github.com/go-openapi/strfmt"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
@@ -102,7 +102,7 @@ func TestTemplateSimple(t *testing.T) {
 				Kind: ExecutionError,
 				Error: template.ExecError{
 					Name: "slack.title",
-					Err:  errors.New(`template: slack.title:1:38: executing "slack.title" at <{{template "missing" .}}>: template "missing" not defined`),
+					Err:  errors.New(`template: :1:38: executing "slack.title" at <{{template "missing" .}}>: template "missing" not defined`),
 				},
 			}},
 		},
@@ -154,7 +154,7 @@ func TestTemplateSimple(t *testing.T) {
 				Kind: ExecutionError,
 				Error: template.ExecError{
 					Name: "other",
-					Err:  errors.New(`template: slack.title:1:91: executing "other" at <{{template "missing" .}}>: template "missing" not defined`),
+					Err:  errors.New(`template: :1:91: executing "other" at <{{template "missing" .}}>: template "missing" not defined`),
 				},
 			}},
 		},
@@ -275,17 +275,10 @@ func TestTemplateSpecialCases(t *testing.T) {
 
 func TestTemplateWithExistingTemplates(t *testing.T) {
 	am, _ := setupAMTest(t)
-	tmpDir, err := os.MkdirTemp("", "test-templates")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, os.RemoveAll(tmpDir))
-	})
-
-	am.workingDirectory = tmpDir
 
 	tests := []struct {
 		name              string
-		existingTemplates map[string]string
+		existingTemplates []templates.TemplateDefinition
 		input             TestTemplatesConfigBodyParams
 		expected          TestTemplatesResults
 	}{{
@@ -310,9 +303,10 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "existing" . }}{{ end }}`,
 		},
-		existingTemplates: map[string]string{
-			"existing": `{{ define "existing" }}Some existing template{{ end }}`,
-		},
+		existingTemplates: []templates.TemplateDefinition{{
+			Name:     "existing",
+			Template: `{{ define "existing" }}Some existing template{{ end }}`,
+		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
 				Name: "slack.title",
@@ -327,9 +321,10 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}New template{{ end }}`,
 		},
-		existingTemplates: map[string]string{
-			"slack.title": `{{ define "slack.title" }}Some existing template{{ end }}`,
-		},
+		existingTemplates: []templates.TemplateDefinition{{
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}Some existing template{{ end }}`,
+		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
 				Name: "slack.title",
@@ -344,9 +339,10 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.alternate_title" . }}{{ end }}`,
 		},
-		existingTemplates: map[string]string{
-			"slack.title": `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
-		},
+		existingTemplates: []templates.TemplateDefinition{{
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+		}},
 		expected: TestTemplatesResults{
 			Results: nil,
 			Errors: []TestTemplatesErrorResult{{
@@ -354,7 +350,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 				Kind: ExecutionError,
 				Error: template.ExecError{
 					Name: "slack.title",
-					Err:  errors.New(`template: slack.title:1:38: executing "slack.title" at <{{template "slack.alternate_title" .}}>: template "slack.alternate_title" not defined`),
+					Err:  errors.New(`template: :1:38: executing "slack.title" at <{{template "slack.alternate_title" .}}>: template "slack.alternate_title" not defined`),
 				},
 			}},
 		},
@@ -365,9 +361,10 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.alternate_title" . }}{{ end }}{{ define "slack.alternate_title" }}Some new alternate template{{ end }}`,
 		},
-		existingTemplates: map[string]string{
-			"slack.title": `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
-		},
+		existingTemplates: []templates.TemplateDefinition{{
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
 				Name: "slack.title",
@@ -381,10 +378,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if len(test.existingTemplates) > 0 {
-				for name, tmpl := range test.existingTemplates {
-					createTemplate(t, tmpDir, name, tmpl)
-					am.templates = append(am.templates, name)
-				}
+				am.templates = test.existingTemplates
 			}
 			res, err := am.TestTemplate(context.Background(), test.input)
 			require.NoError(t, err)
@@ -435,19 +429,4 @@ CommonAnnotations: {{ range .CommonAnnotations.SortedPairs }}{{ .Name }}={{ .Val
 			assert.Equal(t, test.expected, *res)
 		})
 	}
-}
-
-func createTemplate(t *testing.T, tmpDir string, name string, tmpl string) {
-	f, err := os.Create(filepath.Join(tmpDir, name))
-	require.NoError(t, err)
-	defer func(f *os.File) {
-		_ = f.Close()
-	}(f)
-
-	t.Cleanup(func() {
-		require.NoError(t, os.RemoveAll(f.Name()))
-	})
-
-	_, err = f.WriteString(tmpl)
-	require.NoError(t, err)
 }

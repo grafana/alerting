@@ -12,6 +12,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
+	"github.com/prometheus/alertmanager/asset"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
@@ -24,7 +25,14 @@ type Template = template.Template
 type KV = template.KV
 type Data = template.Data
 
-var FromGlobs = template.FromGlobs
+var newTemplate = template.New
+
+type TemplateDefinition struct {
+	// Name of the template. Used to identify the template in the UI and when testing.
+	Name string
+	// Template string that contains the template text.
+	Template string
+}
 
 type ExtendedAlert struct {
 	Status        string             `json:"status"`
@@ -55,6 +63,43 @@ type ExtendedData struct {
 	CommonAnnotations KV `json:"commonAnnotations"`
 
 	ExternalURL string `json:"externalURL"`
+}
+
+// FromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
+func FromContent(tmpls []string, options ...template.Option) (*Template, error) {
+	t, err := newTemplate(options...)
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse prometheus default templates. Copied from template.FromGlobs.
+	defaultPrometheusTemplates := []string{"default.tmpl", "email.tmpl"}
+	for _, file := range defaultPrometheusTemplates {
+		f, err := asset.Assets.Open(path.Join("/templates", file))
+		if err != nil {
+			return nil, err
+		}
+		if err := t.Parse(f); err != nil {
+			f.Close()
+			return nil, err
+		}
+		f.Close()
+	}
+
+	// Parse default template string.
+	err = t.Parse(strings.NewReader(DefaultTemplateString))
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse all provided templates.
+	for _, tc := range tmpls {
+		err := t.Parse(strings.NewReader(tc))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return t, nil
 }
 
 func removePrivateItems(kv template.KV) template.KV {

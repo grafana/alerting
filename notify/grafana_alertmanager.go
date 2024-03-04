@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -96,10 +95,9 @@ type GrafanaAlertmanager struct {
 	// buildReceiverIntegrationsFunc builds the integrations for a receiver based on its APIReceiver configuration and the current parsed template.
 	buildReceiverIntegrationsFunc func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
 	externalURL                   string
-	workingDirectory              string
 
-	// templates contains the filenames (not full paths) of the persisted templates that were used to construct the current parsed template.
-	templates []string
+	// templates contains the template name -> template contents for each user-defined template.
+	templates []templates.TemplateDefinition
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -145,14 +143,13 @@ type Configuration interface {
 	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
 
 	RoutingTree() *Route
-	Templates() []string
+	Templates() []templates.TemplateDefinition
 
 	Hash() [16]byte
 	Raw() []byte
 }
 
 type GrafanaAlertmanagerConfig struct {
-	WorkingDirectory   string
 	ExternalURL        string
 	AlertStoreCallback mem.AlertStoreCallback
 	PeerTimeout        time.Duration
@@ -187,7 +184,6 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		Metrics:           m,
 		tenantID:          tenantID,
 		externalURL:       config.ExternalURL,
-		workingDirectory:  config.WorkingDirectory,
 	}
 
 	if err := config.Validate(); err != nil {
@@ -302,10 +298,6 @@ func (am *GrafanaAlertmanager) ExternalURL() string {
 	return am.externalURL
 }
 
-func (am *GrafanaAlertmanager) WorkingDirectory() string {
-	return am.workingDirectory
-}
-
 // ConfigHash returns the hash of the current running configuration.
 // It is not safe to call without a lock.
 func (am *GrafanaAlertmanager) ConfigHash() [16]byte {
@@ -324,9 +316,9 @@ func (am *GrafanaAlertmanager) WithLock(fn func()) {
 	fn()
 }
 
-// TemplateFromPaths returns a set of *Templates based on the paths given.
-func (am *GrafanaAlertmanager) TemplateFromPaths(paths []string, options ...template.Option) (*templates.Template, error) {
-	tmpl, err := templates.FromGlobs(paths, options...)
+// TemplateFromContent returns a *Template based on defaults and the provided template contents.
+func (am *GrafanaAlertmanager) TemplateFromContent(tmpls []string, options ...template.Option) (*templates.Template, error) {
+	tmpl, err := templates.FromContent(tmpls, options...)
 	if err != nil {
 		return nil, err
 	}
@@ -354,13 +346,18 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	am.templates = cfg.Templates()
 
-	// Create the parsed template using the template paths.
-	paths := make([]string, 0)
-	for _, name := range am.templates {
-		paths = append(paths, filepath.Join(am.workingDirectory, name))
+	seen := make(map[string]struct{})
+	tmpls := make([]string, 0, len(am.templates))
+	for _, tc := range am.templates {
+		if _, ok := seen[tc.Name]; ok {
+			level.Warn(am.logger).Log("msg", "template with same name is defined multiple times, skipping...", "template_name", tc.Name)
+			continue
+		}
+		tmpls = append(tmpls, tc.Template)
+		seen[tc.Name] = struct{}{}
 	}
 
-	tmpl, err := am.TemplateFromPaths(paths)
+	tmpl, err := am.TemplateFromContent(tmpls)
 	if err != nil {
 		return err
 	}
