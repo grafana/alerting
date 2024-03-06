@@ -192,6 +192,7 @@ func checkTimeInterval(r *Route, timeIntervals map[string]struct{}) error {
 	return nil
 }
 
+// nolint:revive
 type PostableApiAlertingConfig struct {
 	Config `yaml:",inline"`
 
@@ -517,6 +518,7 @@ func (m ObjectMatchers) MarshalJSON() ([]byte, error) {
 	return json.Marshal(result)
 }
 
+// nolint:revive
 type PostableApiReceiver struct {
 	config.Receiver          `yaml:",inline"`
 	PostableGrafanaReceivers `yaml:",inline"`
