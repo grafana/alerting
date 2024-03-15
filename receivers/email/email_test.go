@@ -29,8 +29,9 @@ func TestNotify(t *testing.T) {
 				"someops@example.com",
 				"somedev@example.com",
 			},
-			Message: "{{ template \"default.title\" . }}",
-			Subject: templates.DefaultMessageTitleEmbed,
+			Message:  "{{ template \"default.title\" . }}",
+			Subject:  templates.DefaultMessageTitleEmbed,
+			Template: templates.DefaultTemplate,
 		}
 
 		emailSender := receivers.MockNotificationService()

@@ -14,6 +14,7 @@ type Config struct {
 	Addresses   []string
 	Message     string
 	Subject     string
+	Template    string
 }
 
 func NewConfig(jsonData json.RawMessage) (Config, error) {
@@ -22,6 +23,7 @@ func NewConfig(jsonData json.RawMessage) (Config, error) {
 		Addresses   string `json:"addresses,omitempty"`
 		Message     string `json:"message,omitempty"`
 		Subject     string `json:"subject,omitempty"`
+		Template    string `json:"template,omitempty"`
 	}
 
 	var settings emailSettingsRaw
@@ -38,12 +40,16 @@ func NewConfig(jsonData json.RawMessage) (Config, error) {
 	if settings.Subject == "" {
 		settings.Subject = templates.DefaultMessageTitleEmbed
 	}
+	if settings.Template == "" {
+		settings.Template = templates.DefaultTemplate
+	}
 
 	return Config{
 		SingleEmail: settings.SingleEmail,
 		Message:     settings.Message,
 		Subject:     settings.Subject,
 		Addresses:   addresses,
+		Template:    settings.Template,
 	}, nil
 }
 
