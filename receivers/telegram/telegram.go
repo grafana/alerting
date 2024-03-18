@@ -174,7 +174,7 @@ func (tn *Notifier) newWebhookSyncCmd(action string, fn func(writer *multipart.W
 	}
 
 	cmd := &receivers.SendWebhookSettings{
-		URL:        fmt.Sprintf(APIURL, tn.settings.BotToken, action),
+		URL:        fmt.Sprintf(tn.settings.APIURL, tn.settings.BotToken, action),
 		Body:       b.String(),
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{

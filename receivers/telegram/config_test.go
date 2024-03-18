@@ -43,6 +43,7 @@ func TestNewConfig(t *testing.T) {
 			name:     "Minimal valid configuration",
 			settings: `{ "bottoken": "test-token", "chatid": "test-chat-id" }`,
 			expectedConfig: Config{
+				APIURL:                APIURL,
 				BotToken:              "test-token",
 				ChatID:                "test-chat-id",
 				Message:               templates.DefaultMessageEmbed,
@@ -59,6 +60,7 @@ func TestNewConfig(t *testing.T) {
 				"bottoken": []byte("test-token"),
 			},
 			expectedConfig: Config{
+				APIURL:                APIURL,
 				BotToken:              "test-token",
 				ChatID:                "test-chat-id",
 				Message:               templates.DefaultMessageEmbed,
@@ -75,6 +77,7 @@ func TestNewConfig(t *testing.T) {
 				"bottoken": []byte("test-token-key"),
 			},
 			expectedConfig: Config{
+				APIURL:                APIURL,
 				BotToken:              "test-token-key",
 				ChatID:                "test-chat-id",
 				Message:               templates.DefaultMessageEmbed,
@@ -96,6 +99,7 @@ func TestNewConfig(t *testing.T) {
 				"bottoken": []byte("test-token"),
 			},
 			expectedConfig: Config{
+				APIURL:                APIURL,
 				BotToken:              "test-token",
 				ChatID:                "chat-id",
 				Message:               templates.DefaultMessageEmbed,
@@ -109,6 +113,7 @@ func TestNewConfig(t *testing.T) {
 			name:     "Extracts all fields",
 			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
+				APIURL:                "https://api.test.com/bot%s/%s",
 				BotToken:              "test-token",
 				ChatID:                "12345678",
 				Message:               "test-message",
@@ -124,6 +129,7 @@ func TestNewConfig(t *testing.T) {
 			settings:       FullValidConfigForTesting,
 			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
+				APIURL:                "https://api.test.com/bot%s/%s",
 				BotToken:              "test-secret-token",
 				ChatID:                "12345678",
 				Message:               "test-message",
@@ -149,6 +155,7 @@ func TestNewConfig(t *testing.T) {
 				"bottoken": []byte("test-token"),
 			},
 			expectedConfig: Config{
+				APIURL:                APIURL,
 				BotToken:              "test-token",
 				ChatID:                "12345678",
 				Message:               templates.DefaultMessageEmbed,
@@ -165,6 +172,7 @@ func TestNewConfig(t *testing.T) {
 				"bottoken": []byte("test-token"),
 			},
 			expectedConfig: Config{
+				APIURL:                APIURL,
 				BotToken:              "test-token",
 				ChatID:                "12345678",
 				Message:               templates.DefaultMessageEmbed,
@@ -181,6 +189,7 @@ func TestNewConfig(t *testing.T) {
 				"bottoken": []byte("test-token"),
 			},
 			expectedConfig: Config{
+				APIURL:                APIURL,
 				BotToken:              "test-token",
 				ChatID:                "12345678",
 				Message:               templates.DefaultMessageEmbed,
