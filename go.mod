@@ -7,6 +7,8 @@ require (
 	github.com/benbjohnson/clock v1.3.5
 	github.com/go-kit/log v0.2.1
 	github.com/go-openapi/strfmt v0.22.0
+	github.com/google/go-cmp v0.6.0
+	github.com/matttproud/golang_protobuf_extensions v1.0.4
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/alertmanager v0.25.0
 	github.com/prometheus/client_golang v1.18.0
@@ -55,7 +57,6 @@ require (
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/miekg/dns v1.1.50 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
