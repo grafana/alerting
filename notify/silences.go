@@ -101,12 +101,9 @@ func (am *GrafanaAlertmanager) CreateSilence(ps *PostableSilence) (string, error
 		return "", fmt.Errorf("%s: %w", msg, ErrCreateSilenceBadPayload)
 	}
 
-	silenceID, err := am.silences.Set(sil)
+	silenceID, err := am.silences.Upsert(sil)
 	if err != nil {
 		level.Error(am.logger).Log("msg", "unable to save silence", "err", err)
-		if errors.Is(err, silence.ErrNotFound) {
-			return "", ErrSilenceNotFound
-		}
 		return "", fmt.Errorf("unable to save silence: %s: %w", err.Error(), ErrCreateSilenceBadPayload)
 	}
 

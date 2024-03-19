@@ -435,10 +435,28 @@ func TestCreateSilence(t *testing.T) {
 			},
 		},
 		expErr: "unable to save silence: silence invalid: at least one matcher must not match the empty string: unable to create silence",
+	}, {
+		name: "can create silence with pre-defined ID",
+		silence: PostableSilence{
+			ID: "test",
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr("foo"),
+					Value:   ptr("bar"),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
 	}}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			sID := c.silence.ID
 			silenceID, err := am.CreateSilence(&c.silence)
 			if c.expErr != "" {
 				require.EqualError(t, err, c.expErr)
@@ -446,6 +464,9 @@ func TestCreateSilence(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.NotEmpty(t, silenceID)
+				if sID != "" {
+					require.Equal(t, sID, silenceID)
+				}
 			}
 		})
 	}
