@@ -199,8 +199,7 @@ func DecodeState(r io.Reader) (SilenceState, error) {
 			st[s.Silence.Id] = &s
 			continue
 		}
-		//nolint:errorlint
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		return nil, err
