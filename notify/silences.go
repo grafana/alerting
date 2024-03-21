@@ -106,8 +106,8 @@ func (am *GrafanaAlertmanager) UpsertSilence(ps *PostableSilence) (string, error
 
 	silenceID, err := am.silences.Upsert(sil)
 	if err != nil {
-		level.Error(am.logger).Log("msg", "unable to save silence", "err", err)
-		return "", fmt.Errorf("unable to save silence: %s: %w", err.Error(), ErrCreateSilenceBadPayload)
+		level.Error(am.logger).Log("msg", "unable to upsert silence", "err", err)
+		return "", fmt.Errorf("unable to upsert silence: %s: %w", err.Error(), ErrCreateSilenceBadPayload)
 	}
 
 	return silenceID, nil
