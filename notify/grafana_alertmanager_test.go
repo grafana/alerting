@@ -451,6 +451,100 @@ func TestCreateSilence(t *testing.T) {
 	}
 }
 
+func TestUpsertSilence(t *testing.T) {
+	am, _ := setupAMTest(t)
+
+	cases := []struct {
+		name    string
+		silence PostableSilence
+		expErr  string
+	}{{
+		name: "can create silence with pre-set ID",
+		silence: PostableSilence{
+			ID: "test_id",
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr("foo"),
+					Value:   ptr("bar"),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
+	}, {
+		name: "can create silence without pre-set ID",
+		silence: PostableSilence{
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr("foo"),
+					Value:   ptr("bar"),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
+	}, {
+		name: "can't create silence for missing label name",
+		silence: PostableSilence{
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr(""),
+					Value:   ptr("bar"),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
+		expErr: "unable to upsert silence: silence invalid: invalid label matcher 0: invalid label name \"\": unable to create silence",
+	}, {
+		name: "can't create silence for missing label value",
+		silence: PostableSilence{
+			Silence: amv2.Silence{
+				Comment:   ptr("This is a comment"),
+				CreatedBy: ptr("test"),
+				EndsAt:    ptr(strfmt.DateTime(time.Now().Add(time.Minute))),
+				Matchers: amv2.Matchers{{
+					IsEqual: ptr(true),
+					IsRegex: ptr(false),
+					Name:    ptr("foo"),
+					Value:   ptr(""),
+				}},
+				StartsAt: ptr(strfmt.DateTime(time.Now())),
+			},
+		},
+		expErr: "unable to upsert silence: silence invalid: at least one matcher must not match the empty string: unable to create silence",
+	}}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			sID := c.silence.ID
+			silenceID, err := am.UpsertSilence(&c.silence)
+			if c.expErr != "" {
+				require.EqualError(t, err, c.expErr)
+				require.Empty(t, silenceID)
+			} else {
+				require.NoError(t, err)
+				require.NotEmpty(t, silenceID)
+				if sID != "" {
+					require.Equal(t, sID, silenceID)
+				}
+			}
+		})
+	}
+}
+
 func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
 	am, reg := setupAMTest(t)
 
