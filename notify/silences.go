@@ -83,8 +83,14 @@ func (am *GrafanaAlertmanager) GetSilence(silenceID string) (GettableSilence, er
 
 // CreateSilence persists the provided silence and returns the silence ID if successful.
 func (am *GrafanaAlertmanager) CreateSilence(ps *PostableSilence) (string, error) {
-	sil, err := am.marshalSilence(ps)
+	sil, err := v2.PostableSilenceToProto(ps)
 	if err != nil {
+		level.Error(am.logger).Log("msg", "marshaling to protobuf failed", "err", err)
+		return "", fmt.Errorf("%s: failed to convert API silence to internal silence: %w",
+			ErrCreateSilenceBadPayload.Error(), err)
+	}
+
+	if err := am.validateSilence(sil); err != nil {
 		return "", err
 	}
 
@@ -99,8 +105,14 @@ func (am *GrafanaAlertmanager) CreateSilence(ps *PostableSilence) (string, error
 
 // UpsertSilence allows for the creation of a silence with a pre-set ID.
 func (am *GrafanaAlertmanager) UpsertSilence(ps *PostableSilence) (string, error) {
-	sil, err := am.marshalSilence(ps)
+	sil, err := v2.PostableSilenceToProto(ps)
 	if err != nil {
+		level.Error(am.logger).Log("msg", "marshaling to protobuf failed", "err", err)
+		return "", fmt.Errorf("%s: failed to convert API silence to internal silence: %w",
+			ErrCreateSilenceBadPayload.Error(), err)
+	}
+
+	if err := am.validateSilence(sil); err != nil {
 		return "", err
 	}
 
@@ -113,28 +125,20 @@ func (am *GrafanaAlertmanager) UpsertSilence(ps *PostableSilence) (string, error
 	return silenceID, nil
 }
 
-// marshalSilence converts a PostableSilence to a Silence protobuf and validates it.
-func (am *GrafanaAlertmanager) marshalSilence(ps *PostableSilence) (*silencepb.Silence, error) {
-	sil, err := v2.PostableSilenceToProto(ps)
-	if err != nil {
-		level.Error(am.logger).Log("msg", "marshaling to protobuf failed", "err", err)
-		return nil, fmt.Errorf("%s: failed to convert API silence to internal silence: %w",
-			ErrCreateSilenceBadPayload.Error(), err)
-	}
-
+func (am *GrafanaAlertmanager) validateSilence(sil *silencepb.Silence) error {
 	if sil.StartsAt.After(sil.EndsAt) || sil.StartsAt.Equal(sil.EndsAt) {
 		msg := "start time must be before end time"
 		level.Error(am.logger).Log("msg", msg, "err", "starts_at", sil.StartsAt, "ends_at", sil.EndsAt)
-		return nil, fmt.Errorf("%s: %w", msg, ErrCreateSilenceBadPayload)
+		return fmt.Errorf("%s: %w", msg, ErrCreateSilenceBadPayload)
 	}
 
 	if sil.EndsAt.Before(time.Now()) {
 		msg := "end time can't be in the past"
 		level.Error(am.logger).Log("msg", msg, "ends_at", sil.EndsAt)
-		return nil, fmt.Errorf("%s: %w", msg, ErrCreateSilenceBadPayload)
+		return fmt.Errorf("%s: %w", msg, ErrCreateSilenceBadPayload)
 	}
 
-	return sil, nil
+	return nil
 }
 
 // DeleteSilence looks for and expires the silence by the provided silenceID. It returns ErrSilenceNotFound if the silence is not present.
