@@ -54,6 +54,7 @@ func TestNewConfig(t *testing.T) {
 				Source:    hostName,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				ApiURL:    DefaultApiUrl,
 			},
 		},
 		{
@@ -73,6 +74,7 @@ func TestNewConfig(t *testing.T) {
 				Source:    hostName,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				ApiURL:    DefaultApiUrl,
 			},
 		},
 		{
@@ -92,6 +94,7 @@ func TestNewConfig(t *testing.T) {
 				Source:    hostName,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				ApiURL:    DefaultApiUrl,
 			},
 		},
 		{
@@ -121,6 +124,7 @@ func TestNewConfig(t *testing.T) {
 				Source:    hostName,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				ApiURL:    DefaultApiUrl,
 			},
 		},
 		{
@@ -137,6 +141,7 @@ func TestNewConfig(t *testing.T) {
 				Source:    "test-source",
 				Client:    "test-client",
 				ClientURL: "test-client-url",
+				ApiURL:    "test-api-url",
 			},
 		},
 		{
@@ -154,6 +159,7 @@ func TestNewConfig(t *testing.T) {
 				Source:    "test-source",
 				Client:    "test-client",
 				ClientURL: "test-client-url",
+				ApiURL:    "test-api-url",
 			},
 		},
 		{
@@ -185,6 +191,7 @@ func TestNewConfig(t *testing.T) {
 				Source:    hostName,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				ApiURL:    DefaultApiUrl,
 			},
 		},
 		{
@@ -216,6 +223,7 @@ func TestNewConfig(t *testing.T) {
 				Source:    hostName,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				ApiURL:    DefaultApiUrl,
 			},
 		},
 		{
@@ -251,6 +259,7 @@ func TestNewConfig(t *testing.T) {
 				Source:    hostName,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				ApiURL:    DefaultApiUrl,
 			},
 		},
 		{
@@ -275,6 +284,7 @@ func TestNewConfig(t *testing.T) {
 				Source:    "test-client",
 				Client:    "test-client",
 				ClientURL: "{{ .ExternalURL }}",
+				ApiURL:    DefaultApiUrl,
 			},
 		},
 	}
