@@ -46,7 +46,7 @@ func newFakeMaintanenceOptions(t *testing.T) *fakeMaintenanceOptions {
 type fakeMaintenanceOptions struct {
 }
 
-func (f *fakeMaintenanceOptions) Filepath() string {
+func (f *fakeMaintenanceOptions) InitialState() string {
 	return ""
 }
 
