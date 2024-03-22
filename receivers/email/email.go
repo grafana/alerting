@@ -91,7 +91,7 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 		EmbeddedFiles: embeddedFiles,
 		To:            en.settings.Addresses,
 		SingleEmail:   en.settings.SingleEmail,
-		Template:      "ng_alert_notification",
+		Template:      en.settings.Template,
 	}
 
 	if tmplErr != nil {

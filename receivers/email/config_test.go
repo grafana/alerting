@@ -39,8 +39,9 @@ func TestNewConfig(t *testing.T) {
 				Addresses: []string{
 					"test@grafana.com",
 				},
-				Message: "",
-				Subject: templates.DefaultMessageTitleEmbed,
+				Message:  "",
+				Subject:  templates.DefaultMessageTitleEmbed,
+				Template: templates.DefaultTemplate,
 			},
 		},
 		{
@@ -54,8 +55,9 @@ func TestNewConfig(t *testing.T) {
 					"test3@grafana.com",
 					"test4@granafa.com",
 				},
-				Message: "",
-				Subject: templates.DefaultMessageTitleEmbed,
+				Message:  "",
+				Subject:  templates.DefaultMessageTitleEmbed,
+				Template: templates.DefaultTemplate,
 			},
 		},
 		{
@@ -66,8 +68,9 @@ func TestNewConfig(t *testing.T) {
 				Addresses: []string{
 					"test@grafana.com",
 				},
-				Message: "",
-				Subject: templates.DefaultMessageTitleEmbed,
+				Message:  "",
+				Subject:  templates.DefaultMessageTitleEmbed,
+				Template: templates.DefaultTemplate,
 			},
 		},
 		{
@@ -78,8 +81,9 @@ func TestNewConfig(t *testing.T) {
 				Addresses: []string{
 					"test@grafana.com",
 				},
-				Message: "test-message",
-				Subject: "test-subject",
+				Message:  "test-message",
+				Subject:  "test-subject",
+				Template: templates.DefaultTemplate,
 			},
 		},
 	}
