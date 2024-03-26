@@ -354,6 +354,72 @@ func TestNotify(t *testing.T) {
 			},
 			expMsgError: fmt.Errorf("template: :1: function \"Alerts\" not defined"),
 		},
+		{
+			name: "Extra headers with one alert with custom message",
+			settings: Config{
+				URL:                      "http://localhost/test",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                0,
+				AuthorizationScheme:      "",
+				AuthorizationCredentials: "",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  "Custom message",
+				ExtraHeaders:             map[string]string{"first": "abc", "second": "123"},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expURL:        "http://localhost/test",
+			expHTTPMethod: "POST",
+			expMsg: &webhookMessage{
+				ExtendedData: &templates.ExtendedData{
+					Receiver: "my_receiver",
+					Status:   "firing",
+					Alerts: templates.ExtendedAlerts{
+						{
+							Status: "firing",
+							Labels: templates.KV{
+								"alertname": "alert1",
+								"lbl1":      "val1",
+							},
+							Annotations: templates.KV{
+								"ann1": "annv1",
+							},
+							Fingerprint:  "fac0861a85de433a",
+							DashboardURL: "http://localhost/d/abcd",
+							PanelURL:     "http://localhost/d/abcd?viewPanel=efgh",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+						},
+					},
+					GroupLabels: templates.KV{
+						"alertname": "",
+					},
+					CommonLabels: templates.KV{
+						"alertname": "alert1",
+						"lbl1":      "val1",
+					},
+					CommonAnnotations: templates.KV{
+						"ann1": "annv1",
+					},
+					ExternalURL: "http://localhost",
+				},
+				Version:  "1",
+				GroupKey: "alertname",
+				Title:    "[FIRING:1]  (val1)",
+				State:    "alerting",
+				Message:  "Custom message",
+				OrgID:    orgID,
+			},
+			expMsgError: nil,
+			expHeaders:  map[string]string{"first": "abc", "second": "123"},
+		},
 	}
 
 	for _, c := range cases {
