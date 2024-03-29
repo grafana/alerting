@@ -71,7 +71,7 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 			Buttons: []button{
 				{
 					TextButton: textButton{
-						Text: "OPEN IN GRAFANA",
+						Text: "OPEN IN LOGZIO", // LOGZ.IO GRAFANA UPGRADE CHANGE :: DEV-43549 Fix Google chat notification messages
 						OnClick: onClick{
 							OpenLink: openLink{
 								URL: ruleURL,
@@ -88,7 +88,7 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	// Add text paragraph widget for the build version and timestamp.
 	widgets = append(widgets, textParagraphWidget{
 		Text: text{
-			Text: "Grafana v" + gcn.appVersion + " | " + (timeNow()).Format(time.RFC822),
+			Text: (timeNow()).Format(time.RFC822), // LOGZ.IO GRAFANA UPGRADE CHANGE :: DEV-43549 Fix Google chat notification messages
 		},
 	})
 
