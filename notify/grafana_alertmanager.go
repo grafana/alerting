@@ -394,10 +394,9 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	am.silencer = silence.NewSilencer(am.silences, am.marker, am.logger)
 
 	meshStage := notify.NewGossipSettleStage(am.peer)
-	m := notify.NewMetrics(am.Metrics.Registerer, featurecontrol.NoopFlags{})
-	inhibitionStage := notify.NewMuteStage(am.inhibitor, m)
-	timeMuteStage := notify.NewTimeMuteStage(timeinterval.NewIntervener(am.timeIntervals), m)
-	silencingStage := notify.NewMuteStage(am.silencer, m)
+	inhibitionStage := notify.NewMuteStage(am.inhibitor, am.stageMetrics)
+	timeMuteStage := notify.NewTimeMuteStage(timeinterval.NewIntervener(am.timeIntervals), am.stageMetrics)
+	silencingStage := notify.NewMuteStage(am.silencer, am.stageMetrics)
 
 	am.route = dispatch.NewRoute(cfg.RoutingTree(), nil)
 	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.DispatcherLimits(), am.logger, am.dispatcherMetrics)
