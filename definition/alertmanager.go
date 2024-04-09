@@ -231,11 +231,11 @@ func (c *PostableApiAlertingConfig) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
-	return c.validate()
+	return c.Validate()
 }
 
-// validate ensures that the two routing trees use the correct receiver types.
-func (c *PostableApiAlertingConfig) validate() error {
+// Validate ensures that the two routing trees use the correct receiver types.
+func (c *PostableApiAlertingConfig) Validate() error {
 	receivers := make(map[string]struct{}, len(c.Receivers))
 
 	var hasGrafReceivers, hasAMReceivers bool
@@ -256,7 +256,7 @@ func (c *PostableApiAlertingConfig) validate() error {
 	}
 
 	if hasGrafReceivers {
-		// Taken from https://github.com/prometheus/alertmanager/blob/master/config/config.go#L170-L191
+		// Taken from https://github.com/prometheus/alertmanager/blob/14cbe6301c732658d6fe877ec55ad5b738abcf06/config/config.go#L171-L192
 		// Check if we have a root route. We cannot check for it in the
 		// UnmarshalYAML method because it won't be called if the input is empty
 		// (e.g. the config file is empty or only contains whitespace).
