@@ -42,7 +42,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 func (ln *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	ln.log.Debug("executing line notification", "notification", ln.Name)
 
-	body := ln.buildMessage(ctx, as...)
+	body := ln.buildLineMessage(ctx, as...)
 
 	form := url.Values{}
 	form.Add("message", body)
@@ -69,7 +69,7 @@ func (ln *Notifier) SendResolved() bool {
 	return !ln.GetDisableResolveMessage()
 }
 
-func (ln *Notifier) buildMessage(ctx context.Context, as ...*types.Alert) string {
+func (ln *Notifier) buildLineMessage(ctx context.Context, as ...*types.Alert) string {
 	ruleURL := path.Join(ln.tmpl.ExternalURL.String(), "/alerting/list")
 
 	var tmplErr error
