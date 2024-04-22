@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"path"
 
 	"github.com/prometheus/alertmanager/types"
 
@@ -70,15 +69,12 @@ func (ln *Notifier) SendResolved() bool {
 }
 
 func (ln *Notifier) buildLineMessage(ctx context.Context, as ...*types.Alert) string {
-	ruleURL := path.Join(ln.tmpl.ExternalURL.String(), "/alerting/list")
-
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, ln.tmpl, as, ln.log, &tmplErr)
 
 	body := fmt.Sprintf(
-		"%s\n%s\n\n%s",
+		"%s\n%s",
 		tmpl(ln.settings.Title),
-		ruleURL,
 		tmpl(ln.settings.Description),
 	)
 	if tmplErr != nil {
