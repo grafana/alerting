@@ -2,7 +2,9 @@ package line
 
 import (
 	"context"
+	"math/rand"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/prometheus/alertmanager/notify"
@@ -133,6 +135,84 @@ func TestNotify(t *testing.T) {
 
 			require.Equal(t, c.expHeaders, webhookSender.Webhook.HTTPHeader)
 			require.Equal(t, c.expMsg, webhookSender.Webhook.Body)
+		})
+	}
+}
+
+func TestTruncatedNotify(t *testing.T) {
+	tmpl := templates.ForTests(t)
+
+	externalURL, err := url.Parse("http://localhost")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+	title := "[FIRING:1]  (val1)\n"
+	cases := []struct {
+		name         string
+		settings     Config
+		alerts       []*types.Alert
+		expHeaders   map[string]string
+		expMsg       string
+		expInitError string
+		expMsgError  error
+	}{
+		{
+			name: "Truncated alert when message length is over 1000",
+			settings: Config{
+				Title:       templates.DefaultMessageTitleEmbed,
+				Description: strings.Repeat("Y", lineMaxMessageLenRunes+rand.Intn(1000)+1),
+				Token:       "sometoken",
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expHeaders: map[string]string{
+				"Authorization": "Bearer sometoken",
+				"Content-Type":  "application/x-www-form-urlencoded;charset=UTF-8",
+			},
+			expMsg:      title + strings.Repeat("Y", lineMaxMessageLenRunes-len(title)-1) + "…",
+			expMsgError: nil,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			webhookSender := receivers.MockNotificationService()
+
+			pn := &Notifier{
+				Base: &receivers.Base{
+					Name:                  "",
+					Type:                  "",
+					UID:                   "",
+					DisableResolveMessage: false,
+				},
+				log:      &logging.FakeLogger{},
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: c.settings,
+			}
+
+			ctx := notify.WithGroupKey(context.Background(), "alertname")
+			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+			ok, err := pn.Notify(ctx, c.alerts...)
+			if c.expMsgError != nil {
+				require.False(t, ok)
+				require.Error(t, err)
+				require.Equal(t, c.expMsgError.Error(), err.Error())
+				return
+			}
+			require.NoError(t, err)
+			require.True(t, ok)
+
+			require.Equal(t, c.expHeaders, webhookSender.Webhook.HTTPHeader)
+			form := url.Values{}
+			form.Add("message", c.expMsg)
+			expBody := form.Encode()
+			require.Equal(t, expBody, webhookSender.Webhook.Body)
+			require.Len(t, webhookSender.Webhook.Body, lineMaxMessageLenRunes+len(title)+len("message=")+1)
 		})
 	}
 }

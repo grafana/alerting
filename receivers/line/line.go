@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/logging"
@@ -17,6 +18,9 @@ var (
 	// API document link: https://notify-bot.line.me/doc/en/
 	APIURL = "https://notify-api.line.me/api/notify"
 )
+
+// LINE Notify supports 1000 chars max - from https://notify-bot.line.me/doc/en/
+const lineMaxMessageLenRunes = 1000
 
 // Notifier is responsible for sending
 // alert notifications to LINE.
@@ -42,7 +46,10 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 func (ln *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	ln.log.Debug("executing line notification", "notification", ln.Name)
 
-	body := ln.buildLineMessage(ctx, as...)
+	body, err := ln.buildLineMessage(ctx, as...)
+	if err != nil {
+		return false, fmt.Errorf("failed to build message: %w", err)
+	}
 
 	form := url.Values{}
 	form.Add("message", body)
@@ -69,7 +76,7 @@ func (ln *Notifier) SendResolved() bool {
 	return !ln.GetDisableResolveMessage()
 }
 
-func (ln *Notifier) buildLineMessage(ctx context.Context, as ...*types.Alert) string {
+func (ln *Notifier) buildLineMessage(ctx context.Context, as ...*types.Alert) (string, error) {
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, ln.tmpl, as, ln.log, &tmplErr)
 
@@ -81,5 +88,14 @@ func (ln *Notifier) buildLineMessage(ctx context.Context, as ...*types.Alert) st
 	if tmplErr != nil {
 		ln.log.Warn("failed to template Line message", "error", tmplErr.Error())
 	}
-	return body
+
+	message, truncated := receivers.TruncateInRunes(body, lineMaxMessageLenRunes)
+	if truncated {
+		key, err := notify.ExtractGroupKey(ctx)
+		if err != nil {
+			return "", err
+		}
+		ln.log.Warn("Truncated message", "alert", key, "max_runes", lineMaxMessageLenRunes)
+	}
+	return message, nil
 }
