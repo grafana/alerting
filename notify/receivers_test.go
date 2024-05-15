@@ -117,26 +117,24 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, recCfg.Name, parsed.Name)
 	})
-	t.Run("should fail if secrets decoding fails", func(t *testing.T) {
+	t.Run("should support non-base64-encoded secrets", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		invalidBase64 := "not encoded"
 		for notifierType, cfg := range AllKnownConfigsForTesting {
 			notifierRaw := cfg.GetRawNotifierConfig(notifierType)
 			if len(notifierRaw.SecureSettings) == 0 {
 				continue
 			}
 			for key := range notifierRaw.SecureSettings {
-				notifierRaw.SecureSettings[key] = "bad base-64"
+				notifierRaw.SecureSettings[key] = invalidBase64
 			}
 			recCfg.Integrations = append(recCfg.Integrations, notifierRaw)
 		}
 
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
-		require.NotNil(t, err)
-		require.Equal(t, GrafanaReceiverConfig{}, parsed)
-		require.ErrorAs(t, err, &IntegrationValidationError{})
-		typedError := err.(IntegrationValidationError)
-		require.NotNil(t, typedError.Integration)
-		require.ErrorContains(t, err, "failed to decode secure settings")
+		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, NoopDecrypt)
+		require.NoError(t, err)
+		require.Equal(t, recCfg.Name, parsed.Name)
+		require.Equal(t, invalidBase64, parsed.AlertmanagerConfigs[0].Settings.Password)
 	})
 	t.Run("should fail if notifier type is unknown", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
