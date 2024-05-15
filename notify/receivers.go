@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/prometheus/alertmanager/config"
+	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -545,6 +546,17 @@ func decodeSecretsFromBase64(secrets map[string]string) (map[string][]byte, erro
 		secureSettings[k] = d
 	}
 	return secureSettings, nil
+}
+
+// GetActiveReceiversMap returns all receivers that are in use by a route.
+func GetActiveReceiversMap(r *dispatch.Route) map[string]struct{} {
+	receiversMap := make(map[string]struct{})
+	visitFunc := func(r *dispatch.Route) {
+		receiversMap[r.RouteOpts.Receiver] = struct{}{}
+	}
+	r.Walk(visitFunc)
+
+	return receiversMap
 }
 
 func newNotifierConfig[T interface{}](receiver *GrafanaIntegrationConfig, settings T) *NotifierConfig[T] {
