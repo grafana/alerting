@@ -50,6 +50,7 @@ func TestNotify(t *testing.T) {
 				Source:    hostname,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				URL:       DefaultURL,
 			},
 			alerts: []*types.Alert{
 				{
@@ -96,6 +97,7 @@ func TestNotify(t *testing.T) {
 				Source:    hostname,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				URL:       DefaultURL,
 			},
 			alerts: []*types.Alert{
 				{
@@ -142,6 +144,7 @@ func TestNotify(t *testing.T) {
 				Source:    "{{ .CommonLabels.source }}",
 				Client:    "client-{{ .CommonLabels.source }}",
 				ClientURL: "http://localhost:20200/{{ .CommonLabels.group }}",
+				URL:       "https://events.pagerduty.com/v2/enqueue",
 			},
 			alerts: []*types.Alert{
 				{
@@ -195,6 +198,7 @@ func TestNotify(t *testing.T) {
 				Source:    "{{ .CommonLabels.source }}",
 				Client:    "client-{{ .CommonLabels.source }}",
 				ClientURL: "http://localhost:20200/{{ .CommonLabels.group }}",
+				URL:       DefaultURL,
 			},
 			alerts: []*types.Alert{
 				{
@@ -248,6 +252,7 @@ func TestNotify(t *testing.T) {
 				Source:    "{{ .CommonLabels.source }}",
 				Client:    "client-{{ .CommonLabels.source }}",
 				ClientURL: "http://localhost:20200/{{ .CommonLabels.group }}",
+				URL:       DefaultURL,
 			},
 			alerts: []*types.Alert{
 				{
@@ -294,6 +299,7 @@ func TestNotify(t *testing.T) {
 				Source:    hostname,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				URL:       DefaultURL,
 			},
 			alerts: []*types.Alert{
 				{
@@ -339,6 +345,7 @@ func TestNotify(t *testing.T) {
 				Source:    hostname,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				URL:       DefaultURL,
 			},
 			alerts: []*types.Alert{
 				{
@@ -390,6 +397,7 @@ func TestNotify(t *testing.T) {
 				Source:    hostname,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				URL:       DefaultURL,
 			},
 			alerts: []*types.Alert{
 				{
@@ -438,6 +446,7 @@ func TestNotify(t *testing.T) {
 				Source:    hostname,
 				Client:    DefaultClient,
 				ClientURL: "{{ .ExternalURL }}",
+				URL:       DefaultURL,
 			},
 			alerts: []*types.Alert{
 				{
