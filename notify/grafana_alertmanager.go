@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/go-openapi/strfmt"
 
 	"github.com/grafana/alerting/cluster"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
@@ -292,11 +293,43 @@ func (am *GrafanaAlertmanager) StopAndWait() {
 
 // GetReceivers returns the receivers configured as part of the current configuration.
 // It is safe to call concurrently.
-func (am *GrafanaAlertmanager) GetReceivers() []*NotifyReceiver {
+func (am *GrafanaAlertmanager) GetReceivers() []models.Receiver {
 	am.reloadConfigMtx.RLock()
-	defer am.reloadConfigMtx.RUnlock()
+	receivers := am.receivers
+	am.reloadConfigMtx.RUnlock()
 
-	return am.receivers
+	apiReceivers := make([]models.Receiver, 0, len(receivers))
+	for _, rcv := range receivers {
+		// Build integrations slice for each receiver.
+		integrations := make([]*models.Integration, 0, len(rcv.Integrations()))
+		for _, integration := range rcv.Integrations() {
+			name := integration.Name()
+			sendResolved := integration.SendResolved()
+			ts, d, err := integration.GetReport()
+			integrations = append(integrations, &models.Integration{
+				Name:                      &name,
+				SendResolved:              &sendResolved,
+				LastNotifyAttempt:         strfmt.DateTime(ts),
+				LastNotifyAttemptDuration: d.String(),
+				LastNotifyAttemptError: func() string {
+					if err != nil {
+						return err.Error()
+					}
+					return ""
+				}(),
+			})
+		}
+
+		active := rcv.Active()
+		name := rcv.Name()
+		apiReceivers = append(apiReceivers, models.Receiver{
+			Active:       &active,
+			Integrations: integrations,
+			Name:         &name,
+		})
+	}
+
+	return apiReceivers
 }
 
 func (am *GrafanaAlertmanager) ExternalURL() string {
