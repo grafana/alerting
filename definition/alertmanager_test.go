@@ -449,14 +449,12 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 			encoded, err := json.Marshal(tc.input)
 			require.Nil(t, err)
 
-			var out PostableApiAlertingConfig
-			err = json.Unmarshal(encoded, &out)
-
+			cfg, err := Load(encoded)
 			if tc.err {
 				require.Error(t, err)
 			} else {
 				require.Nil(t, err)
-				require.Equal(t, tc.input, out)
+				require.Equal(t, tc.input, *cfg)
 			}
 		})
 
@@ -464,14 +462,12 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 			encoded, err := yaml.Marshal(tc.input)
 			require.Nil(t, err)
 
-			var out PostableApiAlertingConfig
-			err = yaml.Unmarshal(encoded, &out)
-
+			cfg, err := Load(encoded)
 			if tc.err {
 				require.Error(t, err)
 			} else {
 				require.Nil(t, err)
-				require.Equal(t, tc.input, out)
+				require.Equal(t, tc.input, *cfg)
 			}
 		})
 	}
