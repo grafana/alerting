@@ -26,7 +26,7 @@ func GrafanaToUpstreamConfig(cfg *PostableApiAlertingConfig) config.Config {
 	}
 }
 
-func PostableApiReceiverToApiReceiver(r *PostableApiReceiver) *notify.APIReceiver {
+func PostableAPIReceiverToAPIReceiver(r *PostableApiReceiver) *notify.APIReceiver {
 	integrations := notify.GrafanaIntegrations{
 		Integrations: make([]*notify.GrafanaIntegrationConfig, 0, len(r.GrafanaManagedReceivers)),
 	}

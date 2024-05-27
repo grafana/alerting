@@ -43,7 +43,7 @@ func TestPostableApiReceiverToApiReceiver(t *testing.T) {
 			}},
 		},
 	}
-	receiver := PostableApiReceiverToApiReceiver(postableReceiver)
+	receiver := PostableAPIReceiverToAPIReceiver(postableReceiver)
 
 	require.Equal(t, "test", receiver.Name)
 	require.Equal(t, 1, len(receiver.GrafanaIntegrations.Integrations))
