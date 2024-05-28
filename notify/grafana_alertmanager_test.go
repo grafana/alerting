@@ -12,7 +12,6 @@ import (
 	"github.com/go-openapi/strfmt"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/alertmanager/config"
-	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/prometheus/alertmanager/provider/mem"
 	"github.com/prometheus/alertmanager/types"
@@ -20,6 +19,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/notify/nfstatus"
 )
 
 func setupAMTest(t *testing.T) (*GrafanaAlertmanager, *prometheus.Registry) {
@@ -575,18 +576,18 @@ func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
 
 func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
 	fn := &fakeNotifier{}
-	integrations := []*notify.Integration{
-		notify.NewIntegration(fn, fn, "grafana-oncall", 0, "test-grafana-oncall"),
-		notify.NewIntegration(fn, fn, "sns", 1, "test-sns"),
+	integrations := []*nfstatus.Integration{
+		nfstatus.NewIntegration(fn, fn, "grafana-oncall", 0, "test-grafana-oncall"),
+		nfstatus.NewIntegration(fn, fn, "sns", 1, "test-sns"),
 	}
 
 	am, reg := setupAMTest(t)
 
-	receivers := []*notify.Receiver{
-		notify.NewReceiver("ActiveNoIntegrations", true, nil),
-		notify.NewReceiver("InactiveNoIntegrations", false, nil),
-		notify.NewReceiver("ActiveMultipleIntegrations", true, integrations),
-		notify.NewReceiver("InactiveMultipleIntegrations", false, integrations),
+	receivers := []*nfstatus.Receiver{
+		nfstatus.NewReceiver("ActiveNoIntegrations", true, nil),
+		nfstatus.NewReceiver("InactiveNoIntegrations", false, nil),
+		nfstatus.NewReceiver("ActiveMultipleIntegrations", true, integrations),
+		nfstatus.NewReceiver("InactiveMultipleIntegrations", false, integrations),
 	}
 
 	am.setReceiverMetrics(receivers, 2)
