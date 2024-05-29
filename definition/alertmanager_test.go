@@ -3,6 +3,7 @@ package definition
 import (
 	"encoding/json"
 	"errors"
+	"net/url"
 	"testing"
 
 	"github.com/prometheus/alertmanager/config"
@@ -23,11 +24,6 @@ func Test_ApiReceiver_Marshaling(t *testing.T) {
 			input: PostableApiReceiver{
 				Receiver: config.Receiver{
 					Name: "foo",
-					EmailConfigs: []*config.EmailConfig{{
-						To:      "test@test.com",
-						HTML:    config.DefaultEmailConfig.HTML,
-						Headers: map[string]string{},
-					}},
 				},
 			},
 		},
@@ -47,10 +43,8 @@ func Test_ApiReceiver_Marshaling(t *testing.T) {
 			input: PostableApiReceiver{
 				Receiver: config.Receiver{
 					Name: "foo",
-					EmailConfigs: []*config.EmailConfig{{
-						To:      "test@test.com",
-						HTML:    config.DefaultEmailConfig.HTML,
-						Headers: map[string]string{},
+					DiscordConfigs: []*config.DiscordConfig{{
+						WebhookURL: &config.SecretURL{},
 					}},
 				},
 				PostableGrafanaReceivers: PostableGrafanaReceivers{
@@ -96,12 +90,8 @@ func Test_APIReceiverType(t *testing.T) {
 			desc: "am",
 			input: PostableApiReceiver{
 				Receiver: config.Receiver{
-					Name: "foo",
-					EmailConfigs: []*config.EmailConfig{{
-						To:      "test@test.com",
-						HTML:    config.DefaultEmailConfig.HTML,
-						Headers: map[string]string{},
-					}},
+					Name:           "foo",
+					DiscordConfigs: []*config.DiscordConfig{{}},
 				},
 			},
 			expected: AlertmanagerReceiverType,
@@ -153,6 +143,9 @@ func Test_AllReceivers(t *testing.T) {
 
 func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 	defaultGlobalConfig := config.DefaultGlobalConfig()
+	// Non-nil secret URL to use in Discord config.
+	testSecretURL := config.SecretURL(config.URL{URL: &url.URL{}})
+
 	for _, tc := range []struct {
 		desc  string
 		input PostableApiAlertingConfig
@@ -176,11 +169,6 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 					{
 						Receiver: config.Receiver{
 							Name: "am",
-							EmailConfigs: []*config.EmailConfig{{
-								To:      "test@test.com",
-								HTML:    config.DefaultEmailConfig.HTML,
-								Headers: map[string]string{},
-							}},
 						},
 					},
 				},
@@ -230,11 +218,6 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 					{
 						Receiver: config.Receiver{
 							Name: "am",
-							EmailConfigs: []*config.EmailConfig{{
-								To:      "test@test.com",
-								HTML:    config.DefaultEmailConfig.HTML,
-								Headers: map[string]string{},
-							}},
 						},
 					},
 				},
@@ -395,10 +378,11 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 					{
 						Receiver: config.Receiver{
 							Name: "am",
-							EmailConfigs: []*config.EmailConfig{{
-								To:      "test@test.com",
-								HTML:    config.DefaultEmailConfig.HTML,
-								Headers: map[string]string{},
+							DiscordConfigs: []*config.DiscordConfig{{
+								WebhookURL: &testSecretURL,
+								HTTPConfig: defaultGlobalConfig.HTTPConfig,
+								Title:      "test",
+								Message:    "test",
 							}},
 						},
 					},
