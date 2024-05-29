@@ -3,6 +3,7 @@ package sns
 import (
 	"context"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/prometheus/alertmanager/types"
@@ -54,5 +55,40 @@ func TestCreatePublishInput(t *testing.T) {
 		require.Equal(t, "sns", snsNotifier.Type)
 		require.Equal(t, "1 body", *snsInput.Message)
 		require.Equal(t, "1 subject", *snsInput.Subject)
+	})
+
+	t.Run("with truncated message", func(t *testing.T) {
+		stringWithManyCharacters := strings.Repeat("abcd", 500)
+		settings := Config{
+			PhoneNumber: "123-456-7890",
+			Message:     stringWithManyCharacters,
+		}
+		snsNotifier := &Notifier{
+			Base: &receivers.Base{
+				Name:                  "AWS SNS",
+				Type:                  "sns",
+				UID:                   "",
+				DisableResolveMessage: false,
+			},
+			log:      &logging.FakeLogger{},
+			tmpl:     tmpl,
+			settings: settings,
+		}
+		alerts := []*types.Alert{
+			{
+				Alert: model.Alert{
+					Labels:      model.LabelSet{"alertname": "AlwaysFiring", "severity": "warning"},
+					Annotations: model.LabelSet{"runbook_url": "http://fix.me", "__dashboardUid__": "abc", "__panelId__": "5"},
+				},
+			},
+		}
+
+		snsInput, err := snsNotifier.createPublishInput(context.Background(), alerts...)
+		require.NoError(t, err)
+
+		require.Equal(t, "AWS SNS", snsNotifier.Name)
+		require.Equal(t, "sns", snsNotifier.Type)
+		require.Equal(t, stringWithManyCharacters[:1600], *snsInput.Message)
+		require.Equal(t, "true", *snsInput.MessageAttributes["truncated"].StringValue)
 	})
 }

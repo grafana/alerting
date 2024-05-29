@@ -52,6 +52,26 @@ func TestNewConfig(t *testing.T) {
 			expectedMessage:  templates.DefaultMessageEmbed,
 		},
 		{
+			name: "Validation fails if missing secret key",
+			settings: `{
+				"topic_arn": "arn:aws:sns:region:0123456789:SNSTopicName",
+				"sigv4": {
+					"access_key": "access-key"
+				}
+			}`,
+			expectedInitError: "must specify both access key and secret key",
+		},
+		{
+			name: "Validation fails if missing access key",
+			settings: `{
+				"topic_arn": "arn:aws:sns:region:0123456789:SNSTopicName",
+				"sigv4": {
+					"secret_key": "secret-key"
+				}
+			}`,
+			expectedInitError: "must specify both access key and secret key",
+		},
+		{
 			name: "Auth type set to default if keys and profile not provided",
 			settings: `{
 				"topic_arn": "arn:aws:sns:region:0123456789:SNSTopicName"

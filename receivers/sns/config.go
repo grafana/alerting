@@ -78,7 +78,10 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	at := awsds.AuthTypeDefault
 	if settings.Sigv4.Profile != "" {
 		at = awsds.AuthTypeSharedCreds
-	} else if settings.Sigv4.AccessKey != "" && settings.Sigv4.SecretKey != "" {
+	} else if settings.Sigv4.AccessKey != "" || settings.Sigv4.SecretKey != "" {
+		if settings.Sigv4.AccessKey == "" || settings.Sigv4.SecretKey == "" {
+			return Config{}, errors.New("must specify both access key and secret key")
+		}
 		settings.Sigv4.AccessKey = decryptFn("accessKey", settings.Sigv4.AccessKey)
 		settings.Sigv4.SecretKey = decryptFn("secretKey", settings.Sigv4.SecretKey)
 		at = awsds.AuthTypeKeys
