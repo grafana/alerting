@@ -2,13 +2,13 @@ package sns
 
 import (
 	"encoding/json"
-	"github.com/grafana/alerting/templates"
-	"github.com/grafana/grafana-aws-sdk/pkg/awsds"
 	"testing"
 
+	"github.com/grafana/grafana-aws-sdk/pkg/awsds"
 	"github.com/stretchr/testify/require"
 
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
+	"github.com/grafana/alerting/templates"
 )
 
 func TestNewConfig(t *testing.T) {

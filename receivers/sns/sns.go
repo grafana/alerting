@@ -3,13 +3,13 @@ package sns
 import (
 	"context"
 	"fmt"
-	"github.com/prometheus/alertmanager/notify"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/grafana/grafana-aws-sdk/pkg/awsds"
+	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/logging"
