@@ -35,8 +35,8 @@ const (
 	// SessionDurationEnvVarKeyName is the string literal for the session duration variable key name
 	SessionDurationEnvVarKeyName = "AWS_AUTH_SESSION_DURATION"
 
-	// GrafanaAssumeRoleExternalIdKeyName is the string literal for the grafana assume role external id environment variable key name
-	GrafanaAssumeRoleExternalIdKeyName = "AWS_AUTH_EXTERNAL_ID"
+	// GrafanaAssumeRoleExternalIDKeyName is the string literal for the grafana assume role external id environment variable key name
+	GrafanaAssumeRoleExternalIDKeyName = "AWS_AUTH_EXTERNAL_ID"
 
 	// ListMetricsPageLimitKeyName is the string literal for the cloudwatch list metrics page limit key name
 	ListMetricsPageLimitKeyName = "AWS_CW_LIST_METRICS_PAGE_LIMIT"
@@ -356,7 +356,7 @@ func ReadAuthSettingsFromEnvironmentVariables() *AuthSettings {
 		authSettings.AssumeRoleEnabled = defaultAssumeRoleEnabled
 	}
 
-	authSettings.ExternalID = os.Getenv(GrafanaAssumeRoleExternalIdKeyName)
+	authSettings.ExternalID = os.Getenv(GrafanaAssumeRoleExternalIDKeyName)
 
 	listMetricsPageLimitString := os.Getenv(ListMetricsPageLimitKeyName)
 	if len(listMetricsPageLimitString) == 0 {
