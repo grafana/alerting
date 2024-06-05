@@ -58,7 +58,7 @@ func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	// check template error after we use them
 	if tmplErr != nil {
-		return false, fmt.Errorf("failed to create template: %w", tmplErr)
+		s.log.Warn("failed to template SNS message", "error", tmplErr.Error())
 	}
 
 	publishOutput, err := snsClient.Publish(publishInput)
