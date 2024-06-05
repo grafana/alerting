@@ -38,13 +38,33 @@ func TestNewConfig(t *testing.T) {
 			settings:          `{ "bottoken" : "12345" }`,
 			expectedInitError: `could not find Chat Id in settings`,
 		},
-
 		{
-			name:     "Minimal valid configuration",
-			settings: `{ "bottoken": "test-token", "chatid": "test-chat-id" }`,
+			name:              "Error if chatid is not a string or an int",
+			settings:          `{ "bottoken": "12345", "chatid" : {} }`,
+			expectedInitError: `chat id must be either a string or an int`,
+		},
+		{
+			name:     "should be able to parse an int ChatID",
+			settings: `{"chatid": 12345678}`,
+			secureSettings: map[string][]byte{
+				"bottoken": []byte("test-token"),
+			},
 			expectedConfig: Config{
 				BotToken:              "test-token",
-				ChatID:                "test-chat-id",
+				ChatID:                "12345678",
+				Message:               templates.DefaultMessageEmbed,
+				ParseMode:             "HTML",
+				DisableWebPagePreview: false,
+				ProtectContent:        false,
+				DisableNotifications:  false,
+			},
+		},
+		{
+			name:     "Minimal valid configuration",
+			settings: `{ "bottoken": "test-token", "chatid": "-1312" }`,
+			expectedConfig: Config{
+				BotToken:              "test-token",
+				ChatID:                "-1312",
 				Message:               templates.DefaultMessageEmbed,
 				ParseMode:             DefaultTelegramParseMode,
 				DisableWebPagePreview: false,
@@ -54,13 +74,13 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name:     "Minimal valid configuration from secrets",
-			settings: `{"chatid": "test-chat-id" }`,
+			settings: `{"chatid": "-1312" }`,
 			secureSettings: map[string][]byte{
 				"bottoken": []byte("test-token"),
 			},
 			expectedConfig: Config{
 				BotToken:              "test-token",
-				ChatID:                "test-chat-id",
+				ChatID:                "-1312",
 				Message:               templates.DefaultMessageEmbed,
 				ParseMode:             DefaultTelegramParseMode,
 				DisableWebPagePreview: false,
@@ -70,13 +90,13 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name:     "Should overwrite token from secrets",
-			settings: `{"bottoken": "token", "chatid" : "test-chat-id" }`,
+			settings: `{"bottoken": "token", "chatid" : "-1312" }`,
 			secureSettings: map[string][]byte{
 				"bottoken": []byte("test-token-key"),
 			},
 			expectedConfig: Config{
 				BotToken:              "test-token-key",
-				ChatID:                "test-chat-id",
+				ChatID:                "-1312",
 				Message:               templates.DefaultMessageEmbed,
 				ParseMode:             DefaultTelegramParseMode,
 				DisableWebPagePreview: false,
@@ -87,7 +107,7 @@ func TestNewConfig(t *testing.T) {
 		{
 			name: "All empty fields = minimal valid configuration",
 			settings: `{
-				"chatid" :"chat-id",
+				"chatid" :"-1312",
 				"message" :"",
 				"parse_mode" :"",
 				"disable_notifications" : null
@@ -97,7 +117,7 @@ func TestNewConfig(t *testing.T) {
 			},
 			expectedConfig: Config{
 				BotToken:              "test-token",
-				ChatID:                "chat-id",
+				ChatID:                "-1312",
 				Message:               templates.DefaultMessageEmbed,
 				ParseMode:             DefaultTelegramParseMode,
 				DisableWebPagePreview: false,
@@ -191,7 +211,24 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name:     "should fail if message_thread_id is not an int",
+			name:     "should be able to parse an int MessageThreadID",
+			settings: `{"chatid": -1312, "message_thread_id": 12345678}`,
+			secureSettings: map[string][]byte{
+				"bottoken": []byte("test-token"),
+			},
+			expectedConfig: Config{
+				BotToken:              "test-token",
+				ChatID:                "-1312",
+				MessageThreadID:       "12345678",
+				Message:               templates.DefaultMessageEmbed,
+				ParseMode:             "HTML",
+				DisableWebPagePreview: false,
+				ProtectContent:        false,
+				DisableNotifications:  false,
+			},
+		},
+		{
+			name:     "should fail if message_thread_id is not an int #1",
 			settings: `{"chatid": "12345678", "message_thread_id": "notanint"}`,
 			secureSettings: map[string][]byte{
 				"bottoken": []byte("test-token"),
@@ -199,8 +236,24 @@ func TestNewConfig(t *testing.T) {
 			expectedInitError: "message thread id must be an integer",
 		},
 		{
+			name:     "should fail if message_thread_id is not an int #2",
+			settings: `{"chatid": "12345678", "message_thread_id": {}}`,
+			secureSettings: map[string][]byte{
+				"bottoken": []byte("test-token"),
+			},
+			expectedInitError: "message thread id must be either a string or an int",
+		},
+		{
 			name:     "should fail if message_thread_id is not a valid int32",
 			settings: `{"chatid": "12345678", "message_thread_id": "21474836471"}`,
+			secureSettings: map[string][]byte{
+				"bottoken": []byte("test-token"),
+			},
+			expectedInitError: "message thread id must be an int32",
+		},
+		{
+			name:     "should fail if message_thread_id is not a valid int32",
+			settings: `{"chatid": -1312, "message_thread_id": 21474836471}`,
 			secureSettings: map[string][]byte{
 				"bottoken": []byte("test-token"),
 			},
