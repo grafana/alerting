@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/grafana/grafana-aws-sdk/pkg/awsds"
 	"github.com/stretchr/testify/require"
 
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
@@ -16,6 +15,7 @@ func TestNewConfig(t *testing.T) {
 		name              string
 		settings          string
 		secrets           map[string][]byte
+		expected          Config
 		expectedSubject   string
 		expectedMessage   string
 		expectedAuthType  string
@@ -34,22 +34,37 @@ func TestNewConfig(t *testing.T) {
 					"profile": "default"
 				}
 			}`,
-			expectedAuthType: awsds.AuthTypeSharedCreds.String(),
-			expectedSubject:  templates.DefaultMessageTitleEmbed,
-			expectedMessage:  templates.DefaultMessageEmbed,
+			expected: Config{
+				APIUrl: "https://sns..amazonaws.com",
+				Sigv4: SigV4Config{
+					Profile: "default",
+				},
+				TopicARN: "arn:aws:sns:region:0123456789:SNSTopicName",
+				Subject:  templates.DefaultMessageTitleEmbed,
+				Message:  templates.DefaultMessageEmbed,
+			},
 		},
 		{
 			name: "Auth type set to keys if access key and secret key provided",
 			settings: `{
 				"topic_arn": "arn:aws:sns:region:0123456789:SNSTopicName",
 				"sigv4": {
+					"region": "us-east-1",
 					"access_key": "access-key",
 					"secret_key": "secret-key"
 				}
 			}`,
-			expectedAuthType: awsds.AuthTypeKeys.String(),
-			expectedSubject:  templates.DefaultMessageTitleEmbed,
-			expectedMessage:  templates.DefaultMessageEmbed,
+			expected: Config{
+				APIUrl: "https://sns.us-east-1.amazonaws.com",
+				Sigv4: SigV4Config{
+					Region:    "us-east-1",
+					AccessKey: "access-key",
+					SecretKey: "secret-key",
+				},
+				TopicARN: "arn:aws:sns:region:0123456789:SNSTopicName",
+				Subject:  templates.DefaultMessageTitleEmbed,
+				Message:  templates.DefaultMessageEmbed,
+			},
 		},
 		{
 			name: "Validation fails if missing secret key",
@@ -76,9 +91,13 @@ func TestNewConfig(t *testing.T) {
 			settings: `{
 				"topic_arn": "arn:aws:sns:region:0123456789:SNSTopicName"
 			}`,
-			expectedAuthType: awsds.AuthTypeDefault.String(),
-			expectedSubject:  templates.DefaultMessageTitleEmbed,
-			expectedMessage:  templates.DefaultMessageEmbed,
+			expected: Config{
+				APIUrl:   "https://sns..amazonaws.com",
+				Sigv4:    SigV4Config{},
+				TopicARN: "arn:aws:sns:region:0123456789:SNSTopicName",
+				Subject:  templates.DefaultMessageTitleEmbed,
+				Message:  templates.DefaultMessageEmbed,
+			},
 		},
 		{
 			name: "Subject and message are set by settings",
@@ -87,16 +106,33 @@ func TestNewConfig(t *testing.T) {
 				"subject": "subject",
 				"message": "message"
 			}`,
-			expectedSubject:  "subject",
-			expectedMessage:  "message",
-			expectedAuthType: awsds.AuthTypeDefault.String(),
+			expected: Config{
+				APIUrl:   "https://sns..amazonaws.com",
+				Sigv4:    SigV4Config{},
+				TopicARN: "arn:aws:sns:region:0123456789:SNSTopicName",
+				Subject:  "subject",
+				Message:  "message",
+			},
 		},
 		{
-			name:             "Full config gives no errors",
-			settings:         FullValidConfigForTesting,
-			expectedSubject:  "subject",
-			expectedMessage:  "message",
-			expectedAuthType: awsds.AuthTypeSharedCreds.String(),
+			name:     "Full config gives no errors",
+			settings: FullValidConfigForTesting,
+			expected: Config{
+				Subject:     "subject",
+				Message:     "message",
+				APIUrl:      "https://sns.us-east-1.amazonaws.com",
+				TopicARN:    "arn:aws:sns:us-east-1:0123456789:SNSTopicName",
+				TargetARN:   "arn:aws:sns:us-east-1:0123456789:SNSTopicName",
+				PhoneNumber: "123-456-7890",
+				Attributes:  map[string]string{"attr1": "val1"},
+				Sigv4: SigV4Config{
+					Region:    "us-east-1",
+					AccessKey: "access-key",
+					SecretKey: "secret-key",
+					Profile:   "default",
+					RoleARN:   "arn:aws:iam:us-east-1:0123456789:role/my-role",
+				},
+			},
 		},
 	}
 	for _, c := range cases {
@@ -107,10 +143,7 @@ func TestNewConfig(t *testing.T) {
 				require.ErrorContains(t, err, c.expectedInitError)
 				return
 			}
-
-			require.Equal(t, c.expectedSubject, sn.Subject)
-			require.Equal(t, c.expectedMessage, sn.Message)
-			require.Equal(t, c.expectedAuthType, sn.AWSAuthSettings.AuthType.String())
+			require.Equal(t, c.expected, sn)
 		})
 	}
 }
