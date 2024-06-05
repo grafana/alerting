@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/grafana/grafana-aws-sdk/pkg/awsds"
 	"github.com/stretchr/testify/require"
 
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
@@ -34,7 +33,7 @@ func TestNewConfig(t *testing.T) {
 					"profile": "default"
 				}
 			}`,
-			expectedAuthType: awsds.AuthTypeSharedCreds.String(),
+			expectedAuthType: AuthTypeSharedCreds.String(),
 			expectedSubject:  templates.DefaultMessageTitleEmbed,
 			expectedMessage:  templates.DefaultMessageEmbed,
 		},
@@ -47,7 +46,7 @@ func TestNewConfig(t *testing.T) {
 					"secret_key": "secret-key"
 				}
 			}`,
-			expectedAuthType: awsds.AuthTypeKeys.String(),
+			expectedAuthType: AuthTypeKeys.String(),
 			expectedSubject:  templates.DefaultMessageTitleEmbed,
 			expectedMessage:  templates.DefaultMessageEmbed,
 		},
@@ -76,7 +75,7 @@ func TestNewConfig(t *testing.T) {
 			settings: `{
 				"topic_arn": "arn:aws:sns:region:0123456789:SNSTopicName"
 			}`,
-			expectedAuthType: awsds.AuthTypeDefault.String(),
+			expectedAuthType: AuthTypeDefault.String(),
 			expectedSubject:  templates.DefaultMessageTitleEmbed,
 			expectedMessage:  templates.DefaultMessageEmbed,
 		},
@@ -89,14 +88,14 @@ func TestNewConfig(t *testing.T) {
 			}`,
 			expectedSubject:  "subject",
 			expectedMessage:  "message",
-			expectedAuthType: awsds.AuthTypeDefault.String(),
+			expectedAuthType: AuthTypeDefault.String(),
 		},
 		{
 			name:             "Full config gives no errors",
 			settings:         FullValidConfigForTesting,
 			expectedSubject:  "subject",
 			expectedMessage:  "message",
-			expectedAuthType: awsds.AuthTypeSharedCreds.String(),
+			expectedAuthType: AuthTypeSharedCreds.String(),
 		},
 	}
 	for _, c := range cases {
