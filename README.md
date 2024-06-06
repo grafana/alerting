@@ -1,5 +1,6 @@
 [![Build Status](https://drone.grafana.net/api/badges/grafana/alerting/status.svg?ref=refs/heads/main)](https://drone.grafana.net/grafana/alerting)
 
+
 # Alerting
 
 This library contains utilities that are useful for building Alerting systems.
