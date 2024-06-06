@@ -75,55 +75,6 @@ func (s *Notifier) SendResolved() bool {
 	return !s.GetDisableResolveMessage()
 }
 
-func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) string) (*sns.PublishInput, error) {
-	publishInput := &sns.PublishInput{}
-	messageAttributes := s.createMessageAttributes(tmpl)
-	// Max message size for a message in an SNS publish request is 256KB, except for SMS messages where the limit is 1600 characters/runes.
-	messageSizeLimit := 256 * 1024
-	if s.settings.TopicARN != "" {
-		topicARN := tmpl(s.settings.TopicARN)
-		publishInput.SetTopicArn(topicARN)
-		// If we are using a topic ARN, it could be a FIFO topic specified by the topic's suffix ".fifo".
-		if strings.HasSuffix(topicARN, ".fifo") {
-			// Deduplication key and Message Group ID are only added if it's a FIFO SNS Topic.
-			key, err := notify.ExtractGroupKey(ctx)
-			if err != nil {
-				return nil, err
-			}
-			publishInput.SetMessageDeduplicationId(key.Hash())
-			publishInput.SetMessageGroupId(key.Hash())
-		}
-	}
-
-	if s.settings.PhoneNumber != "" {
-		publishInput.SetPhoneNumber(tmpl(s.settings.PhoneNumber))
-		// If we have an SMS message, we need to truncate to 1600 characters/runes.
-		messageSizeLimit = 1600
-	}
-	if s.settings.TargetARN != "" {
-		publishInput.SetTargetArn(tmpl(s.settings.TargetARN))
-	}
-
-	messageToSend, isTrunc, err := validateAndTruncateMessage(tmpl(s.settings.Message), messageSizeLimit)
-	if err != nil {
-		return nil, err
-	}
-	if isTrunc {
-		// If we truncated the message we need to add a message attribute showing that it was truncated.
-		messageAttributes["truncated"] = &sns.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String("true")}
-	}
-
-	publishInput.SetMessage(messageToSend)
-	publishInput.SetMessageAttributes(messageAttributes)
-
-	subject := tmpl(s.settings.Subject)
-	if subject != "" {
-		publishInput.SetSubject(subject)
-	}
-
-	return publishInput, nil
-}
-
 func (s *Notifier) createMessageAttributes(tmpl func(string) string) map[string]*sns.MessageAttributeValue {
 	// Convert the given attributes map into the AWS Message Attributes Format.
 	attributes := make(map[string]*sns.MessageAttributeValue, len(s.settings.Attributes))
@@ -176,6 +127,55 @@ func (s *Notifier) createSNSClient(tmpl func(string) string) (*sns.SNS, error) {
 		return nil, fmt.Errorf("region not configured in sns.sigv4.region or in default credentials chain")
 	}
 	return client, nil
+}
+
+func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) string) (*sns.PublishInput, error) {
+	publishInput := &sns.PublishInput{}
+	messageAttributes := s.createMessageAttributes(tmpl)
+	// Max message size for a message in an SNS publish request is 256KB, except for SMS messages where the limit is 1600 characters/runes.
+	messageSizeLimit := 256 * 1024
+	if s.settings.TopicARN != "" {
+		topicARN := tmpl(s.settings.TopicARN)
+		publishInput.SetTopicArn(topicARN)
+		// If we are using a topic ARN, it could be a FIFO topic specified by the topic's suffix ".fifo".
+		if strings.HasSuffix(topicARN, ".fifo") {
+			// Deduplication key and Message Group ID are only added if it's a FIFO SNS Topic.
+			key, err := notify.ExtractGroupKey(ctx)
+			if err != nil {
+				return nil, err
+			}
+			publishInput.SetMessageDeduplicationId(key.Hash())
+			publishInput.SetMessageGroupId(key.Hash())
+		}
+	}
+
+	if s.settings.PhoneNumber != "" {
+		publishInput.SetPhoneNumber(tmpl(s.settings.PhoneNumber))
+		// If we have an SMS message, we need to truncate to 1600 characters/runes.
+		messageSizeLimit = 1600
+	}
+	if s.settings.TargetARN != "" {
+		publishInput.SetTargetArn(tmpl(s.settings.TargetARN))
+	}
+
+	messageToSend, isTrunc, err := validateAndTruncateMessage(tmpl(s.settings.Message), messageSizeLimit)
+	if err != nil {
+		return nil, err
+	}
+	if isTrunc {
+		// If we truncated the message we need to add a message attribute showing that it was truncated.
+		messageAttributes["truncated"] = &sns.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String("true")}
+	}
+
+	publishInput.SetMessage(messageToSend)
+	publishInput.SetMessageAttributes(messageAttributes)
+
+	subject := tmpl(s.settings.Subject)
+	if subject != "" {
+		publishInput.SetSubject(subject)
+	}
+
+	return publishInput, nil
 }
 
 func validateAndTruncateMessage(message string, maxMessageSizeInBytes int) (string, bool, error) {
