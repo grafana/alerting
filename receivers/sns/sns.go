@@ -64,6 +64,7 @@ func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	publishOutput, err := snsClient.Publish(publishInput)
 	if err != nil {
 		s.log.Error("Failed to publish to Amazon SNS. ", "error", err)
+		return true, err
 	}
 
 	s.log.Debug("Message successfully published", "messageId", publishOutput.MessageId, "sequenceNumber", publishOutput.SequenceNumber)
