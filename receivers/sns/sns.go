@@ -44,7 +44,7 @@ func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		data    = notify.GetTemplateData(ctx, s.tmpl, as, s.log)
 		tmpl    = notify.TmplText(s.tmpl, data, &tmplErr)
 	)
-	s.log.Info("sending SNS")
+	s.log.Info("Sending notification")
 
 	publishInput, err := s.createPublishInput(ctx, tmpl)
 	if err != nil {
@@ -58,7 +58,7 @@ func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	// check template error after we use them
 	if tmplErr != nil {
-		s.log.Warn("failed to template SNS message", "error", tmplErr.Error())
+		s.log.Warn("failed to template message", "error", tmplErr.Error())
 	}
 
 	publishOutput, err := snsClient.Publish(publishInput)
@@ -66,7 +66,7 @@ func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		s.log.Error("Failed to publish to Amazon SNS. ", "error", err)
 	}
 
-	s.log.Debug("SNS message successfully published", "messageId", publishOutput.MessageId, "sequenceNumber", publishOutput.SequenceNumber)
+	s.log.Debug("Message successfully published", "messageId", publishOutput.MessageId, "sequenceNumber", publishOutput.SequenceNumber)
 	return true, nil
 }
 
