@@ -115,8 +115,9 @@ func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 	publishInput.SetMessage(messageToSend)
 	publishInput.SetMessageAttributes(messageAttributes)
 
-	if s.settings.Subject != "" {
-		publishInput.SetSubject(tmpl(s.settings.Subject))
+	subject := tmpl(s.settings.Subject)
+	if subject != "" {
+		publishInput.SetSubject(subject)
 	}
 
 	return publishInput, nil
