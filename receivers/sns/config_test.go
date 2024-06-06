@@ -35,7 +35,6 @@ func TestNewConfig(t *testing.T) {
 				}
 			}`,
 			expected: Config{
-				APIUrl: "https://sns..amazonaws.com",
 				Sigv4: SigV4Config{
 					Profile: "default",
 				},
@@ -55,7 +54,6 @@ func TestNewConfig(t *testing.T) {
 				}
 			}`,
 			expected: Config{
-				APIUrl: "https://sns.us-east-1.amazonaws.com",
 				Sigv4: SigV4Config{
 					Region:    "us-east-1",
 					AccessKey: "access-key",
@@ -92,7 +90,6 @@ func TestNewConfig(t *testing.T) {
 				"topic_arn": "arn:aws:sns:region:0123456789:SNSTopicName"
 			}`,
 			expected: Config{
-				APIUrl:   "https://sns..amazonaws.com",
 				Sigv4:    SigV4Config{},
 				TopicARN: "arn:aws:sns:region:0123456789:SNSTopicName",
 				Subject:  templates.DefaultMessageTitleEmbed,
@@ -107,7 +104,6 @@ func TestNewConfig(t *testing.T) {
 				"message": "message"
 			}`,
 			expected: Config{
-				APIUrl:   "https://sns..amazonaws.com",
 				Sigv4:    SigV4Config{},
 				TopicARN: "arn:aws:sns:region:0123456789:SNSTopicName",
 				Subject:  "subject",

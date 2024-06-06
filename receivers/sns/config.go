@@ -60,9 +60,6 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	if settings.Message == "" {
 		settings.Message = templates.DefaultMessageEmbed
 	}
-	if settings.APIUrl == "" {
-		settings.APIUrl = fmt.Sprintf("https://sns.%s.amazonaws.com", settings.Sigv4.Region)
-	}
 
 	if settings.Sigv4.AccessKey != "" || settings.Sigv4.SecretKey != "" {
 		if settings.Sigv4.AccessKey == "" || settings.Sigv4.SecretKey == "" {
