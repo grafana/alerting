@@ -123,7 +123,7 @@ func ToLogzioAppPath(path string) string {
 }
 
 func AppendSwitchToAccountQueryParam(u *url.URL, accountId string) *url.URL {
-	const LogzioSwitchToAccountQueryParamName = "switchToAccountId"
+	const logzioSwitchToAccountQueryParamName = "switchToAccountId"
 	updatedUrl := *u
 	builder := strings.Builder{}
 
@@ -134,7 +134,7 @@ func AppendSwitchToAccountQueryParam(u *url.URL, accountId string) *url.URL {
 			builder.WriteString("&")
 		}
 
-		builder.WriteString(LogzioSwitchToAccountQueryParamName)
+		builder.WriteString(logzioSwitchToAccountQueryParamName)
 		builder.WriteString("=")
 		builder.WriteString(accountId)
 	}
