@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/grafana/alerting/models"       // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
+	"github.com/prometheus/alertmanager/types" // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
 	"io"
 	"net"
 	"net/http"
@@ -26,6 +28,8 @@ const (
 
 	AlertStateAlerting AlertStateType = "alerting"
 	AlertStateOK       AlertStateType = "ok"
+
+	EncodedHashSymbol = "%23" // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
 )
 
 func GetAlertStatusColor(status model.AlertStatus) string {
@@ -110,6 +114,45 @@ func JoinURLPath(base, additionalPath string, logger logging.Logger) string {
 
 	return u.String()
 }
+
+// LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
+
+func ToLogzioAppPath(path string) string {
+	// because the app path contains # symbol which is encoded by default we need to replace encoded symbol back to original
+	return strings.Replace(path, EncodedHashSymbol, "#", 1)
+}
+
+func AppendSwitchToAccountQueryParam(u *url.URL, accountId string) *url.URL {
+	const logzioSwitchToAccountQueryParamName = "switchToAccountId"
+	updatedUrl := *u
+	builder := strings.Builder{}
+
+	builder.WriteString(u.RawQuery)
+
+	if accountId != "" {
+		if builder.Len() > 0 {
+			builder.WriteString("&")
+		}
+
+		builder.WriteString(logzioSwitchToAccountQueryParamName)
+		builder.WriteString("=")
+		builder.WriteString(accountId)
+	}
+
+	updatedUrl.RawQuery = builder.String()
+	return &updatedUrl
+}
+
+func ToBasePathWithAccountRedirect(path *url.URL, as []*types.Alert) string {
+	var accountId = ""
+	if len(as) > 0 {
+		accountId = string(as[0].Annotations[models.LogzioAccountIdAnnotation])
+	}
+
+	return AppendSwitchToAccountQueryParam(path, accountId).String()
+}
+
+// LOGZ.IO GRAFANA CHANGE :: end
 
 // GetBoundary is used for overriding the behaviour for tests
 // and set a boundary for multipart Body. DO NOT set this outside tests.
