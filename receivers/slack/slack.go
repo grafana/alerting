@@ -300,7 +300,8 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, sn.log, &tmplErr)
 
-	ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", sn.log)
+	basePath := receivers.ToBasePathWithAccountRedirect(sn.tmpl.ExternalURL, alerts)                //LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
+	ruleURL := receivers.ToLogzioAppPath(receivers.JoinURLPath(basePath, "/alerting/list", sn.log)) // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
 
 	// If all alerts have the same GeneratorURL, use that.
 	if sn.commonAlertGeneratorURL(ctx, alerts) {

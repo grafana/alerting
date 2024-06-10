@@ -24,6 +24,7 @@ const (
 	// StateReasonAnnotation is the name of the annotation that explains the difference between evaluation state and alert state (i.e. changing state when NoData or Error).
 	StateReasonAnnotation = GrafanaReservedLabelPrefix + "state_reason"
 
-	ValuesAnnotation      = "__values__"
-	ValueStringAnnotation = "__value_string__"
+	ValuesAnnotation          = "__values__"
+	ValueStringAnnotation     = "__value_string__"
+	LogzioAccountIdAnnotation = "__logzioAccountId__" //LOGZ.IO GRAFANA CHANGE :: DEV-43657: set correct app urls on notifications
 )
