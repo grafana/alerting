@@ -5,8 +5,8 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/grafana/alerting/models"
-	"github.com/prometheus/alertmanager/types"
+	"github.com/grafana/alerting/models"       // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
+	"github.com/prometheus/alertmanager/types" // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
 	"io"
 	"net"
 	"net/http"
