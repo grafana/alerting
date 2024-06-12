@@ -126,7 +126,19 @@ func (r *Route) ResourceID() string {
 // post-validation is included in the UnmarshalYAML method. Here we simply run this with
 // a noop unmarshaling function in order to benefit from said validation.
 func (c *Config) UnmarshalJSON(b []byte) error {
-	return yaml.Unmarshal(b, c)
+	type plain Config
+	if err := json.Unmarshal(b, (*plain)(c)); err != nil {
+		return err
+	}
+
+	for _, r := range c.InhibitRules {
+		// Just for validation purposes.
+		if err := r.UnmarshalYAML(func(_ interface{}) error { return nil }); err != nil {
+			return err
+		}
+	}
+
+	return c.validate()
 }
 
 func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -135,6 +147,16 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
+	for _, r := range c.InhibitRules {
+		if err := r.UnmarshalYAML(unmarshal); err != nil {
+			return err
+		}
+	}
+
+	return c.validate()
+}
+
+func (c *Config) validate() error {
 	if c.Route == nil {
 		return fmt.Errorf("no routes provided")
 	}
@@ -142,12 +164,6 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	err := c.Route.Validate()
 	if err != nil {
 		return err
-	}
-
-	for _, r := range c.InhibitRules {
-		if err := r.UnmarshalYAML(unmarshal); err != nil {
-			return err
-		}
 	}
 
 	tiNames := make(map[string]struct{})
