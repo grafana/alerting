@@ -147,12 +147,6 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	for _, r := range c.InhibitRules {
-		if err := r.UnmarshalYAML(unmarshal); err != nil {
-			return err
-		}
-	}
-
 	return c.validate()
 }
 
