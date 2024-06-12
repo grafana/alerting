@@ -24,9 +24,8 @@ func Test_ApiReceiver_Marshaling(t *testing.T) {
 				Receiver: config.Receiver{
 					Name: "foo",
 					EmailConfigs: []*config.EmailConfig{{
-						To:      "test@test.com",
-						HTML:    config.DefaultEmailConfig.HTML,
-						Headers: map[string]string{},
+						To:   "test@test.com",
+						HTML: config.DefaultEmailConfig.HTML,
 					}},
 				},
 			},
@@ -48,9 +47,8 @@ func Test_ApiReceiver_Marshaling(t *testing.T) {
 				Receiver: config.Receiver{
 					Name: "foo",
 					EmailConfigs: []*config.EmailConfig{{
-						To:      "test@test.com",
-						HTML:    config.DefaultEmailConfig.HTML,
-						Headers: map[string]string{},
+						To:   "test@test.com",
+						HTML: config.DefaultEmailConfig.HTML,
 					}},
 				},
 				PostableGrafanaReceivers: PostableGrafanaReceivers{

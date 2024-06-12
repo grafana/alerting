@@ -221,7 +221,23 @@ func (c *PostableApiAlertingConfig) GetRoute() *Route {
 }
 
 func (c *PostableApiAlertingConfig) UnmarshalJSON(b []byte) error {
-	return yaml.Unmarshal(b, c)
+	type plain PostableApiAlertingConfig
+	if err := json.Unmarshal(b, (*plain)(c)); err != nil {
+		return err
+	}
+
+	// Since Config implements json.Unmarshaler, we must handle _all_ other fields independently.
+	// Otherwise, the json decoder will detect this and only use the embedded type.
+	// Additionally, we'll use pointers to slices in order to reference the intended target.
+	type overrides struct {
+		Receivers *[]*PostableApiReceiver `yaml:"receivers" json:"receivers,omitempty"`
+	}
+
+	if err := json.Unmarshal(b, &overrides{Receivers: &c.Receivers}); err != nil {
+		return err
+	}
+
+	return c.Validate()
 }
 
 func (c *PostableApiAlertingConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -231,7 +247,7 @@ func (c *PostableApiAlertingConfig) UnmarshalYAML(unmarshal func(interface{}) er
 	}
 
 	// Since Config implements yaml.Unmarshaler, we must handle _all_ other fields independently.
-	// Otherwise, the json decoder will detect this and only use the embedded type.
+	// Otherwise, the yaml decoder will detect this and only use the embedded type.
 	// Additionally, we'll use pointers to slices in order to reference the intended target.
 	type overrides struct {
 		Receivers *[]*PostableApiReceiver `yaml:"receivers" json:"receivers,omitempty"`
@@ -533,7 +549,16 @@ type PostableApiReceiver struct {
 }
 
 func (r *PostableApiReceiver) UnmarshalJSON(b []byte) error {
-	return yaml.Unmarshal(b, r)
+	if err := json.Unmarshal(b, &r.PostableGrafanaReceivers); err != nil {
+		return err
+	}
+
+	type plain config.Receiver
+	if err := json.Unmarshal(b, (*plain)(&r.Receiver)); err != nil {
+		return err
+	}
+
+	return r.validate()
 }
 
 func (r *PostableApiReceiver) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -546,6 +571,10 @@ func (r *PostableApiReceiver) UnmarshalYAML(unmarshal func(interface{}) error) e
 		return err
 	}
 
+	return r.validate()
+}
+
+func (r *PostableApiReceiver) validate() error {
 	hasGrafanaReceivers := len(r.PostableGrafanaReceivers.GrafanaManagedReceivers) > 0
 
 	if hasGrafanaReceivers {
