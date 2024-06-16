@@ -139,14 +139,15 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 		severity = DefaultSeverity
 	}
 
+	basePath := receivers.ToBasePathWithAccountRedirect(pn.tmpl.ExternalURL, as) // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
 	msg := &pagerDutyMessage{
-		Client:      tmpl(pn.settings.Client),
-		ClientURL:   tmpl(pn.settings.ClientURL),
+		Client:      "Logz.io",                           // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
+		ClientURL:   receivers.ToLogzioAppPath(basePath), // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
 		RoutingKey:  pn.settings.Key,
 		EventAction: eventType,
 		DedupKey:    key.Hash(),
 		Links: []pagerDutyLink{{
-			HRef: pn.tmpl.ExternalURL.String(),
+			HRef: receivers.ToLogzioAppPath(basePath), // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
 			Text: "External URL",
 		}},
 		Payload: pagerDutyPayload{

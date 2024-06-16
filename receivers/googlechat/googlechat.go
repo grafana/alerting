@@ -64,7 +64,11 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 		tmplErr = nil
 	}
 
-	ruleURL := receivers.JoinURLPath(gcn.tmpl.ExternalURL.String(), "/alerting/list", gcn.log)
+	// LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
+	basePath := receivers.ToBasePathWithAccountRedirect(gcn.tmpl.ExternalURL, as)
+	ruleURL := receivers.JoinURLPath(basePath, "/alerting/list", gcn.log)
+	//LOGZ.IO GRAFANA CHANGE :: end
+
 	if gcn.isURLAbsolute(ruleURL) {
 		// Add a button widget (link to Grafana).
 		widgets = append(widgets, buttonWidget{

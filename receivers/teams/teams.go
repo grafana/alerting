@@ -248,6 +248,11 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, tn.log, &tmplErr)
 
+	// LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
+	basePath := receivers.ToBasePathWithAccountRedirect(tn.tmpl.ExternalURL, as)
+	ruleURL := receivers.ToLogzioAppPath(receivers.JoinURLPath(basePath, "/alerting/list", tn.log))
+	//LOGZ.IO GRAFANA CHANGE :: end
+
 	card := NewAdaptiveCard()
 	card.AppendItem(AdaptiveCardTextBlockItem{
 		Color:  getTeamsTextColor(types.Alerts(as...)),
@@ -283,7 +288,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		Actions: []AdaptiveCardActionItem{
 			AdaptiveCardOpenURLActionItem{
 				Title: "View URL",
-				URL:   receivers.JoinURLPath(tn.tmpl.ExternalURL.String(), "/alerting/list", tn.log),
+				URL:   ruleURL, // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
 			},
 		},
 	})

@@ -107,7 +107,10 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 		return data, apiURL, err
 	}
 
-	ruleURL := receivers.JoinURLPath(on.tmpl.ExternalURL.String(), "/alerting/list", on.log)
+	// LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
+	basePath := receivers.ToBasePathWithAccountRedirect(on.tmpl.ExternalURL, as)
+	ruleURL := receivers.ToLogzioAppPath(receivers.JoinURLPath(basePath, "/alerting/list", on.log))
+	//LOGZ.IO GRAFANA CHANGE :: end
 
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, on.tmpl, as, on.log, &tmplErr)

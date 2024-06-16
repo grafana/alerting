@@ -95,7 +95,11 @@ func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 			return nil
 		}, as...)
 
-	ruleURL := receivers.JoinURLPath(vn.tmpl.ExternalURL.String(), "/alerting/list", vn.log)
+	// LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
+	basePath := receivers.ToBasePathWithAccountRedirect(vn.tmpl.ExternalURL, as)
+	ruleURL := receivers.ToLogzioAppPath(receivers.JoinURLPath(basePath, "/alerting/list", vn.log))
+	//LOGZ.IO GRAFANA CHANGE :: end
+
 	bodyJSON["alert_url"] = ruleURL
 
 	u := tmpl(vn.settings.URL)

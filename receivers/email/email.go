@@ -43,9 +43,12 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 	tmpl, data := templates.TmplText(ctx, en.tmpl, alerts, en.log, &tmplErr)
 
 	subject := tmpl(en.settings.Subject)
-	alertPageURL := en.tmpl.ExternalURL.String()
-	ruleURL := en.tmpl.ExternalURL.String()
-	u, err := url.Parse(en.tmpl.ExternalURL.String())
+	// LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
+	basePath := receivers.ToBasePathWithAccountRedirect(en.tmpl.ExternalURL, alerts)
+	alertPageURL := basePath
+	ruleURL := basePath
+	u, err := url.Parse(basePath)
+	//LOGZ.IO GRAFANA CHANGE :: end
 	if err == nil {
 		basePath := u.Path
 		u.Path = path.Join(basePath, "/alerting/list")
