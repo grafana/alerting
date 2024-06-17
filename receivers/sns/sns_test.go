@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
@@ -48,8 +49,13 @@ func TestCreatePublishInput(t *testing.T) {
 				},
 			},
 		}
-		snsInput, err := snsNotifier.createPublishInput(context.Background(), alerts...)
+		var tmplErr error
+		data := notify.GetTemplateData(context.Background(), tmpl, alerts, snsNotifier.log)
+		tmplFn := notify.TmplText(tmpl, data, &tmplErr)
+
+		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
+		require.NoError(t, tmplErr)
 
 		require.Equal(t, "AWS SNS", snsNotifier.Name)
 		require.Equal(t, "sns", snsNotifier.Type)
@@ -83,8 +89,13 @@ func TestCreatePublishInput(t *testing.T) {
 			},
 		}
 
-		snsInput, err := snsNotifier.createPublishInput(context.Background(), alerts...)
+		var tmplErr error
+		data := notify.GetTemplateData(context.Background(), tmpl, alerts, snsNotifier.log)
+		tmplFn := notify.TmplText(tmpl, data, &tmplErr)
+
+		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
+		require.NoError(t, tmplErr)
 
 		require.Equal(t, "AWS SNS", snsNotifier.Name)
 		require.Equal(t, "sns", snsNotifier.Type)
