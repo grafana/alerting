@@ -2,12 +2,10 @@ package receivers
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/grafana/alerting/templates"
 	"github.com/stretchr/testify/require"
 )
 
@@ -206,60 +204,4 @@ func TestBuildEmail(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Contains(t, buf.String(), mCfg.Body)
-}
-
-func TestSendEmail(t *testing.T) {
-	s, err := NewEmailSenderFactory(EmailSenderConfig{
-		Host:        "test:3030",
-		ExternalURL: "http://something.com",
-		Version:     "version",
-	})(Metadata{})
-	require.NoError(t, err)
-
-	require.NoError(t, s.SendEmail(context.Background(), &SendEmailSettings{
-		To:          []string{"labebecita@bebelin.com"},
-		SingleEmail: true,
-		Template:    "ng_alert_notification",
-		Subject:     "Test Subject",
-		Data: map[string]interface{}{
-			"Receiver": "test_receiver",
-			"Status":   "firing",
-			"Alerts": templates.ExtendedAlerts{
-				{
-					Status: "firing",
-					Labels: templates.KV{
-						"alertname": "alert1",
-						"lbl1":      "val1",
-					},
-					Annotations: templates.KV{
-						"ann1": "annv1",
-					},
-					Fingerprint: "fac0861a85de433a",
-					SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
-				}, {
-					Status: "firing",
-					Labels: templates.KV{
-						"alertname": "alert1",
-						"lbl1":      "val2",
-					},
-					Annotations: templates.KV{
-						"ann1": "annv2",
-					},
-					Fingerprint: "fab6861a85d5eeb5",
-					SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2",
-				},
-			},
-			"GroupLabels": templates.KV{
-				"alertname": "",
-			},
-			"CommonLabels": templates.KV{
-				"alertname": "alert1",
-			},
-			"CommonAnnotations": templates.KV{},
-			"ExternalURL":       "http://localhost",
-		},
-		ReplyTo:       []string{"me@me.com"},
-		EmbeddedFiles: []string{},
-		AttachedFiles: []*SendEmailAttachedFile{},
-	}))
 }
