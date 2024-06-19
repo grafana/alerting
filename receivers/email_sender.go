@@ -14,11 +14,17 @@ import (
 	"strings"
 
 	"github.com/Masterminds/sprig/v3"
+	"github.com/prometheus/client_golang/prometheus"
 	gomail "gopkg.in/mail.v2"
 )
 
-//go:embed templates/ng_alert_notification.html
-var defaultEmailTemplate string
+var (
+	emailsSentTotal  prometheus.Counter
+	emailsSentFailed prometheus.Counter
+
+	//go:embed templates/ng_alert_notification.html
+	defaultEmailTemplate string
+)
 
 type EmailSenderConfig struct {
 	AuthPassword  string
@@ -133,12 +139,6 @@ func (s *defaultEmailSender) setDefaultTemplateData(data map[string]any) {
 }
 
 func (s *defaultEmailSender) Send(ctx context.Context, messages ...*Message) (int, error) {
-	// TODO: add
-	// ctx, span := tracer.Start(ctx, "notifications.SmtpClient.Send",
-	// 	trace.WithAttributes(attribute.Int("messages", len(messages))),
-	// )
-	// defer span.End()
-
 	sentEmailsCount := 0
 	dialer, err := s.createDialer()
 	if err != nil {
@@ -146,27 +146,19 @@ func (s *defaultEmailSender) Send(ctx context.Context, messages ...*Message) (in
 	}
 
 	for _, msg := range messages {
-		// span.SetAttributes(
-		// 	attribute.String("smtp.sender", msg.From),
-		// 	attribute.StringSlice("smtp.recipients", msg.To),
-		// )
-
-		m := s.buildEmail(ctx, msg)
+		m := s.buildEmail(msg)
 
 		innerError := dialer.DialAndSend(m)
-		// emailsSentTotal.Inc()
+		emailsSentTotal.Inc()
 		if innerError != nil {
 			// As gomail does not return typed errors we have to parse the error
 			// to catch invalid error when the address is invalid.
 			// https://github.com/go-gomail/gomail/blob/81ebce5c23dfd25c6c67194b37d3dd3f338c98b1/send.go#L113
 			if !strings.HasPrefix(innerError.Error(), "gomail: invalid address") {
-				// emailsSentFailed.Inc()
+				emailsSentFailed.Inc()
 			}
 
 			err = fmt.Errorf("failed to send notification to email addresses: %s: %w", strings.Join(msg.To, ";"), innerError)
-			// span.RecordError(err)
-			// span.SetStatus(codes.Error, err.Error())
-
 			continue
 		}
 
@@ -207,7 +199,7 @@ func (s *defaultEmailSender) createDialer() (*gomail.Dialer, error) {
 }
 
 // buildEmail converts the Message DTO to a gomail message.
-func (s *defaultEmailSender) buildEmail(ctx context.Context, msg *Message) *gomail.Message {
+func (s *defaultEmailSender) buildEmail(msg *Message) *gomail.Message {
 	m := gomail.NewMessage()
 	// Add all static headers to the email message.
 	for h, val := range s.cfg.StaticHeaders {
@@ -216,10 +208,6 @@ func (s *defaultEmailSender) buildEmail(ctx context.Context, msg *Message) *goma
 	m.SetHeader("From", msg.From)
 	m.SetHeader("To", msg.To...)
 	m.SetHeader("Subject", msg.Subject)
-
-	// if s.enableTracing {
-	// 	otel.GetTextMapPropagator().Inject(ctx, gomailHeaderCarrier{m})
-	// }
 
 	setFiles(m, msg)
 	replyTo := make([]string, 0, len(msg.ReplyTo))
