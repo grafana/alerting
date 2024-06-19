@@ -2,6 +2,7 @@ package receivers
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -108,4 +109,62 @@ func TestBuildEmailMessage(t *testing.T) {
 		})
 	}
 
+}
+
+func TestCreateDialer(t *testing.T) {
+	tests := []struct {
+		name   string
+		cfg    EmailSenderConfig
+		expErr string
+	}{
+		{
+			"invalid host",
+			EmailSenderConfig{
+				Host: "http://localhost:1234",
+			},
+			"address http://localhost:1234: too many colons in address",
+		},
+		{
+			"port is not an integer",
+			EmailSenderConfig{
+				Host: "localhost:abc",
+			},
+			"strconv.Atoi: parsing \"abc\": invalid syntax",
+		},
+		{
+			"non-existent cert file",
+			EmailSenderConfig{
+				Host:     "localhost:1234",
+				CertFile: "non-existent.pem",
+			},
+			"could not load cert or key file: open non-existent.pem: no such file or directory",
+		},
+		{
+			"success case",
+			EmailSenderConfig{
+				SkipVerify: true,
+				Host:       "localhost:1234",
+			},
+			"",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			s, err := NewEmailSenderFactory(test.cfg)(Metadata{})
+			require.NoError(t, err)
+			ds, ok := s.(*defaultEmailSender)
+			require.True(t, ok)
+
+			d, err := ds.createDialer()
+			if test.expErr != "" {
+				require.EqualError(t, err, test.expErr)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, test.cfg.EhloIdentity, d.LocalName)
+				require.Equal(t, test.cfg.SkipVerify, d.TLSConfig.InsecureSkipVerify)
+				require.Equal(t, strings.Split(test.cfg.Host, ":")[0], d.TLSConfig.ServerName)
+			}
+		})
+	}
 }
