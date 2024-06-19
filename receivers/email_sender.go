@@ -14,14 +14,10 @@ import (
 	"strings"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/prometheus/client_golang/prometheus"
 	gomail "gopkg.in/mail.v2"
 )
 
 var (
-	emailsSentTotal  prometheus.Counter
-	emailsSentFailed prometheus.Counter
-
 	//go:embed templates/ng_alert_notification.html
 	defaultEmailTemplate string
 )
@@ -149,15 +145,7 @@ func (s *defaultEmailSender) Send(messages ...*Message) (int, error) {
 		m := s.buildEmail(msg)
 
 		innerError := dialer.DialAndSend(m)
-		emailsSentTotal.Inc()
 		if innerError != nil {
-			// As gomail does not return typed errors we have to parse the error
-			// to catch invalid error when the address is invalid.
-			// https://github.com/go-gomail/gomail/blob/81ebce5c23dfd25c6c67194b37d3dd3f338c98b1/send.go#L113
-			if !strings.HasPrefix(innerError.Error(), "gomail: invalid address") {
-				emailsSentFailed.Inc()
-			}
-
 			err = fmt.Errorf("failed to send notification to email addresses: %s: %w", strings.Join(msg.To, ";"), innerError)
 			continue
 		}
