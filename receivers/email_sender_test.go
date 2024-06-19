@@ -1,6 +1,8 @@
 package receivers
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -167,4 +169,40 @@ func TestCreateDialer(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildEmail(t *testing.T) {
+	cfg := EmailSenderConfig{
+		StaticHeaders: map[string]string{
+			"Header-1": "value-1",
+			"Header-2": "value-2",
+		},
+	}
+
+	s, err := NewEmailSenderFactory(cfg)(Metadata{})
+	require.NoError(t, err)
+	ds, ok := s.(*defaultEmailSender)
+	require.True(t, ok)
+
+	mCfg := Message{
+		From:    "test@test.com",
+		To:      []string{"to1@to.com", "to2@to.com"},
+		Subject: "Test Subject",
+		ReplyTo: []string{"reply1@reply.com", "reply2@reply.com"},
+		Body:    "This is a test message",
+	}
+	m := ds.buildEmail(context.Background(), &mCfg)
+	require.Equal(t, []string{mCfg.From}, m.GetHeader("From"))
+	require.Equal(t, mCfg.To, m.GetHeader("To"))
+	require.Equal(t, []string{mCfg.Subject}, m.GetHeader("Subject"))
+	require.Equal(t, []string{strings.Join(mCfg.ReplyTo, ", ")}, m.GetHeader("Reply-To"))
+	for k, v := range cfg.StaticHeaders {
+		require.Equal(t, []string{v}, m.GetHeader(k))
+	}
+
+	var buf bytes.Buffer
+	_, err = m.WriteTo(&buf)
+	require.NoError(t, err)
+
+	require.Contains(t, buf.String(), mCfg.Body)
 }

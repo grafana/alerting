@@ -209,7 +209,7 @@ func (s *defaultEmailSender) createDialer() (*gomail.Dialer, error) {
 // buildEmail converts the Message DTO to a gomail message.
 func (s *defaultEmailSender) buildEmail(ctx context.Context, msg *Message) *gomail.Message {
 	m := gomail.NewMessage()
-	// add all static headers to the email message
+	// Add all static headers to the email message.
 	for h, val := range s.cfg.StaticHeaders {
 		m.SetHeader(h, val)
 	}
@@ -222,9 +222,11 @@ func (s *defaultEmailSender) buildEmail(ctx context.Context, msg *Message) *goma
 	// }
 
 	setFiles(m, msg)
-	for _, replyTo := range msg.ReplyTo {
-		m.SetAddressHeader("Reply-To", replyTo, "")
+	replyTo := make([]string, 0, len(msg.ReplyTo))
+	for _, address := range msg.ReplyTo {
+		replyTo = append(replyTo, m.FormatAddress(address, ""))
 	}
+	m.SetHeader("Reply-To", strings.Join(replyTo, ", "))
 	m.SetBody("text/html", msg.Body)
 
 	return m
