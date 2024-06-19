@@ -81,13 +81,13 @@ type Message struct {
 }
 
 // SendEmail implements the EmailSender interface.
-func (s *defaultEmailSender) SendEmail(ctx context.Context, cmd *SendEmailSettings) error {
+func (s *defaultEmailSender) SendEmail(_ context.Context, cmd *SendEmailSettings) error {
 	message, err := s.buildEmailMessage(cmd)
 	if err != nil {
 		return err
 	}
 
-	_, err = s.Send(ctx, message)
+	_, err = s.Send(message)
 	return err
 }
 
@@ -138,7 +138,7 @@ func (s *defaultEmailSender) setDefaultTemplateData(data map[string]any) {
 	data["TemplateData"] = dataCopy
 }
 
-func (s *defaultEmailSender) Send(ctx context.Context, messages ...*Message) (int, error) {
+func (s *defaultEmailSender) Send(messages ...*Message) (int, error) {
 	sentEmailsCount := 0
 	dialer, err := s.createDialer()
 	if err != nil {
