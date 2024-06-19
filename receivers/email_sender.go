@@ -266,7 +266,7 @@ func subjectTemplateFunc(obj map[string]any, data map[string]any, value string) 
 // It's safe to ignore gosec warning G203 when calling this function in an HTML template because we assume anyone who has write access
 // to the email templates folder is an administrator.
 //
-// nolint:gosec
+// nolint:gosec,revive
 func __dangerouslyInjectHTML(s string) template.HTML {
 	return template.HTML(s)
 }
