@@ -12,11 +12,11 @@ type SendEmailSettings struct {
 	Info          string
 	ReplyTo       []string
 	EmbeddedFiles []string
-	AttachedFiles []*SendEmailAttachFile
+	AttachedFiles []*SendEmailAttachedFile
 }
 
-// SendEmailAttachFile is a definition of the attached files without path
-type SendEmailAttachFile struct {
+// SendEmailAttachedFile is a definition of the attached files without path
+type SendEmailAttachedFile struct {
 	Name    string
 	Content []byte
 }

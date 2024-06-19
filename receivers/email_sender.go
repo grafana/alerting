@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/grafana/alerting/templates"
 	gomail "gopkg.in/mail.v2"
 )
 
@@ -47,10 +46,8 @@ func NewEmailSenderFactory(cfg EmailSenderConfig) func(n Metadata) (EmailSender,
 		tmpl, err := template.New("ng_alert_notification").
 			Funcs(template.FuncMap{
 				"Subject":                 subjectTemplateFunc,
-				"HiddenSubject":           hiddenSubjectTemplateFunc,
 				"__dangerouslyInjectHTML": __dangerouslyInjectHTML,
 			}).
-			Funcs(template.FuncMap(templates.DefaultFuncs)).
 			Funcs(sprig.FuncMap()).
 			Parse(defaultEmailTemplate)
 		if err != nil {
@@ -64,25 +61,6 @@ func NewEmailSenderFactory(cfg EmailSenderConfig) func(n Metadata) (EmailSender,
 	}
 }
 
-// AttachedFile is a definition of the attached files without path
-type AttachedFile struct {
-	Name    string
-	Content []byte
-}
-
-// SendEmailCommand is the command for sending emails
-type SendEmailCommand struct {
-	To            []string
-	SingleEmail   bool
-	Template      string
-	Subject       string
-	Data          map[string]any
-	Info          string
-	ReplyTo       []string
-	EmbeddedFiles []string
-	AttachedFiles []*AttachedFile
-}
-
 // Message is representation of the email message.
 type Message struct {
 	To            []string
@@ -93,48 +71,12 @@ type Message struct {
 	Info          string
 	ReplyTo       []string
 	EmbeddedFiles []string
-	AttachedFiles []*AttachedFile
+	AttachedFiles []*SendEmailAttachedFile
 }
 
 // SendEmail implements alertingReceivers.EmailSender.
 func (s *defaultEmailSender) SendEmail(ctx context.Context, cmd *SendEmailSettings) error {
-	var attached []*AttachedFile
-	if cmd.AttachedFiles != nil {
-		attached = make([]*AttachedFile, 0, len(cmd.AttachedFiles))
-		for _, file := range cmd.AttachedFiles {
-			attached = append(attached, &AttachedFile{
-				Name:    file.Name,
-				Content: file.Content,
-			})
-		}
-	}
-
-	return s.SendEmailCommandHandlerSync(ctx, &SendEmailCommand{
-		To:            cmd.To,
-		SingleEmail:   cmd.SingleEmail,
-		Template:      cmd.Template,
-		Subject:       cmd.Subject,
-		Data:          cmd.Data,
-		Info:          cmd.Info,
-		ReplyTo:       cmd.ReplyTo,
-		EmbeddedFiles: cmd.EmbeddedFiles,
-		AttachedFiles: attached,
-	})
-}
-
-func (s *defaultEmailSender) SendEmailCommandHandlerSync(ctx context.Context, cmd *SendEmailCommand) error {
-	message, err := s.buildEmailMessage(&SendEmailCommand{
-		Data:          cmd.Data,
-		Info:          cmd.Info,
-		Template:      cmd.Template,
-		To:            cmd.To,
-		SingleEmail:   cmd.SingleEmail,
-		EmbeddedFiles: cmd.EmbeddedFiles,
-		AttachedFiles: cmd.AttachedFiles,
-		Subject:       cmd.Subject,
-		ReplyTo:       cmd.ReplyTo,
-	})
-
+	message, err := s.buildEmailMessage(cmd)
 	if err != nil {
 		return err
 	}
@@ -143,7 +85,7 @@ func (s *defaultEmailSender) SendEmailCommandHandlerSync(ctx context.Context, cm
 	return err
 }
 
-func (s *defaultEmailSender) buildEmailMessage(cmd *SendEmailCommand) (*Message, error) {
+func (s *defaultEmailSender) buildEmailMessage(cmd *SendEmailSettings) (*Message, error) {
 	data := cmd.Data
 	if data == nil {
 		data = make(map[string]any, 10)
@@ -323,13 +265,6 @@ func setFiles(
 			return err
 		}))
 	}
-}
-
-// hiddenSubjectTemplateFunc sets the subject template (value) on the map represented by `.Subject.` (obj) so that it can be compiled and executed later.
-// It returns a blank string, so there will be no resulting value left in place of the template.
-func hiddenSubjectTemplateFunc(obj map[string]any, value string) string {
-	obj["value"] = value
-	return ""
 }
 
 // subjectTemplateFunc does the same thing has hiddenSubjectTemplateFunc, but in addition it executes and returns the subject template using the data represented in `.TemplateData` (data)
