@@ -9,7 +9,6 @@ type SendEmailSettings struct {
 	Template      string
 	Subject       string
 	Data          map[string]interface{}
-	Info          string
 	ReplyTo       []string
 	EmbeddedFiles []string
 	AttachedFiles []*SendEmailAttachedFile

@@ -17,10 +17,8 @@ import (
 	gomail "gopkg.in/mail.v2"
 )
 
-type defaultEmailSender struct {
-	cfg  EmailSenderConfig
-	tmpl *template.Template
-}
+//go:embed templates/ng_alert_notification.html
+var defaultEmailTemplate string
 
 type EmailSenderConfig struct {
 	AuthPassword  string
@@ -37,11 +35,13 @@ type EmailSenderConfig struct {
 	Version       string
 }
 
-//go:embed templates/ng_alert_notification.html
-var defaultEmailTemplate string
+type defaultEmailSender struct {
+	cfg  EmailSenderConfig
+	tmpl *template.Template
+}
 
 // NewEmailSenderFactory takes a configuration and returns a new EmailSender factory function.
-func NewEmailSenderFactory(cfg EmailSenderConfig) func(n Metadata) (EmailSender, error) {
+func NewEmailSenderFactory(cfg EmailSenderConfig) func(Metadata) (EmailSender, error) {
 	return func(n Metadata) (EmailSender, error) {
 		tmpl, err := template.New("ng_alert_notification").
 			Funcs(template.FuncMap{
@@ -61,7 +61,7 @@ func NewEmailSenderFactory(cfg EmailSenderConfig) func(n Metadata) (EmailSender,
 	}
 }
 
-// Message is representation of the email message.
+// Message representats an email message.
 type Message struct {
 	To            []string
 	SingleEmail   bool
@@ -74,7 +74,7 @@ type Message struct {
 	AttachedFiles []*SendEmailAttachedFile
 }
 
-// SendEmail implements alertingReceivers.EmailSender.
+// SendEmail implements the EmailSender interface.
 func (s *defaultEmailSender) SendEmail(ctx context.Context, cmd *SendEmailSettings) error {
 	message, err := s.buildEmailMessage(cmd)
 	if err != nil {
@@ -102,29 +102,10 @@ func (s *defaultEmailSender) buildEmailMessage(cmd *SendEmailSettings) (*Message
 	if cmd.Subject == "" {
 		subjectData := data["Subject"].(map[string]any)
 		subjectText, hasSubject := subjectData["executed_template"].(string)
-		if hasSubject {
-			// first check to see if the template has already been executed in a template func
-			subject = subjectText
-		} else {
-			subjectTemplate, hasSubject := subjectData["value"]
-
-			if !hasSubject {
-				return nil, fmt.Errorf("missing subject in template %s", cmd.Template)
-			}
-
-			subjectTmpl, err := template.New("subject").Parse(subjectTemplate.(string))
-			if err != nil {
-				return nil, err
-			}
-
-			var subjectBuffer bytes.Buffer
-			err = subjectTmpl.ExecuteTemplate(&subjectBuffer, "subject", data)
-			if err != nil {
-				return nil, err
-			}
-
-			subject = subjectBuffer.String()
+		if !hasSubject {
+			return nil, fmt.Errorf("missing subject in template %s", cmd.Template)
 		}
+		subject = subjectText
 	}
 
 	addr := mail.Address{Name: s.cfg.FromName, Address: s.cfg.FromAddress}
