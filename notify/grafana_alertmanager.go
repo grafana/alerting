@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-openapi/strfmt"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/grafana/alerting/cluster"
 	"github.com/grafana/alerting/notify/nfstatus"
@@ -333,6 +335,200 @@ func GetReceivers(receivers []*nfstatus.Receiver) []models.Receiver {
 
 	return apiReceivers
 }
+
+// TODO: Get rid of am.template (it's unnecessary now)
+// TODO: Refactor types (lower priority)
+
+// job contains all metadata required to test a receiver
+type job struct {
+	Config       *GrafanaIntegrationConfig
+	ReceiverName string
+	Notifier     notify.Notifier
+}
+
+// result contains the receiver that was tested and a non-nil error if the test failed
+type result struct {
+	Config       *GrafanaIntegrationConfig
+	ReceiverName string
+	Error        error
+}
+
+func newTestReceiversResult(alert types.Alert, results []result, receivers []*APIReceiver, notifiedAt time.Time) *TestReceiversResult {
+	m := make(map[string]TestReceiverResult)
+	for _, receiver := range receivers {
+		// set up the result for this receiver
+		m[receiver.Name] = TestReceiverResult{
+			Name: receiver.Name,
+			// A Grafana receiver can have multiple nested receivers
+			Configs: make([]TestIntegrationConfigResult, 0, len(receiver.Integrations)),
+		}
+	}
+	for _, next := range results {
+		tmp := m[next.ReceiverName]
+		status := "ok"
+		if next.Error != nil {
+			status = "failed"
+		}
+		tmp.Configs = append(tmp.Configs, TestIntegrationConfigResult{
+			Name:   next.Config.Name,
+			UID:    next.Config.UID,
+			Status: status,
+			Error:  ProcessIntegrationError(next.Config, next.Error),
+		})
+		m[next.ReceiverName] = tmp
+	}
+	v := new(TestReceiversResult)
+	v.Alert = alert
+	v.Receivers = make([]TestReceiverResult, 0, len(receivers))
+	v.NotifedAt = notifiedAt
+	for _, next := range m {
+		v.Receivers = append(v.Receivers, next)
+	}
+
+	// Make sure the return order is deterministic.
+	sort.Slice(v.Receivers, func(i, j int) bool {
+		return v.Receivers[i].Name < v.Receivers[j].Name
+	})
+
+	return v
+}
+
+func TestReceivers(
+	ctx context.Context,
+	c TestReceiversConfigBodyParams,
+	tmpls []string,
+	buildIntegrationsFunc func(*APIReceiver, *template.Template, log.Logger) ([]*nfstatus.Integration, error),
+	externalURL string) (*TestReceiversResult, error) {
+
+	now := time.Now() // The start time of the test
+	testAlert := newTestAlert(c, now, now)
+
+	// TODO: Repackage this as it's own function
+	//
+	tmpl, err := templates.FromContent(tmpls)
+	if err != nil {
+		return nil, err
+	}
+	extURL, err := url.Parse(externalURL)
+	if err != nil {
+		return nil, err
+	}
+	tmpl.ExternalURL = extURL
+	//
+
+	// all invalid receiver configurations
+	invalid := make([]result, 0, len(c.Receivers))
+	// all receivers that need to be sent test notifications
+	jobs := make([]job, 0, len(c.Receivers))
+
+	for _, receiver := range c.Receivers {
+		for _, intg := range receiver.Integrations {
+			// Create an APIReceiver with a single integration so we
+			// can identify invalid receiver integration configs
+			singleIntReceiver := &APIReceiver{
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{intg},
+				},
+			}
+			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmpl, log.NewNopLogger()) // TODO: Proper logger here
+			if err != nil || len(integrations) == 0 {
+				invalid = append(invalid, result{
+					Config:       intg,
+					ReceiverName: intg.Name,
+					Error:        err,
+				})
+			} else {
+				jobs = append(jobs, job{
+					Config:       intg,
+					ReceiverName: receiver.Name,
+					Notifier:     integrations[0],
+				})
+			}
+		}
+	}
+
+	if len(invalid)+len(jobs) == 0 {
+		return nil, ErrNoReceivers
+	}
+
+	if len(jobs) == 0 {
+		return newTestReceiversResult(testAlert, invalid, c.Receivers, now), nil
+	}
+
+	numWorkers := maxTestReceiversWorkers
+	if numWorkers > len(jobs) {
+		numWorkers = len(jobs)
+	}
+
+	resultCh := make(chan result, len(jobs))
+	workCh := make(chan job, len(jobs))
+	for _, job := range jobs {
+		workCh <- job
+	}
+	close(workCh)
+
+	g, ctx := errgroup.WithContext(ctx)
+	for i := 0; i < numWorkers; i++ {
+		g.Go(func() error {
+			for next := range workCh {
+				ctx = notify.WithGroupKey(ctx, fmt.Sprintf("%s-%s-%d", next.ReceiverName, testAlert.Labels.Fingerprint(), now.Unix()))
+				ctx = notify.WithGroupLabels(ctx, testAlert.Labels)
+				ctx = notify.WithReceiverName(ctx, next.ReceiverName)
+				v := result{
+					Config:       next.Config,
+					ReceiverName: next.ReceiverName,
+				}
+				if _, err := next.Notifier.Notify(ctx, &testAlert); err != nil {
+					v.Error = err
+				}
+				resultCh <- v
+			}
+			return nil
+		})
+	}
+
+	err = g.Wait()
+	close(resultCh)
+
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]result, 0, len(jobs))
+	for next := range resultCh {
+		results = append(results, next)
+	}
+
+	return newTestReceiversResult(testAlert, append(invalid, results...), c.Receivers, now), nil
+}
+
+// // buildReceiverIntegrations builds a list of integration notifiers off of a receiver config.
+// func (am *alertmanager) buildReceiverIntegrations(receiver *alertingNotify.APIReceiver, tmpl *alertingTemplates.Template) ([]*alertingNotify.Integration, error) {
+// 	receiverCfg, err := alertingNotify.BuildReceiverConfiguration(context.Background(), receiver, am.decryptFn)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	s := &sender{am.NotificationService}
+// 	img := newImageProvider(am.Store, log.New("ngalert.notifier.image-provider"))
+// 	integrations, err := alertingNotify.BuildReceiverIntegrations(
+// 		receiverCfg,
+// 		tmpl,
+// 		img,
+// 		LoggerFactory,
+// 		func(n receivers.Metadata) (receivers.WebhookSender, error) {
+// 			return s, nil
+// 		},
+// 		func(n receivers.Metadata) (receivers.EmailSender, error) {
+// 			return s, nil
+// 		},
+// 		am.orgID,
+// 		setting.BuildVersion,
+// 	)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return integrations, nil
+// }
 
 func (am *GrafanaAlertmanager) ExternalURL() string {
 	return am.externalURL

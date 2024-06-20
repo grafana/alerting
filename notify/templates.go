@@ -19,7 +19,7 @@ type TestTemplatesConfigBodyParams struct {
 	// Template string to test.
 	Template string
 
-	// Name of the template file.
+	// Name of the template.
 	Name string
 }
 
