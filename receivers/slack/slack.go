@@ -34,7 +34,7 @@ const (
 	// rate limits for files.upload https://api.slack.com/docs/rate-limits#tier_t2
 	maxImagesPerThreadTs        = 5
 	maxImagesPerThreadTsMessage = "There are more images than can be shown here. To see the panels for all firing and resolved alerts please check Grafana"
-	footerIconURL               = "https://grafana.com/static/assets/img/fav32.png"
+	footerIconURL               = "https://s3.amazonaws.com/logzio-static-content-cdn/logzio-logo.png" //LOGZ.IO GRAFANA CHANGE :: change Grafana characteristics in Slack notification footer
 )
 
 // APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
@@ -329,7 +329,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 				Color:      receivers.GetAlertStatusColor(types.Alerts(alerts...).Status()),
 				Title:      title,
 				Fallback:   title,
-				Footer:     "Grafana v" + sn.appVersion,
+				Footer:     "logz.io", //LOGZ.IO GRAFANA CHANGE :: change Grafana characteristics in Slack notification footer
 				FooterIcon: footerIconURL,
 				Ts:         time.Now().Unix(),
 				TitleLink:  ruleURL,
