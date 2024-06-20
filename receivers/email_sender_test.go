@@ -12,7 +12,6 @@ import (
 func TestEmbedTemplate(t *testing.T) {
 	// Test the email template is embedded and parsed correctly.
 	require.NotEmpty(t, defaultEmailTemplate)
-
 	_, err := NewEmailSenderFactory(EmailSenderConfig{})(Metadata{})
 	require.NoError(t, err)
 }
@@ -24,14 +23,15 @@ func TestBuildEmailMessage(t *testing.T) {
 	buildVersion := "testVersion"
 
 	tests := []struct {
-		name         string
-		data         map[string]interface{}
-		subject      string
-		template     string
-		templateName string
-		expErr       string
-		expSubject   string
-		expBody      string
+		name          string
+		data          map[string]interface{}
+		subject       string
+		template      string
+		templateName  string
+		embeddedFiles []string
+		expErr        string
+		expSubject    string
+		expBody       string
 	}{
 		{
 			name:         "no subject",
@@ -40,12 +40,13 @@ func TestBuildEmailMessage(t *testing.T) {
 			expErr:       "missing subject in template test_template",
 		},
 		{
-			name:         "subject in template, template data provided",
-			data:         testData,
-			template:     fmt.Sprintf("{{ define %q -}} {{ Subject .Subject .TemplateData %q }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template", "{{ .Value }}"),
-			templateName: "test_template",
-			expSubject:   testValue,
-			expBody:      fmt.Sprintf("%s %s %s", testValue, externalURL, buildVersion),
+			name:          "subject in template, template data provided",
+			data:          testData,
+			template:      fmt.Sprintf("{{ define %q -}} {{ Subject .Subject .TemplateData %q }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template", "{{ .Value }}"),
+			templateName:  "test_template",
+			embeddedFiles: []string{"embedded-1", "embedded-2"},
+			expSubject:    testValue,
+			expBody:       fmt.Sprintf("%s %s %s", testValue, externalURL, buildVersion),
 		},
 		{
 			name:         "subject via config, template data provided",
@@ -90,8 +91,7 @@ func TestBuildEmailMessage(t *testing.T) {
 				Template:      test.templateName,
 				Data:          test.data,
 				ReplyTo:       []string{"test2@test.com"},
-				EmbeddedFiles: []string{},
-				AttachedFiles: []*SendEmailAttachedFile{},
+				EmbeddedFiles: test.embeddedFiles,
 				Subject:       test.subject,
 			}
 			m, err := ds.buildEmailMessage(&cfg)
@@ -103,7 +103,6 @@ func TestBuildEmailMessage(t *testing.T) {
 				require.Equal(t, cfg.SingleEmail, m.SingleEmail)
 				require.Equal(t, cfg.ReplyTo, m.ReplyTo)
 				require.Equal(t, cfg.EmbeddedFiles, m.EmbeddedFiles)
-				require.Equal(t, cfg.AttachedFiles, m.AttachedFiles)
 				require.Equal(t, test.expSubject, m.Subject)
 				require.Equal(t, test.expBody, m.Body)
 			}
