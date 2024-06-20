@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -87,7 +86,7 @@ type GrafanaAlertmanager struct {
 	silences        *silence.Silences
 
 	// template is the current parsed template used for notification rendering.
-	template *templates.Template
+	// template *templates.Template
 
 	// timeIntervals is the set of all time_intervals and mute_time_intervals from
 	// the configuration.
@@ -397,24 +396,16 @@ func TestReceivers(
 	ctx context.Context,
 	c TestReceiversConfigBodyParams,
 	tmpls []string,
-	buildIntegrationsFunc func(*APIReceiver, *template.Template, log.Logger) ([]*nfstatus.Integration, error),
+	buildIntegrationsFunc func(*APIReceiver, *template.Template) ([]*nfstatus.Integration, error),
 	externalURL string) (*TestReceiversResult, error) {
 
 	now := time.Now() // The start time of the test
 	testAlert := newTestAlert(c, now, now)
 
-	// TODO: Repackage this as it's own function
-	//
-	tmpl, err := templates.FromContent(tmpls)
+	tmpl, err := templateFromContent(tmpls, externalURL)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get template: %w", err)
 	}
-	extURL, err := url.Parse(externalURL)
-	if err != nil {
-		return nil, err
-	}
-	tmpl.ExternalURL = extURL
-	//
 
 	// all invalid receiver configurations
 	invalid := make([]result, 0, len(c.Receivers))
@@ -430,7 +421,7 @@ func TestReceivers(
 					Integrations: []*GrafanaIntegrationConfig{intg},
 				},
 			}
-			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmpl, log.NewNopLogger()) // TODO: Proper logger here
+			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmpl)
 			if err != nil || len(integrations) == 0 {
 				invalid = append(invalid, result{
 					Config:       intg,
@@ -502,34 +493,6 @@ func TestReceivers(
 	return newTestReceiversResult(testAlert, append(invalid, results...), c.Receivers, now), nil
 }
 
-// // buildReceiverIntegrations builds a list of integration notifiers off of a receiver config.
-// func (am *alertmanager) buildReceiverIntegrations(receiver *alertingNotify.APIReceiver, tmpl *alertingTemplates.Template) ([]*alertingNotify.Integration, error) {
-// 	receiverCfg, err := alertingNotify.BuildReceiverConfiguration(context.Background(), receiver, am.decryptFn)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	s := &sender{am.NotificationService}
-// 	img := newImageProvider(am.Store, log.New("ngalert.notifier.image-provider"))
-// 	integrations, err := alertingNotify.BuildReceiverIntegrations(
-// 		receiverCfg,
-// 		tmpl,
-// 		img,
-// 		LoggerFactory,
-// 		func(n receivers.Metadata) (receivers.WebhookSender, error) {
-// 			return s, nil
-// 		},
-// 		func(n receivers.Metadata) (receivers.EmailSender, error) {
-// 			return s, nil
-// 		},
-// 		am.orgID,
-// 		setting.BuildVersion,
-// 	)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return integrations, nil
-// }
-
 func (am *GrafanaAlertmanager) ExternalURL() string {
 	return am.externalURL
 }
@@ -550,20 +513,6 @@ func (am *GrafanaAlertmanager) WithLock(fn func()) {
 	am.reloadConfigMtx.Lock()
 	defer am.reloadConfigMtx.Unlock()
 	fn()
-}
-
-// TemplateFromContent returns a *Template based on defaults and the provided template contents.
-func (am *GrafanaAlertmanager) TemplateFromContent(tmpls []string, options ...template.Option) (*templates.Template, error) {
-	tmpl, err := templates.FromContent(tmpls, options...)
-	if err != nil {
-		return nil, err
-	}
-	externalURL, err := url.Parse(am.ExternalURL())
-	if err != nil {
-		return nil, err
-	}
-	tmpl.ExternalURL = externalURL
-	return tmpl, nil
 }
 
 func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInterval, muteTimeIntervals []config.MuteTimeInterval) map[string][]timeinterval.TimeInterval {
@@ -593,11 +542,10 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 		seen[tc.Name] = struct{}{}
 	}
 
-	tmpl, err := am.TemplateFromContent(tmpls)
+	tmpl, err := templateFromContent(tmpls, am.ExternalURL())
 	if err != nil {
 		return err
 	}
-	am.template = tmpl
 
 	// Finally, build the integrations map using the receiver configuration and templates.
 	apiReceivers := cfg.Receivers()
@@ -821,16 +769,6 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 		d = notify.MinTimeout
 	}
 	return d + am.waitFunc()
-}
-
-func (am *GrafanaAlertmanager) getTemplate() (*templates.Template, error) {
-	am.reloadConfigMtx.RLock()
-	defer am.reloadConfigMtx.RUnlock()
-	if !am.ready() {
-		return nil, errors.New("alertmanager is not initialized")
-	}
-
-	return am.template, nil
 }
 
 func (am *GrafanaAlertmanager) tenantString() string {
