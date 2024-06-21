@@ -105,10 +105,15 @@ func (e IntegrationTimeoutError) Error() string {
 }
 
 func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiversConfigBodyParams) (*TestReceiversResult, error) {
+	am.reloadConfigMtx.RLock()
+
 	tmpls := make([]string, 0, len(am.templates))
 	for _, tc := range am.templates {
 		tmpls = append(tmpls, tc.Template)
 	}
+
+	am.reloadConfigMtx.RUnlock()
+
 	return TestReceivers(ctx, c, tmpls, am.buildReceiverIntegrationsFunc, am.ExternalURL())
 }
 
