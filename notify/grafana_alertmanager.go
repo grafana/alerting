@@ -85,9 +85,6 @@ type GrafanaAlertmanager struct {
 	silencer        *silence.Silencer
 	silences        *silence.Silences
 
-	// template is the current parsed template used for notification rendering.
-	// template *templates.Template
-
 	// timeIntervals is the set of all time_intervals and mute_time_intervals from
 	// the configuration.
 	timeIntervals map[string][]timeinterval.TimeInterval
@@ -335,9 +332,6 @@ func GetReceivers(receivers []*nfstatus.Receiver) []models.Receiver {
 	return apiReceivers
 }
 
-// TODO: Get rid of am.template (it's unnecessary now)
-// TODO: Refactor types (lower priority)
-
 // job contains all metadata required to test a receiver
 type job struct {
 	Config       *GrafanaIntegrationConfig
@@ -355,7 +349,7 @@ type result struct {
 func newTestReceiversResult(alert types.Alert, results []result, receivers []*APIReceiver, notifiedAt time.Time) *TestReceiversResult {
 	m := make(map[string]TestReceiverResult)
 	for _, receiver := range receivers {
-		// set up the result for this receiver
+		// Set up the result for this receiver
 		m[receiver.Name] = TestReceiverResult{
 			Name: receiver.Name,
 			// A Grafana receiver can have multiple nested receivers
@@ -407,9 +401,9 @@ func TestReceivers(
 		return nil, fmt.Errorf("failed to get template: %w", err)
 	}
 
-	// all invalid receiver configurations
+	// All invalid receiver configurations
 	invalid := make([]result, 0, len(c.Receivers))
-	// all receivers that need to be sent test notifications
+	// All receivers that need to be sent test notifications
 	jobs := make([]job, 0, len(c.Receivers))
 
 	for _, receiver := range c.Receivers {
