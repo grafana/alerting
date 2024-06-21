@@ -134,6 +134,8 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 }
 
 func (am *GrafanaAlertmanager) GetTemplate() (*template.Template, error) {
+	am.reloadConfigMtx.RLock()
+
 	seen := make(map[string]struct{})
 	tmpls := make([]string, 0, len(am.templates))
 	for _, tc := range am.templates {
@@ -144,6 +146,8 @@ func (am *GrafanaAlertmanager) GetTemplate() (*template.Template, error) {
 		tmpls = append(tmpls, tc.Template)
 		seen[tc.Name] = struct{}{}
 	}
+
+	am.reloadConfigMtx.RUnlock()
 
 	tmpl, err := templateFromContent(tmpls, am.ExternalURL())
 	if err != nil {
