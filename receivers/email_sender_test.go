@@ -159,8 +159,9 @@ func TestCreateDialer(t *testing.T) {
 		{
 			"success case",
 			EmailSenderConfig{
-				SkipVerify: true,
-				Host:       "localhost:1234",
+				SkipVerify:     true,
+				Host:           "localhost:1234",
+				StartTLSPolicy: "MandatoryStartTLS",
 			},
 			"",
 		},
@@ -181,6 +182,7 @@ func TestCreateDialer(t *testing.T) {
 				require.Equal(t, test.cfg.EhloIdentity, d.LocalName)
 				require.Equal(t, test.cfg.SkipVerify, d.TLSConfig.InsecureSkipVerify)
 				require.Equal(t, strings.Split(test.cfg.Host, ":")[0], d.TLSConfig.ServerName)
+				require.Equal(t, getStartTLSPolicy(test.cfg.StartTLSPolicy), d.StartTLSPolicy)
 			}
 		})
 	}

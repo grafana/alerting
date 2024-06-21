@@ -20,19 +20,20 @@ import (
 var defaultEmailTemplate embed.FS
 
 type EmailSenderConfig struct {
-	AuthPassword  string
-	AuthUser      string
-	CertFile      string
-	ContentTypes  []string
-	EhloIdentity  string
-	ExternalURL   string
-	FromName      string
-	FromAddress   string
-	Host          string
-	KeyFile       string
-	SkipVerify    bool
-	StaticHeaders map[string]string
-	Version       string
+	AuthPassword   string
+	AuthUser       string
+	CertFile       string
+	ContentTypes   []string
+	EhloIdentity   string
+	ExternalURL    string
+	FromName       string
+	FromAddress    string
+	Host           string
+	KeyFile        string
+	SkipVerify     bool
+	StartTLSPolicy string
+	StaticHeaders  map[string]string
+	Version        string
 }
 
 type defaultEmailSender struct {
@@ -184,9 +185,21 @@ func (s *defaultEmailSender) createDialer() (*gomail.Dialer, error) {
 
 	d := gomail.NewDialer(host, iPort, s.cfg.AuthUser, s.cfg.AuthPassword)
 	d.TLSConfig = tlsconfig
+	d.StartTLSPolicy = getStartTLSPolicy(s.cfg.StartTLSPolicy)
 	d.LocalName = s.cfg.EhloIdentity
 
 	return d, nil
+}
+
+func getStartTLSPolicy(policy string) gomail.StartTLSPolicy {
+	switch policy {
+	case "NoStartTLS":
+		return -1
+	case "MandatoryStartTLS":
+		return 1
+	default:
+		return 0
+	}
 }
 
 // buildEmail converts the Message DTO to a gomail message.
