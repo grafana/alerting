@@ -10,10 +10,17 @@ import (
 )
 
 func TestEmbedTemplate(t *testing.T) {
-	// Test the email template is embedded and parsed correctly.
+	// Test the email templates are embedded and parsed correctly.
 	require.NotEmpty(t, defaultEmailTemplate)
-	_, err := NewEmailSenderFactory(EmailSenderConfig{})(Metadata{})
+	s, err := NewEmailSenderFactory(EmailSenderConfig{})(Metadata{})
 	require.NoError(t, err)
+
+	ds, ok := s.(*defaultEmailSender)
+	require.True(t, ok)
+
+	definedTmpls := ds.tmpl.DefinedTemplates()
+	require.Contains(t, definedTmpls, "\"ng_alert_notification.html\"")
+	require.Contains(t, definedTmpls, "\"ng_alert_notification.txt\"")
 }
 
 func TestBuildEmailMessage(t *testing.T) {
@@ -24,6 +31,7 @@ func TestBuildEmailMessage(t *testing.T) {
 
 	tests := []struct {
 		name          string
+		contentTypes  []string
 		data          map[string]interface{}
 		subject       string
 		template      string
@@ -41,8 +49,9 @@ func TestBuildEmailMessage(t *testing.T) {
 		},
 		{
 			name:          "subject in template, template data provided",
+			contentTypes:  []string{"text/plain"},
 			data:          testData,
-			template:      fmt.Sprintf("{{ define %q -}} {{ Subject .Subject .TemplateData %q }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template", "{{ .Value }}"),
+			template:      fmt.Sprintf("{{ define %q -}} {{ Subject .Subject .TemplateData %q }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template.txt", "{{ .Value }}"),
 			templateName:  "test_template",
 			embeddedFiles: []string{"embedded-1", "embedded-2"},
 			expSubject:    testValue,
@@ -50,33 +59,38 @@ func TestBuildEmailMessage(t *testing.T) {
 		},
 		{
 			name:         "subject via config, template data provided",
+			contentTypes: []string{"text/html"},
 			data:         testData,
 			subject:      "test_subject",
-			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template"),
+			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template.html"),
 			templateName: "test_template",
 			expSubject:   "test_subject",
 			expBody:      fmt.Sprintf("%s %s %s", testValue, externalURL, buildVersion),
 		},
 		{
 			name:         "default data only",
+			contentTypes: []string{"text/plain"},
 			subject:      "test_subject",
-			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template"),
+			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template.txt"),
 			templateName: "test_template",
 			expSubject:   "test_subject",
 			expBody:      fmt.Sprintf(" %s %s", externalURL, buildVersion),
 		},
 		{
 			name:         "attempting to execute an undefined template",
+			contentTypes: []string{"text/html", "text/plain"},
+			subject:      "test_subject",
 			templateName: "undefined",
-			expErr:       `html/template: "undefined" is undefined`,
+			expErr:       `html/template: "undefined.html" is undefined`,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			s, err := NewEmailSenderFactory(EmailSenderConfig{
-				ExternalURL: externalURL,
-				Version:     buildVersion,
+				ContentTypes: test.contentTypes,
+				ExternalURL:  externalURL,
+				Version:      buildVersion,
 			})(Metadata{})
 			require.NoError(t, err)
 			ds, ok := s.(*defaultEmailSender)
@@ -104,7 +118,10 @@ func TestBuildEmailMessage(t *testing.T) {
 				require.Equal(t, cfg.ReplyTo, m.ReplyTo)
 				require.Equal(t, cfg.EmbeddedFiles, m.EmbeddedFiles)
 				require.Equal(t, test.expSubject, m.Subject)
-				require.Equal(t, test.expBody, m.Body)
+
+				for _, ct := range test.contentTypes {
+					require.Equal(t, test.expBody, m.Body[ct])
+				}
 			}
 		})
 	}
@@ -171,6 +188,7 @@ func TestCreateDialer(t *testing.T) {
 
 func TestBuildEmail(t *testing.T) {
 	cfg := EmailSenderConfig{
+		ContentTypes: []string{"text/html", "text/plain"},
 		StaticHeaders: map[string]string{
 			"Header-1": "value-1",
 			"Header-2": "value-2",
@@ -187,7 +205,7 @@ func TestBuildEmail(t *testing.T) {
 		To:      []string{"to1@to.com", "to2@to.com"},
 		Subject: "Test Subject",
 		ReplyTo: []string{"reply1@reply.com", "reply2@reply.com"},
-		Body:    "This is a test message",
+		Body:    map[string]string{"text/plain": "This is a test message"},
 	}
 	m := ds.buildEmail(&mCfg)
 	require.Equal(t, []string{mCfg.From}, m.GetHeader("From"))
@@ -202,5 +220,7 @@ func TestBuildEmail(t *testing.T) {
 	_, err = m.WriteTo(&buf)
 	require.NoError(t, err)
 
-	require.Contains(t, buf.String(), mCfg.Body)
+	str := buf.String()
+	require.Contains(t, str, mCfg.Body["text/plain"])
+	require.Contains(t, str, mCfg.Body["text/html"])
 }

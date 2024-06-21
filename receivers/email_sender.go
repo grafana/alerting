@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	_ "embed"
+	"embed"
 	"fmt"
 	"html/template"
 	"net"
@@ -16,13 +16,14 @@ import (
 	gomail "gopkg.in/mail.v2"
 )
 
-//go:embed templates/ng_alert_notification.html
-var defaultEmailTemplate string
+//go:embed templates/*
+var defaultEmailTemplate embed.FS
 
 type EmailSenderConfig struct {
 	AuthPassword  string
 	AuthUser      string
 	CertFile      string
+	ContentTypes  []string
 	EhloIdentity  string
 	ExternalURL   string
 	FromName      string
@@ -42,17 +43,15 @@ type defaultEmailSender struct {
 // NewEmailSenderFactory takes a configuration and returns a new EmailSender factory function.
 func NewEmailSenderFactory(cfg EmailSenderConfig) func(Metadata) (EmailSender, error) {
 	return func(n Metadata) (EmailSender, error) {
-		tmpl, err := template.New("ng_alert_notification").
+		tmpl, err := template.New("templates").
 			Funcs(template.FuncMap{
 				"Subject":                 subjectTemplateFunc,
 				"__dangerouslyInjectHTML": __dangerouslyInjectHTML,
-			}).
-			Funcs(sprig.FuncMap()).
-			Parse(defaultEmailTemplate)
+			}).Funcs(sprig.FuncMap()).
+			ParseFS(defaultEmailTemplate, "templates/*")
 		if err != nil {
 			return nil, err
 		}
-
 		return &defaultEmailSender{
 			cfg:  cfg,
 			tmpl: tmpl,
@@ -65,7 +64,7 @@ type Message struct {
 	To            []string
 	From          string
 	Subject       string
-	Body          string
+	Body          map[string]string
 	EmbeddedFiles []string
 	ReplyTo       []string
 	SingleEmail   bool
@@ -90,9 +89,19 @@ func (s *defaultEmailSender) buildEmailMessage(cmd *SendEmailSettings) (*Message
 
 	s.setDefaultTemplateData(data)
 
-	var buffer bytes.Buffer
-	if err := s.tmpl.ExecuteTemplate(&buffer, cmd.Template, data); err != nil {
-		return nil, err
+	body := make(map[string]string)
+	for _, contentType := range s.cfg.ContentTypes {
+		fileExtension, err := getFileExtensionByContentType(contentType)
+		if err != nil {
+			return nil, err
+		}
+		var buffer bytes.Buffer
+		err = s.tmpl.ExecuteTemplate(&buffer, cmd.Template+fileExtension, data)
+		if err != nil {
+			return nil, err
+		}
+
+		body[contentType] = buffer.String()
 	}
 
 	subject := cmd.Subject
@@ -110,7 +119,7 @@ func (s *defaultEmailSender) buildEmailMessage(cmd *SendEmailSettings) (*Message
 		To:            cmd.To,
 		From:          addr.String(),
 		Subject:       subject,
-		Body:          buffer.String(),
+		Body:          body,
 		EmbeddedFiles: cmd.EmbeddedFiles,
 		ReplyTo:       cmd.ReplyTo,
 		SingleEmail:   cmd.SingleEmail,
@@ -203,8 +212,28 @@ func (s *defaultEmailSender) buildEmail(msg *Message) *gomail.Message {
 	}
 	m.SetHeader("Reply-To", strings.Join(replyTo, ", "))
 
-	m.SetBody("text/html", msg.Body)
+	// Loop over content types from settings in reverse order as they are ordered in according to descending
+	// preference while the alternatives should be ordered according to ascending preference.
+	for i := len(s.cfg.ContentTypes) - 1; i >= 0; i-- {
+		if i == len(s.cfg.ContentTypes)-1 {
+			m.SetBody(s.cfg.ContentTypes[i], msg.Body[s.cfg.ContentTypes[i]])
+		} else {
+			m.AddAlternative(s.cfg.ContentTypes[i], msg.Body[s.cfg.ContentTypes[i]])
+		}
+	}
+
 	return m
+}
+
+func getFileExtensionByContentType(contentType string) (string, error) {
+	switch contentType {
+	case "text/html":
+		return ".html", nil
+	case "text/plain":
+		return ".txt", nil
+	default:
+		return "", fmt.Errorf("unrecognized content type %q", contentType)
+	}
 }
 
 // subjectTemplateFunc sets the subject template (value) on the map represented by `.Subject.` (obj) so that it can be compiled and executed later.
