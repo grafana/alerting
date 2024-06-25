@@ -418,7 +418,7 @@ func TestCreateSilence(t *testing.T) {
 				StartsAt: ptr(strfmt.DateTime(time.Now())),
 			},
 		},
-		expErr: "unable to save silence: silence invalid: invalid label matcher 0: invalid label name \"\": unable to create silence",
+		expErr: "unable to save silence: invalid silence: invalid label matcher 0: invalid label name \"\": unable to create silence",
 	}, {
 		name: "can't create silence for missing label value",
 		silence: PostableSilence{
@@ -435,7 +435,7 @@ func TestCreateSilence(t *testing.T) {
 				StartsAt: ptr(strfmt.DateTime(time.Now())),
 			},
 		},
-		expErr: "unable to save silence: silence invalid: at least one matcher must not match the empty string: unable to create silence",
+		expErr: "unable to save silence: invalid silence: at least one matcher must not match the empty string: unable to create silence",
 	}}
 
 	for _, c := range cases {
@@ -508,7 +508,7 @@ func TestUpsertSilence(t *testing.T) {
 				StartsAt: ptr(strfmt.DateTime(time.Now())),
 			},
 		},
-		expErr: "unable to upsert silence: silence invalid: invalid label matcher 0: invalid label name \"\": unable to create silence",
+		expErr: "unable to upsert silence: invalid silence: invalid label matcher 0: invalid label name \"\": unable to create silence",
 	}, {
 		name: "can't create silence for missing label value",
 		silence: PostableSilence{
@@ -525,7 +525,7 @@ func TestUpsertSilence(t *testing.T) {
 				StartsAt: ptr(strfmt.DateTime(time.Now())),
 			},
 		},
-		expErr: "unable to upsert silence: silence invalid: at least one matcher must not match the empty string: unable to create silence",
+		expErr: "unable to upsert silence: invalid silence: at least one matcher must not match the empty string: unable to create silence",
 	}}
 
 	for _, c := range cases {
