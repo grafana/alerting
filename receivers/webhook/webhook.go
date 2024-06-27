@@ -106,6 +106,10 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		headers["Authorization"] = fmt.Sprintf("%s %s", wn.settings.AuthorizationScheme, wn.settings.AuthorizationCredentials)
 	}
 
+	for k, v := range wn.settings.ExtraHeaders {
+		headers[k] = v
+	}
+
 	parsedURL := tmpl(wn.settings.URL)
 	if tmplErr != nil {
 		return false, tmplErr
