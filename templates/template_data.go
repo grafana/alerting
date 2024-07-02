@@ -3,6 +3,7 @@ package templates
 import (
 	"context"
 	"encoding/json"
+	"github.com/grafana/alerting/receivers" // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 	"net/url"
 	"path"
 	"sort"
@@ -67,6 +68,17 @@ func removePrivateItems(kv template.KV) template.KV {
 }
 
 func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *ExtendedAlert {
+	// LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
+	accountId := alert.Annotations[models.LogzioAccountIdAnnotation]
+	var generatorUrl string
+	parsedGeneratorUrl, err := receivers.ParseLogzioAppPath(alert.GeneratorURL)
+	if err == nil {
+		parsedGeneratorUrl = receivers.AppendSwitchToAccountQueryParam(parsedGeneratorUrl, accountId)
+		generatorUrl = receivers.ToLogzioAppPath(parsedGeneratorUrl.String())
+	} else {
+		generatorUrl = alert.GeneratorURL
+	}
+	// LOGZ.IO GRAFANA CHANGE :: end
 	// remove "private" annotations & labels so they don't show up in the template
 	extended := &ExtendedAlert{
 		Status:       alert.Status,
@@ -74,7 +86,7 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		Annotations:  removePrivateItems(alert.Annotations),
 		StartsAt:     alert.StartsAt,
 		EndsAt:       alert.EndsAt,
-		GeneratorURL: alert.GeneratorURL,
+		GeneratorURL: generatorUrl, // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 		Fingerprint:  alert.Fingerprint,
 	}
 
@@ -103,11 +115,11 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	dashboardUID := alert.Annotations[models.DashboardUIDAnnotation]
 	if len(dashboardUID) > 0 {
 		u.Path = path.Join(externalPath, "/d/", dashboardUID)
-		extended.DashboardURL = u.String()
+		extended.DashboardURL = receivers.ToLogzioAppPath(receivers.AppendSwitchToAccountQueryParam(u, accountId).String()) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 		panelID := alert.Annotations[models.PanelIDAnnotation]
 		if len(panelID) > 0 {
 			u.RawQuery = "viewPanel=" + panelID
-			extended.PanelURL = u.String()
+			extended.PanelURL = receivers.ToLogzioAppPath(receivers.AppendSwitchToAccountQueryParam(u, accountId).String()) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 		}
 		dashboardURL, err := url.Parse(extended.DashboardURL)
 		if err != nil {
@@ -147,10 +159,11 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	}
 
 	u.RawQuery = query.Encode()
+	u = receivers.AppendSwitchToAccountQueryParam(u, accountId) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 	if len(orgID) > 0 {
-		extended.SilenceURL = setOrgIDQueryParam(u, orgID)
+		extended.SilenceURL = receivers.ToLogzioAppPath(setOrgIDQueryParam(u, orgID)) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 	} else {
-		extended.SilenceURL = u.String()
+		extended.SilenceURL = receivers.ToLogzioAppPath(u.String()) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 	}
 	return extended
 }

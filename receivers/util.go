@@ -122,6 +122,10 @@ func ToLogzioAppPath(path string) string {
 	return strings.Replace(path, EncodedHashSymbol, "#", 1)
 }
 
+func ParseLogzioAppPath(path string) (*url.URL, error) {
+	return url.Parse(strings.Replace(path, "#", EncodedHashSymbol, 1))
+}
+
 func AppendSwitchToAccountQueryParam(u *url.URL, accountId string) *url.URL {
 	const logzioSwitchToAccountQueryParamName = "switchToAccountId"
 	updatedUrl := *u

@@ -26,5 +26,5 @@ const (
 
 	ValuesAnnotation          = "__values__"
 	ValueStringAnnotation     = "__value_string__"
-	LogzioAccountIdAnnotation = "__logzioAccountId__" //LOGZ.IO GRAFANA CHANGE :: DEV-43657: set correct app urls on notifications
+	LogzioAccountIdAnnotation = "__logzioAccountId__" // LOGZ.IO GRAFANA CHANGE :: DEV-43657: set correct app urls on notifications
 )

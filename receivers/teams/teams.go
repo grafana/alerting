@@ -251,7 +251,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	// LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
 	basePath := receivers.ToBasePathWithAccountRedirect(tn.tmpl.ExternalURL, as)
 	ruleURL := receivers.ToLogzioAppPath(receivers.JoinURLPath(basePath, "/alerting/list", tn.log))
-	//LOGZ.IO GRAFANA CHANGE :: end
+	// LOGZ.IO GRAFANA CHANGE :: end
 
 	card := NewAdaptiveCard()
 	card.AppendItem(AdaptiveCardTextBlockItem{

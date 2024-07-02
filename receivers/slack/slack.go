@@ -34,7 +34,7 @@ const (
 	// rate limits for files.upload https://api.slack.com/docs/rate-limits#tier_t2
 	maxImagesPerThreadTs        = 5
 	maxImagesPerThreadTsMessage = "There are more images than can be shown here. To see the panels for all firing and resolved alerts please check Grafana"
-	footerIconURL               = "https://s3.amazonaws.com/logzio-static-content-cdn/logzio-logo.png" //LOGZ.IO GRAFANA CHANGE :: change Grafana characteristics in Slack notification footer
+	footerIconURL               = "https://s3.amazonaws.com/logzio-static-content-cdn/logzio-logo.png" // LOGZ.IO GRAFANA CHANGE :: change Grafana characteristics in Slack notification footer
 )
 
 // APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
@@ -298,14 +298,14 @@ func (sn *Notifier) commonAlertGeneratorURL(_ context.Context, alerts []*types.A
 
 func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert) (*slackMessage, error) {
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, sn.log, &tmplErr)
+	tmpl, extendedData := templates.TmplText(ctx, sn.tmpl, alerts, sn.log, &tmplErr)
 
-	basePath := receivers.ToBasePathWithAccountRedirect(sn.tmpl.ExternalURL, alerts)                //LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
+	basePath := receivers.ToBasePathWithAccountRedirect(sn.tmpl.ExternalURL, alerts)                // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
 	ruleURL := receivers.ToLogzioAppPath(receivers.JoinURLPath(basePath, "/alerting/list", sn.log)) // LOGZ.IO GRAFANA CHANGE :: DEV-43657 - Set logzio APP URLs for the URLs inside alert notifications
 
 	// If all alerts have the same GeneratorURL, use that.
 	if sn.commonAlertGeneratorURL(ctx, alerts) {
-		ruleURL = alerts[0].GeneratorURL
+		ruleURL = extendedData.Alerts[0].GeneratorURL // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 	}
 
 	title, truncated := receivers.TruncateInRunes(tmpl(sn.settings.Title), slackMaxTitleLenRunes)
@@ -329,7 +329,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 				Color:      receivers.GetAlertStatusColor(types.Alerts(alerts...).Status()),
 				Title:      title,
 				Fallback:   title,
-				Footer:     "logz.io", //LOGZ.IO GRAFANA CHANGE :: change Grafana characteristics in Slack notification footer
+				Footer:     "logz.io", // LOGZ.IO GRAFANA CHANGE :: change Grafana characteristics in Slack notification footer
 				FooterIcon: footerIconURL,
 				Ts:         time.Now().Unix(),
 				TitleLink:  ruleURL,

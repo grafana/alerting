@@ -48,7 +48,7 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 	alertPageURL := basePath
 	ruleURL := basePath
 	u, err := url.Parse(basePath)
-	//LOGZ.IO GRAFANA CHANGE :: end
+	// LOGZ.IO GRAFANA CHANGE :: end
 	if err == nil {
 		basePath := u.Path
 		u.Path = path.Join(basePath, "/alerting/list")
