@@ -62,7 +62,8 @@ const (
 // If an existing template of the same filename as the one being tested is found, it will not be used as context.
 func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams) (*TestTemplatesResults, error) {
 	am.reloadConfigMtx.RLock()
-	tmpls := am.templates
+	tmpls := make([]templates.TemplateDefinition, len(am.templates))
+	copy(tmpls, am.templates)
 	am.reloadConfigMtx.RUnlock()
 
 	return TestTemplate(ctx, c, tmpls, am.ExternalURL(), am.logger)
