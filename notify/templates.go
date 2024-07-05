@@ -22,8 +22,8 @@ type TestTemplatesConfigBodyParams struct {
 }
 
 type TestTemplatesResults struct {
-	Results []TestTemplatesResult
-	Errors  []TestTemplatesErrorResult
+	Results []TestTemplatesResult      `json:"results"`
+	Errors  []TestTemplatesErrorResult `json:"errors"`
 }
 
 type TestTemplatesResult struct {
