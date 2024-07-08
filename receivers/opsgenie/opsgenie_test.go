@@ -2,6 +2,7 @@ package opsgenie
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/images"
@@ -24,12 +26,20 @@ func TestNotify(t *testing.T) {
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
 
+	ctx := notify.WithGroupKey(context.Background(), "alertname")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+	key, err := notify.ExtractGroupKey(ctx)
+	require.NoError(t, err)
+	groupKeyHash := key.Hash()
+
 	cases := []struct {
-		name        string
-		settings    Config
-		alerts      []*types.Alert
-		expMsg      string
-		expMsgError error
+		name                  string
+		disableResolveMessage bool
+		settings              Config
+		alerts                []*types.Alert
+		expURL                string
+		expMsg                string
+		expMsgError           error
 	}{
 		{
 			name: "Default config with one alert",
@@ -50,16 +60,16 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsg: `{
-				"alias": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
-				"description": "[FIRING:1]  (val1)\nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+			expMsg: fmt.Sprintf(`{
+				"alias": "%s",
+				"description": "[FIRING:1]  (val1)\nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				"details": {
 					"url": "http://localhost/alerting/list"
 				},
 				"message": "[FIRING:1]  (val1)",
 				"source": "Grafana",
 				"tags": ["alertname:alert1", "lbl1:val1"]
-			}`,
+			}`, groupKeyHash),
 		},
 		{
 			name: "Default config with one alert, custom message and description",
@@ -80,8 +90,8 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsg: `{
-				"alias": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
+			expMsg: fmt.Sprintf(`{
+				"alias": "%s",
 				"description": "test description",
 				"details": {
 					"url": "http://localhost/alerting/list"
@@ -89,7 +99,7 @@ func TestNotify(t *testing.T) {
 				"message": "test message",
 				"source": "Grafana",
 				"tags": ["alertname:alert1", "lbl1:val1"]
-			}`,
+			}`, groupKeyHash),
 		},
 		{
 			name: "Default config with one alert, message length > 130",
@@ -110,16 +120,16 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsg: `{
-				"alias": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
-				"description": "[FIRING:1]  (val1)\nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+			expMsg: fmt.Sprintf(`{
+				"alias": "%s",
+				"description": "[FIRING:1]  (val1)\nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				"details": {
 					"url": "http://localhost/alerting/list"
 				},
 				"message": "IyJnsW78xQoiBJ7L7NqASv31JCFf0At3r9KUykqBVxSiC6qkDhvDLDW9VImiFcq0Iw2XwFy5fX4FcbTmlkaZzUzjVwx9VUuokhzqQlJVhWDYFqhj3a5wX0LjyvNQjsqT9…",
 				"source": "Grafana",
 				"tags": ["alertname:alert1", "lbl1:val1"]
-			}`,
+			}`, groupKeyHash),
 		},
 		{
 			name: "Default config with one alert, templated message and description",
@@ -140,8 +150,8 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsg: `{
-				"alias": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
+			expMsg: fmt.Sprintf(`{
+				"alias": "%s",
 				"description": "1 firing, 0 resolved.",
 				"details": {
 					"url": "http://localhost/alerting/list"
@@ -149,7 +159,7 @@ func TestNotify(t *testing.T) {
 				"message": "Firing: 1",
 				"source": "Grafana",
 				"tags": ["alertname:alert1", "lbl1:val1"]
-			}`,
+			}`, groupKeyHash),
 		},
 		{
 			name: "Default config with one alert and send tags as tags, empty description and message",
@@ -170,16 +180,16 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsg: `{
-				"alias": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
-				"description": "[FIRING:1]  (val1)\nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+			expMsg: fmt.Sprintf(`{
+				"alias": "%s",
+				"description": "[FIRING:1]  (val1)\nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval1\n",
 				"details": {
 					"url": "http://localhost/alerting/list"
 				},
 				"message": "[FIRING:1]  (val1)",
 				"source": "Grafana",
 				"tags": ["alertname:alert1", "lbl1:val1"]
-			}`,
+			}`, groupKeyHash),
 		},
 		{
 			name: "Default config with one alert and send tags as details",
@@ -200,9 +210,9 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsg: `{
-				"alias": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
-				"description": "[FIRING:1]  (val1)\nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+			expMsg: fmt.Sprintf(`{
+				"alias": "%s",
+				"description": "[FIRING:1]  (val1)\nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval1\n",
 				"details": {
 					"alertname": "alert1",
 					"lbl1": "val1",
@@ -211,7 +221,7 @@ func TestNotify(t *testing.T) {
 				"message": "[FIRING:1]  (val1)",
 				"source": "Grafana",
 				"tags": []
-			}`,
+			}`, groupKeyHash),
 		},
 		{
 			name: "Custom config with multiple alerts and send tags as both details and tag",
@@ -237,9 +247,9 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsg: `{
-				"alias": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
-				"description": "[FIRING:2]  \nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+			expMsg: fmt.Sprintf(`{
+				"alias": "%s",
+				"description": "[FIRING:2]  \nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval2\n",
 				"details": {
 					"alertname": "alert1",
 					"url": "http://localhost/alerting/list"
@@ -247,7 +257,7 @@ func TestNotify(t *testing.T) {
 				"message": "[FIRING:2]  ",
 				"source": "Grafana",
 				"tags": ["alertname:alert1"]
-			}`,
+			}`, groupKeyHash),
 			expMsgError: nil,
 		},
 		{
@@ -292,9 +302,9 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsg: `{
-				"alias": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
-				"description": "[FIRING:2]  \nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+			expMsg: fmt.Sprintf(`{
+				"alias": "%s",
+				"description": "[FIRING:2]  \nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval2\n",
 				"details": {
 					"alertname": "alert1",
 					"url": "http://localhost/alerting/list"
@@ -320,7 +330,7 @@ func TestNotify(t *testing.T) {
 						"type": "team"
 					}
 				]
-			}`,
+			}`, groupKeyHash),
 			expMsgError: nil,
 		},
 		{
@@ -353,9 +363,9 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsg: `{
-				"alias": "6e3538104c14b583da237e9693b76debbc17f0f8058ef20492e5853096cf8733",
-				"description": "[FIRING:2]  \nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+			expMsg: fmt.Sprintf(`{
+				"alias": "%s",
+				"description": "[FIRING:2]  \nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - type = team\n - user = test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval2\n",
 				"details": {
 					"alertname": "alert1",
 					"url": "http://localhost/alerting/list"
@@ -377,7 +387,7 @@ func TestNotify(t *testing.T) {
 						"type": "team"
 					}
 				]
-			}`,
+			}`, groupKeyHash),
 			expMsgError: nil,
 		},
 		{
@@ -401,12 +411,96 @@ func TestNotify(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Resolved is sent when auto close is true",
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          templates.DefaultMessageTitleEmbed,
+				Description:      "",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendBoth,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+						EndsAt:      time.Now().Add(-1 * time.Minute),
+					},
+				},
+			},
+			expURL: DefaultAlertsURL + "/" + groupKeyHash + "/close?identifierType=alias",
+			expMsg: `{"source":"Grafana"}`,
+		},
+		{
+			name:                  "Auto close is ignored when DisableResolveSent is true",
+			disableResolveMessage: true,
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          templates.DefaultMessageTitleEmbed,
+				Description:      "",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendBoth,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+						EndsAt:      time.Now().Add(-1 * time.Minute),
+					},
+				},
+			},
+		},
+		{
+			name: "Should not auto-close if at least one alert is firing",
+			settings: Config{
+				APIKey:           "abcdefgh0123456789",
+				APIUrl:           DefaultAlertsURL,
+				Message:          templates.DefaultMessageTitleEmbed,
+				Description:      "",
+				AutoClose:        true,
+				OverridePriority: true,
+				SendTagsAs:       SendBoth,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+						EndsAt:      time.Now().Add(-1 * time.Minute),
+					},
+				},
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+						Annotations: model.LabelSet{"ann1": "annv2"},
+					},
+				},
+			},
+			expMsg: fmt.Sprintf(`{
+				"alias": "%s",
+				"description": "[FIRING:1]  \nhttp://localhost/alerting/list\n\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval2\n\n\n**Resolved**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%%3Dalert1&matcher=lbl1%%3Dval1\n",
+				"details": {
+					"alertname": "alert1",
+					"url": "http://localhost/alerting/list"
+				},
+				"message": "[FIRING:1]  ",
+				"source": "Grafana",
+				"tags": ["alertname:alert1"]
+			}`, groupKeyHash),
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 
 			webhookSender := receivers.MockNotificationService()
+			webhookSender.Webhook.URL = DefaultAlertsURL
 			webhookSender.Webhook.Body = "<not-sent>"
 
 			pn := &Notifier{
@@ -414,7 +508,7 @@ func TestNotify(t *testing.T) {
 					Name:                  "",
 					Type:                  "",
 					UID:                   "",
-					DisableResolveMessage: false,
+					DisableResolveMessage: c.disableResolveMessage,
 				},
 				log:      &logging.FakeLogger{},
 				ns:       webhookSender,
@@ -422,9 +516,6 @@ func TestNotify(t *testing.T) {
 				settings: c.settings,
 				images:   &images.UnavailableProvider{},
 			}
-
-			ctx := notify.WithGroupKey(context.Background(), "alertname")
-			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
 
 			ok, err := pn.Notify(ctx, c.alerts...)
 			if c.expMsgError != nil {
@@ -438,9 +529,14 @@ func TestNotify(t *testing.T) {
 
 			if c.expMsg == "" {
 				// No notification was expected.
-				require.Equal(t, "<not-sent>", webhookSender.Webhook.Body)
+				assert.Equal(t, "<not-sent>", webhookSender.Webhook.Body)
 			} else {
-				require.JSONEq(t, c.expMsg, webhookSender.Webhook.Body)
+				assert.JSONEq(t, c.expMsg, webhookSender.Webhook.Body)
+			}
+			if c.expURL == "" {
+				assert.Equal(t, DefaultAlertsURL, webhookSender.Webhook.URL)
+			} else {
+				assert.Equal(t, c.expURL, webhookSender.Webhook.URL)
 			}
 		})
 	}
