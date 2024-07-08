@@ -63,6 +63,7 @@ type discordImage struct {
 	URL string `json:"url"`
 }
 
+// discordError implements https://discord.com/developers/docs/reference#error-messages except for Errors field that is not used in the code
 type discordError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
