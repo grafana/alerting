@@ -28,21 +28,21 @@ type TestTemplatesResults struct {
 
 type TestTemplatesResult struct {
 	// Name of the associated template definition for this result.
-	Name string
+	Name string `json:"name"`
 
 	// Interpolated value of the template.
-	Text string
+	Text string `json:"text"`
 }
 
 type TestTemplatesErrorResult struct {
 	// Name of the associated template for this error. Will be empty if the Kind is "invalid_template".
-	Name string
+	Name string `json:"name"`
 
 	// Kind of template error that occurred.
-	Kind TemplateErrorKind
+	Kind TemplateErrorKind `json:"kind"`
 
 	// Error cause.
-	Error error
+	Error error `json:"error"`
 }
 
 type TemplateErrorKind string
