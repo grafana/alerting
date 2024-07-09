@@ -89,7 +89,7 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		GeneratorURL: generatorUrl, // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 		Fingerprint:  alert.Fingerprint,
 	}
-
+	//generatorURL, err := url.Parse(extended.GeneratorURL)	// LOGZ.IO GRAFANA CHANGE :: DEV-45707: remove org id query param from notification urls
 	// fill in some grafana-specific urls
 	if len(externalURL) == 0 {
 		return extended
@@ -99,17 +99,18 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		level.Debug(logger).Log("msg", "failed to parse external URL while extending template data", "url", externalURL, "error", err.Error())
 		return extended
 	}
+	// LOGZ.IO GRAFANA CHANGE :: DEV-45707: remove org id query param from notification urls
+	/*orgID := alert.Annotations[models.OrgIDAnnotation]
+	if len(orgID) > 0 {
+		extended.GeneratorURL = setOrgIDQueryParam(generatorURL, orgID)
+	}*/
+	// LOGZ.IO GRAFANA CHANGE :: end
+
 	externalPath := u.Path
 
-	generatorURL, err := url.Parse(extended.GeneratorURL)
 	if err != nil {
 		level.Debug(logger).Log("msg", "failed to parse generator URL while extending template data", "url", extended.GeneratorURL, "error", err.Error())
 		return extended
-	}
-
-	orgID := alert.Annotations[models.OrgIDAnnotation]
-	if len(orgID) > 0 {
-		extended.GeneratorURL = setOrgIDQueryParam(generatorURL, orgID)
 	}
 
 	dashboardUID := alert.Annotations[models.DashboardUIDAnnotation]
@@ -121,15 +122,18 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 			u.RawQuery = "viewPanel=" + panelID
 			extended.PanelURL = receivers.ToLogzioAppPath(receivers.AppendSwitchToAccountQueryParam(u, accountId).String()) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 		}
-		dashboardURL, err := url.Parse(extended.DashboardURL)
+		//dashboardURL, err := url.Parse(extended.DashboardURL)	// LOGZ.IO GRAFANA CHANGE :: DEV-45707: remove org id query param from notification urls
 		if err != nil {
 			level.Debug(logger).Log("msg", "failed to parse dashboard URL while extending template data", "url", extended.DashboardURL, "error", err.Error())
 			return extended
 		}
+		/* LOGZ.IO GRAFANA CHANGE :: DEV-45707: remove org id query param from notification urls
 		if len(orgID) > 0 {
 			extended.DashboardURL = setOrgIDQueryParam(dashboardURL, orgID)
 			extended.PanelURL = setOrgIDQueryParam(u, orgID)
 		}
+			LOGZ.IO GRAFANA CHANGE :: end
+		*/
 	}
 
 	if alert.Annotations != nil {
@@ -160,21 +164,26 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 
 	u.RawQuery = query.Encode()
 	u = receivers.AppendSwitchToAccountQueryParam(u, accountId) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
+	/* LOGZ.IO GRAFANA CHANGE :: DEV-45707: remove org id query param from notification urls
 	if len(orgID) > 0 {
-		extended.SilenceURL = receivers.ToLogzioAppPath(setOrgIDQueryParam(u, orgID)) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
+		extended.SilenceURL = setOrgIDQueryParam(u, orgID)
 	} else {
-		extended.SilenceURL = receivers.ToLogzioAppPath(u.String()) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
+		extended.SilenceURL = u.String()
 	}
+	*/
+	extended.SilenceURL = receivers.ToLogzioAppPath(u.String()) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 	return extended
 }
 
+/* LOGZ.IO GRAFANA CHANGE :: DEV-45707: remove org id query param from notification urls
 func setOrgIDQueryParam(url *url.URL, orgID string) string {
 	q := url.Query()
 	q.Set("orgId", orgID)
 	url.RawQuery = q.Encode()
-
 	return url.String()
 }
+LOGZ.IO GRAFANA CHANGE :: end
+*/
 
 func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 	alerts := make([]ExtendedAlert, 0, len(data.Alerts))
