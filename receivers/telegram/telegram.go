@@ -57,12 +57,8 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 			return fmt.Errorf("failed to build message: %w", err)
 		}
 		for k, v := range msg {
-			fw, err := w.CreateFormField(k)
-			if err != nil {
+			if err := writeField(w, k, v); err != nil {
 				return fmt.Errorf("failed to create form field: %w", err)
-			}
-			if _, err := fw.Write([]byte(v)); err != nil {
-				return fmt.Errorf("failed to write value: %w", err)
 			}
 		}
 		return nil
@@ -157,11 +153,7 @@ func (tn *Notifier) newWebhookSyncCmd(action string, fn func(writer *multipart.W
 		}
 	}
 
-	fw, err := w.CreateFormField("chat_id")
-	if err != nil {
-		return nil, err
-	}
-	if _, err := fw.Write([]byte(tn.settings.ChatID)); err != nil {
+	if err := writeField(w, "chat_id", tn.settings.ChatID); err != nil {
 		return nil, err
 	}
 
@@ -186,4 +178,15 @@ func (tn *Notifier) newWebhookSyncCmd(action string, fn func(writer *multipart.W
 
 func (tn *Notifier) SendResolved() bool {
 	return !tn.GetDisableResolveMessage()
+}
+
+func writeField(w *multipart.Writer, fieldName string, value string) error {
+	fw, err := w.CreateFormField("message_thread_id")
+	if err != nil {
+		return err
+	}
+	if _, err := fw.Write([]byte(value)); err != nil {
+		return err
+	}
+	return nil
 }
