@@ -124,9 +124,6 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert)
 
 	m := make(map[string]string)
 	m["text"] = messageText
-	if tn.settings.MessageThreadID != "" {
-		m["message_thread_id"] = tn.settings.MessageThreadID
-	}
 	if tn.settings.ParseMode != "" {
 		m["parse_mode"] = tn.settings.ParseMode
 	}
@@ -135,9 +132,6 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert)
 	}
 	if tn.settings.ProtectContent {
 		m["protect_content"] = "true"
-	}
-	if tn.settings.DisableNotifications {
-		m["disable_notification"] = "true"
 	}
 	return m, nil
 }
@@ -155,6 +149,16 @@ func (tn *Notifier) newWebhookSyncCmd(action string, fn func(writer *multipart.W
 
 	if err := writeField(w, "chat_id", tn.settings.ChatID); err != nil {
 		return nil, err
+	}
+	if tn.settings.MessageThreadID != "" {
+		if err := writeField(w, "message_thread_id", tn.settings.MessageThreadID); err != nil {
+			return nil, err
+		}
+	}
+	if tn.settings.DisableNotifications {
+		if err := writeField(w, "disable_notification", "true"); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := fn(w); err != nil {
