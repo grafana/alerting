@@ -57,7 +57,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 			return fmt.Errorf("failed to build message: %w", err)
 		}
 		for k, v := range msg {
-			if err := writeField(w, k, v); err != nil {
+			if err := w.WriteField(k, v); err != nil {
 				return fmt.Errorf("failed to create form field: %w", err)
 			}
 		}
@@ -147,16 +147,16 @@ func (tn *Notifier) newWebhookSyncCmd(action string, fn func(writer *multipart.W
 		}
 	}
 
-	if err := writeField(w, "chat_id", tn.settings.ChatID); err != nil {
+	if err := w.WriteField("chat_id", tn.settings.ChatID); err != nil {
 		return nil, err
 	}
 	if tn.settings.MessageThreadID != "" {
-		if err := writeField(w, "message_thread_id", tn.settings.MessageThreadID); err != nil {
+		if err := w.WriteField("message_thread_id", tn.settings.MessageThreadID); err != nil {
 			return nil, err
 		}
 	}
 	if tn.settings.DisableNotifications {
-		if err := writeField(w, "disable_notification", "true"); err != nil {
+		if err := w.WriteField("disable_notification", "true"); err != nil {
 			return nil, err
 		}
 	}
@@ -182,15 +182,4 @@ func (tn *Notifier) newWebhookSyncCmd(action string, fn func(writer *multipart.W
 
 func (tn *Notifier) SendResolved() bool {
 	return !tn.GetDisableResolveMessage()
-}
-
-func writeField(w *multipart.Writer, fieldName string, value string) error {
-	fw, err := w.CreateFormField("message_thread_id")
-	if err != nil {
-		return err
-	}
-	if _, err := fw.Write([]byte(value)); err != nil {
-		return err
-	}
-	return nil
 }
