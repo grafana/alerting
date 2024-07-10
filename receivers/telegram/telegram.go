@@ -27,6 +27,9 @@ const telegramMaxMessageLenRunes = 4096
 
 // Notifier is responsible for sending
 // alert notifications to Telegram.
+// It uses two API endpoints
+// - https://core.telegram.org/bots/api#sendphoto for sending images (only if alerts contain references to them)
+// - https://core.telegram.org/bots/api#sendmessage for sending text message
 type Notifier struct {
 	*receivers.Base
 	log      logging.Logger
