@@ -316,6 +316,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	if err != nil {
 		return false, fmt.Errorf("failed to parse URL: %w", err)
 	}
+	// TODO: remove it after August 15. Office webhooks are deprecated and are removed on August 15, https://devblogs.microsoft.com/microsoft365dev/retirement-of-office-365-connectors-within-microsoft-teams/
 	if strings.HasSuffix(parsed.Host, "webhook.office.com") {
 		// Teams sometimes does not use status codes to show when a request has failed. Instead, the
 		// response can contain an error message, irrespective of status code (i.e. https://docs.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/connectors-using?tabs=cURL#rate-limiting-for-connectors)
