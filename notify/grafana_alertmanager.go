@@ -392,14 +392,18 @@ func newTestReceiversResult(alert types.Alert, results []result, receivers []*AP
 func TestReceivers(
 	ctx context.Context,
 	c TestReceiversConfigBodyParams,
-	tmpls []string,
+	tmpls []templates.TemplateDefinition,
 	buildIntegrationsFunc func(*APIReceiver, *template.Template) ([]*nfstatus.Integration, error),
 	externalURL string) (*TestReceiversResult, error) {
 
 	now := time.Now() // The start time of the test
 	testAlert := newTestAlert(c, now, now)
 
-	tmpl, err := templateFromContent(tmpls, externalURL)
+	templates := make([]string, len(tmpls))
+	for _, tmpl := range tmpls {
+		templates = append(templates, tmpl.Template)
+	}
+	tmpl, err := templateFromContent(templates, externalURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get template: %w", err)
 	}
