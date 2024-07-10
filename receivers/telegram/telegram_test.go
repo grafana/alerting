@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"errors"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -28,8 +29,10 @@ func TestNotify(t *testing.T) {
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
+	//goland:noinspection ALL
 	image1, _ := images.GetImage(context.Background(), "test-image-1")
 	image1Name := filepath.Base(image1.Path)
+	//goland:noinspection ALL
 	image2, _ := images.GetImage(context.Background(), "test-image-2")
 	image2Name := filepath.Base(image2.Path)
 
@@ -192,11 +195,12 @@ func TestNotify(t *testing.T) {
 				data := map[string]string{}
 				for {
 					p, err := reader.NextPart()
-					if err == io.EOF {
+					if errors.Is(err, io.EOF) {
 						break
 					}
 					require.NoError(t, err)
 					slurp, err := io.ReadAll(p)
+					require.NoError(t, err)
 					fieldName := p.FormName()
 					photoName := p.FileName()
 					if assert.NotEmpty(t, fieldName) {
