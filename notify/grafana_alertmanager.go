@@ -704,6 +704,41 @@ func (am *GrafanaAlertmanager) setReceiverMetrics(receivers []*nfstatus.Receiver
 // PutAlerts receives the alerts and then sends them through the corresponding route based on whenever the alert has a receiver embedded or not
 func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) error {
 	now := time.Now()
+	alerts, validationErr := PostableToUpstreamAlerts(postableAlerts, now)
+
+	// Register metrics.
+	for _, a := range alerts {
+		if a.EndsAt.After(now) {
+			am.Metrics.Firing().Inc()
+		} else {
+			am.Metrics.Resolved().Inc()
+		}
+
+		level.Debug(am.logger).Log("msg",
+			"Putting alert",
+			"alert",
+			a,
+			"starts_at",
+			a.StartsAt,
+			"ends_at",
+			a.EndsAt)
+	}
+
+	if err := am.alerts.Put(alerts...); err != nil {
+		// Notification sending alert takes precedence over validation errors.
+		return err
+	}
+	if validationErr != nil {
+		am.Metrics.Invalid().Add(float64(len(validationErr.Alerts)))
+		// Even if validationErr is nil, the require.NoError fails on it.
+		return validationErr
+	}
+	return nil
+}
+
+// PostableToUpstreamAlerts converts the PostableAlerts to a slice of *types.Alert.
+// It sets `StartsAt` and `EndsAt`, ignores empty and namespace UID labels, and captures validation errors for each skipped alert.
+func PostableToUpstreamAlerts(postableAlerts amv2.PostableAlerts, now time.Time) ([]*types.Alert, *AlertValidationError) {
 	alerts := make([]*types.Alert, 0, len(postableAlerts))
 	var validationErr *AlertValidationError
 	for _, a := range postableAlerts {
@@ -748,42 +783,19 @@ func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) err
 			alert.EndsAt = now.Add(defaultResolveTimeout)
 		}
 
-		if alert.EndsAt.After(now) {
-			am.Metrics.Firing().Inc()
-		} else {
-			am.Metrics.Resolved().Inc()
-		}
-
 		if err := alert.Validate(); err != nil {
 			if validationErr == nil {
 				validationErr = &AlertValidationError{}
 			}
 			validationErr.Alerts = append(validationErr.Alerts, a)
 			validationErr.Errors = append(validationErr.Errors, err)
-			am.Metrics.Invalid().Inc()
 			continue
 		}
 
-		level.Debug(am.logger).Log("msg",
-			"Putting alert",
-			"alert",
-			alert,
-			"starts_at",
-			alert.StartsAt,
-			"ends_at",
-			alert.EndsAt)
 		alerts = append(alerts, alert)
 	}
 
-	if err := am.alerts.Put(alerts...); err != nil {
-		// Notification sending alert takes precedence over validation errors.
-		return err
-	}
-	if validationErr != nil {
-		// Even if validationErr is nil, the require.NoError fails on it.
-		return validationErr
-	}
-	return nil
+	return alerts, validationErr
 }
 
 // AlertValidationError is the error capturing the validation errors
