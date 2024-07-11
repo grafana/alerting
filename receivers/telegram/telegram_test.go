@@ -7,7 +7,6 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -29,12 +28,8 @@ func TestNotify(t *testing.T) {
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
-	//goland:noinspection ALL
-	image1, _ := images.GetImage(context.Background(), "test-image-1")
-	image1Name := filepath.Base(image1.Path)
-	//goland:noinspection ALL
-	image2, _ := images.GetImage(context.Background(), "test-image-2")
-	image2Name := filepath.Base(image2.Path)
+	image1Name := images.GetImageFileName("test-image-1")
+	image2Name := images.GetImageFileName("test-image-2")
 
 	cases := []struct {
 		name        string
