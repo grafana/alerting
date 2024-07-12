@@ -296,9 +296,9 @@ func TestNotify(t *testing.T) {
 	}
 }
 
-func Test_ValidateResponse(t *testing.T) {
-	require.NoError(t, validateResponse([]byte("1"), rand.Int()))
-	err := validateResponse([]byte("some error message"), rand.Int())
+func TestValidateWebhookResponse(t *testing.T) {
+	require.NoError(t, validateOfficeWebhookResponse([]byte("1"), rand.Int()))
+	err := validateOfficeWebhookResponse([]byte("some error message"), rand.Int())
 	require.Error(t, err)
 	require.Equal(t, "some error message", err.Error())
 }
