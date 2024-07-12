@@ -704,7 +704,7 @@ func (am *GrafanaAlertmanager) setReceiverMetrics(receivers []*nfstatus.Receiver
 // PutAlerts receives the alerts and then sends them through the corresponding route based on whenever the alert has a receiver embedded or not
 func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) error {
 	now := time.Now()
-	alerts, validationErr := PostableToUpstreamAlerts(postableAlerts, now)
+	alerts, validationErr := PostableAlertsToAlertmanagerAlerts(postableAlerts, now)
 
 	// Register metrics.
 	for _, a := range alerts {
@@ -736,9 +736,9 @@ func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) err
 	return nil
 }
 
-// PostableToUpstreamAlerts converts the PostableAlerts to a slice of *types.Alert.
+// PostableAlertsToAlertmanagerAlerts converts the PostableAlerts to a slice of *types.Alert.
 // It sets `StartsAt` and `EndsAt`, ignores empty and namespace UID labels, and captures validation errors for each skipped alert.
-func PostableToUpstreamAlerts(postableAlerts amv2.PostableAlerts, now time.Time) ([]*types.Alert, *AlertValidationError) {
+func PostableAlertsToAlertmanagerAlerts(postableAlerts amv2.PostableAlerts, now time.Time) ([]*types.Alert, *AlertValidationError) {
 	alerts := make([]*types.Alert, 0, len(postableAlerts))
 	var validationErr *AlertValidationError
 	for _, a := range postableAlerts {
