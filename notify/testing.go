@@ -222,3 +222,24 @@ func (n NotifierConfigTest) GetRawNotifierConfig(name string) *GrafanaIntegratio
 		SecureSettings:        secrets,
 	}
 }
+
+// GetMergedConfig returns a JSON object that contains all fields from Config and Secrets
+func (n NotifierConfigTest) GetMergedConfig() (json.RawMessage, error) {
+	if n.Secrets == "" {
+		return json.RawMessage(n.Config), nil
+	}
+	data := make(map[string]any)
+	err := json.Unmarshal([]byte(n.Config), &data)
+	if err != nil {
+		return nil, err
+	}
+	secrets := make(map[string]string)
+	err = json.Unmarshal([]byte(n.Secrets), &secrets)
+	if err != nil {
+		return nil, err
+	}
+	for key, value := range secrets {
+		data[key] = value
+	}
+	return json.Marshal(data)
+}
