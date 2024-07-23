@@ -157,6 +157,11 @@ type Configuration interface {
 	Raw() []byte
 }
 
+type Limits struct {
+	MaxSilences         int
+	MaxSilenceSizeBytes int
+}
+
 type GrafanaAlertmanagerConfig struct {
 	ExternalURL        string
 	AlertStoreCallback mem.AlertStoreCallback
@@ -164,6 +169,8 @@ type GrafanaAlertmanagerConfig struct {
 
 	Silences MaintenanceOptions
 	Nflog    MaintenanceOptions
+
+	Limits Limits
 }
 
 func (c *GrafanaAlertmanagerConfig) Validate() error {
@@ -205,6 +212,10 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		Metrics:        m.Registerer,
 		SnapshotReader: strings.NewReader(config.Silences.InitialState()),
 		Retention:      config.Silences.Retention(),
+		Limits: silence.Limits{
+			MaxSilences:         func() int { return config.Limits.MaxSilences },
+			MaxSilenceSizeBytes: func() int { return config.Limits.MaxSilenceSizeBytes },
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the silencing component of alerting: %w", err)
