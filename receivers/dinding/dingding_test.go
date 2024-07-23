@@ -37,6 +37,7 @@ func TestNotify(t *testing.T) {
 				MessageType: defaultDingdingMsgType,
 				Title:       templates.DefaultMessageTitleEmbed,
 				Message:     templates.DefaultMessageEmbed,
+				ToUser:      defaultDingdingToUser,
 			},
 			alerts: []*types.Alert{
 				{
@@ -62,6 +63,7 @@ func TestNotify(t *testing.T) {
 				MessageType: "actionCard",
 				Title:       templates.DefaultMessageTitleEmbed,
 				Message:     "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+				ToUser:      defaultDingdingToUser,
 			},
 			alerts: []*types.Alert{
 				{
@@ -93,6 +95,7 @@ func TestNotify(t *testing.T) {
 				MessageType: defaultDingdingMsgType,
 				Title:       "Alerts firing: {{ len .Alerts.Firing }}",
 				Message:     "customMessage",
+				ToUser:      defaultDingdingToUser,
 			},
 			alerts: []*types.Alert{
 				{
@@ -118,6 +121,7 @@ func TestNotify(t *testing.T) {
 				MessageType: "actionCard",
 				Title:       templates.DefaultMessageTitleEmbed,
 				Message:     "I'm a custom template {{ .NotAField }} bad template",
+				ToUser:      defaultDingdingToUser,
 			},
 			alerts: []*types.Alert{
 				{
@@ -148,6 +152,7 @@ func TestNotify(t *testing.T) {
 				MessageType: "actionCard",
 				Title:       templates.DefaultMessageTitleEmbed,
 				Message:     "I'm a custom template {{ {.NotAField }} bad template",
+				ToUser:      defaultDingdingToUser,
 			},
 			alerts: []*types.Alert{
 				{
