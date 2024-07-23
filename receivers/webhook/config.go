@@ -24,6 +24,8 @@ type Config struct {
 
 	Title   string
 	Message string
+
+	IsJSON bool
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {

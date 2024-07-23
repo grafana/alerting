@@ -9,6 +9,7 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
+	jsonnet "github.com/google/go-jsonnet"
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
@@ -30,6 +31,10 @@ type Notifier struct {
 // New is the constructor for
 // the WebHook notifier.
 func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger logging.Logger, orgID int64) *Notifier {
+	if cfg.Message[0:5] == "#json" {
+		fmt.Println("It's json!")
+		cfg.IsJSON = true
+	}
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		orgID:    orgID,
@@ -65,40 +70,57 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	as, numTruncated := truncateAlerts(wn.settings.MaxAlerts, as)
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
+	var body string
 
-	// Augment our Alert data with ImageURLs if available.
-	_ = images.WithStoredImages(ctx, wn.log, wn.images,
-		func(index int, image images.Image) error {
-			if len(image.URL) != 0 {
-				data.Alerts[index].ImageURL = image.URL
-			}
-			return nil
-		},
-		as...)
+	if !wn.settings.IsJSON {
+		// Augment our Alert data with ImageURLs if available.
+		_ = images.WithStoredImages(ctx, wn.log, wn.images,
+			func(index int, image images.Image) error {
+				if len(image.URL) != 0 {
+					data.Alerts[index].ImageURL = image.URL
+				}
+				return nil
+			},
+			as...)
 
-	msg := &webhookMessage{
-		Version:         "1",
-		ExtendedData:    data,
-		GroupKey:        groupKey.String(),
-		TruncatedAlerts: numTruncated,
-		OrgID:           wn.orgID,
-		Title:           tmpl(wn.settings.Title),
-		Message:         tmpl(wn.settings.Message),
-	}
-	if types.Alerts(as...).Status() == model.AlertFiring {
-		msg.State = string(receivers.AlertStateAlerting)
+		msg := &webhookMessage{
+			Version:         "1",
+			ExtendedData:    data,
+			GroupKey:        groupKey.String(),
+			TruncatedAlerts: numTruncated,
+			OrgID:           wn.orgID,
+			Title:           tmpl(wn.settings.Title),
+			Message:         tmpl(wn.settings.Message),
+		}
+		if types.Alerts(as...).Status() == model.AlertFiring {
+			msg.State = string(receivers.AlertStateAlerting)
+		} else {
+			msg.State = string(receivers.AlertStateOK)
+		}
+
+		if tmplErr != nil {
+			wn.log.Warn("failed to template webhook message", "error", tmplErr.Error())
+			tmplErr = nil
+		}
+		b, err := json.Marshal(msg)
+		if err != nil {
+			return false, err
+		}
+		body = string(b)
 	} else {
-		msg.State = string(receivers.AlertStateOK)
-	}
+		fmt.Println("Wohooo it's json!!!")
+		vm := jsonnet.MakeVM()
 
-	if tmplErr != nil {
-		wn.log.Warn("failed to template webhook message", "error", tmplErr.Error())
-		tmplErr = nil
-	}
+		b, err := json.Marshal(data)
+		if err != nil {
+			return false, err
+		}
+		vm.ExtCode("data", string(b))
 
-	body, err := json.Marshal(msg)
-	if err != nil {
-		return false, err
+		body, err = vm.EvaluateAnonymousSnippet("notification", wn.settings.Message)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	headers := make(map[string]string)
