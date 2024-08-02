@@ -4,6 +4,7 @@ package mqtt
 const FullValidConfigForTesting = `{
 	"brokerUrl": "tcp://localhost:1883",
 	"topic": "grafana/alerts",
+	"messageFormat": "json",
 	"clientId": "grafana-test-client-id",
 	"username": "test-username",
 	"insecureSkipVerify": false
