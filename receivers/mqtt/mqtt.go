@@ -3,9 +3,12 @@ package mqtt
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
+	"errors"
 	"fmt"
 
 	mqttLib "github.com/eclipse/paho.mqtt.golang"
+	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/logging"
@@ -58,23 +61,30 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, logg
 	}
 }
 
+// mqttMessage defines the JSON object send to an MQTT broker.
+type mqttMessage struct {
+	*templates.ExtendedData
+
+	// The protocol version.
+	Version  string `json:"version"`
+	GroupKey string `json:"groupKey"`
+	Message  string `json:"message"`
+}
+
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	n.log.Debug("Sending an MQTT message")
+
+	msg, err := n.buildMessage(ctx, as...)
+	if err != nil {
+		return false, err
+	}
 
 	if token := n.client.Connect(); token.Wait() && token.Error() != nil {
 		n.log.Error("Failed to connect to MQTT broker", "error", token.Error())
 		return false, fmt.Errorf("Failed to connect to MQTT broker: %w", token.Error())
 	}
 
-	var err error
-	tmpl, _ := templates.TmplText(ctx, n.tmpl, as, n.log, &err)
-	messageText := tmpl(n.settings.Message)
-	if err != nil {
-		n.log.Error("Failed to template MQTT message", "error", err)
-		return false, fmt.Errorf("Failed to template MQTT message: %w", err)
-	}
-
-	if token := n.client.Publish(n.settings.Topic, 0, false, messageText); token.Wait() && token.Error() != nil {
+	if token := n.client.Publish(n.settings.Topic, 0, false, string(msg)); token.Wait() && token.Error() != nil {
 		n.log.Error("Failed to publish MQTT message", "error", token.Error())
 		return false, fmt.Errorf("Failed to publish MQTT message: %w", token.Error())
 	}
@@ -82,6 +92,42 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	n.client.Disconnect(250)
 
 	return true, nil
+}
+
+func (n *Notifier) buildMessage(ctx context.Context, as ...*types.Alert) (string, error) {
+	groupKey, err := notify.ExtractGroupKey(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	var tmplErr error
+	tmpl, data := templates.TmplText(ctx, n.tmpl, as, n.log, &tmplErr)
+	messageText := tmpl(n.settings.Message)
+	if tmplErr != nil {
+		n.log.Error("Failed to template MQTT message", "error", tmplErr)
+		return "", fmt.Errorf("Failed to template MQTT message: %w", tmplErr)
+	}
+
+	switch n.settings.MessageFormat {
+	case MessageFormatText:
+		return messageText, nil
+	case MessageFormatJSON:
+		msg := &mqttMessage{
+			Version:      "1",
+			ExtendedData: data,
+			GroupKey:     groupKey.String(),
+			Message:      messageText,
+		}
+
+		jsonMsg, err := json.Marshal(msg)
+		if err != nil {
+			return "", err
+		}
+
+		return string(jsonMsg), nil
+	default:
+		return "", errors.New("Invalid message format")
+	}
 }
 
 func (n *Notifier) SendResolved() bool {

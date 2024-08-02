@@ -13,11 +13,17 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
+const (
+	MessageFormatJSON string = "json"
+	MessageFormatText string = "text"
+)
+
 type Config struct {
 	BrokerURL          string `json:"brokerUrl,omitempty" yaml:"brokerUrl,omitempty"`
 	ClientID           string `json:"clientId,omitempty" yaml:"clientId,omitempty"`
 	Topic              string `json:"topic,omitempty" yaml:"topic,omitempty"`
 	Message            string `json:"message,omitempty" yaml:"message,omitempty"`
+	MessageFormat      string `json:"messageFormat,omitempty" yaml:"messageFormat,omitempty"`
 	Username           string `json:"username,omitempty" yaml:"username,omitempty"`
 	Password           string `json:"password,omitempty" yaml:"password,omitempty"`
 	InsecureSkipVerify bool   `json:"insecureSkipVerify,omitempty" yaml:"insecureSkipVerify,omitempty"`
@@ -47,6 +53,13 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 
 	if settings.Message == "" {
 		settings.Message = templates.DefaultMessageEmbed
+	}
+
+	if settings.MessageFormat == "" {
+		settings.MessageFormat = MessageFormatJSON
+	}
+	if settings.MessageFormat != MessageFormatJSON && settings.MessageFormat != MessageFormatText {
+		return Config{}, errors.New("Invalid message format, must be 'json' or 'text'")
 	}
 
 	password := decryptFn("password", settings.Password)
