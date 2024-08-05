@@ -22,10 +22,9 @@ type Config struct {
 	User     string
 	Password string
 
+	JSON    string
 	Title   string
 	Message string
-
-	IsJSON bool
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
@@ -40,6 +39,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		Password                 string                   `json:"password,omitempty" yaml:"password,omitempty"`
 		Title                    string                   `json:"title,omitempty" yaml:"title,omitempty"`
 		Message                  string                   `json:"message,omitempty" yaml:"message,omitempty"`
+		JSON                     string                   `json:"json,omitempty" yaml:"message,omitempty"`
 	}{}
 
 	err := json.Unmarshal(jsonData, &rawSettings)
@@ -71,13 +71,17 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	if settings.User != "" && settings.Password != "" && settings.AuthorizationScheme != "" && settings.AuthorizationCredentials != "" {
 		return settings, errors.New("both HTTP Basic Authentication and Authorization Header are set, only 1 is permitted")
 	}
-	settings.Title = rawSettings.Title
-	if settings.Title == "" {
-		settings.Title = templates.DefaultMessageTitleEmbed
-	}
-	settings.Message = rawSettings.Message
-	if settings.Message == "" {
-		settings.Message = templates.DefaultMessageEmbed
+
+	settings.JSON = rawSettings.JSON
+	if settings.JSON == "" {
+		settings.Title = rawSettings.Title
+		if settings.Title == "" {
+			settings.Title = templates.DefaultMessageTitleEmbed
+		}
+		settings.Message = rawSettings.Message
+		if settings.Message == "" {
+			settings.Message = templates.DefaultMessageEmbed
+		}
 	}
 	return settings, err
 }

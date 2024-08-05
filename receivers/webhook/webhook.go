@@ -31,10 +31,6 @@ type Notifier struct {
 // New is the constructor for
 // the WebHook notifier.
 func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger logging.Logger, orgID int64) *Notifier {
-	if cfg.Message[0:5] == "#json" {
-		fmt.Println("It's json!")
-		cfg.IsJSON = true
-	}
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		orgID:    orgID,
@@ -72,7 +68,7 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
 	var body string
 
-	if !wn.settings.IsJSON {
+	if wn.settings.JSON == "" {
 		// Augment our Alert data with ImageURLs if available.
 		_ = images.WithStoredImages(ctx, wn.log, wn.images,
 			func(index int, image images.Image) error {
@@ -117,7 +113,7 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		}
 		vm.ExtCode("data", string(b))
 
-		body, err = vm.EvaluateAnonymousSnippet("notification", wn.settings.Message)
+		body, err = vm.EvaluateAnonymousSnippet("notification", wn.settings.JSON)
 		if err != nil {
 			return false, err
 		}
