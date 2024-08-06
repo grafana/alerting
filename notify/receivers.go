@@ -114,7 +114,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 
 	am.reloadConfigMtx.RUnlock()
 
-	return TestReceivers(ctx, c, tmpls, am.buildReceiverIntegrationsFunc, am.ExternalURL())
+	return TestReceivers(ctx, c, tmpls, am.jsonTemplates, am.buildReceiverIntegrationsFunc, am.ExternalURL())
 }
 
 func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time) types.Alert {

@@ -105,7 +105,8 @@ type GrafanaAlertmanager struct {
 	externalURL                   string
 
 	// templates contains the template name -> template contents for each user-defined template.
-	templates []templates.TemplateDefinition
+	templates     []templates.TemplateDefinition
+	jsonTemplates map[string]string
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -152,6 +153,7 @@ type Configuration interface {
 
 	RoutingTree() *Route
 	Templates() []templates.TemplateDefinition
+	JsonTemplates() map[string]string
 
 	Hash() [16]byte
 	Raw() []byte
@@ -404,6 +406,7 @@ func TestReceivers(
 	ctx context.Context,
 	c TestReceiversConfigBodyParams,
 	tmpls []string,
+	jsonTemplates map[string]string,
 	buildIntegrationsFunc func(*APIReceiver, *template.Template) ([]*nfstatus.Integration, error),
 	externalURL string) (*TestReceiversResult, error) {
 
@@ -607,6 +610,7 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	am.templates = cfg.Templates()
+	am.jsonTemplates = cfg.JsonTemplates()
 
 	seen := make(map[string]struct{})
 	tmpls := make([]string, 0, len(am.templates))
