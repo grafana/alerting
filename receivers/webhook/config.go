@@ -39,7 +39,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		Password                 string                   `json:"password,omitempty" yaml:"password,omitempty"`
 		Title                    string                   `json:"title,omitempty" yaml:"title,omitempty"`
 		Message                  string                   `json:"message,omitempty" yaml:"message,omitempty"`
-		JSON                     string                   `json:"json,omitempty" yaml:"message,omitempty"`
+		JSON                     string                   `json:"json,omitempty" yaml:"json,omitempty"`
 	}{}
 
 	err := json.Unmarshal(jsonData, &rawSettings)

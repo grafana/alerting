@@ -104,7 +104,6 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		}
 		body = string(b)
 	} else {
-		fmt.Println("Wohooo it's json!!!")
 		vm := jsonnet.MakeVM()
 
 		b, err := json.Marshal(data)

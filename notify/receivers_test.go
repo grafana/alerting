@@ -86,7 +86,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 			counter++
 			return decrypt(ctx, sjd, key, fallback)
 		}
-		_, _ = BuildReceiverConfiguration(context.Background(), recCfg, decryptCount)
+		_, _ = BuildReceiverConfiguration(context.Background(), recCfg, decryptCount, map[string]string{})
 		require.Greater(t, counter, 0)
 	})
 	t.Run("should fail if at least one config is invalid", func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		}
 		recCfg.Integrations = append(recCfg.Integrations, bad)
 
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
+		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt, map[string]string{})
 		require.NotNil(t, err)
 		require.Equal(t, GrafanaReceiverConfig{}, parsed)
 		require.ErrorAs(t, err, &IntegrationValidationError{})
@@ -113,7 +113,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	})
 	t.Run("should accept empty config", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
+		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt, map[string]string{})
 		require.NoError(t, err)
 		require.Equal(t, recCfg.Name, parsed.Name)
 	})
@@ -131,7 +131,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 			recCfg.Integrations = append(recCfg.Integrations, notifierRaw)
 		}
 
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, NoopDecrypt)
+		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, NoopDecrypt, map[string]string{})
 		require.NoError(t, err)
 		require.Equal(t, recCfg.Name, parsed.Name)
 		require.Equal(t, invalidBase64, parsed.AlertmanagerConfigs[0].Settings.Password)
@@ -149,7 +149,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		}
 		recCfg.Integrations = append(recCfg.Integrations, bad)
 
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
+		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt, map[string]string{})
 		require.NotNil(t, err)
 		require.Equal(t, GrafanaReceiverConfig{}, parsed)
 		require.ErrorAs(t, err, &IntegrationValidationError{})
@@ -163,7 +163,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		for notifierType, cfg := range AllKnownConfigsForTesting {
 			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
 		}
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
+		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt, map[string]string{})
 		require.NoError(t, err)
 		require.Equal(t, recCfg.Name, parsed.Name)
 		require.Len(t, parsed.AlertmanagerConfigs, 1)
@@ -233,7 +233,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 			notifierRaw.Type = strings.ToUpper(notifierRaw.Type)
 			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
 		}
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt)
+		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, decrypt, map[string]string{})
 		require.NoError(t, err)
 		require.Len(t, parsed.AlertmanagerConfigs, 1)
 		require.Len(t, parsed.DingdingConfigs, 1)
