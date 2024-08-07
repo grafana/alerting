@@ -48,21 +48,21 @@ var (
 )
 
 type TestReceiversResult struct {
-	Alert     types.Alert
-	Receivers []TestReceiverResult
-	NotifedAt time.Time
+	Alert     types.Alert          `json:"alert"`
+	Receivers []TestReceiverResult `json:"receivers"`
+	NotifedAt time.Time            `json:"notifiedAt"`
 }
 
 type TestReceiverResult struct {
-	Name    string
-	Configs []TestIntegrationConfigResult
+	Name    string                        `json:"name"`
+	Configs []TestIntegrationConfigResult `json:"configs"`
 }
 
 type TestIntegrationConfigResult struct {
-	Name   string
-	UID    string
-	Status string
-	Error  error
+	Name   string `json:"name"`
+	UID    string `json:"uid"`
+	Status string `json:"status"`
+	Error  string `json:"error"`
 }
 
 type GrafanaIntegrationConfig struct {

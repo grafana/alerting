@@ -380,7 +380,7 @@ func newTestReceiversResult(alert types.Alert, results []result, receivers []*AP
 			Name:   next.Config.Name,
 			UID:    next.Config.UID,
 			Status: status,
-			Error:  ProcessIntegrationError(next.Config, next.Error),
+			Error:  ProcessIntegrationError(next.Config, next.Error).Error(),
 		})
 		m[next.ReceiverName] = tmp
 	}
@@ -507,7 +507,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 		return &TestTemplatesResults{
 			Errors: []TestTemplatesErrorResult{{
 				Kind:  InvalidTemplate,
-				Error: err,
+				Error: err.Error(),
 			}},
 		}, nil
 	}
@@ -557,7 +557,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 			results.Errors = append(results.Errors, TestTemplatesErrorResult{
 				Name:  def,
 				Kind:  ExecutionError,
-				Error: err,
+				Error: err.Error(),
 			})
 		} else {
 			results.Results = append(results.Results, TestTemplatesResult{

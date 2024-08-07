@@ -2,9 +2,7 @@ package notify
 
 import (
 	"context"
-	"errors"
 	"testing"
-	"text/template"
 
 	"github.com/grafana/alerting/templates"
 
@@ -85,7 +83,7 @@ func TestTemplateSimple(t *testing.T) {
 			Results: nil,
 			Errors: []TestTemplatesErrorResult{{
 				Kind:  InvalidTemplate,
-				Error: errors.New("template: slack.title:1: unclosed action"),
+				Error: "template: slack.title:1: unclosed action",
 			}},
 		},
 	}, {
@@ -98,12 +96,9 @@ func TestTemplateSimple(t *testing.T) {
 		expected: TestTemplatesResults{
 			Results: nil,
 			Errors: []TestTemplatesErrorResult{{
-				Name: "slack.title",
-				Kind: ExecutionError,
-				Error: template.ExecError{
-					Name: "slack.title",
-					Err:  errors.New(`template: :1:38: executing "slack.title" at <{{template "missing" .}}>: template "missing" not defined`),
-				},
+				Name:  "slack.title",
+				Kind:  ExecutionError,
+				Error: `template: :1:38: executing "slack.title" at <{{template "missing" .}}>: template "missing" not defined`,
 			}},
 		},
 	}, {
@@ -150,12 +145,9 @@ func TestTemplateSimple(t *testing.T) {
 				Text: "Discord Title",
 			}},
 			Errors: []TestTemplatesErrorResult{{
-				Name: "slack.title",
-				Kind: ExecutionError,
-				Error: template.ExecError{
-					Name: "other",
-					Err:  errors.New(`template: :1:91: executing "other" at <{{template "missing" .}}>: template "missing" not defined`),
-				},
+				Name:  "slack.title",
+				Kind:  ExecutionError,
+				Error: `template: :1:91: executing "other" at <{{template "missing" .}}>: template "missing" not defined`,
 			}},
 		},
 	},
@@ -227,7 +219,7 @@ func TestTemplateSpecialCases(t *testing.T) {
 			Results: nil,
 			Errors: []TestTemplatesErrorResult{{
 				Kind:  InvalidTemplate,
-				Error: errors.New(`template: slack.title:1: template: multiple definition of template "slack.title"`),
+				Error: `template: slack.title:1: template: multiple definition of template "slack.title"`,
 			}},
 		},
 	}, {
@@ -346,12 +338,9 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 		expected: TestTemplatesResults{
 			Results: nil,
 			Errors: []TestTemplatesErrorResult{{
-				Name: "slack.title",
-				Kind: ExecutionError,
-				Error: template.ExecError{
-					Name: "slack.title",
-					Err:  errors.New(`template: :1:38: executing "slack.title" at <{{template "slack.alternate_title" .}}>: template "slack.alternate_title" not defined`),
-				},
+				Name:  "slack.title",
+				Kind:  ExecutionError,
+				Error: `template: :1:38: executing "slack.title" at <{{template "slack.alternate_title" .}}>: template "slack.alternate_title" not defined`,
 			}},
 		},
 	}, {
