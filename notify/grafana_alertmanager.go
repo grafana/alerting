@@ -392,11 +392,16 @@ func newTestReceiversResult(alert types.Alert, results []result, receivers []*AP
 			numUnknownErrors++
 		}
 
+		var errString string
+		if err != nil {
+			errString = err.Error()
+		}
+
 		tmp.Configs = append(tmp.Configs, TestIntegrationConfigResult{
 			Name:   next.Config.Name,
 			UID:    next.Config.UID,
 			Status: status,
-			Error:  err.Error(),
+			Error:  errString,
 		})
 		m[next.ReceiverName] = tmp
 	}
