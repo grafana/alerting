@@ -101,11 +101,12 @@ type GrafanaAlertmanager struct {
 	receivers       []*nfstatus.Receiver
 
 	// buildReceiverIntegrationsFunc builds the integrations for a receiver based on its APIReceiver configuration and the current parsed template.
-	buildReceiverIntegrationsFunc func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
+	buildReceiverIntegrationsFunc func(next *APIReceiver, tmpl *templates.Template, jsonTemplates map[string]string) ([]*Integration, error)
 	externalURL                   string
 
 	// templates contains the template name -> template contents for each user-defined template.
-	templates []templates.TemplateDefinition
+	templates     []templates.TemplateDefinition
+	jsonTemplates map[string]string
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -148,10 +149,11 @@ type Configuration interface {
 	// Deprecated: MuteTimeIntervals are deprecated in Alertmanager and will be removed in future versions.
 	MuteTimeIntervals() []MuteTimeInterval
 	Receivers() []*APIReceiver
-	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
+	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl *templates.Template, jsonTemplates map[string]string) ([]*Integration, error)
 
 	RoutingTree() *Route
 	Templates() []templates.TemplateDefinition
+	JsonTemplates() map[string]string
 
 	Hash() [16]byte
 	Raw() []byte
@@ -404,7 +406,8 @@ func TestReceivers(
 	ctx context.Context,
 	c TestReceiversConfigBodyParams,
 	tmpls []string,
-	buildIntegrationsFunc func(*APIReceiver, *template.Template) ([]*nfstatus.Integration, error),
+	jsonTemplates map[string]string,
+	buildIntegrationsFunc func(*APIReceiver, *template.Template, map[string]string) ([]*nfstatus.Integration, error),
 	externalURL string) (*TestReceiversResult, error) {
 
 	now := time.Now() // The start time of the test
@@ -429,7 +432,7 @@ func TestReceivers(
 					Integrations: []*GrafanaIntegrationConfig{intg},
 				},
 			}
-			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmpl)
+			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmpl, jsonTemplates)
 			if err != nil || len(integrations) == 0 {
 				invalid = append(invalid, result{
 					Config:       intg,
@@ -607,6 +610,7 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	am.templates = cfg.Templates()
+	am.jsonTemplates = cfg.JsonTemplates()
 
 	seen := make(map[string]struct{})
 	tmpls := make([]string, 0, len(am.templates))
@@ -628,7 +632,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	apiReceivers := cfg.Receivers()
 	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
 	for _, apiReceiver := range apiReceivers {
-		integrations, err := cfg.BuildReceiverIntegrationsFunc()(apiReceiver, tmpl)
+		integrations, err := cfg.BuildReceiverIntegrationsFunc()(apiReceiver, tmpl, am.jsonTemplates)
 		if err != nil {
 			return err
 		}
