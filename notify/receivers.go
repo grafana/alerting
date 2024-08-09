@@ -104,7 +104,7 @@ func (e IntegrationTimeoutError) Error() string {
 	return fmt.Sprintf("the receiver timed out: %s", e.Err)
 }
 
-func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiversConfigBodyParams) (*TestReceiversResult, error) {
+func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiversConfigBodyParams) (*TestReceiversResult, int, error) {
 	am.reloadConfigMtx.RLock()
 
 	tmpls := make([]string, 0, len(am.templates))
