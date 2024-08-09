@@ -385,11 +385,11 @@ func newTestReceiversResult(alert types.Alert, results []result, receivers []*AP
 
 		err := ProcessIntegrationError(next.Config, next.Error)
 		if errors.As(err, &invalidReceiverErr) {
-			numBadRequests += 1
+			numBadRequests++
 		} else if errors.As(err, &receiverTimeoutErr) {
-			numTimeouts += 1
+			numTimeouts++
 		} else {
-			numUnknownErrors += 1
+			numUnknownErrors++
 		}
 
 		tmp.Configs = append(tmp.Configs, TestIntegrationConfigResult{
