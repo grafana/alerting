@@ -10,6 +10,7 @@ require (
 	github.com/go-kit/log v0.2.1
 	github.com/go-openapi/strfmt v0.22.0
 	github.com/google/go-cmp v0.6.0
+	github.com/google/go-jsonnet v0.20.0
 	github.com/matttproud/golang_protobuf_extensions v1.0.4
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/alertmanager v0.25.0
@@ -93,6 +94,7 @@ require (
 	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	sigs.k8s.io/yaml v1.1.0 // indirect
 )
 
 // Using a fork of the Alertmanager with Alerting Squad specific changes.

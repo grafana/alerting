@@ -2,12 +2,16 @@ package notify
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	tmpltext "text/template"
 
 	"github.com/go-kit/log/level"
+	"github.com/google/go-jsonnet"
 	"github.com/grafana/alerting/templates"
+	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
+	"github.com/prometheus/common/model"
 )
 
 type TestTemplatesConfigBodyParams struct {
@@ -91,6 +95,50 @@ func (am *GrafanaAlertmanager) GetTemplate() (*template.Template, error) {
 	}
 
 	return tmpl, nil
+}
+
+func (am *GrafanaAlertmanager) TestJSONTemplate(ctx context.Context, c TestTemplatesConfigBodyParams) (*TestTemplatesResults, error) {
+	// Prepare the context.
+	ctx = notify.WithReceiverName(ctx, DefaultReceiverName)
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{DefaultGroupLabel: DefaultGroupLabelValue})
+
+	tmpl, err := templateFromContent([]string{}, am.ExternalURL())
+	if err != nil {
+		return nil, err
+	}
+
+	alerts := OpenAPIAlertsToAlerts(c.Alerts)
+	promTmplData := notify.GetTemplateData(ctx, tmpl, alerts, am.logger)
+	data := templates.ExtendData(promTmplData, am.logger)
+
+	vm := jsonnet.MakeVM()
+	var results TestTemplatesResults
+
+	b, err := json.Marshal(data)
+	if err != nil {
+		results.Errors = append(results.Errors, TestTemplatesErrorResult{
+			Name:  c.Name,
+			Kind:  ExecutionError,
+			Error: err,
+		})
+		return &results, nil
+	}
+	vm.ExtCode("data", string(b))
+
+	body, err := vm.EvaluateAnonymousSnippet("notification", c.Template)
+	if err != nil {
+		results.Errors = append(results.Errors, TestTemplatesErrorResult{
+			Name:  c.Name,
+			Kind:  ExecutionError,
+			Error: err,
+		})
+		return &results, nil
+	}
+	results.Results = append(results.Results, TestTemplatesResult{
+		Name: c.Name,
+		Text: body,
+	})
+	return &results, nil
 }
 
 // parseTestTemplate parses the test template and returns the top-level definitions that should be interpolated as results.
