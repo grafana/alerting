@@ -65,7 +65,6 @@ func TestNewConfig(t *testing.T) {
 				Message:       templates.DefaultMessageEmbed,
 				BrokerURL:     "tcp://localhost:1883",
 				Topic:         "grafana/alerts",
-				ClientID:      "Grafana",
 				MessageFormat: MessageFormatJSON,
 			},
 		},
@@ -76,9 +75,19 @@ func TestNewConfig(t *testing.T) {
 				Message:            templates.DefaultMessageEmbed,
 				BrokerURL:          "tcp://localhost:1883",
 				Topic:              "grafana/alerts",
-				ClientID:           "Grafana",
 				MessageFormat:      MessageFormatJSON,
 				InsecureSkipVerify: true,
+			},
+		},
+		{
+			name:     "Configuration with a client ID",
+			settings: `{ "brokerUrl" : "tcp://localhost:1883", "topic": "grafana/alerts", "clientId": "test-client-id"}`,
+			expectedConfig: Config{
+				Message:       templates.DefaultMessageEmbed,
+				BrokerURL:     "tcp://localhost:1883",
+				Topic:         "grafana/alerts",
+				MessageFormat: MessageFormatJSON,
+				ClientID:      "test-client-id",
 			},
 		},
 		{
@@ -91,7 +100,6 @@ func TestNewConfig(t *testing.T) {
 				Message:       templates.DefaultMessageEmbed,
 				BrokerURL:     "tcp://localhost:1883",
 				Topic:         "grafana/alerts",
-				ClientID:      "Grafana",
 				MessageFormat: MessageFormatJSON,
 				Username:      "grafana",
 				Password:      "testpasswd",
@@ -107,6 +115,12 @@ func TestNewConfig(t *testing.T) {
 				require.ErrorContains(t, err, c.expectedInitError)
 				return
 			}
+
+			if c.expectedConfig.ClientID == "" {
+				require.Regexp(t, `grafana_\d+`, actual.ClientID)
+				actual.ClientID = ""
+			}
+
 			require.NoError(t, err)
 			require.Equal(t, c.expectedConfig, actual)
 		})

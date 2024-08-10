@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"net/url"
 	"strconv"
@@ -48,7 +49,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	}
 
 	if settings.ClientID == "" {
-		settings.ClientID = "Grafana"
+		settings.ClientID = fmt.Sprintf("grafana_%d", rand.Int31())
 	}
 
 	if settings.Message == "" {
