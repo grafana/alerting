@@ -383,17 +383,17 @@ func newTestReceiversResult(alert types.Alert, results []result, receivers []*AP
 		var invalidReceiverErr IntegrationValidationError
 		var receiverTimeoutErr IntegrationTimeoutError
 
-		err := ProcessIntegrationError(next.Config, next.Error)
-		if errors.As(err, &invalidReceiverErr) {
-			numBadRequests++
-		} else if errors.As(err, &receiverTimeoutErr) {
-			numTimeouts++
-		} else {
-			numUnknownErrors++
-		}
-
 		var errString string
+		err := ProcessIntegrationError(next.Config, next.Error)
 		if err != nil {
+			if errors.As(err, &invalidReceiverErr) {
+				numBadRequests++
+			} else if errors.As(err, &receiverTimeoutErr) {
+				numTimeouts++
+			} else {
+				numUnknownErrors++
+			}
+
 			errString = err.Error()
 		}
 

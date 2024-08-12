@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"net/http"
 	"sort"
 	"testing"
 	"time"
@@ -662,4 +663,175 @@ func TestSilenceCleanup(t *testing.T) {
 		require.NoError(t, err)
 		return len(found) == 2
 	}, 6*time.Second, 150*time.Millisecond)
+}
+
+func TestStatusForTestReceivers(t *testing.T) {
+	t.Run("assert HTTP 400 Status Bad Request for no receivers", func(t *testing.T) {
+		_, status := newTestReceiversResult(types.Alert{}, []result{}, []*APIReceiver{}, time.Now())
+		require.Equal(t, http.StatusBadRequest, status)
+	})
+
+	t.Run("assert HTTP 400 Bad Request when all invalid receivers", func(t *testing.T) {
+		_, status := newTestReceiversResult(types.Alert{}, []result{
+			{
+				ReceiverName: "receiver 1",
+				Config:       &GrafanaIntegrationConfig{Name: "integration 1"},
+				Error: IntegrationValidationError{
+					Integration: &GrafanaIntegrationConfig{Name: "integration 1"},
+					Err:         errors.New("error 1"),
+				},
+			},
+			{
+				ReceiverName: "receiver 2",
+				Config:       &GrafanaIntegrationConfig{Name: "integration 2"},
+				Error: IntegrationValidationError{
+					Integration: &GrafanaIntegrationConfig{Name: "integration 2"},
+					Err:         errors.New("error 2"),
+				},
+			},
+		}, []*APIReceiver{
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "receiver 1",
+				},
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{
+						{Name: "integration 1"},
+					},
+				},
+			},
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "receiver 2",
+				},
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{
+						{Name: "integration 2"},
+					},
+				},
+			},
+		}, time.Now())
+		require.Equal(t, http.StatusBadRequest, status)
+	})
+
+	t.Run("assert HTTP 408 Request Timeout when all receivers timed out", func(t *testing.T) {
+		_, status := newTestReceiversResult(types.Alert{}, []result{
+			{
+				ReceiverName: "receiver 1",
+				Config:       &GrafanaIntegrationConfig{Name: "integration 1"},
+				Error: IntegrationTimeoutError{
+					Integration: &GrafanaIntegrationConfig{Name: "integration 1"},
+					Err:         errors.New("error 1"),
+				},
+			},
+			{
+				ReceiverName: "receiver 2",
+				Config:       &GrafanaIntegrationConfig{Name: "integration 2"},
+				Error: IntegrationTimeoutError{
+					Integration: &GrafanaIntegrationConfig{Name: "integration 2"},
+					Err:         errors.New("error 2"),
+				},
+			},
+		}, []*APIReceiver{
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "receiver 1",
+				},
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{
+						{Name: "integration 1"},
+					},
+				},
+			},
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "receiver 2",
+				},
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{
+						{Name: "integration 2"},
+					},
+				},
+			},
+		}, time.Now())
+		require.Equal(t, http.StatusRequestTimeout, status)
+	})
+
+	t.Run("assert 207 Multi Status for different errors", func(t *testing.T) {
+		_, status := newTestReceiversResult(types.Alert{}, []result{
+			{
+				ReceiverName: "receiver 1",
+				Config:       &GrafanaIntegrationConfig{Name: "integration 1"},
+				Error: IntegrationValidationError{
+					Integration: &GrafanaIntegrationConfig{Name: "integration 1"},
+					Err:         errors.New("error 1"),
+				},
+			},
+			{
+				ReceiverName: "receiver 2",
+				Config:       &GrafanaIntegrationConfig{Name: "integration 2"},
+				Error: IntegrationTimeoutError{
+					Integration: &GrafanaIntegrationConfig{Name: "integration 2"},
+					Err:         errors.New("error 2"),
+				},
+			},
+		}, []*APIReceiver{
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "receiver 1",
+				},
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{
+						{Name: "integration 1"},
+					},
+				},
+			},
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "receiver 2",
+				},
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{
+						{Name: "integration 2"},
+					},
+				},
+			},
+		}, time.Now())
+		require.Equal(t, http.StatusMultiStatus, status)
+	})
+
+	t.Run("assert 200 for no errors", func(t *testing.T) {
+		_, status := newTestReceiversResult(types.Alert{}, []result{
+			{
+				ReceiverName: "receiver 1",
+				Config:       &GrafanaIntegrationConfig{Name: "integration 1"},
+			},
+			{
+				ReceiverName: "receiver 2",
+				Config:       &GrafanaIntegrationConfig{Name: "integration 2"},
+			},
+		}, []*APIReceiver{
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "receiver 1",
+				},
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{
+						{Name: "integration 1"},
+					},
+				},
+			},
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "receiver 2",
+				},
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{
+						{Name: "integration 2"},
+					},
+				},
+			},
+		}, time.Now())
+		require.Equal(t, http.StatusOK, status)
+	})
 }
