@@ -85,6 +85,25 @@ func TestNewConfig(t *testing.T) {
 			expectedInitError: "must specify both access key and secret key",
 		},
 		{
+			name: "Should be able to read secrets",
+			settings: `{
+				"topic_arn": "arn:aws:sns:region:0123456789:SNSTopicName"
+			}`,
+			secrets: map[string][]byte{
+				"sigv4.secret_key": []byte("secret-key"),
+				"sigv4.access_key": []byte("access-key"),
+			},
+			expected: Config{
+				Sigv4: SigV4Config{
+					AccessKey: "access-key",
+					SecretKey: "secret-key",
+				},
+				TopicARN: "arn:aws:sns:region:0123456789:SNSTopicName",
+				Subject:  templates.DefaultMessageTitleEmbed,
+				Message:  templates.DefaultMessageEmbed,
+			},
+		},
+		{
 			name: "Auth type set to default if keys and profile not provided",
 			settings: `{
 				"topic_arn": "arn:aws:sns:region:0123456789:SNSTopicName"
@@ -125,6 +144,27 @@ func TestNewConfig(t *testing.T) {
 					Region:    "us-east-1",
 					AccessKey: "access-key",
 					SecretKey: "secret-key",
+					Profile:   "default",
+					RoleARN:   "arn:aws:iam:us-east-1:0123456789:role/my-role",
+				},
+			},
+		},
+		{
+			name:     "Extract all fields + override from secrets",
+			settings: FullValidConfigForTesting,
+			secrets:  receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			expected: Config{
+				Subject:     "subject",
+				Message:     "message",
+				APIUrl:      "https://sns.us-east-1.amazonaws.com",
+				TopicARN:    "arn:aws:sns:us-east-1:0123456789:SNSTopicName",
+				TargetARN:   "arn:aws:sns:us-east-1:0123456789:SNSTopicName",
+				PhoneNumber: "123-456-7890",
+				Attributes:  map[string]string{"attr1": "val1"},
+				Sigv4: SigV4Config{
+					Region:    "us-east-1",
+					AccessKey: "secret-access-key",
+					SecretKey: "secret-secret-key",
 					Profile:   "default",
 					RoleARN:   "arn:aws:iam:us-east-1:0123456789:role/my-role",
 				},
