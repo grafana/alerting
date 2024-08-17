@@ -83,13 +83,12 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		n.log.Error("Failed to connect to MQTT broker", "error", token.Error())
 		return false, fmt.Errorf("Failed to connect to MQTT broker: %w", token.Error())
 	}
+	defer n.client.Disconnect(250)
 
 	if token := n.client.Publish(n.settings.Topic, 0, false, string(msg)); token.Wait() && token.Error() != nil {
 		n.log.Error("Failed to publish MQTT message", "error", token.Error())
 		return false, fmt.Errorf("Failed to publish MQTT message: %w", token.Error())
 	}
-
-	n.client.Disconnect(250)
 
 	return true, nil
 }
@@ -104,8 +103,7 @@ func (n *Notifier) buildMessage(ctx context.Context, as ...*types.Alert) (string
 	tmpl, data := templates.TmplText(ctx, n.tmpl, as, n.log, &tmplErr)
 	messageText := tmpl(n.settings.Message)
 	if tmplErr != nil {
-		n.log.Error("Failed to template MQTT message", "error", tmplErr)
-		return "", fmt.Errorf("Failed to template MQTT message: %w", tmplErr)
+		n.log.Warn("Failed to template MQTT message", "error", tmplErr.Error())
 	}
 
 	switch n.settings.MessageFormat {
