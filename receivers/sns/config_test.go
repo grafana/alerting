@@ -27,6 +27,39 @@ func TestNewConfig(t *testing.T) {
 			expectedInitError: "must specify topicArn, targetArn, or phone number",
 		},
 		{
+			name: "Minimal valid configuration, topicArn",
+			settings: `{
+				"topic_arn": "arn:aws:sns:region:0123456789:SNSTopicName"
+			}`,
+			expected: Config{
+				TopicARN: "arn:aws:sns:region:0123456789:SNSTopicName",
+				Subject:  templates.DefaultMessageTitleEmbed,
+				Message:  templates.DefaultMessageEmbed,
+			},
+		},
+		{
+			name: "Minimal valid configuration, targetArn",
+			settings: `{
+				"target_arn": "arn:aws:sns:region:0123456789:SNSTargetName"
+			}`,
+			expected: Config{
+				TargetARN: "arn:aws:sns:region:0123456789:SNSTargetName",
+				Subject:   templates.DefaultMessageTitleEmbed,
+				Message:   templates.DefaultMessageEmbed,
+			},
+		},
+		{
+			name: "Minimal valid configuration, phoneNumber",
+			settings: `{
+				"phone_number": "555-555-5555"
+			}`,
+			expected: Config{
+				PhoneNumber: "555-555-5555",
+				Subject:     templates.DefaultMessageTitleEmbed,
+				Message:     templates.DefaultMessageEmbed,
+			},
+		},
+		{
 			name: "Auth type is set to credentials profile if profile provided",
 			settings: `{
 				"topic_arn": "arn:aws:sns:region:0123456789:SNSTopicName",
@@ -83,6 +116,20 @@ func TestNewConfig(t *testing.T) {
 				}
 			}`,
 			expectedInitError: "must specify both access key and secret key",
+		},
+		{
+			name: "Validation fails if TopicARN is invalid",
+			settings: `{
+				"topic_arn": "SNSTopicName"
+			}`,
+			expectedInitError: "invalid topic ARN provided",
+		},
+		{
+			name: "Validation fails if TargetARN is invalid",
+			settings: `{
+				"target_arn": "SNSTargetName"
+			}`,
+			expectedInitError: "invalid target ARN provided",
 		},
 		{
 			name: "Should be able to read secrets",
@@ -179,6 +226,7 @@ func TestNewConfig(t *testing.T) {
 				require.ErrorContains(t, err, c.expectedInitError)
 				return
 			}
+			require.NoError(t, err)
 			require.Equal(t, c.expected, sn)
 		})
 	}
