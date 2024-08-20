@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	mqttLib "github.com/eclipse/paho.mqtt.golang"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 
@@ -16,10 +15,15 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-type Client interface {
-	Connect() mqttLib.Token
-	Publish(topic string, qos byte, retained bool, payload interface{}) mqttLib.Token
-	Disconnect(quiesce uint)
+type client interface {
+	Connect(ctx context.Context, brokerURL, clientID, username, password string, tlsCfg *tls.Config) error
+	Disconnect(ctx context.Context) error
+	Publish(ctx context.Context, message message) error
+}
+
+type message struct {
+	topic   string
+	payload []byte
 }
 
 type Notifier struct {
@@ -27,29 +31,12 @@ type Notifier struct {
 	log      logging.Logger
 	tmpl     *templates.Template
 	settings Config
-	client   Client
+	client   client
 }
 
-func defaultClientFactory(opts *mqttLib.ClientOptions) Client {
-	return mqttLib.NewClient(opts)
-}
-
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, logger logging.Logger, clientFactory func(opts *mqttLib.ClientOptions) Client) *Notifier {
-	if clientFactory == nil {
-		clientFactory = defaultClientFactory
-	}
-
-	opts := mqttLib.NewClientOptions().
-		AddBroker(cfg.BrokerURL).
-		SetClientID(cfg.ClientID).
-		SetUsername(cfg.Username).
-		SetPassword(cfg.Password)
-
-	if cfg.InsecureSkipVerify {
-		tlsCfg := tls.Config{
-			InsecureSkipVerify: true,
-		}
-		opts.SetTLSConfig(&tlsCfg)
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, logger logging.Logger, cli client) *Notifier {
+	if cli == nil {
+		cli = &mqttClient{}
 	}
 
 	return &Notifier{
@@ -57,7 +44,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, logg
 		log:      logger,
 		tmpl:     template,
 		settings: cfg,
-		client:   clientFactory(opts),
+		client:   cli,
 	}
 }
 
@@ -76,18 +63,40 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	msg, err := n.buildMessage(ctx, as...)
 	if err != nil {
+		n.log.Error("Failed to build MQTT message", "error", err.Error())
 		return false, err
 	}
 
-	if token := n.client.Connect(); token.Wait() && token.Error() != nil {
-		n.log.Error("Failed to connect to MQTT broker", "error", token.Error())
-		return false, fmt.Errorf("Failed to connect to MQTT broker: %w", token.Error())
+	var tlsCfg *tls.Config
+	if n.settings.InsecureSkipVerify {
+		tlsCfg = &tls.Config{
+			InsecureSkipVerify: true,
+		}
 	}
-	defer n.client.Disconnect(250)
 
-	if token := n.client.Publish(n.settings.Topic, 0, false, string(msg)); token.Wait() && token.Error() != nil {
-		n.log.Error("Failed to publish MQTT message", "error", token.Error())
-		return false, fmt.Errorf("Failed to publish MQTT message: %w", token.Error())
+	err = n.client.Connect(ctx, n.settings.BrokerURL, n.settings.ClientID, n.settings.Username, n.settings.Password, tlsCfg)
+	if err != nil {
+		n.log.Error("Failed to connect to MQTT broker", "error", err.Error())
+		return false, fmt.Errorf("Failed to connect to MQTT broker: %s", err.Error())
+	}
+	defer func() {
+		err := n.client.Disconnect(ctx)
+		if err != nil {
+			n.log.Error("Failed to disconnect from MQTT broker", "error", err.Error())
+		}
+	}()
+
+	err = n.client.Publish(
+		ctx,
+		message{
+			topic:   n.settings.Topic,
+			payload: []byte(msg),
+		},
+	)
+
+	if err != nil {
+		n.log.Error("Failed to publish MQTT message", "error", err.Error())
+		return false, fmt.Errorf("Failed to publish MQTT message: %s", err.Error())
 	}
 
 	return true, nil
