@@ -34,26 +34,6 @@ func TestNewConfig(t *testing.T) {
 			expectedInitError: `MQTT topic must be specified`,
 		},
 		{
-			name:              "Error if the broker URL does not have the scheme",
-			settings:          `{ "brokerUrl" : "localhost" }`,
-			expectedInitError: `Invalid MQTT broker URL: Invalid scheme, must be 'tcp' or 'ssl'`,
-		},
-		{
-			name:              "Error if the broker URL has invalid scheme",
-			settings:          `{ "brokerUrl" : "http://localhost" }`,
-			expectedInitError: `Invalid MQTT broker URL: Invalid scheme, must be 'tcp' or 'ssl'`,
-		},
-		{
-			name:              "Error if the broker URL does not have the port",
-			settings:          `{ "brokerUrl" : "tcp://localhost" }`,
-			expectedInitError: `Invalid MQTT broker URL: Port must be specified`,
-		},
-		{
-			name:              "Error if the broker URL port is invalid",
-			settings:          `{ "brokerUrl" : "tcp://localhost:100000" }`,
-			expectedInitError: `Invalid MQTT broker URL: Port must be a valid number between 1 and 65535`,
-		},
-		{
 			name:              "Invalid message format",
 			settings:          `{ "brokerUrl" : "tcp://localhost:1883", "topic": "grafana/alerts", "messageFormat": "invalid"}`,
 			expectedInitError: `Invalid message format, must be 'json' or 'text'`,

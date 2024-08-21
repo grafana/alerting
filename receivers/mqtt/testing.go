@@ -7,6 +7,7 @@ const FullValidConfigForTesting = `{
 	"messageFormat": "json",
 	"clientId": "grafana-test-client-id",
 	"username": "test-username",
+	"password": "test-password",
 	"insecureSkipVerify": false
 }`
 
