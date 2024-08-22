@@ -3,9 +3,11 @@ package mqtt
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
@@ -24,6 +26,8 @@ type client interface {
 type message struct {
 	topic   string
 	payload []byte
+	retain  bool
+	qos     int
 }
 
 type Notifier struct {
@@ -67,11 +71,10 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		return false, err
 	}
 
-	var tlsCfg *tls.Config
-	if n.settings.InsecureSkipVerify {
-		tlsCfg = &tls.Config{
-			InsecureSkipVerify: true,
-		}
+	tlsCfg, err := n.buildTLSConfig()
+	if err != nil {
+		n.log.Error("Failed to build TLS config", "error", err.Error())
+		return false, fmt.Errorf("failed to build TLS config: %s", err.Error())
 	}
 
 	err = n.client.Connect(ctx, n.settings.BrokerURL, n.settings.ClientID, n.settings.Username, n.settings.Password, tlsCfg)
@@ -86,11 +89,19 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		}
 	}()
 
+	qos, err := n.settings.QoS.Int64()
+	if err != nil {
+		n.log.Error("Failed to parse QoS", "error", err.Error())
+		return false, fmt.Errorf("Failed to parse QoS: %s", err.Error())
+	}
+
 	err = n.client.Publish(
 		ctx,
 		message{
 			topic:   n.settings.Topic,
 			payload: []byte(msg),
+			retain:  n.settings.Retain,
+			qos:     int(qos),
 		},
 	)
 
@@ -100,6 +111,35 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	}
 
 	return true, nil
+}
+
+func (n *Notifier) buildTLSConfig() (*tls.Config, error) {
+	parsedURL, err := url.Parse(n.settings.BrokerURL)
+	if err != nil {
+		n.log.Error("Failed to parse broker URL", "error", err.Error())
+		return nil, err
+	}
+
+	tlsCfg := &tls.Config{
+		InsecureSkipVerify: n.settings.InsecureSkipVerify,
+		ServerName:         parsedURL.Hostname(),
+	}
+
+	if n.settings.TLSCACertificate != "" {
+		tlsCfg.RootCAs = x509.NewCertPool()
+		tlsCfg.RootCAs.AppendCertsFromPEM([]byte(n.settings.TLSCACertificate))
+	}
+
+	if n.settings.TLSClientCertificate != "" || n.settings.TLSClientKey != "" {
+		cert, err := tls.X509KeyPair([]byte(n.settings.TLSClientCertificate), []byte(n.settings.TLSClientKey))
+		if err != nil {
+			n.log.Error("Failed to load client certificate", "error", err.Error())
+			return nil, err
+		}
+		tlsCfg.Certificates = append(tlsCfg.Certificates, cert)
+	}
+
+	return tlsCfg, nil
 }
 
 func (n *Notifier) buildMessage(ctx context.Context, as ...*types.Alert) (string, error) {

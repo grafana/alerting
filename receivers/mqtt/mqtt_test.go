@@ -94,6 +94,34 @@ func TestNotify(t *testing.T) {
 			expMessage: message{
 				topic:   "alert1",
 				payload: []byte("{\"receiver\":\"\",\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\",\"labels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"annotations\":{\"ann1\":\"annv1\"},\"startsAt\":\"0001-01-01T00:00:00Z\",\"endsAt\":\"0001-01-01T00:00:00Z\",\"generatorURL\":\"a URL\",\"fingerprint\":\"fac0861a85de433a\",\"silenceURL\":\"http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\",\"dashboardURL\":\"http://localhost/base/d/abcd\",\"panelURL\":\"http://localhost/base/d/abcd?viewPanel=efgh\",\"values\":null,\"valueString\":\"\"}],\"groupLabels\":{\"alertname\":\"\"},\"commonLabels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"commonAnnotations\":{\"ann1\":\"annv1\"},\"externalURL\":\"http://localhost/base\",\"version\":\"1\",\"groupKey\":\"alertname\",\"message\":\"**Firing**\\n\\nValue: [no value]\\nLabels:\\n - alertname = alert1\\n - lbl1 = val1\\nAnnotations:\\n - ann1 = annv1\\nSource: a URL\\nSilence: http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\\nDashboard: http://localhost/base/d/abcd\\nPanel: http://localhost/base/d/abcd?viewPanel=efgh\\n\"}"),
+				retain:  false,
+				qos:     0,
+			},
+			expError: nil,
+		},
+		{
+			name: "A single alert with the default template in JSON with retain and QoS",
+			settings: Config{
+				Topic:         "alert1",
+				Message:       templates.DefaultMessageEmbed,
+				MessageFormat: MessageFormatJSON,
+				Retain:        true,
+				QoS:           "1",
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+						GeneratorURL: "a URL",
+					},
+				},
+			},
+			expMessage: message{
+				topic:   "alert1",
+				payload: []byte("{\"receiver\":\"\",\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\",\"labels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"annotations\":{\"ann1\":\"annv1\"},\"startsAt\":\"0001-01-01T00:00:00Z\",\"endsAt\":\"0001-01-01T00:00:00Z\",\"generatorURL\":\"a URL\",\"fingerprint\":\"fac0861a85de433a\",\"silenceURL\":\"http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\",\"dashboardURL\":\"http://localhost/base/d/abcd\",\"panelURL\":\"http://localhost/base/d/abcd?viewPanel=efgh\",\"values\":null,\"valueString\":\"\"}],\"groupLabels\":{\"alertname\":\"\"},\"commonLabels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"commonAnnotations\":{\"ann1\":\"annv1\"},\"externalURL\":\"http://localhost/base\",\"version\":\"1\",\"groupKey\":\"alertname\",\"message\":\"**Firing**\\n\\nValue: [no value]\\nLabels:\\n - alertname = alert1\\n - lbl1 = val1\\nAnnotations:\\n - ann1 = annv1\\nSource: a URL\\nSilence: http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\\nDashboard: http://localhost/base/d/abcd\\nPanel: http://localhost/base/d/abcd?viewPanel=efgh\\n\"}"),
+				retain:  true,
+				qos:     1,
 			},
 			expError: nil,
 		},
@@ -247,7 +275,7 @@ func TestNotify(t *testing.T) {
 				mock.Anything,
 			).Return(nil)
 			mockMQTTClient.On("Disconnect", mock.Anything).Return(nil)
-			mockMQTTClient.On("Publish", mock.Anything, mock.Anything).Return(nil)
+			mockMQTTClient.On("Publish", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 			n := &Notifier{
 				Base: &receivers.Base{
@@ -275,17 +303,12 @@ func TestNotify(t *testing.T) {
 
 			require.Equal(t, 1, len(mockMQTTClient.publishedMessages))
 			require.Equal(t, c.expMessage, mockMQTTClient.publishedMessages[0])
-
 			require.Equal(t, c.expUsername, mockMQTTClient.username)
 			require.Equal(t, c.expPassword, mockMQTTClient.password)
 			require.Equal(t, c.settings.ClientID, mockMQTTClient.clientID)
 			require.Equal(t, c.settings.BrokerURL, mockMQTTClient.brokerURL)
-			if c.settings.InsecureSkipVerify {
-				require.NotNil(t, mockMQTTClient.tlsCfg)
-				require.True(t, mockMQTTClient.tlsCfg.InsecureSkipVerify)
-			} else {
-				require.Nil(t, mockMQTTClient.tlsCfg)
-			}
+			require.NotNil(t, mockMQTTClient.tlsCfg)
+			require.Equal(t, mockMQTTClient.tlsCfg.InsecureSkipVerify, c.settings.InsecureSkipVerify)
 		})
 	}
 }
