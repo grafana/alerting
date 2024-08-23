@@ -39,6 +39,72 @@ func TestNewConfig(t *testing.T) {
 			expectedInitError: `API token not found`,
 		},
 		{
+			name: "Error if Emergency and retry is invalid",
+			settings: `{
+				"userKey": "test-user-key",
+				"apiToken" : "test-api-token",
+				"priority": "2",
+				"retry": "29"
+			}`,
+			expectedInitError: `retry must be at least 30 seconds when priority is set to Emergency`,
+		},
+		{
+			name: "Valid configuration with Emergency priority and proper retry",
+			settings: `{
+				"userKey": "test-user-key",
+				"apiToken" : "test-api-token",
+				"priority": "2",
+				"retry": "30"
+			}`,
+			expectedConfig: Config{
+				UserKey:          "test-user-key",
+				APIToken:         "test-api-token",
+				AlertingPriority: 2,
+				OkPriority:       0,
+				Retry:            30,
+				Expire:           0,
+				Device:           "",
+				AlertingSound:    "",
+				OkSound:          "",
+				Upload:           true,
+				Title:            templates.DefaultMessageTitleEmbed,
+				Message:          templates.DefaultMessageEmbed,
+			},
+		},
+		{
+			name: "Error if okPriority is Emergency and retry is invalid",
+			settings: `{
+				"userKey": "test-user-key",
+				"apiToken" : "test-api-token",
+				"okPriority": "2",
+				"retry": "29"
+			}`,
+			expectedInitError: `retry must be at least 30 seconds when priority is set to Emergency`,
+		},
+		{
+			name: "Valid configuration with Emergency okPriority and proper retry",
+			settings: `{
+				"userKey": "test-user-key",
+				"apiToken" : "test-api-token",
+				"okPriority": "2",
+				"retry": "30"
+			}`,
+			expectedConfig: Config{
+				UserKey:          "test-user-key",
+				APIToken:         "test-api-token",
+				AlertingPriority: 0,
+				OkPriority:       2,
+				Retry:            30,
+				Expire:           0,
+				Device:           "",
+				AlertingSound:    "",
+				OkSound:          "",
+				Upload:           true,
+				Title:            templates.DefaultMessageTitleEmbed,
+				Message:          templates.DefaultMessageEmbed,
+			},
+		},
+		{
 			name:     "Minimal valid configuration",
 			settings: `{"userKey": "test-user-key", "apiToken" : "test-api-token" }`,
 			expectedConfig: Config{
@@ -55,6 +121,11 @@ func TestNewConfig(t *testing.T) {
 				Title:            templates.DefaultMessageTitleEmbed,
 				Message:          templates.DefaultMessageEmbed,
 			},
+		},
+		{
+			name:              "Error when expire is invalid",
+			settings:          `{"userKey": "test-user-key", "apiToken" : "test-api-token", "expire": "10801"}`,
+			expectedInitError: `expire must be at most 10800 seconds`,
 		},
 		{
 			name:     "Minimal valid configuration from secrets",
