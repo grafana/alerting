@@ -2,6 +2,7 @@ package pushover
 
 // FullValidConfigForTesting is a string representation of a JSON object that contains all fields supported by the notifier Config. It can be used without secrets.
 const FullValidConfigForTesting = `{
+	"apiURL": "",
 	"priority": 1,
 	"okPriority": 2,
 	"retry": 555,

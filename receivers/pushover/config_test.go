@@ -42,6 +42,7 @@ func TestNewConfig(t *testing.T) {
 			name:     "Minimal valid configuration",
 			settings: `{"userKey": "test-user-key", "apiToken" : "test-api-token" }`,
 			expectedConfig: Config{
+				APIURL:           "",
 				UserKey:          "test-user-key",
 				APIToken:         "test-api-token",
 				AlertingPriority: 0,
@@ -64,6 +65,7 @@ func TestNewConfig(t *testing.T) {
 				"apiToken": []byte("test-api-token"),
 			},
 			expectedConfig: Config{
+				APIURL:           "",
 				UserKey:          "test-user-key",
 				APIToken:         "test-api-token",
 				AlertingPriority: 0,
@@ -86,6 +88,7 @@ func TestNewConfig(t *testing.T) {
 				"apiToken": []byte("test-api-token"),
 			},
 			expectedConfig: Config{
+				APIURL:           "",
 				UserKey:          "test-user-key",
 				APIToken:         "test-api-token",
 				AlertingPriority: 0,
@@ -103,6 +106,7 @@ func TestNewConfig(t *testing.T) {
 		{
 			name: "All empty fields = minimal valid configuration",
 			settings: `{
+				"apiURL": "",
 				"userKey": "",
 				"apiToken": "",
 				"priority": "",
@@ -121,6 +125,7 @@ func TestNewConfig(t *testing.T) {
 				"apiToken": []byte("test-api-token"),
 			},
 			expectedConfig: Config{
+				APIURL:           "",
 				UserKey:          "test-user-key",
 				APIToken:         "test-api-token",
 				AlertingPriority: 0,
@@ -139,6 +144,7 @@ func TestNewConfig(t *testing.T) {
 			name:     "Extracts all fields",
 			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
+				APIURL:           "",
 				UserKey:          "test-user-key",
 				APIToken:         "test-api-token",
 				AlertingPriority: 1,
@@ -158,6 +164,7 @@ func TestNewConfig(t *testing.T) {
 			settings:       FullValidConfigForTesting,
 			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
+				APIURL:           "",
 				UserKey:          "test-secret-user-key",
 				APIToken:         "test-secret-api-token",
 				AlertingPriority: 1,
@@ -185,6 +192,7 @@ func TestNewConfig(t *testing.T) {
 				"apiToken": []byte("test-api-token"),
 			},
 			expectedConfig: Config{
+				APIURL:           "",
 				UserKey:          "test-user-key",
 				APIToken:         "test-api-token",
 				AlertingPriority: 1,
@@ -253,6 +261,7 @@ func TestNewConfig(t *testing.T) {
 				"apiToken": []byte("test-api-token"),
 			},
 			expectedConfig: Config{
+				APIURL:           "",
 				UserKey:          "test-user-key",
 				APIToken:         "test-api-token",
 				AlertingPriority: 0,
@@ -277,6 +286,7 @@ func TestNewConfig(t *testing.T) {
 				"apiToken": []byte("test-api-token"),
 			},
 			expectedConfig: Config{
+				APIURL:           "",
 				UserKey:          "test-user-key",
 				APIToken:         "test-api-token",
 				AlertingPriority: 0,
@@ -301,6 +311,7 @@ func TestNewConfig(t *testing.T) {
 				"apiToken": []byte("test-api-token"),
 			},
 			expectedConfig: Config{
+				APIURL:           "",
 				UserKey:          "test-user-key",
 				APIToken:         "test-api-token",
 				AlertingPriority: 0,
@@ -325,6 +336,7 @@ func TestNewConfig(t *testing.T) {
 				"apiToken": []byte("test-api-token"),
 			},
 			expectedConfig: Config{
+				APIURL:           "",
 				UserKey:          "test-user-key",
 				APIToken:         "test-api-token",
 				AlertingPriority: 0,

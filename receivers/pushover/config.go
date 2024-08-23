@@ -10,6 +10,7 @@ import (
 )
 
 type Config struct {
+	APIURL           string
 	UserKey          string
 	APIToken         string
 	AlertingPriority int64
@@ -27,6 +28,7 @@ type Config struct {
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
 	rawSettings := struct {
+		APIURL           string                   `json:"apiURL,omitempty" yaml:"apiURL,omitempty"`
 		UserKey          string                   `json:"userKey,omitempty" yaml:"userKey,omitempty"`
 		APIToken         string                   `json:"apiToken,omitempty" yaml:"apiToken,omitempty"`
 		AlertingPriority receivers.OptionalNumber `json:"priority,omitempty" yaml:"priority,omitempty"`

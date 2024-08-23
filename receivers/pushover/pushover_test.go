@@ -42,6 +42,7 @@ func TestNotify(t *testing.T) {
 		{
 			name: "Correct config with single alert",
 			settings: Config{
+				APIURL:           "",
 				UserKey:          "<userKey>",
 				APIToken:         "<apiToken>",
 				AlertingPriority: 0,
@@ -80,6 +81,7 @@ func TestNotify(t *testing.T) {
 		{
 			name: "Upload is false",
 			settings: Config{
+				APIURL:           "",
 				UserKey:          "<userKey>",
 				APIToken:         "<apiToken>",
 				AlertingPriority: 0,
@@ -117,6 +119,7 @@ func TestNotify(t *testing.T) {
 		{
 			name: "Custom title",
 			settings: Config{
+				APIURL:           "",
 				UserKey:          "<userKey>",
 				APIToken:         "<apiToken>",
 				AlertingPriority: 0,
@@ -155,6 +158,7 @@ func TestNotify(t *testing.T) {
 		{
 			name: "Custom config with multiple alerts",
 			settings: Config{
+				APIURL:           "",
 				UserKey:          "<userKey>",
 				APIToken:         "<apiToken>",
 				AlertingPriority: 2,

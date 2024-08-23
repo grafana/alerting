@@ -67,6 +67,9 @@ func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		return false, err
 	}
 
+	if pn.settings.APIURL != "" {
+		APIURL = pn.settings.APIURL
+	}
 	cmd := &receivers.SendWebhookSettings{
 		URL:        APIURL,
 		HTTPMethod: "POST",
