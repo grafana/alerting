@@ -15,7 +15,8 @@ const FullValidConfigForTesting = `{
 		"caCertificate": "test-tls-ca-certificate",
 		"clientCertificate": "test-tls-client-certificate",
 		"clientKey": "test-tls-client-key"
-	}
+	},
+	"addGroupKeyToTopic": true
 }`
 
 // FullValidSecretsForTesting is a string representation of JSON object that contains all fields that can be overridden from secrets
