@@ -7,19 +7,18 @@ const FullValidConfigForTesting = `{
 	"messageFormat": "json",
 	"clientId": "grafana-test-client-id",
 	"username": "test-username",
-	"insecureSkipVerify": false,
-	"qos": 0,
+	"qos": "0",
 	"retain": false,
 	"password": "test-password",
-	"tlsCACertificate": "test-tls-ca-certificate",
-	"tlsClientCertificate": "test-tls-client-certificate",
-	"tlsClientKey": "test-tls-client-key"
+	"tls": {
+		"insecureSkipVerify": false,
+		"caCertificate": "test-tls-ca-certificate",
+		"clientCertificate": "test-tls-client-certificate",
+		"clientKey": "test-tls-client-key"
+	}
 }`
 
 // FullValidSecretsForTesting is a string representation of JSON object that contains all fields that can be overridden from secrets
 const FullValidSecretsForTesting = `{
-	"password": "test-password",
-	"tlsCACertificate": "test-tls-ca-certificate",
-	"tlsClientCertificate": "test-tls-client-certificate",
-	"tlsClientKey": "test-tls-client-key"
+	"password": "test-password"
 }`
