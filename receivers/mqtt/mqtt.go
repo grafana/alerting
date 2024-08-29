@@ -63,7 +63,7 @@ type mqttMessage struct {
 }
 
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	n.log.Debug("Sending an MQTT message")
+	n.log.Debug("Sending an MQTT message", "topic", n.settings.Topic, "qos", n.settings.QoS, "retain", n.settings.Retain)
 
 	msg, err := n.buildMessage(ctx, as...)
 	if err != nil {
@@ -114,6 +114,10 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 }
 
 func (n *Notifier) buildTLSConfig() (*tls.Config, error) {
+	if n.settings.TLS == nil {
+		return nil, nil
+	}
+
 	parsedURL, err := url.Parse(n.settings.BrokerURL)
 	if err != nil {
 		n.log.Error("Failed to parse broker URL", "error", err.Error())
@@ -121,17 +125,17 @@ func (n *Notifier) buildTLSConfig() (*tls.Config, error) {
 	}
 
 	tlsCfg := &tls.Config{
-		InsecureSkipVerify: n.settings.InsecureSkipVerify,
+		InsecureSkipVerify: n.settings.TLS.InsecureSkipVerify,
 		ServerName:         parsedURL.Hostname(),
 	}
 
-	if n.settings.TLSCACertificate != "" {
+	if n.settings.TLS.CACertificate != "" {
 		tlsCfg.RootCAs = x509.NewCertPool()
-		tlsCfg.RootCAs.AppendCertsFromPEM([]byte(n.settings.TLSCACertificate))
+		tlsCfg.RootCAs.AppendCertsFromPEM([]byte(n.settings.TLS.CACertificate))
 	}
 
-	if n.settings.TLSClientCertificate != "" || n.settings.TLSClientKey != "" {
-		cert, err := tls.X509KeyPair([]byte(n.settings.TLSClientCertificate), []byte(n.settings.TLSClientKey))
+	if n.settings.TLS.ClientCertificate != "" || n.settings.TLS.ClientKey != "" {
+		cert, err := tls.X509KeyPair([]byte(n.settings.TLS.ClientCertificate), []byte(n.settings.TLS.ClientKey))
 		if err != nil {
 			n.log.Error("Failed to load client certificate", "error", err.Error())
 			return nil, err

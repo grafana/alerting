@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/grafana/alerting/receivers"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
@@ -50,13 +51,15 @@ func TestNewConfig(t *testing.T) {
 		},
 		{
 			name:     "Configuration with insecureSkipVerify",
-			settings: `{ "brokerUrl" : "tcp://localhost:1883", "topic": "grafana/alerts", "insecureSkipVerify": true}`,
+			settings: `{ "brokerUrl" : "tcp://localhost:1883", "topic": "grafana/alerts", "tls": {"insecureSkipVerify": true}}`,
 			expectedConfig: Config{
-				Message:            templates.DefaultMessageEmbed,
-				BrokerURL:          "tcp://localhost:1883",
-				Topic:              "grafana/alerts",
-				MessageFormat:      MessageFormatJSON,
-				InsecureSkipVerify: true,
+				Message:       templates.DefaultMessageEmbed,
+				BrokerURL:     "tcp://localhost:1883",
+				Topic:         "grafana/alerts",
+				MessageFormat: MessageFormatJSON,
+				TLS: &receivers.TLSConfig{
+					InsecureSkipVerify: true,
+				},
 			},
 		},
 		{

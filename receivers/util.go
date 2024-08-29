@@ -41,6 +41,13 @@ type HTTPCfg struct {
 	Password string
 }
 
+type TLSConfig struct {
+	CACertificate      string `json:"caCertificate,omitempty" yaml:"caCertificate,omitempty"`
+	ClientCertificate  string `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
+	ClientKey          string `json:"clientKey,omitempty" yaml:"clientKey,omitempty"`
+	InsecureSkipVerify bool   `json:"insecureSkipVerify,omitempty" yaml:"insecureSkipVerify,omitempty"`
+}
+
 // SendHTTPRequest sends an HTTP request.
 // Stubbable by tests.
 //

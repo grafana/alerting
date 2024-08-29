@@ -16,19 +16,16 @@ const (
 )
 
 type Config struct {
-	BrokerURL            string                   `json:"brokerUrl,omitempty" yaml:"brokerUrl,omitempty"`
-	ClientID             string                   `json:"clientId,omitempty" yaml:"clientId,omitempty"`
-	Topic                string                   `json:"topic,omitempty" yaml:"topic,omitempty"`
-	Message              string                   `json:"message,omitempty" yaml:"message,omitempty"`
-	MessageFormat        string                   `json:"messageFormat,omitempty" yaml:"messageFormat,omitempty"`
-	Username             string                   `json:"username,omitempty" yaml:"username,omitempty"`
-	Password             string                   `json:"password,omitempty" yaml:"password,omitempty"`
-	QoS                  receivers.OptionalNumber `json:"qos,omitempty" yaml:"qos,omitempty"`
-	InsecureSkipVerify   bool                     `json:"insecureSkipVerify,omitempty" yaml:"insecureSkipVerify,omitempty"`
-	Retain               bool                     `json:"retain,omitempty" yaml:"retain,omitempty"`
-	TLSCACertificate     string                   `json:"tlsCACertificate,omitempty" yaml:"tlsCACertificate,omitempty"`
-	TLSClientCertificate string                   `json:"tlsClientCertificate,omitempty" yaml:"tlsClientCertificate,omitempty"`
-	TLSClientKey         string                   `json:"tlsClientKey,omitempty" yaml:"tlsClientKey,omitempty"`
+	BrokerURL     string                   `json:"brokerUrl,omitempty" yaml:"brokerUrl,omitempty"`
+	ClientID      string                   `json:"clientId,omitempty" yaml:"clientId,omitempty"`
+	Topic         string                   `json:"topic,omitempty" yaml:"topic,omitempty"`
+	Message       string                   `json:"message,omitempty" yaml:"message,omitempty"`
+	MessageFormat string                   `json:"messageFormat,omitempty" yaml:"messageFormat,omitempty"`
+	Username      string                   `json:"username,omitempty" yaml:"username,omitempty"`
+	Password      string                   `json:"password,omitempty" yaml:"password,omitempty"`
+	QoS           receivers.OptionalNumber `json:"qos,omitempty" yaml:"qos,omitempty"`
+	Retain        bool                     `json:"retain,omitempty" yaml:"retain,omitempty"`
+	TLS           *receivers.TLSConfig     `json:"tls,omitempty" yaml:"tls,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
@@ -70,9 +67,12 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	}
 
 	settings.Password = decryptFn("password", settings.Password)
-	settings.TLSCACertificate = decryptFn("tlsCACertificate", settings.TLSCACertificate)
-	settings.TLSClientCertificate = decryptFn("tlsClientCertificate", settings.TLSClientCertificate)
-	settings.TLSClientKey = decryptFn("tlsClientKey", settings.TLSClientKey)
+
+	if settings.TLS != nil {
+		settings.TLS.CACertificate = decryptFn("tlsCACertificate", settings.TLS.CACertificate)
+		settings.TLS.ClientCertificate = decryptFn("tlsClientCertificate", settings.TLS.ClientCertificate)
+		settings.TLS.ClientKey = decryptFn("tlsClientKey", settings.TLS.ClientKey)
+	}
 
 	return settings, nil
 }
