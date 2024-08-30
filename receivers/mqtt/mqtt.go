@@ -114,7 +114,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 }
 
 func (n *Notifier) buildTLSConfig() (*tls.Config, error) {
-	if n.settings.TLS == nil {
+	if n.settings.TLSConfig == nil {
 		return nil, nil
 	}
 
@@ -125,17 +125,17 @@ func (n *Notifier) buildTLSConfig() (*tls.Config, error) {
 	}
 
 	tlsCfg := &tls.Config{
-		InsecureSkipVerify: n.settings.TLS.InsecureSkipVerify,
+		InsecureSkipVerify: n.settings.TLSConfig.InsecureSkipVerify,
 		ServerName:         parsedURL.Hostname(),
 	}
 
-	if n.settings.TLS.CACertificate != "" {
+	if n.settings.TLSConfig.CACertificate != "" {
 		tlsCfg.RootCAs = x509.NewCertPool()
-		tlsCfg.RootCAs.AppendCertsFromPEM([]byte(n.settings.TLS.CACertificate))
+		tlsCfg.RootCAs.AppendCertsFromPEM([]byte(n.settings.TLSConfig.CACertificate))
 	}
 
-	if n.settings.TLS.ClientCertificate != "" || n.settings.TLS.ClientKey != "" {
-		cert, err := tls.X509KeyPair([]byte(n.settings.TLS.ClientCertificate), []byte(n.settings.TLS.ClientKey))
+	if n.settings.TLSConfig.ClientCertificate != "" || n.settings.TLSConfig.ClientKey != "" {
+		cert, err := tls.X509KeyPair([]byte(n.settings.TLSConfig.ClientCertificate), []byte(n.settings.TLSConfig.ClientKey))
 		if err != nil {
 			n.log.Error("Failed to load client certificate", "error", err.Error())
 			return nil, err

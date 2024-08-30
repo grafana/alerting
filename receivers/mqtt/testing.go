@@ -10,7 +10,7 @@ const FullValidConfigForTesting = `{
 	"qos": "0",
 	"retain": false,
 	"password": "test-password",
-	"tls": {
+	"tlsConfig": {
 		"insecureSkipVerify": false,
 		"caCertificate": "test-tls-ca-certificate",
 		"clientCertificate": "test-tls-client-certificate",

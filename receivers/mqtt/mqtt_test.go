@@ -293,7 +293,7 @@ func TestNotify(t *testing.T) {
 				Topic:         "alert1",
 				Message:       templates.DefaultMessageEmbed,
 				MessageFormat: MessageFormatJSON,
-				TLS: &receivers.TLSConfig{
+				TLSConfig: &receivers.TLSConfig{
 					InsecureSkipVerify: true,
 					CACertificate:      testRsaCertPem,
 					ClientCertificate:  testRsaCertPem,
@@ -363,23 +363,23 @@ func TestNotify(t *testing.T) {
 			require.Equal(t, c.settings.ClientID, mockMQTTClient.clientID)
 			require.Equal(t, c.settings.BrokerURL, mockMQTTClient.brokerURL)
 
-			if c.settings.TLS == nil {
+			if c.settings.TLSConfig == nil {
 				require.Nil(t, mockMQTTClient.tlsCfg)
 			} else {
 				require.NotNil(t, mockMQTTClient.tlsCfg)
-				require.Equal(t, mockMQTTClient.tlsCfg.InsecureSkipVerify, c.settings.TLS.InsecureSkipVerify)
+				require.Equal(t, mockMQTTClient.tlsCfg.InsecureSkipVerify, c.settings.TLSConfig.InsecureSkipVerify)
 
 				// Check if the client certificate and key are set correctly.
-				if c.settings.TLS.ClientCertificate != "" && c.settings.TLS.ClientKey != "" {
-					clientCert, err := tls.X509KeyPair([]byte(c.settings.TLS.ClientCertificate), []byte(c.settings.TLS.ClientKey))
+				if c.settings.TLSConfig.ClientCertificate != "" && c.settings.TLSConfig.ClientKey != "" {
+					clientCert, err := tls.X509KeyPair([]byte(c.settings.TLSConfig.ClientCertificate), []byte(c.settings.TLSConfig.ClientKey))
 					require.NoError(t, err)
 					require.Equal(t, clientCert, mockMQTTClient.tlsCfg.Certificates[0])
 				}
 
 				// Check if the CA certificate is set correctly.
-				if c.settings.TLS.CACertificate != "" {
+				if c.settings.TLSConfig.CACertificate != "" {
 					expectedRootCAs := x509.NewCertPool()
-					expectedRootCAs.AppendCertsFromPEM([]byte(c.settings.TLS.CACertificate))
+					expectedRootCAs.AppendCertsFromPEM([]byte(c.settings.TLSConfig.CACertificate))
 					require.True(t, mockMQTTClient.tlsCfg.RootCAs.Equal(expectedRootCAs))
 				}
 			}
@@ -415,7 +415,7 @@ func TestNew(t *testing.T) {
 				Password:  "pass",
 				BrokerURL: "tcp://127.0.0.1:1883",
 				ClientID:  "test-grafana",
-				TLS: &receivers.TLSConfig{
+				TLSConfig: &receivers.TLSConfig{
 					InsecureSkipVerify: true,
 				},
 			},

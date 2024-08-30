@@ -25,7 +25,7 @@ type Config struct {
 	Password      string                   `json:"password,omitempty" yaml:"password,omitempty"`
 	QoS           receivers.OptionalNumber `json:"qos,omitempty" yaml:"qos,omitempty"`
 	Retain        bool                     `json:"retain,omitempty" yaml:"retain,omitempty"`
-	TLS           *receivers.TLSConfig     `json:"tls,omitempty" yaml:"tls,omitempty"`
+	TLSConfig     *receivers.TLSConfig     `json:"tlsConfig,omitempty" yaml:"tlsConfig,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
@@ -68,10 +68,10 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 
 	settings.Password = decryptFn("password", settings.Password)
 
-	if settings.TLS != nil {
-		settings.TLS.CACertificate = decryptFn("tlsCACertificate", settings.TLS.CACertificate)
-		settings.TLS.ClientCertificate = decryptFn("tlsClientCertificate", settings.TLS.ClientCertificate)
-		settings.TLS.ClientKey = decryptFn("tlsClientKey", settings.TLS.ClientKey)
+	if settings.TLSConfig != nil {
+		settings.TLSConfig.CACertificate = decryptFn("tlsCACertificate", settings.TLSConfig.CACertificate)
+		settings.TLSConfig.ClientCertificate = decryptFn("tlsClientCertificate", settings.TLSConfig.ClientCertificate)
+		settings.TLSConfig.ClientKey = decryptFn("tlsClientKey", settings.TLSConfig.ClientKey)
 	}
 
 	return settings, nil
