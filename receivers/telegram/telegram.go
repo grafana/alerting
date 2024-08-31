@@ -123,7 +123,7 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert)
 	if tn.settings.IncludeScreenshotURL {
 		_ = images.WithStoredImages(ctx, tn.log, tn.images, func(_ int, image images.Image) error {
 			if len(image.URL) != 0 {
-				rawMessage += image.URL
+				rawMessage += " " + image.URL
 			}
 			return nil
 		}, as...)
