@@ -74,34 +74,37 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	// Create the cmd to upload each image
-	_ = images.WithStoredImages(ctx, tn.log, tn.images, func(_ int, image images.Image) error {
-		cmd, err = tn.newWebhookSyncCmd("sendPhoto", func(w *multipart.Writer) error {
-			f, err := os.Open(image.Path)
-			if err != nil {
-				return fmt.Errorf("failed to open image: %w", err)
-			}
-			defer func() {
-				if err := f.Close(); err != nil {
-					tn.log.Warn("failed to close image", "error", err)
+	// Works only if IncludeScreenshotURL is set to false.
+	if !tn.settings.IncludeScreenshotURL {
+		_ = images.WithStoredImages(ctx, tn.log, tn.images, func(_ int, image images.Image) error {
+			cmd, err = tn.newWebhookSyncCmd("sendPhoto", func(w *multipart.Writer) error {
+				f, err := os.Open(image.Path)
+				if err != nil {
+					return fmt.Errorf("failed to open image: %w", err)
 				}
-			}()
-			fw, err := w.CreateFormFile("photo", image.Path)
+				defer func() {
+					if err := f.Close(); err != nil {
+						tn.log.Warn("failed to close image", "error", err)
+					}
+				}()
+				fw, err := w.CreateFormFile("photo", image.Path)
+				if err != nil {
+					return fmt.Errorf("failed to create form file: %w", err)
+				}
+				if _, err := io.Copy(fw, f); err != nil {
+					return fmt.Errorf("failed to write to form file: %w", err)
+				}
+				return nil
+			})
 			if err != nil {
-				return fmt.Errorf("failed to create form file: %w", err)
+				return fmt.Errorf("failed to create image: %w", err)
 			}
-			if _, err := io.Copy(fw, f); err != nil {
-				return fmt.Errorf("failed to write to form file: %w", err)
+			if err := tn.ns.SendWebhook(ctx, cmd); err != nil {
+				return fmt.Errorf("failed to upload image to telegram: %w", err)
 			}
 			return nil
-		})
-		if err != nil {
-			return fmt.Errorf("failed to create image: %w", err)
-		}
-		if err := tn.ns.SendWebhook(ctx, cmd); err != nil {
-			return fmt.Errorf("failed to upload image to telegram: %w", err)
-		}
-		return nil
-	}, as...)
+		}, as...)
+	}
 
 	return true, nil
 }
