@@ -119,7 +119,16 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert)
 
 	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, tn.log, &tmplErr)
 	// Telegram supports 4096 chars max
-	messageText, truncated := receivers.TruncateInRunes(tmpl(tn.settings.Message), telegramMaxMessageLenRunes)
+	rawMessage := tmpl(tn.settings.Message)
+	if tn.settings.IncludeScreenshotURL {
+		_ = images.WithStoredImages(ctx, tn.log, tn.images, func(_ int, image images.Image) error {
+			if len(image.URL) != 0 {
+				rawMessage += image.URL
+			}
+			return nil
+		}, as...)
+	}
+	messageText, truncated := receivers.TruncateInRunes(rawMessage, telegramMaxMessageLenRunes)
 	if truncated {
 		key, err := notify.ExtractGroupKey(ctx)
 		if err != nil {
