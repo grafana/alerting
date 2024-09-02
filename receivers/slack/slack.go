@@ -90,6 +90,55 @@ func uploadURL(s Config) (string, error) {
 	return u.String(), nil
 }
 
+// getSlackUploadURL returns the upload url for new Slack file upload functions
+func getSlackUploadURL(ctx context.Context, sn *Notifier, filename string) (string, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"filename": filename,
+		"length":   0,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://slack.com/api/files.getUploadURLExternal", bytes.NewReader(reqBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+sn.settings.Token)
+
+	resp, err := slackClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("received non-200 response code: %d", resp.StatusCode)
+	}
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	var result struct {
+		UploadURL string `json:"upload_url"`
+		OK        bool   `json:"ok"`
+		Error     string `json:"error,omitempty"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if !result.OK {
+		return "", fmt.Errorf("failed to get upload URL: %s", result.Error)
+	}
+
+	return result.UploadURL, nil
+}
+
 func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
@@ -420,7 +469,7 @@ func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (stri
 	return threadTs, nil
 }
 
-// createImageMultipart returns the mutlipart/form-data request and headers for files.upload.
+// createImageMultipart returns the multipart/form-data request and headers for files.upload.
 // It returns an error if the image does not exist or there was an error preparing the
 // multipart form.
 func (sn *Notifier) createImageMultipart(image images.Image, channel, comment, threadTs string) (http.Header, []byte, error) {
@@ -501,7 +550,75 @@ func (sn *Notifier) sendMultipart(ctx context.Context, headers http.Header, data
 // does not exist, or if there was an error either preparing or sending the multipart/form-data
 // request.
 func (sn *Notifier) uploadImage(ctx context.Context, image images.Image, channel, comment, threadTs string) error {
-	sn.log.Debug("Uploadimg image", "image", image.Token)
+	sn.log.Debug("Uploading image", "image", image.Token)
+
+	// Check if the new Slack API method should be used
+	useNewSlackAPI := sn.shouldUseNewSlackAPI()
+
+	if useNewSlackAPI {
+		// New Slack API upload method
+
+		// Step 1 - Obtain the upload URL from Slack
+		uploadURL, err := getSlackUploadURL(ctx, sn, image.Path)
+		if err != nil {
+			return fmt.Errorf("failed to get Slack upload URL: %w", err)
+		}
+
+		// Step 2 - Upload the file data to the obtained upload URL
+		fileData, err := os.ReadFile(image.Path)
+		if err != nil {
+			return fmt.Errorf("failed to read image file: %w", err)
+		}
+
+		req, err := http.NewRequest(http.MethodPut, uploadURL, bytes.NewReader(fileData))
+		if err != nil {
+			return fmt.Errorf("failed to create upload request: %w", err)
+		}
+
+		resp, err := slackClient.Do(req)
+		if err != nil {
+			return fmt.Errorf("failed to upload file: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			return fmt.Errorf("received non-200 response code during file upload: %d", resp.StatusCode)
+		}
+
+		// Step 3 - Complete the upload using the files.completeUploadExternal API method
+		completeUploadURL := "https://slack.com/api/files.completeUploadExternal"
+		completeReqBody, err := json.Marshal(map[string]interface{}{
+			"files": []map[string]string{
+				{
+					"id":       image.Token,
+					"channels": channel,
+				},
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to marshal complete upload request body: %w", err)
+		}
+
+		completeReq, err := http.NewRequest(http.MethodPost, completeUploadURL, bytes.NewReader(completeReqBody))
+		if err != nil {
+			return fmt.Errorf("failed to create complete upload request: %w", err)
+		}
+
+		completeReq.Header.Set("Content-Type", "application/json")
+		completeReq.Header.Set("Authorization", "Bearer "+sn.settings.Token)
+
+		completeResp, err := slackClient.Do(completeReq)
+		if err != nil {
+			return fmt.Errorf("failed to send complete upload request: %w", err)
+		}
+		defer completeResp.Body.Close()
+
+		if completeResp.StatusCode != http.StatusOK {
+			return fmt.Errorf("received non-200 response code during complete upload: %d", completeResp.StatusCode)
+		}
+
+	}
+
 	headers, data, err := sn.createImageMultipart(image, channel, comment, threadTs)
 	if err != nil {
 		return fmt.Errorf("failed to create multipart form: %w", err)
@@ -509,6 +626,16 @@ func (sn *Notifier) uploadImage(ctx context.Context, image images.Image, channel
 
 	return sn.sendMultipart(ctx, headers, bytes.NewReader(data))
 }
+
+// Helper function to check whether the new Slack API method should be used
+func (sn *Notifier) shouldUseNewSlackAPI() bool {
+	// Logic to determine if the new API should be used
+	// This could be based on a config setting, environment variable, or feature flag
+	return os.Getenv("USE_NEW_SLACK_API") == "true"
+}
+
+// The new Slack API methods remain the same as before
+// getSlackUploadURL function goes here...
 
 func (sn *Notifier) SendResolved() bool {
 	return !sn.GetDisableResolveMessage()
@@ -549,3 +676,4 @@ func initialCommentForImage(alert *types.Alert) string {
 
 	return sb.String()
 }
+
