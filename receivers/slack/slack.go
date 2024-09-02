@@ -634,9 +634,6 @@ func (sn *Notifier) shouldUseNewSlackAPI() bool {
 	return os.Getenv("USE_NEW_SLACK_API") == "true"
 }
 
-// The new Slack API methods remain the same as before
-// getSlackUploadURL function goes here...
-
 func (sn *Notifier) SendResolved() bool {
 	return !sn.GetDisableResolveMessage()
 }
@@ -676,4 +673,3 @@ func initialCommentForImage(alert *types.Alert) string {
 
 	return sb.String()
 }
-
