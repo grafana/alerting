@@ -62,7 +62,8 @@ type ExtendedData struct {
 	CommonLabels      KV `json:"commonLabels"`
 	CommonAnnotations KV `json:"commonAnnotations"`
 
-	ExternalURL string `json:"externalURL"`
+	ExternalURL     string `json:"externalURL"`
+	AlertingListURL string `json:"alertingListURL"`
 }
 
 // FromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
@@ -134,14 +135,15 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	}
 	externalPath := u.Path
 
-	generatorURL, err := url.Parse(extended.GeneratorURL)
-	if err != nil {
-		level.Debug(logger).Log("msg", "failed to parse generator URL while extending template data", "url", extended.GeneratorURL, "error", err.Error())
-		return extended
-	}
-
 	orgID := alert.Annotations[models.OrgIDAnnotation]
-	if len(orgID) > 0 {
+
+	if len(extended.GeneratorURL) > 0 && len(orgID) > 0 {
+		generatorURL, err := url.Parse(extended.GeneratorURL)
+		if err != nil {
+			level.Debug(logger).Log("msg", "failed to parse generator URL while extending template data", "url", extended.GeneratorURL, "error", err.Error())
+			return extended
+		}
+
 		extended.GeneratorURL = setOrgIDQueryParam(generatorURL, orgID)
 	}
 
@@ -208,6 +210,24 @@ func setOrgIDQueryParam(url *url.URL, orgID string) string {
 	return url.String()
 }
 
+func parseAlertingListURL(data *Data, logger log.Logger) string {
+	externalURL, err := url.Parse(data.ExternalURL)
+	if err != nil {
+		level.Debug(logger).Log("msg", "failed to parse external URL while extending template data", "url", data.ExternalURL, "error", err.Error())
+
+		return ""
+	}
+
+	externalURL.Path = path.Join(externalURL.Path, "/alerting/list")
+
+	orgID := data.CommonAnnotations[models.OrgIDAnnotation]
+	if len(orgID) > 0 {
+		return setOrgIDQueryParam(externalURL, orgID)
+	}
+
+	return externalURL.String()
+}
+
 func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 	alerts := make([]ExtendedAlert, 0, len(data.Alerts))
 
@@ -224,7 +244,8 @@ func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 		CommonLabels:      removePrivateItems(data.CommonLabels),
 		CommonAnnotations: removePrivateItems(data.CommonAnnotations),
 
-		ExternalURL: data.ExternalURL,
+		ExternalURL:     data.ExternalURL,
+		AlertingListURL: parseAlertingListURL(data, logger),
 	}
 	return extended
 }
