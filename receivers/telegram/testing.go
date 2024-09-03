@@ -9,7 +9,8 @@ const FullValidConfigForTesting = `{
 	"parse_mode" :"html",
 	"disable_web_page_preview" :true,
 	"protect_content" :true,
-	"disable_notifications" :true
+	"disable_notifications" :true,
+	"include_screenshot_url" :true
 }`
 
 // FullValidSecretsForTesting is a string representation of JSON object that contains all fields that can be overridden from secrets

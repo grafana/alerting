@@ -50,6 +50,7 @@ func TestNewConfig(t *testing.T) {
 				DisableWebPagePreview: false,
 				ProtectContent:        false,
 				DisableNotifications:  false,
+				IncludeScreenshotURL:  false,
 			},
 		},
 		{
@@ -66,6 +67,7 @@ func TestNewConfig(t *testing.T) {
 				DisableWebPagePreview: false,
 				ProtectContent:        false,
 				DisableNotifications:  false,
+				IncludeScreenshotURL:  false,
 			},
 		},
 		{
@@ -82,6 +84,7 @@ func TestNewConfig(t *testing.T) {
 				DisableWebPagePreview: false,
 				ProtectContent:        false,
 				DisableNotifications:  false,
+				IncludeScreenshotURL:  false,
 			},
 		},
 		{
@@ -103,6 +106,7 @@ func TestNewConfig(t *testing.T) {
 				DisableWebPagePreview: false,
 				ProtectContent:        false,
 				DisableNotifications:  false,
+				IncludeScreenshotURL:  false,
 			},
 		},
 		{
@@ -117,6 +121,7 @@ func TestNewConfig(t *testing.T) {
 				DisableWebPagePreview: true,
 				ProtectContent:        true,
 				DisableNotifications:  true,
+				IncludeScreenshotURL:  true,
 			},
 		},
 		{
@@ -132,6 +137,7 @@ func TestNewConfig(t *testing.T) {
 				DisableWebPagePreview: true,
 				ProtectContent:        true,
 				DisableNotifications:  true,
+				IncludeScreenshotURL:  true,
 			},
 		},
 		{
@@ -156,6 +162,7 @@ func TestNewConfig(t *testing.T) {
 				DisableWebPagePreview: false,
 				ProtectContent:        false,
 				DisableNotifications:  false,
+				IncludeScreenshotURL:  false,
 			},
 		},
 		{
@@ -172,6 +179,7 @@ func TestNewConfig(t *testing.T) {
 				DisableWebPagePreview: false,
 				ProtectContent:        false,
 				DisableNotifications:  false,
+				IncludeScreenshotURL:  false,
 			},
 		},
 		{
@@ -188,6 +196,7 @@ func TestNewConfig(t *testing.T) {
 				DisableWebPagePreview: false,
 				ProtectContent:        false,
 				DisableNotifications:  false,
+				IncludeScreenshotURL:  false,
 			},
 		},
 		{
