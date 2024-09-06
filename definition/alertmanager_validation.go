@@ -85,6 +85,8 @@ func (r *Route) ValidateReceivers(receivers map[string]struct{}) error {
 	return nil
 }
 
+// ValidateMuteTimes validates that all mute time intervals referenced by the route exist.
+// TODO: Can be removed once grafana/grafan uses ValidateTimeIntervals instead.
 func (r *Route) ValidateMuteTimes(timeIntervals map[string]struct{}) error {
 	for _, name := range r.MuteTimeIntervals {
 		if _, exists := timeIntervals[name]; !exists {
@@ -100,14 +102,20 @@ func (r *Route) ValidateMuteTimes(timeIntervals map[string]struct{}) error {
 	return nil
 }
 
-func (r *Route) ValidateActiveTimes(timeIntervals map[string]struct{}) error {
+// ValidateTimeIntervals checks that all time intervals referenced by the route exist in the provided map.
+func (r *Route) ValidateTimeIntervals(timeIntervals map[string]struct{}) error {
+	for _, name := range r.MuteTimeIntervals {
+		if _, exists := timeIntervals[name]; !exists {
+			return fmt.Errorf("mute time interval '%s' does not exist", name)
+		}
+	}
 	for _, name := range r.ActiveTimeIntervals {
 		if _, exists := timeIntervals[name]; !exists {
 			return fmt.Errorf("active time interval '%s' does not exist", name)
 		}
 	}
 	for _, child := range r.Routes {
-		err := child.ValidateActiveTimes(timeIntervals)
+		err := child.ValidateTimeIntervals(timeIntervals)
 		if err != nil {
 			return err
 		}
