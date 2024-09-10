@@ -3,8 +3,9 @@ package definition
 import (
 	"testing"
 
-	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/prometheus/common/model"
 )
 
 func TestValidateRoutes(t *testing.T) {
@@ -222,6 +223,15 @@ func TestValidateRoutes(t *testing.T) {
 					MuteTimeIntervals: []string{"10"},
 				},
 				expMsg: "must not have any mute time intervals",
+			},
+			{
+				desc: "active time intervals present",
+				route: Route{
+					Receiver:            "foo",
+					GroupByStr:          []string{"..."},
+					ActiveTimeIntervals: []string{"10"},
+				},
+				expMsg: "must not have any active time intervals",
 			},
 			{
 				desc: "validation error that is not specific to root",

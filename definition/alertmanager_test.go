@@ -5,11 +5,12 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/prometheus/alertmanager/config"
-	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
+
+	"github.com/prometheus/alertmanager/config"
+	"github.com/prometheus/alertmanager/pkg/labels"
 )
 
 func Test_ApiReceiver_Marshaling(t *testing.T) {
@@ -834,7 +835,7 @@ func Test_ConfigUnmashaling(t *testing.T) {
 		},
 		{
 			desc: "undefined mute time names in routes should error",
-			err:  errors.New("undefined time interval \"test2\" used in route"),
+			err:  errors.New("undefined mute time interval \"test2\" used in route"),
 			input: `
 				{
 				  "route": {
@@ -856,6 +857,65 @@ func Test_ConfigUnmashaling(t *testing.T) {
 					  ]
 				  },
 				  "mute_time_intervals": [
+					{
+					  "name": "test1",
+					  "time_intervals": [
+						{
+						  "times": [
+							{
+							  "start_time": "00:00",
+							  "end_time": "12:00"
+							}
+						  ]
+						}
+					  ]
+					}
+				  ],
+				  "templates": null,
+				  "receivers": [
+					{
+					  "name": "grafana-default-email",
+					  "grafana_managed_receiver_configs": [
+						{
+						  "uid": "uxwfZvtnz",
+						  "name": "email receiver",
+						  "type": "email",
+						  "disableResolveMessage": false,
+						  "settings": {
+							"addresses": "<example@email.com>"
+						  },
+						  "secureFields": {}
+						}
+					  ]
+					}
+				  ]
+				}
+			`,
+		},
+		{
+			desc: "undefined active time names in routes should error",
+			err:  errors.New("undefined active time interval \"test2\" used in route"),
+			input: `
+				{
+				  "route": {
+					"receiver": "grafana-default-email",
+					"routes": [
+						{
+						  "receiver": "grafana-default-email",
+						  "object_matchers": [
+							[
+							  "a",
+							  "=",
+							  "b"
+							]
+						  ],
+						  "active_time_intervals": [
+							"test2"
+						  ]
+						}
+					  ]
+				  },
+				  "time_intervals": [
 					{
 					  "name": "test1",
 					  "time_intervals": [
