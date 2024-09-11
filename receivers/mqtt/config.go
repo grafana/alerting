@@ -68,11 +68,13 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 
 	settings.Password = decryptFn("password", settings.Password)
 
-	if settings.TLSConfig != nil {
-		settings.TLSConfig.CACertificate = decryptFn("tlsCACertificate", settings.TLSConfig.CACertificate)
-		settings.TLSConfig.ClientCertificate = decryptFn("tlsClientCertificate", settings.TLSConfig.ClientCertificate)
-		settings.TLSConfig.ClientKey = decryptFn("tlsClientKey", settings.TLSConfig.ClientKey)
+	if settings.TLSConfig == nil {
+		settings.TLSConfig = &receivers.TLSConfig{}
 	}
+
+	settings.TLSConfig.CACertificate = decryptFn("tlsConfig.caCertificate", settings.TLSConfig.CACertificate)
+	settings.TLSConfig.ClientCertificate = decryptFn("tlsConfig.clientCertificate", settings.TLSConfig.ClientCertificate)
+	settings.TLSConfig.ClientKey = decryptFn("tlsConfig.clientKey", settings.TLSConfig.ClientKey)
 
 	return settings, nil
 }

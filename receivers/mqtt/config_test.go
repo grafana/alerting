@@ -47,6 +47,7 @@ func TestNewConfig(t *testing.T) {
 				BrokerURL:     "tcp://localhost:1883",
 				Topic:         "grafana/alerts",
 				MessageFormat: MessageFormatJSON,
+				TLSConfig:     &receivers.TLSConfig{},
 			},
 		},
 		{
@@ -71,6 +72,7 @@ func TestNewConfig(t *testing.T) {
 				Topic:         "grafana/alerts",
 				MessageFormat: MessageFormatJSON,
 				ClientID:      "test-client-id",
+				TLSConfig:     &receivers.TLSConfig{},
 			},
 		},
 		{
@@ -86,6 +88,28 @@ func TestNewConfig(t *testing.T) {
 				MessageFormat: MessageFormatJSON,
 				Username:      "grafana",
 				Password:      "testpasswd",
+				TLSConfig:     &receivers.TLSConfig{},
+			},
+		},
+		{
+			name:     "Configuration with tlsConfig",
+			settings: `{ "brokerUrl" : "tcp://localhost:1883", "topic": "grafana/alerts"}`,
+			secureSettings: map[string][]byte{
+				"tlsConfig.caCertificate":     []byte("test-ca-cert"),
+				"tlsConfig.clientCertificate": []byte("test-client-cert"),
+				"tlsConfig.clientKey":         []byte("test-client-key"),
+			},
+			expectedConfig: Config{
+				Message:       templates.DefaultMessageEmbed,
+				BrokerURL:     "tcp://localhost:1883",
+				Topic:         "grafana/alerts",
+				MessageFormat: MessageFormatJSON,
+				TLSConfig: &receivers.TLSConfig{
+					InsecureSkipVerify: false,
+					CACertificate:      "test-ca-cert",
+					ClientKey:          "test-client-key",
+					ClientCertificate:  "test-client-cert",
+				},
 			},
 		},
 	}
