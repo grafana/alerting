@@ -51,7 +51,7 @@ type TLSConfig struct {
 	ServerName         string
 }
 
-func (cfg *TLSConfig) ToTLSConfig() (*tls.Config, error) {
+func (cfg *TLSConfig) ToCryptoTLSConfig() (*tls.Config, error) {
 	tlsCfg := &tls.Config{
 		InsecureSkipVerify: cfg.InsecureSkipVerify,
 		ServerName:         cfg.ServerName,

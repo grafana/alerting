@@ -71,7 +71,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	var tlsCfg *tls.Config
 	if n.settings.TLSConfig != nil {
-		tlsCfg, err = n.settings.TLSConfig.ToTLSConfig()
+		tlsCfg, err = n.settings.TLSConfig.ToCryptoTLSConfig()
 	}
 	if err != nil {
 		n.log.Error("Failed to build TLS config", "error", err.Error())

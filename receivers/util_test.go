@@ -84,7 +84,7 @@ func TestNewTLSConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tlsCfg, err := tt.cfg.ToTLSConfig()
+			tlsCfg, err := tt.cfg.ToCryptoTLSConfig()
 
 			if tt.expectError {
 				require.Error(t, err)
