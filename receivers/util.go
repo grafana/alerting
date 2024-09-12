@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -46,6 +48,32 @@ type TLSConfig struct {
 	ClientCertificate  string `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
 	ClientKey          string `json:"clientKey,omitempty" yaml:"clientKey,omitempty"`
 	InsecureSkipVerify bool   `json:"insecureSkipVerify,omitempty" yaml:"insecureSkipVerify,omitempty"`
+	ServerName         string
+}
+
+func (cfg *TLSConfig) ToTLSConfig() (*tls.Config, error) {
+	tlsCfg := &tls.Config{
+		InsecureSkipVerify: cfg.InsecureSkipVerify,
+		ServerName:         cfg.ServerName,
+	}
+
+	if cfg.CACertificate != "" {
+		tlsCfg.RootCAs = x509.NewCertPool()
+		ok := tlsCfg.RootCAs.AppendCertsFromPEM([]byte(cfg.CACertificate))
+		if !ok {
+			return nil, errors.New("Unable to use the provided CA certificate")
+		}
+	}
+
+	if cfg.ClientCertificate != "" || cfg.ClientKey != "" {
+		cert, err := tls.X509KeyPair([]byte(cfg.ClientCertificate), []byte(cfg.ClientKey))
+		if err != nil {
+			return nil, fmt.Errorf("failed to load client certificate: %w", err)
+		}
+		tlsCfg.Certificates = append(tlsCfg.Certificates, cert)
+	}
+
+	return tlsCfg, nil
 }
 
 // SendHTTPRequest sends an HTTP request.

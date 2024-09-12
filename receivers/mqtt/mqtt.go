@@ -3,11 +3,9 @@ package mqtt
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
@@ -71,7 +69,10 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		return false, err
 	}
 
-	tlsCfg, err := n.buildTLSConfig()
+	var tlsCfg *tls.Config
+	if n.settings.TLSConfig != nil {
+		tlsCfg, err = n.settings.TLSConfig.ToTLSConfig()
+	}
 	if err != nil {
 		n.log.Error("Failed to build TLS config", "error", err.Error())
 		return false, fmt.Errorf("failed to build TLS config: %s", err.Error())
@@ -111,39 +112,6 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	}
 
 	return true, nil
-}
-
-func (n *Notifier) buildTLSConfig() (*tls.Config, error) {
-	if n.settings.TLSConfig == nil {
-		return nil, nil
-	}
-
-	parsedURL, err := url.Parse(n.settings.BrokerURL)
-	if err != nil {
-		n.log.Error("Failed to parse broker URL", "error", err.Error())
-		return nil, err
-	}
-
-	tlsCfg := &tls.Config{
-		InsecureSkipVerify: n.settings.TLSConfig.InsecureSkipVerify,
-		ServerName:         parsedURL.Hostname(),
-	}
-
-	if n.settings.TLSConfig.CACertificate != "" {
-		tlsCfg.RootCAs = x509.NewCertPool()
-		tlsCfg.RootCAs.AppendCertsFromPEM([]byte(n.settings.TLSConfig.CACertificate))
-	}
-
-	if n.settings.TLSConfig.ClientCertificate != "" || n.settings.TLSConfig.ClientKey != "" {
-		cert, err := tls.X509KeyPair([]byte(n.settings.TLSConfig.ClientCertificate), []byte(n.settings.TLSConfig.ClientKey))
-		if err != nil {
-			n.log.Error("Failed to load client certificate", "error", err.Error())
-			return nil, err
-		}
-		tlsCfg.Certificates = append(tlsCfg.Certificates, cert)
-	}
-
-	return tlsCfg, nil
 }
 
 func (n *Notifier) buildMessage(ctx context.Context, as ...*types.Alert) (string, error) {

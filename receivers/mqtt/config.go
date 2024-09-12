@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net/url"
 
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
@@ -75,6 +76,12 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	settings.TLSConfig.CACertificate = decryptFn("tlsConfig.caCertificate", settings.TLSConfig.CACertificate)
 	settings.TLSConfig.ClientCertificate = decryptFn("tlsConfig.clientCertificate", settings.TLSConfig.ClientCertificate)
 	settings.TLSConfig.ClientKey = decryptFn("tlsConfig.clientKey", settings.TLSConfig.ClientKey)
+
+	parsedURL, err := url.Parse(settings.BrokerURL)
+	if err != nil {
+		return Config{}, errors.New("Failed to parse broker URL")
+	}
+	settings.TLSConfig.ServerName = parsedURL.Hostname()
 
 	return settings, nil
 }

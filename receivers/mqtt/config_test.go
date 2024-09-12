@@ -47,7 +47,9 @@ func TestNewConfig(t *testing.T) {
 				BrokerURL:     "tcp://localhost:1883",
 				Topic:         "grafana/alerts",
 				MessageFormat: MessageFormatJSON,
-				TLSConfig:     &receivers.TLSConfig{},
+				TLSConfig: &receivers.TLSConfig{
+					ServerName: "localhost",
+				},
 			},
 		},
 		{
@@ -60,6 +62,7 @@ func TestNewConfig(t *testing.T) {
 				MessageFormat: MessageFormatJSON,
 				TLSConfig: &receivers.TLSConfig{
 					InsecureSkipVerify: true,
+					ServerName:         "localhost",
 				},
 			},
 		},
@@ -72,7 +75,9 @@ func TestNewConfig(t *testing.T) {
 				Topic:         "grafana/alerts",
 				MessageFormat: MessageFormatJSON,
 				ClientID:      "test-client-id",
-				TLSConfig:     &receivers.TLSConfig{},
+				TLSConfig: &receivers.TLSConfig{
+					ServerName: "localhost",
+				},
 			},
 		},
 		{
@@ -88,7 +93,9 @@ func TestNewConfig(t *testing.T) {
 				MessageFormat: MessageFormatJSON,
 				Username:      "grafana",
 				Password:      "testpasswd",
-				TLSConfig:     &receivers.TLSConfig{},
+				TLSConfig: &receivers.TLSConfig{
+					ServerName: "localhost",
+				},
 			},
 		},
 		{
@@ -106,6 +113,7 @@ func TestNewConfig(t *testing.T) {
 				MessageFormat: MessageFormatJSON,
 				TLSConfig: &receivers.TLSConfig{
 					InsecureSkipVerify: false,
+					ServerName:         "localhost",
 					CACertificate:      "test-ca-cert",
 					ClientKey:          "test-client-key",
 					ClientCertificate:  "test-client-cert",
