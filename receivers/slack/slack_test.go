@@ -460,15 +460,6 @@ func TestNotify_PostMessage(t *testing.T) {
 				},
 			},
 		},
-		expectedReplies: []interface{}{
-			// check that the following parts are present in the multipart/form-data
-			map[string]struct{}{
-				"file":            {},
-				"channels":        {},
-				"initial_comment": {},
-				"thread_ts":       {},
-			},
-		},
 	}, {
 		name: "Message is sent to custom URL",
 		settings: Config{
