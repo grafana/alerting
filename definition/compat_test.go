@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/require"
+
+	"github.com/prometheus/alertmanager/pkg/labels"
 )
 
 var validConfig = []byte(`{"route":{"receiver":"grafana-default-email","routes":[{"receiver":"grafana-default-email","object_matchers":[["a","=","b"]],"mute_time_intervals":["test1"]}]},"mute_time_intervals":[{"name":"test1","time_intervals":[{"times":[{"start_time":"00:00","end_time":"12:00"}]}]}],"templates":null,"receivers":[{"name":"grafana-default-email","grafana_managed_receiver_configs":[{"uid":"uxwfZvtnz","name":"email receiver","type":"email","disableResolveMessage":false,"settings":{"addresses":"<example@email.com>"},"secureFields":{}}]}]}`)
@@ -131,6 +135,34 @@ func TestGrafanaToUpstreamConfig(t *testing.T) {
 
 	for i, r := range cfg.Receivers {
 		require.Equal(t, r.Name, upstream.Receivers[i].Name)
+	}
+}
+
+func TestAsAMRoute(t *testing.T) {
+	// Ensure that AsAMRoute and AsGrafanaRoute are inverses of each other.
+	cfg, err := Load([]byte(testConfigWithComplexRoutes))
+	require.NoError(t, err)
+	originalRoute := cfg.Route
+	// For easier comparison move ObjectMatchers to Matchers.
+	mergeMatchers(originalRoute)
+
+	amRoute := originalRoute.AsAMRoute()
+	grafanaRoute := AsGrafanaRoute(amRoute)
+
+	cmpOpts := []cmp.Option{
+		cmpopts.IgnoreUnexported(Route{}, labels.Matcher{}),
+		cmpopts.EquateEmpty(),
+	}
+	if !cmp.Equal(grafanaRoute, originalRoute, cmpOpts...) {
+		t.Errorf("Unexpected Diff: %v", cmp.Diff(grafanaRoute, originalRoute, cmpOpts...))
+	}
+}
+
+func mergeMatchers(route *Route) {
+	route.Matchers = append(route.Matchers, route.ObjectMatchers...)
+	route.ObjectMatchers = nil
+	for _, r := range route.Routes {
+		mergeMatchers(r)
 	}
 }
 
@@ -261,4 +293,80 @@ receivers:
         routing_key: test
         to: test
         webhook_url_file: test
+`
+
+const testConfigWithComplexRoutes = `
+mute_time_intervals:
+  - name: test1
+    time_intervals:
+      - times:
+          - start_time: 00:00
+            end_time: 12:00
+time_intervals:
+  - name: weekends
+    time_intervals:
+    - weekdays:
+      - saturday
+      - sunday
+  - name: weekdays
+    time_intervals:
+    - weekdays:
+      - monday
+      - tuesday
+      - wednesday
+      - thursday
+      - friday
+route:
+  receiver: recv
+  group_by:
+    - test
+    - test2
+  group_wait: 1m
+  group_interval: 1m
+  repeat_interval: 1m
+  routes:
+    - receiver: recv2
+      object_matchers:
+        - - team
+          - =
+          - teamC
+      group_by:
+        - teste
+        - test2f
+      group_wait: 0s
+      group_interval: 1m
+      repeat_interval: 1m
+      mute_time_intervals:
+        - test1
+      active_time_intervals:
+        - weekdays
+      routes:
+        - receiver: recv
+          group_by:
+            - testc
+            - test2d
+          group_interval: 10m
+          repeat_interval: 1h
+          mute_time_intervals:
+            - weekends
+          active_time_intervals:
+            - weekdays
+          routes:
+            - receiver: recv2
+              group_by:
+                - testa
+                - test2b
+              group_wait: 30s
+              group_interval: 1m
+              repeat_interval: 1m
+              active_time_intervals:
+                - weekdays
+                - test1
+receivers:
+  - name: recv
+    email_configs:
+      - to: recv
+  - name: recv2
+    email_configs:
+      - to: recv2
 `
