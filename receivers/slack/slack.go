@@ -541,7 +541,7 @@ func (sn *Notifier) createImageMultipart(uploadURL, filePath, botToken string) e
 	return nil
 }
 
-func (sn *Notifier) sendMultipart(botToken, fileID, fileName, channelId string) error {
+func (sn *Notifier) sendMultipart(botToken, fileID, fileName, channelId, threadTs, comment string) error {
 	sn.log.Debug("Sending multipart request")
 
 	baseUrl := "https://slack.com/api/files.completeUploadExternal"
@@ -551,6 +551,7 @@ func (sn *Notifier) sendMultipart(botToken, fileID, fileName, channelId string) 
 	data := url.Values{}
 	data.Set("files", filesPayload)
 	data.Set("channel_id", channelId)
+	data.Set("thread_ts", threadTs) // Add threadTs here
 
 	req, err := http.NewRequest("POST", baseUrl, bytes.NewBufferString(data.Encode()))
 	if err != nil {
@@ -574,6 +575,37 @@ func (sn *Notifier) sendMultipart(botToken, fileID, fileName, channelId string) 
 
 	if !completeUploadResp.OK {
 		return fmt.Errorf("failed to complete upload: %s", completeUploadResp.Error)
+	}
+
+	// Send the message with the file attachment
+	messageUrl := "https://slack.com/api/chat.postMessage"
+	messageData := url.Values{}
+	messageData.Set("channel", channelId)
+	messageData.Set("text", comment)
+	messageData.Set("thread_ts", threadTs)
+	messageData.Set("attachments", fmt.Sprintf(`[{"id": "%s"}]`, fileID))
+
+	messageReq, err := http.NewRequest("POST", messageUrl, bytes.NewBufferString(messageData.Encode()))
+	if err != nil {
+		return fmt.Errorf("failed to create message request: %v", err)
+	}
+
+	messageReq.Header.Add("Authorization", fmt.Sprintf("Bearer %s", botToken))
+	messageReq.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	messageResp, err := client.Do(messageReq)
+	if err != nil {
+		return fmt.Errorf("failed to send message: %v", err)
+	}
+	defer messageResp.Body.Close()
+
+	var messageRespBody map[string]interface{}
+	if err := json.NewDecoder(messageResp.Body).Decode(&messageRespBody); err != nil {
+		return fmt.Errorf("failed to decode message response: %v", err)
+	}
+
+	if !messageRespBody["ok"].(bool) {
+		return fmt.Errorf("failed to send message: %s", messageRespBody["error"].(string))
 	}
 
 	return nil
@@ -603,7 +635,7 @@ func (sn *Notifier) uploadImage(ctx context.Context, image images.Image, channel
 		return fmt.Errorf("error uploading file: %w", err)
 	}
 
-	return sn.sendMultipart(image.Token, fileID, image.Path, channel)
+	return sn.sendMultipart(image.Token, fileID, image.Path, channel, threadTs, comment)
 }
 
 func (sn *Notifier) SendResolved() bool {
