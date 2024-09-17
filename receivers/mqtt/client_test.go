@@ -58,11 +58,15 @@ func TestMqttClientPublish(t *testing.T) {
 		name    string
 		topic   string
 		payload []byte
+		retain  bool
+		qos     int
 	}{
 		{
 			name:    "Simple publish",
 			topic:   "test",
 			payload: []byte("test"),
+			retain:  true,
+			qos:     1,
 		},
 	}
 
@@ -73,17 +77,31 @@ func TestMqttClientPublish(t *testing.T) {
 				client: mc,
 			}
 
+			var expectedQoS mqttLib.QoS
+			switch tc.qos {
+			case 0:
+				expectedQoS = mqttLib.QoS0
+			case 1:
+				expectedQoS = mqttLib.QoS1
+			case 2:
+				expectedQoS = mqttLib.QoS2
+			default:
+				require.Fail(t, "invalid QoS level")
+			}
+
 			ctx := context.Background()
 			mc.On("Publish", ctx, &mqttLib.Message{
 				Topic:   tc.topic,
 				Payload: tc.payload,
-				QoS:     mqttLib.QoS0,
-				Retain:  false,
+				QoS:     expectedQoS,
+				Retain:  tc.retain,
 			}).Return(nil)
 
 			err := c.Publish(ctx, message{
 				topic:   tc.topic,
 				payload: tc.payload,
+				retain:  tc.retain,
+				qos:     tc.qos,
 			})
 
 			require.NoError(t, err)
