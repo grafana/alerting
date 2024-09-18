@@ -3,6 +3,7 @@ package mqtt
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"net/url"
 	"testing"
 
@@ -16,6 +17,32 @@ import (
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+)
+
+// Test certificates from https://github.com/golang/go/blob/4f852b9734249c063928b34a02dd689e03a8ab2c/src/crypto/tls/tls_test.go#L34
+const (
+	testRsaCertPem = `-----BEGIN CERTIFICATE-----
+MIIB0zCCAX2gAwIBAgIJAI/M7BYjwB+uMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV
+BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
+aWRnaXRzIFB0eSBMdGQwHhcNMTIwOTEyMjE1MjAyWhcNMTUwOTEyMjE1MjAyWjBF
+MQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50
+ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBANLJ
+hPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wok/4xIA+ui35/MmNa
+rtNuC+BdZ1tMuVCPFZcCAwEAAaNQME4wHQYDVR0OBBYEFJvKs8RfJaXTH08W+SGv
+zQyKn0H8MB8GA1UdIwQYMBaAFJvKs8RfJaXTH08W+SGvzQyKn0H8MAwGA1UdEwQF
+MAMBAf8wDQYJKoZIhvcNAQEFBQADQQBJlffJHybjDGxRMqaRmDhX0+6v02TUKZsW
+r5QuVbpQhH6u+0UgcW0jp9QwpxoPTLTWGXEWBBBurxFwiCBhkQ+V
+-----END CERTIFICATE-----`
+
+	testRsaKeyPem = `-----BEGIN RSA PRIVATE KEY-----
+MIIBOwIBAAJBANLJhPHhITqQbPklG3ibCVxwGMRfp/v4XqhfdQHdcVfHap6NQ5Wo
+k/4xIA+ui35/MmNartNuC+BdZ1tMuVCPFZcCAwEAAQJAEJ2N+zsR0Xn8/Q6twa4G
+6OB1M1WO+k+ztnX/1SvNeWu8D6GImtupLTYgjZcHufykj09jiHmjHx8u8ZZB/o1N
+MQIhAPW+eyZo7ay3lMz1V01WVjNKK9QSn1MJlb06h/LuYv9FAiEA25WPedKgVyCW
+SmUwbPw8fnTcpqDWE3yTO3vKcebqMSsCIBF3UmVue8YU3jybC3NxuXq3wNm34R8T
+xVLHwDXh/6NJAiEAl2oHGGLz64BuAfjKrqwz7qMYr9HCLIe/YsoWq/olzScCIQDi
+D2lWusoe2/nEqfDVVWGWlyJ7yOmqaVm/iNUN9B2N2g==
+-----END RSA PRIVATE KEY-----`
 )
 
 type mockMQTTClient struct {
@@ -94,6 +121,34 @@ func TestNotify(t *testing.T) {
 			expMessage: message{
 				topic:   "alert1",
 				payload: []byte("{\"receiver\":\"\",\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\",\"labels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"annotations\":{\"ann1\":\"annv1\"},\"startsAt\":\"0001-01-01T00:00:00Z\",\"endsAt\":\"0001-01-01T00:00:00Z\",\"generatorURL\":\"a URL\",\"fingerprint\":\"fac0861a85de433a\",\"silenceURL\":\"http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\",\"dashboardURL\":\"http://localhost/base/d/abcd\",\"panelURL\":\"http://localhost/base/d/abcd?viewPanel=efgh\",\"values\":null,\"valueString\":\"\"}],\"groupLabels\":{\"alertname\":\"\"},\"commonLabels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"commonAnnotations\":{\"ann1\":\"annv1\"},\"externalURL\":\"http://localhost/base\",\"version\":\"1\",\"groupKey\":\"alertname\",\"message\":\"**Firing**\\n\\nValue: [no value]\\nLabels:\\n - alertname = alert1\\n - lbl1 = val1\\nAnnotations:\\n - ann1 = annv1\\nSource: a URL\\nSilence: http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\\nDashboard: http://localhost/base/d/abcd\\nPanel: http://localhost/base/d/abcd?viewPanel=efgh\\n\"}"),
+				retain:  false,
+				qos:     0,
+			},
+			expError: nil,
+		},
+		{
+			name: "A single alert with the default template in JSON with retain and QoS",
+			settings: Config{
+				Topic:         "alert1",
+				Message:       templates.DefaultMessageEmbed,
+				MessageFormat: MessageFormatJSON,
+				Retain:        true,
+				QoS:           "1",
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+						GeneratorURL: "a URL",
+					},
+				},
+			},
+			expMessage: message{
+				topic:   "alert1",
+				payload: []byte("{\"receiver\":\"\",\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\",\"labels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"annotations\":{\"ann1\":\"annv1\"},\"startsAt\":\"0001-01-01T00:00:00Z\",\"endsAt\":\"0001-01-01T00:00:00Z\",\"generatorURL\":\"a URL\",\"fingerprint\":\"fac0861a85de433a\",\"silenceURL\":\"http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\",\"dashboardURL\":\"http://localhost/base/d/abcd\",\"panelURL\":\"http://localhost/base/d/abcd?viewPanel=efgh\",\"values\":null,\"valueString\":\"\"}],\"groupLabels\":{\"alertname\":\"\"},\"commonLabels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"commonAnnotations\":{\"ann1\":\"annv1\"},\"externalURL\":\"http://localhost/base\",\"version\":\"1\",\"groupKey\":\"alertname\",\"message\":\"**Firing**\\n\\nValue: [no value]\\nLabels:\\n - alertname = alert1\\n - lbl1 = val1\\nAnnotations:\\n - ann1 = annv1\\nSource: a URL\\nSilence: http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\\nDashboard: http://localhost/base/d/abcd\\nPanel: http://localhost/base/d/abcd?viewPanel=efgh\\n\"}"),
+				retain:  true,
+				qos:     1,
 			},
 			expError: nil,
 		},
@@ -232,6 +287,34 @@ func TestNotify(t *testing.T) {
 			expPassword: "pass",
 			expError:    nil,
 		},
+		{
+			name: "With TLS config",
+			settings: Config{
+				Topic:         "alert1",
+				Message:       templates.DefaultMessageEmbed,
+				MessageFormat: MessageFormatJSON,
+				TLSConfig: &receivers.TLSConfig{
+					InsecureSkipVerify: true,
+					CACertificate:      testRsaCertPem,
+					ClientCertificate:  testRsaCertPem,
+					ClientKey:          testRsaKeyPem,
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+						GeneratorURL: "a URL",
+					},
+				},
+			},
+			expMessage: message{
+				topic:   "alert1",
+				payload: []byte("{\"receiver\":\"\",\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\",\"labels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"annotations\":{\"ann1\":\"annv1\"},\"startsAt\":\"0001-01-01T00:00:00Z\",\"endsAt\":\"0001-01-01T00:00:00Z\",\"generatorURL\":\"a URL\",\"fingerprint\":\"fac0861a85de433a\",\"silenceURL\":\"http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\",\"dashboardURL\":\"http://localhost/base/d/abcd\",\"panelURL\":\"http://localhost/base/d/abcd?viewPanel=efgh\",\"values\":null,\"valueString\":\"\"}],\"groupLabels\":{\"alertname\":\"\"},\"commonLabels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"commonAnnotations\":{\"ann1\":\"annv1\"},\"externalURL\":\"http://localhost/base\",\"version\":\"1\",\"groupKey\":\"alertname\",\"message\":\"**Firing**\\n\\nValue: [no value]\\nLabels:\\n - alertname = alert1\\n - lbl1 = val1\\nAnnotations:\\n - ann1 = annv1\\nSource: a URL\\nSilence: http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\\nDashboard: http://localhost/base/d/abcd\\nPanel: http://localhost/base/d/abcd?viewPanel=efgh\\n\"}"),
+			},
+			expError: nil,
+		},
 	}
 
 	for _, c := range cases {
@@ -247,7 +330,7 @@ func TestNotify(t *testing.T) {
 				mock.Anything,
 			).Return(nil)
 			mockMQTTClient.On("Disconnect", mock.Anything).Return(nil)
-			mockMQTTClient.On("Publish", mock.Anything, mock.Anything).Return(nil)
+			mockMQTTClient.On("Publish", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 			n := &Notifier{
 				Base: &receivers.Base{
@@ -275,16 +358,30 @@ func TestNotify(t *testing.T) {
 
 			require.Equal(t, 1, len(mockMQTTClient.publishedMessages))
 			require.Equal(t, c.expMessage, mockMQTTClient.publishedMessages[0])
-
 			require.Equal(t, c.expUsername, mockMQTTClient.username)
 			require.Equal(t, c.expPassword, mockMQTTClient.password)
 			require.Equal(t, c.settings.ClientID, mockMQTTClient.clientID)
 			require.Equal(t, c.settings.BrokerURL, mockMQTTClient.brokerURL)
-			if c.settings.InsecureSkipVerify {
-				require.NotNil(t, mockMQTTClient.tlsCfg)
-				require.True(t, mockMQTTClient.tlsCfg.InsecureSkipVerify)
-			} else {
+
+			if c.settings.TLSConfig == nil {
 				require.Nil(t, mockMQTTClient.tlsCfg)
+			} else {
+				require.NotNil(t, mockMQTTClient.tlsCfg)
+				require.Equal(t, mockMQTTClient.tlsCfg.InsecureSkipVerify, c.settings.TLSConfig.InsecureSkipVerify)
+
+				// Check if the client certificate and key are set correctly.
+				if c.settings.TLSConfig.ClientCertificate != "" && c.settings.TLSConfig.ClientKey != "" {
+					clientCert, err := tls.X509KeyPair([]byte(c.settings.TLSConfig.ClientCertificate), []byte(c.settings.TLSConfig.ClientKey))
+					require.NoError(t, err)
+					require.Equal(t, clientCert, mockMQTTClient.tlsCfg.Certificates[0])
+				}
+
+				// Check if the CA certificate is set correctly.
+				if c.settings.TLSConfig.CACertificate != "" {
+					expectedRootCAs := x509.NewCertPool()
+					expectedRootCAs.AppendCertsFromPEM([]byte(c.settings.TLSConfig.CACertificate))
+					require.True(t, mockMQTTClient.tlsCfg.RootCAs.Equal(expectedRootCAs))
+				}
 			}
 		})
 	}
@@ -312,13 +409,15 @@ func TestNew(t *testing.T) {
 		{
 			name: "Configuration with insecureSkipVerify",
 			cfg: Config{
-				Topic:              "alerts",
-				Message:            templates.DefaultMessageEmbed,
-				Username:           "user",
-				Password:           "pass",
-				BrokerURL:          "tcp://127.0.0.1:1883",
-				ClientID:           "test-grafana",
-				InsecureSkipVerify: true,
+				Topic:     "alerts",
+				Message:   templates.DefaultMessageEmbed,
+				Username:  "user",
+				Password:  "pass",
+				BrokerURL: "tcp://127.0.0.1:1883",
+				ClientID:  "test-grafana",
+				TLSConfig: &receivers.TLSConfig{
+					InsecureSkipVerify: true,
+				},
 			},
 		},
 	}
