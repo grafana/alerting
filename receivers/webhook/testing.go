@@ -12,7 +12,7 @@ const FullValidConfigForTesting = `{
 	"title": "test-title",
 	"message": "test-message",
 	"tlsConfig": {
-		"insecureSkipVerify": "false",
+		"insecureSkipVerify": false,
 		"clientCertificate": "test-client-certificate",
 		"clientKey": "test-client-key",
 		"caCertificate": "test-ca-certificate"
