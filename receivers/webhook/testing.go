@@ -10,7 +10,11 @@ const FullValidConfigForTesting = `{
 	"username": "test-user",
 	"password": "test-pass",
 	"title": "test-title",
-	"message": "test-message"		
+	"message": "test-message",
+	"tlsConfig.insecureSkipVerify": "false",
+	"tlsConfig.clientCertificate": "test-client-certificate",
+	"tlsConfig.clientKey": "test-client-key",
+	"tlsConfig.caCertificate": "test-ca-certificate"
 }`
 
 // FullValidSecretsForTesting is a string representation of JSON object that contains all fields that can be overridden from secrets
