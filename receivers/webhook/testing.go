@@ -23,9 +23,7 @@ const FullValidConfigForTesting = `{
 const FullValidSecretsForTesting = `{
 	"username": "test-secret-user",
 	"password": "test-secret-pass",
-	"tlsConfig": {
-		"clientCertificate": "test-client-certificate",
-		"clientKey": "test-client-key",
-		"caCertificate": "test-ca-certificate"
-	}
+	"clientCertificate": "test-client-certificate",
+	"clientKey": "test-client-key",
+	"caCertificate": "test-ca-certificate"
 }`

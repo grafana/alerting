@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/grafana/alerting/receivers"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
@@ -82,6 +83,12 @@ func TestNewConfig(t *testing.T) {
 				Password:                 "test-pass",
 				Title:                    "test-title",
 				Message:                  "test-message",
+				TLSConfig: &receivers.TLSConfig{
+					InsecureSkipVerify: false,
+					ClientCertificate:  "test-client-certificate",
+					ClientKey:          "test-client-key",
+					CACertificate:      "test-ca-certificate",
+				},
 			},
 		},
 		{
@@ -98,6 +105,12 @@ func TestNewConfig(t *testing.T) {
 				Password:                 "test-secret-pass",
 				Title:                    "test-title",
 				Message:                  "test-message",
+				TLSConfig: &receivers.TLSConfig{
+					InsecureSkipVerify: false,
+					ClientCertificate:  "test-client-certificate",
+					ClientKey:          "test-client-key",
+					CACertificate:      "test-ca-certificate",
+				},
 			},
 		},
 		{
