@@ -343,6 +343,76 @@ func TestNotify(t *testing.T) {
 			expHeaders:    map[string]string{"Authorization": "Bearer mysecret"},
 		},
 		{
+			name: "with TLSConfig set and insecure skip verify",
+			settings: Config{
+				URL:                      "https://localhost/test1",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                2,
+				AuthorizationScheme:      "Bearer",
+				AuthorizationCredentials: "mysecret",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  templates.DefaultMessageEmbed,
+				TLSConfig: &receivers.TLSConfig{
+					CACertificate:      caCert,
+					ClientKey:          clientKey,
+					ClientCertificate:  clientCert,
+					InsecureSkipVerify: true,
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: &webhookMessage{
+				ExtendedData: &templates.ExtendedData{
+					Receiver: "my_receiver",
+					Status:   "firing",
+					Alerts: templates.ExtendedAlerts{
+						{
+							Status: "firing",
+							Labels: templates.KV{
+								"alertname": "alert1",
+								"lbl1":      "val1",
+							},
+							Annotations: templates.KV{
+								"ann1": "annv1",
+							},
+							Fingerprint:  "fac0861a85de433a",
+							DashboardURL: "http://localhost/d/abcd",
+							PanelURL:     "http://localhost/d/abcd?viewPanel=efgh",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+						},
+					},
+					GroupLabels: templates.KV{
+						"alertname": "",
+					},
+					CommonLabels: templates.KV{
+						"alertname": "alert1",
+						"lbl1":      "val1",
+					},
+					CommonAnnotations: templates.KV{
+						"ann1": "annv1",
+					},
+					ExternalURL: "http://localhost",
+				},
+				Version:  "1",
+				GroupKey: "alertname",
+				Title:    "[FIRING:1]  (val1)",
+				State:    "alerting",
+				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				OrgID:    orgID,
+			},
+			expURL:        "https://localhost/test1",
+			expHTTPMethod: "POST",
+			expHeaders:    map[string]string{"Authorization": "Bearer mysecret"},
+		},
+		{
 			name: "with TLSConfig set",
 			settings: Config{
 				URL:                      "https://localhost/test1",
