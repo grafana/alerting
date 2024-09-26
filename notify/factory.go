@@ -2,6 +2,7 @@ package notify
 
 import (
 	"fmt"
+	"github.com/grafana/alerting/receivers/logzio_opsgenie" // LOGZ.IO GRAFANA CHANGE :: DEV-46341 - Add support for logzio opsgenie integration
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
@@ -101,6 +102,11 @@ func BuildReceiverIntegrations(
 	for i, cfg := range receiver.OpsgenieConfigs {
 		ci(i, cfg.Metadata, opsgenie.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))
 	}
+	// LOGZ.IO GRAFANA CHANGE :: DEV-46341 - Add support for logzio opsgenie integration
+	for i, cfg := range receiver.LogzioOpsgenieConfigs {
+		ci(i, cfg.Metadata, logzio_opsgenie.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))
+	}
+	// LOGZ.IO GRAFANA CHANGE :: end
 	for i, cfg := range receiver.PagerdutyConfigs {
 		ci(i, cfg.Metadata, pagerduty.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))
 	}
