@@ -1,6 +1,7 @@
 package definition
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -1263,4 +1264,96 @@ func Test_RawMessageMarshaling(t *testing.T) {
 		require.NoError(t, yaml.Unmarshal(data, &n))
 		assert.Equal(t, RawMessage(`{"data":"test"}`), n.Field)
 	})
+}
+
+func TestDecryptSecureSettings(t *testing.T) {
+	const testValue = "test-value-1"
+	fakeDecryptFn := func(payload []byte) ([]byte, error) {
+		if string(payload) == testValue {
+			return []byte(testValue), nil
+		}
+		return nil, errors.New("key not found")
+	}
+
+	tests := []struct {
+		name              string
+		receiver          *PostableGrafanaReceiver
+		expSecureSettings map[string]string
+		expErr            string
+	}{
+		{
+			name: "no secure settings",
+			receiver: &PostableGrafanaReceiver{
+				SecureSettings: map[string]string{},
+			},
+			expSecureSettings: map[string]string{},
+			expErr:            "",
+		},
+		{
+			name: "secure settings are not base64 encoded",
+			receiver: &PostableGrafanaReceiver{
+				SecureSettings: map[string]string{"test": "test"},
+			},
+			expSecureSettings: map[string]string{},
+			expErr:            "failed to decrypt value for key 'test': key not found",
+		},
+		{
+			name: "key not found",
+			receiver: &PostableGrafanaReceiver{
+				SecureSettings: map[string]string{"test": "test"},
+			},
+			expSecureSettings: map[string]string{},
+			expErr:            "failed to decrypt value for key 'test': key not found",
+		},
+		{
+			name: "illegal base64 value",
+			receiver: &PostableGrafanaReceiver{
+				SecureSettings: map[string]string{
+					"test": "invalid value",
+				},
+			},
+			expSecureSettings: map[string]string{
+				"test": testValue,
+			},
+			expErr: "failed to decode value for key 'test': illegal base64 data at input byte 7",
+		},
+		{
+			name: "second key not found",
+			receiver: &PostableGrafanaReceiver{
+				SecureSettings: map[string]string{
+					"test1": base64.StdEncoding.EncodeToString([]byte(testValue)),
+					"test2": "notfound",
+				},
+			},
+			expSecureSettings: map[string]string{
+				"test": testValue,
+			},
+			expErr: "failed to decrypt value for key 'test2': key not found",
+		},
+		{
+			name: "success case",
+			receiver: &PostableGrafanaReceiver{
+				SecureSettings: map[string]string{
+					"test": base64.StdEncoding.EncodeToString([]byte(testValue)),
+				},
+			},
+			expSecureSettings: map[string]string{
+				"test": testValue,
+			},
+			expErr: "",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			res, err := test.receiver.DecryptSecureSettings(fakeDecryptFn)
+			if test.expErr != "" {
+				require.NotNil(t, err)
+				require.Equal(t, test.expErr, err.Error())
+				return
+			}
+			require.Nil(t, err)
+			require.Equal(t, test.expSecureSettings, res)
+		})
+	}
 }
