@@ -404,6 +404,10 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 		}
 		sn.log.Warn("Truncated title", "key", key, "max_runes", slackMaxTitleLenRunes)
 	}
+	if tmplErr != nil {
+		sn.log.Warn("failed to template Slack title", "error", tmplErr.Error())
+		tmplErr = nil
+	}
 
 	req := &slackMessage{
 		Channel:   tmpl(sn.settings.Recipient),
@@ -489,7 +493,7 @@ func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (stri
 		return "", fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
-	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Content-Type", "application/json; charset=utf-8")
 	request.Header.Set("User-Agent", "Grafana")
 	if sn.settings.Token == "" {
 		if sn.settings.URL == APIURL {

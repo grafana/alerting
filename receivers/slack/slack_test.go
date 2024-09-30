@@ -461,6 +461,45 @@ func TestNotify_PostMessage(t *testing.T) {
 			},
 		},
 	}, {
+		name: "Errors in templates, message is sent",
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            APIURL,
+			Token:          "1234",
+			Recipient:      "#test",
+			Text:           `{{ template "undefined" . }}`,
+			Title:          `{{ template "undefined" . }}`,
+			Username:       `{{ template "undefined" . }}`,
+			IconEmoji:      `{{ template "undefined" . }}`,
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+		},
+		alerts: []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		}},
+		expectedMessage: &slackMessage{
+			Channel:   "#test",
+			Username:  "",
+			IconEmoji: "",
+			Attachments: []attachment{
+				{
+					Title:      "",
+					TitleLink:  "http://localhost/alerting/list",
+					Text:       "",
+					Fallback:   "",
+					Fields:     nil,
+					Footer:     "Grafana v" + appVersion,
+					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color:      "#D63232",
+				},
+			},
+		},
+	}, {
 		name: "Message is sent to custom URL",
 		settings: Config{
 			EndpointURL:    "https://example.com/api",
