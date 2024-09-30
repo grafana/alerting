@@ -21,10 +21,10 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	imageProvider := &images.FakeProvider{}
 	tmpl := templates.ForTests(t)
 
-	webhookFactory := func(n receivers.Metadata) (receivers.WebhookSender, error) {
+	webhookFactory := func(_ receivers.Metadata) (receivers.WebhookSender, error) {
 		return receivers.MockNotificationService(), nil
 	}
-	emailFactory := func(n receivers.Metadata) (receivers.EmailSender, error) {
+	emailFactory := func(_ receivers.Metadata) (receivers.EmailSender, error) {
 		return receivers.MockNotificationService(), nil
 	}
 	loggerFactory := func(_ string, _ ...interface{}) logging.Logger {
@@ -80,7 +80,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should return errors if webhook factory fails", func(t *testing.T) {
 		fullCfg, _ := getFullConfig(t)
 		calls := 0
-		failingFactory := func(n receivers.Metadata) (receivers.WebhookSender, error) {
+		failingFactory := func(_ receivers.Metadata) (receivers.WebhookSender, error) {
 			calls++
 			return nil, errors.New("bad-test")
 		}
@@ -95,7 +95,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should return errors if email factory fails", func(t *testing.T) {
 		fullCfg, _ := getFullConfig(t)
 		calls := 0
-		failingFactory := func(n receivers.Metadata) (receivers.EmailSender, error) {
+		failingFactory := func(_ receivers.Metadata) (receivers.EmailSender, error) {
 			calls++
 			return nil, errors.New("bad-test")
 		}

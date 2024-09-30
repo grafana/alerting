@@ -103,7 +103,7 @@ func TestNotify(t *testing.T) {
 			t.Cleanup(func() {
 				receivers.SendHTTPRequest = origSendHTTPRequest
 			})
-			receivers.SendHTTPRequest = func(ctx context.Context, url *url.URL, cfg receivers.HTTPCfg, logger logging.Logger) ([]byte, error) {
+			receivers.SendHTTPRequest = func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg, _ logging.Logger) ([]byte, error) {
 				body = cfg.Body
 				assert.Equal(t, c.settings.User, cfg.User)
 				assert.Equal(t, c.settings.Password, cfg.Password)
