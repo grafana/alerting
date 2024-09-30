@@ -45,7 +45,7 @@ func TestWithStoredImages(t *testing.T) {
 	)
 
 	// should iterate all images
-	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageProvider, func(index int, image Image) error {
+	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageProvider, func(_ int, _ Image) error {
 		i++
 		return nil
 	}, alerts...)
@@ -54,7 +54,7 @@ func TestWithStoredImages(t *testing.T) {
 
 	// should iterate just the first image
 	i = 0
-	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageProvider, func(index int, image Image) error {
+	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageProvider, func(_ int, _ Image) error {
 		i++
 		return ErrImagesDone
 	}, alerts...)
