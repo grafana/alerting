@@ -7,27 +7,27 @@
          "commands": [
             "make mod-check"
          ],
-         "image": "golang:1.21.6",
+         "image": "golang:1.23.1",
          "name": "make-mod-check"
       },
       {
          "commands": [
             "make lint"
          ],
-         "image": "golang:1.21.6",
+         "image": "golang:1.23.1",
          "name": "make-lint"
       },
       {
          "commands": [
             "make test"
          ],
-         "image": "golang:1.21.6",
+         "image": "golang:1.23.1",
          "name": "make-test"
       }
    ]
 }
 ---
 kind: signature
-hmac: 39a81baaabc03f3e9881ee3348cb67604da0a6ae18d4fa23a87339a79975695f
+hmac: a1c47c1835e2c4bf1c1d588faee8eeee55f4346113dca9220db799f6f3efa629
 
 ...

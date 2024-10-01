@@ -369,7 +369,7 @@ func TestNotify_ApiApp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 				accessToken := r.URL.Query().Get("access_token")
 				if accessToken != tt.accessToken {
 					t.Errorf("Expected access_token=%s got %s", tt.accessToken, accessToken)

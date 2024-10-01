@@ -26,7 +26,7 @@ import (
 
 func setupAMTest(t *testing.T) (*GrafanaAlertmanager, *prometheus.Registry) {
 	reg := prometheus.NewPedanticRegistry()
-	m := NewGrafanaAlertmanagerMetrics(reg)
+	m := NewGrafanaAlertmanagerMetrics(reg, log.NewNopLogger())
 
 	grafanaConfig := &GrafanaAlertmanagerConfig{
 		Silences: newFakeMaintanenceOptions(t),

@@ -772,7 +772,7 @@ func TestSendSlackRequest(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(tt *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if test.contentType != "" {
 					w.Header().Set("Content-Type", test.contentType)
 				}
