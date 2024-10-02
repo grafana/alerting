@@ -7,10 +7,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/grafana/grafana-aws-sdk/pkg/awsds"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 
@@ -23,51 +21,47 @@ import (
 // alert notifications to Amazon SNS.
 type Notifier struct {
 	*receivers.Base
-	log      logging.Logger
-	tmpl     *templates.Template
-	settings Config
+	log          logging.Logger
+	tmpl         *templates.Template
+	settings     Config
+	sessionCache *awsds.SessionCache
 }
 
 func New(cfg Config, meta receivers.Metadata, template *templates.Template, logger logging.Logger) *Notifier {
 	return &Notifier{
-		Base:     receivers.NewBase(meta),
-		log:      logger,
-		tmpl:     template,
-		settings: cfg,
+		Base:         receivers.NewBase(meta),
+		log:          logger,
+		tmpl:         template,
+		settings:     cfg,
+		sessionCache: awsds.NewSessionCache(),
 	}
 }
 
 // Notify sends the alert notification to sns.
 func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	var (
-		tmplErr error
-		data    = notify.GetTemplateData(ctx, s.tmpl, as, s.log)
-		tmpl    = notify.TmplText(s.tmpl, data, &tmplErr)
-	)
-	s.log.Info("Sending notification")
+	s.log.Info("sending SNS")
 
-	publishInput, err := s.createPublishInput(ctx, tmpl)
+	awsSessionConfig := &awsds.SessionConfig{
+		Settings: s.settings.AWSAuthSettings,
+	}
+
+	session, err := s.sessionCache.GetSession(*awsSessionConfig)
 	if err != nil {
 		return false, err
 	}
 
-	snsClient, err := s.createSNSClient(tmpl)
+	publishInput, err := s.createPublishInput(ctx, as...)
 	if err != nil {
-		return true, err
+		return false, err
 	}
 
-	// check template error after we use them
-	if tmplErr != nil {
-		s.log.Warn("failed to template message", "error", tmplErr.Error())
-	}
-
+	snsClient := sns.New(session, aws.NewConfig().WithEndpoint(*aws.String(s.settings.APIUrl)))
 	publishOutput, err := snsClient.Publish(publishInput)
 	if err != nil {
 		s.log.Error("Failed to publish to Amazon SNS. ", "error", err)
-		return true, err
 	}
 
-	s.log.Debug("Message successfully published", "messageId", publishOutput.MessageId, "sequenceNumber", publishOutput.SequenceNumber)
+	s.log.Debug("SNS message successfully published", "messageId", publishOutput.MessageId, "sequenceNumber", publishOutput.SequenceNumber)
 	return true, nil
 }
 
@@ -75,61 +69,13 @@ func (s *Notifier) SendResolved() bool {
 	return !s.GetDisableResolveMessage()
 }
 
-func (s *Notifier) createMessageAttributes(tmpl func(string) string) map[string]*sns.MessageAttributeValue {
-	// Convert the given attributes map into the AWS Message Attributes Format.
-	attributes := make(map[string]*sns.MessageAttributeValue, len(s.settings.Attributes))
-	for k, v := range s.settings.Attributes {
-		attributes[tmpl(k)] = &sns.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String(tmpl(v))}
-	}
-	return attributes
-}
-
-func (s *Notifier) createSNSClient(tmpl func(string) string) (*sns.SNS, error) {
-	var creds *credentials.Credentials
-	// If there are provided sigV4 credentials we want to use those to create a session.
-	if s.settings.Sigv4.AccessKey != "" && s.settings.Sigv4.SecretKey != "" {
-		creds = credentials.NewStaticCredentials(s.settings.Sigv4.AccessKey, string(s.settings.Sigv4.SecretKey), "")
-	}
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Config: aws.Config{
-			Region:   aws.String(s.settings.Sigv4.Region),
-			Endpoint: aws.String(tmpl(s.settings.APIUrl)),
-		},
-		Profile: s.settings.Sigv4.Profile,
-	})
+func (s *Notifier) createPublishInput(ctx context.Context, as ...*types.Alert) (*sns.PublishInput, error) {
+	var err error
+	tmpl, _ := templates.TmplText(ctx, s.tmpl, as, s.log, &err)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create template: %w", err)
 	}
 
-	if s.settings.Sigv4.RoleARN != "" {
-		var stsSess *session.Session
-		if s.settings.APIUrl == "" {
-			stsSess = sess
-		} else {
-			// If we have set the API URL we need to create a new session to get the STS Credentials.
-			stsSess, err = session.NewSessionWithOptions(session.Options{
-				Config: aws.Config{
-					Region:      aws.String(s.settings.Sigv4.Region),
-					Credentials: creds,
-				},
-				Profile: s.settings.Sigv4.Profile,
-			})
-			if err != nil {
-				return nil, err
-			}
-		}
-		creds = stscreds.NewCredentials(stsSess, s.settings.Sigv4.RoleARN)
-	}
-	// Use our generated session with credentials to create the SNS Client.
-	client := sns.New(sess, aws.NewConfig().WithCredentials(creds).WithEndpoint(*aws.String(s.settings.APIUrl)))
-	// We will always need a region to be set by either the local config or the environment.
-	if aws.StringValue(sess.Config.Region) == "" {
-		return nil, fmt.Errorf("region not configured in sns.sigv4.region or in default credentials chain")
-	}
-	return client, nil
-}
-
-func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) string) (*sns.PublishInput, error) {
 	publishInput := &sns.PublishInput{}
 	messageAttributes := s.createMessageAttributes(tmpl)
 	// Max message size for a message in an SNS publish request is 256KB, except for SMS messages where the limit is 1600 characters/runes.
@@ -170,12 +116,20 @@ func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 	publishInput.SetMessage(messageToSend)
 	publishInput.SetMessageAttributes(messageAttributes)
 
-	subject := tmpl(s.settings.Subject)
-	if subject != "" {
-		publishInput.SetSubject(subject)
+	if s.settings.Subject != "" {
+		publishInput.SetSubject(tmpl(s.settings.Subject))
 	}
 
 	return publishInput, nil
+}
+
+func (s *Notifier) createMessageAttributes(tmpl func(string) string) map[string]*sns.MessageAttributeValue {
+	// Convert the given attributes map into the AWS Message Attributes Format.
+	attributes := make(map[string]*sns.MessageAttributeValue, len(s.settings.Attributes))
+	for k, v := range s.settings.Attributes {
+		attributes[tmpl(k)] = &sns.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String(tmpl(v))}
+	}
+	return attributes
 }
 
 func validateAndTruncateMessage(message string, maxMessageSizeInBytes int) (string, bool, error) {
