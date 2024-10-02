@@ -12,12 +12,28 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
+type AuthType string
+
+const (
+	AuthTypeDefault           = "default"
+	AuthTypeSharedCreds       = "shared_credentials"
+	AuthTypeKeys              = "keys"
+	AuthTypeEC2IAMRole        = "ec2-iam-role"
+	AuthTypeGrafanaAssumeRole = "grafana-assume-role" // cloud only
+)
+
 type SigV4Config struct {
 	Region    string `json:"region,omitempty" yaml:"region,omitempty"`
 	AccessKey string `json:"access_key,omitempty" yaml:"access_key,omitempty"`
 	SecretKey string `json:"secret_key,omitempty" yaml:"secret_key,omitempty"`
 	Profile   string `json:"profile,omitempty" yaml:"profile,omitempty"`
 	RoleARN   string `json:"role_arn,omitempty" yaml:"role_arn,omitempty"`
+
+	AuthType   string `json:"authType"`
+	ExternalID string `json:"externalId"`
+	// Override the client endpoint
+	Endpoint     string `json:"endpoint"`
+	SessionToken string `json:"session_token"`
 }
 
 type Config struct {
@@ -75,16 +91,24 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		settings.APIUrl = fmt.Sprintf("https://sns.%s.amazonaws.com", settings.Sigv4.Region)
 	}
 
-	at := awsds.AuthTypeDefault
-	if settings.Sigv4.Profile != "" {
-		at = awsds.AuthTypeSharedCreds
-	} else if settings.Sigv4.AccessKey != "" || settings.Sigv4.SecretKey != "" {
-		if settings.Sigv4.AccessKey == "" || settings.Sigv4.SecretKey == "" {
-			return Config{}, errors.New("must specify both access key and secret key")
-		}
-		settings.Sigv4.AccessKey = decryptFn("accessKey", settings.Sigv4.AccessKey)
-		settings.Sigv4.SecretKey = decryptFn("secretKey", settings.Sigv4.SecretKey)
-		at = awsds.AuthTypeKeys
+	settings.Sigv4.AccessKey = decryptFn("sigv4.access_key", settings.Sigv4.AccessKey)
+	settings.Sigv4.SecretKey = decryptFn("sigv4.secret_key", settings.Sigv4.SecretKey)
+	settings.Sigv4.SessionToken = decryptFn("sigv4.session_token", settings.Sigv4.SessionToken)
+
+	var authType awsds.AuthType
+	switch settings.Sigv4.AuthType {
+	case AuthTypeSharedCreds:
+		authType = awsds.AuthTypeSharedCreds
+	case AuthTypeKeys:
+		authType = awsds.AuthTypeKeys
+	case AuthTypeEC2IAMRole:
+		authType = awsds.AuthTypeEC2IAMRole
+	case AuthTypeGrafanaAssumeRole:
+		authType = awsds.AuthTypeGrafanaAssumeRole
+	case AuthTypeDefault:
+		authType = awsds.AuthTypeDefault
+	default:
+		return Config{}, errors.New("unsupported auth type, supported: \"default\",\"shared_credentials\",\"keys\",\"ec2-iam-role\",\"grafana-assume-role\"")
 	}
 
 	return Config{
@@ -98,10 +122,13 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		AWSAuthSettings: awsds.AWSDatasourceSettings{
 			Profile:       settings.Sigv4.Profile,
 			Region:        settings.Sigv4.Region,
-			AuthType:      at,
+			AuthType:      authType,
 			AssumeRoleARN: settings.Sigv4.RoleARN,
+			ExternalID:    settings.Sigv4.ExternalID,
+			Endpoint:      settings.Sigv4.Endpoint,
 			AccessKey:     settings.Sigv4.AccessKey,
 			SecretKey:     settings.Sigv4.SecretKey,
+			SessionToken:  settings.Sigv4.SessionToken,
 		},
 	}, nil
 }
