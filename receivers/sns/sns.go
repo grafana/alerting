@@ -7,6 +7,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/service/sns"
 	"github.com/grafana/grafana-aws-sdk/pkg/awsds"
 	"github.com/prometheus/alertmanager/notify"
@@ -54,8 +55,12 @@ func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	if err != nil {
 		return false, err
 	}
+	cfg := aws.NewConfig().WithEndpoint(*aws.String(s.settings.APIUrl))
+	if s.settings.AWSAuthSettings.AuthType == awsds.AuthTypeGrafanaAssumeRole {
+		cfg = cfg.WithCredentials(credentials.NewSharedCredentials("", "assume_role_credentials"))
+	}
 
-	snsClient := sns.New(session, aws.NewConfig().WithEndpoint(*aws.String(s.settings.APIUrl)))
+	snsClient := sns.New(session, cfg)
 	publishOutput, err := snsClient.Publish(publishInput)
 	if err != nil {
 		s.log.Error("Failed to publish to Amazon SNS. ", "error", err)
