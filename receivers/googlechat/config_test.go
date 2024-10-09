@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -13,6 +14,7 @@ func TestNewConfig(t *testing.T) {
 	cases := []struct {
 		name              string
 		settings          string
+		secrets           map[string][]byte
 		expectedConfig    Config
 		expectedInitError string
 	}{
@@ -29,15 +31,41 @@ func TestNewConfig(t *testing.T) {
 		{
 			name:              "Error if URL is empty",
 			settings:          `{ "url": "" }`,
+			secrets:           map[string][]byte{},
 			expectedInitError: `could not find url property in settings`,
 		},
 		{
-			name:     "Minimal valid configuration",
-			settings: `{"url": "http://localhost"}`,
+			name:     "Minimum valid configuration with url in plain text",
+			settings: `{ "url": "http://localhost" }`,
+			secrets:  map[string][]byte{},
 			expectedConfig: Config{
 				Title:   templates.DefaultMessageTitleEmbed,
 				Message: templates.DefaultMessageEmbed,
 				URL:     "http://localhost",
+			},
+		},
+		{
+			name:     "Minimum valid configuration with url in secrets",
+			settings: `{ "url": "" }`,
+			secrets: map[string][]byte{
+				"url": []byte("http://localhost"),
+			},
+			expectedConfig: Config{
+				Title:   templates.DefaultMessageTitleEmbed,
+				Message: templates.DefaultMessageEmbed,
+				URL:     "http://localhost",
+			},
+		},
+		{
+			name:     "Should overwrite url from secrets",
+			settings: `{ "url": "http://localhost" }`,
+			secrets: map[string][]byte{
+				"url": []byte("http://test"),
+			},
+			expectedConfig: Config{
+				Title:   templates.DefaultMessageTitleEmbed,
+				Message: templates.DefaultMessageEmbed,
+				URL:     "http://test",
 			},
 		},
 		{
@@ -50,19 +78,20 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
-			name:     "Extracts all fields",
+			name:     "Extracts all fields + override from secrets",
 			settings: FullValidConfigForTesting,
+			secrets:  receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
 				Title:   "test-title",
 				Message: "test-message",
-				URL:     "http://localhost",
+				URL:     "http://localhost/url-secret",
 			},
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			actual, err := NewConfig(json.RawMessage(c.settings))
+			actual, err := NewConfig(json.RawMessage(c.settings), receiversTesting.DecryptForTesting(c.secrets))
 
 			if c.expectedInitError != "" {
 				require.ErrorContains(t, err, c.expectedInitError)
