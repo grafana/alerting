@@ -248,6 +248,28 @@ func TestNewConfig(t *testing.T) {
 			}`,
 			expectedInitError: "both HTTP Basic Authentication and Authorization Header are set, only 1 is permitted",
 		},
+		{
+			name: "extra headers defined",
+			settings: `{
+				"url": "http://localhost",
+				"extra_headers": {
+					"first":"abc",
+					"second":"123"
+				}
+			}`,
+			expectedConfig: Config{
+				URL:                      "http://localhost",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                0,
+				AuthorizationScheme:      "",
+				AuthorizationCredentials: "",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  templates.DefaultMessageEmbed,
+				ExtraHeaders:             map[string]string{"first": "abc", "second": "123"},
+			},
+		},
 	}
 
 	for _, c := range cases {
