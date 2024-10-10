@@ -26,6 +26,7 @@ type Config struct {
 	DisableWebPagePreview bool   `json:"disable_web_page_preview,omitempty" yaml:"disable_web_page_preview,omitempty"`
 	ProtectContent        bool   `json:"protect_content,omitempty" yaml:"protect_content,omitempty"`
 	DisableNotifications  bool   `json:"disable_notifications,omitempty" yaml:"disable_notifications,omitempty"`
+	IncludeScreenshotURL  bool   `json:"include_screenshot_url,omitempty" yaml:"include_screenshot_url,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
