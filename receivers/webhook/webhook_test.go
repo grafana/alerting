@@ -23,7 +23,6 @@ import (
 //go:embed fixtures/ca.pem
 var caCert string
 
-//
 //go:embed fixtures/client.pem
 var clientCert string
 
