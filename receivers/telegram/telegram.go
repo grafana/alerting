@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/url"
 	"os"
 
 	"github.com/prometheus/alertmanager/notify"
@@ -73,38 +74,41 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		return false, fmt.Errorf("failed to send telegram message: %w", err)
 	}
 
+	// IncludeScreenshotURL set to true, no need to upload images.
+	if tn.settings.IncludeScreenshotURL {
+		return true, nil
+	}
+
 	// Create the cmd to upload each image
 	// Works only if IncludeScreenshotURL is set to false.
-	if !tn.settings.IncludeScreenshotURL {
-		_ = images.WithStoredImages(ctx, tn.log, tn.images, func(_ int, image images.Image) error {
-			cmd, err = tn.newWebhookSyncCmd("sendPhoto", func(w *multipart.Writer) error {
-				f, err := os.Open(image.Path)
-				if err != nil {
-					return fmt.Errorf("failed to open image: %w", err)
-				}
-				defer func() {
-					if err := f.Close(); err != nil {
-						tn.log.Warn("failed to close image", "error", err)
-					}
-				}()
-				fw, err := w.CreateFormFile("photo", image.Path)
-				if err != nil {
-					return fmt.Errorf("failed to create form file: %w", err)
-				}
-				if _, err := io.Copy(fw, f); err != nil {
-					return fmt.Errorf("failed to write to form file: %w", err)
-				}
-				return nil
-			})
+	_ = images.WithStoredImages(ctx, tn.log, tn.images, func(_ int, image images.Image) error {
+		cmd, err = tn.newWebhookSyncCmd("sendPhoto", func(w *multipart.Writer) error {
+			f, err := os.Open(image.Path)
 			if err != nil {
-				return fmt.Errorf("failed to create image: %w", err)
+				return fmt.Errorf("failed to open image: %w", err)
 			}
-			if err := tn.ns.SendWebhook(ctx, cmd); err != nil {
-				return fmt.Errorf("failed to upload image to telegram: %w", err)
+			defer func() {
+				if err := f.Close(); err != nil {
+					tn.log.Warn("failed to close image", "error", err)
+				}
+			}()
+			fw, err := w.CreateFormFile("photo", image.Path)
+			if err != nil {
+				return fmt.Errorf("failed to create form file: %w", err)
+			}
+			if _, err := io.Copy(fw, f); err != nil {
+				return fmt.Errorf("failed to write to form file: %w", err)
 			}
 			return nil
-		}, as...)
-	}
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create image: %w", err)
+		}
+		if err := tn.ns.SendWebhook(ctx, cmd); err != nil {
+			return fmt.Errorf("failed to upload image to telegram: %w", err)
+		}
+		return nil
+	}, as...)
 
 	return true, nil
 }
@@ -122,8 +126,10 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert)
 	rawMessage := tmpl(tn.settings.Message)
 	if tn.settings.IncludeScreenshotURL {
 		_ = images.WithStoredImages(ctx, tn.log, tn.images, func(_ int, image images.Image) error {
-			if len(image.URL) != 0 {
-				rawMessage += " " + image.URL
+			// Change to add the template ImageURL
+			imageURL, err := url.Parse(image.URL)
+			if err == nil {
+				tn.tmpl.ExternalURL = imageURL
 			}
 			return nil
 		}, as...)
