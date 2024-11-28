@@ -21,6 +21,17 @@ import (
 	"github.com/grafana/alerting/models"
 )
 
+// LOGZ.IO GRAFANA CHANGE :: DEV-45254 - Access evaluation results in grafana alert template
+// see `extract_md.go` (extractEvalString func) so those prefixes match
+const (
+	EvalStrVarNamePrefix = "var='"
+	EvalStrMetricPrefix  = "metric='"
+	EvalStrLabelsPrefix  = "labels="
+	EvalStrValuePrefix   = "value="
+)
+
+// LOGZ.IO GRAFANA CHANGE :: end
+
 type Template = template.Template
 type KV = template.KV
 type Data = template.Data
@@ -42,6 +53,15 @@ type ExtendedAlert struct {
 	ValueString   string             `json:"valueString"` // TODO: Remove in Grafana 10
 	ImageURL      string             `json:"imageURL,omitempty"`
 	EmbeddedImage string             `json:"embeddedImage,omitempty"`
+	EvalValues    []EvalValue        `json:"evalValues"` // LOGZ.IO GRAFANA CHANGE :: DEV-45254 - Access evaluation results in grafana alert template
+}
+
+// LOGZ.IO GRAFANA CHANGE :: DEV-45254 - Access evaluation results in grafana alert template
+type EvalValue struct {
+	Var    string
+	Metric string
+	Labels string
+	Value  string
 }
 
 type ExtendedAlerts []ExtendedAlert
@@ -145,6 +165,7 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 
 		// TODO: Remove in Grafana 10
 		extended.ValueString = alert.Annotations[models.ValueStringAnnotation]
+		extended.EvalValues = parseEvalValues(extended.ValueString) // LOGZ.IO GRAFANA CHANGE :: DEV-45254 - Access evaluation results in grafana alert template
 	}
 
 	matchers := make([]string, 0)
@@ -240,3 +261,125 @@ func (as ExtendedAlerts) Resolved() []ExtendedAlert {
 	}
 	return res
 }
+
+// LOGZ.IO GRAFANA CHANGE :: DEV-45254 - Access evaluation results in grafana alert template
+func parseEvalValues(evaluationStr string) []EvalValue {
+	// Example of eval string - [ var='I0' metric='eu-central-1' labels={region=eu-central-1} value=1 ], metric is optional
+	evalValues := make([]EvalValue, 0)
+
+	if len(evaluationStr) == 0 {
+		return evalValues
+	}
+
+	isVariableEvalStr := false
+	buf := ""
+
+	for _, c := range evaluationStr {
+		if isVariableEvalStr {
+			buf += string(c)
+		}
+
+		if c == '[' {
+			isVariableEvalStr = true
+		}
+
+		if c == ']' {
+			isVariableEvalStr = false
+
+			evalValues = append(evalValues, parseEvalValueFromVariableEvalStr(buf))
+			buf = ""
+		}
+	}
+
+	return evalValues
+}
+
+func parseEvalValueFromVariableEvalStr(variableEvalStr string) EvalValue {
+	varName := parseVarName(variableEvalStr)
+	labelsStr := parseLabels(variableEvalStr)
+	metricName := parseMetricName(variableEvalStr)
+	v := parseValue(variableEvalStr)
+
+	return EvalValue{
+		Metric: metricName,
+		Labels: labelsStr,
+		Var:    varName,
+		Value:  v,
+	}
+}
+
+func parseVarName(evalStr string) string {
+	varName := ""
+	varStartIndex := strings.Index(evalStr, EvalStrVarNamePrefix)
+
+	if varStartIndex == -1 {
+		return ""
+	}
+
+	for i := varStartIndex + len(EvalStrVarNamePrefix); i < len(evalStr); i++ {
+		if evalStr[i] == '\'' {
+			break
+		}
+		varName += string(evalStr[i])
+	}
+
+	return varName
+}
+
+func parseLabels(evalStr string) string {
+	labelsString := ""
+	labelIndexStart := strings.Index(evalStr, EvalStrLabelsPrefix)
+
+	if labelIndexStart == -1 {
+		return ""
+	}
+
+	for i := labelIndexStart + len(EvalStrLabelsPrefix); i < len(evalStr); i++ {
+		labelsString += string(evalStr[i])
+
+		if evalStr[i] == '}' {
+			break
+		}
+	}
+
+	return labelsString
+}
+
+func parseMetricName(evalStr string) string {
+	metricName := ""
+	metricNameStartIndex := strings.Index(evalStr, EvalStrMetricPrefix)
+
+	if metricNameStartIndex == -1 {
+		return ""
+	}
+
+	for i := metricNameStartIndex + len(EvalStrMetricPrefix); i < len(evalStr); i++ {
+		if evalStr[i] == '\'' {
+			break
+		}
+		metricName += string(evalStr[i])
+	}
+
+	return metricName
+}
+
+func parseValue(evalStr string) string {
+	valueStr := ""
+	valueStartIndex := strings.Index(evalStr, EvalStrValuePrefix)
+
+	if valueStartIndex == -1 {
+		return ""
+	}
+
+	for i := valueStartIndex + len(EvalStrValuePrefix); i < len(evalStr); i++ {
+		if evalStr[i] == ' ' {
+			break
+		}
+
+		valueStr += string(evalStr[i])
+	}
+
+	return valueStr
+}
+
+// LOGZ.IO GRAFANA CHANGE :: end
