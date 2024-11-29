@@ -160,7 +160,7 @@ func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 
 	messageToSend, isTrunc, err := validateAndTruncateString(tmpl(s.settings.Message), messageSizeLimit)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("message validation failed: %v", err)
 	}
 	if isTrunc {
 		// If we truncated the message we need to add a message attribute showing that it was truncated.
@@ -169,7 +169,7 @@ func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 
 	subject, subjIsTrunc, err := validateAndTruncateString(tmpl(s.settings.Subject), 100)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("subject validation failed: %v", err)
 	}
 	if subjIsTrunc {
 		// If we truncated the subject we need to add a message attribute showing that it was truncated.
@@ -187,12 +187,12 @@ func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 
 func validateAndTruncateString(message string, maxMessageSizeInBytes int) (string, bool, error) {
 	if !utf8.ValidString(message) {
-		return "", false, fmt.Errorf("non utf8 encoded message string")
+		return "", false, fmt.Errorf("non utf8 encoded string")
 	}
 	if len(message) <= maxMessageSizeInBytes {
 		return message, false, nil
 	}
-	// If the message is larger than our specified size we have to truncate.
+	// If the given string is larger than our specified size we have to truncate.
 	truncated := make([]byte, maxMessageSizeInBytes)
 	copy(truncated, message)
 	return string(truncated), true, nil
