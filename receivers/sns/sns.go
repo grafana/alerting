@@ -158,7 +158,7 @@ func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 		publishInput.SetTargetArn(tmpl(s.settings.TargetARN))
 	}
 
-	messageToSend, isTrunc, err := validateAndTruncateMessage(tmpl(s.settings.Message), messageSizeLimit)
+	messageToSend, isTrunc, err := validateAndTruncateString(tmpl(s.settings.Message), messageSizeLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -167,18 +167,25 @@ func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 		messageAttributes["truncated"] = &sns.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String("true")}
 	}
 
-	publishInput.SetMessage(messageToSend)
-	publishInput.SetMessageAttributes(messageAttributes)
-
-	subject := tmpl(s.settings.Subject)
+	subject, subjIsTrunc, err := validateAndTruncateString(tmpl(s.settings.Subject), 100)
+	if err != nil {
+		return nil, err
+	}
+	if subjIsTrunc {
+		// If we truncated the subject we need to add a message attribute showing that it was truncated.
+		messageAttributes["subject_truncated"] = &sns.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String("true")}
+	}
 	if subject != "" {
 		publishInput.SetSubject(subject)
 	}
 
+	publishInput.SetMessage(messageToSend)
+	publishInput.SetMessageAttributes(messageAttributes)
+
 	return publishInput, nil
 }
 
-func validateAndTruncateMessage(message string, maxMessageSizeInBytes int) (string, bool, error) {
+func validateAndTruncateString(message string, maxMessageSizeInBytes int) (string, bool, error) {
 	if !utf8.ValidString(message) {
 		return "", false, fmt.Errorf("non utf8 encoded message string")
 	}
