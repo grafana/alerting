@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,6 +21,10 @@ import (
 
 	"github.com/grafana/alerting/models"
 )
+
+// Number of minutes to be shown on panel that contains an alert before the time an alert is triggered.
+// For example, if alert goes to Alerting at 13:00, timeframe starts at 12:55
+const alertPanelWindowBeforeTriggerInMinutes = 5 //LOGZ.IO GRAFANA CHANGE :: DEV-47397
 
 // LOGZ.IO GRAFANA CHANGE :: DEV-45254 - Access evaluation results in grafana alert template
 // see `extract_md.go` (extractEvalString func) so those prefixes match
@@ -136,10 +141,12 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	dashboardUID := alert.Annotations[models.DashboardUIDAnnotation]
 	if len(dashboardUID) > 0 {
 		u.Path = path.Join(externalPath, "/d/", dashboardUID)
+		u.RawQuery = appendAlertPanelTimeframeToQueryString(u.RawQuery, alert)                                              // LOGZ.IO GRAFANA CHANGE :: DEV-47397 - Append timeframe for panel/dashboard URL
 		extended.DashboardURL = receivers.ToLogzioAppPath(receivers.AppendSwitchToAccountQueryParam(u, accountId).String()) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 		panelID := alert.Annotations[models.PanelIDAnnotation]
 		if len(panelID) > 0 {
 			u.RawQuery = "viewPanel=" + panelID
+			u.RawQuery = appendAlertPanelTimeframeToQueryString(u.RawQuery, alert)                                          //LOGZ.IO GRAFANA CHANGE :: DEV-47397 - Append timeframe for panel/dashboard URL
 			extended.PanelURL = receivers.ToLogzioAppPath(receivers.AppendSwitchToAccountQueryParam(u, accountId).String()) // LOGZ.IO GRAFANA CHANGE :: DEV-45466: complete fix switch to account query param functionality
 		}
 		//dashboardURL, err := url.Parse(extended.DashboardURL)	// LOGZ.IO GRAFANA CHANGE :: DEV-45707: remove org id query param from notification urls
@@ -261,6 +268,36 @@ func (as ExtendedAlerts) Resolved() []ExtendedAlert {
 	}
 	return res
 }
+
+// LOGZ.IO GRAFANA CHANGE :: DEV-47397 - Append timeframe for panel/dashboard URL
+func appendAlertPanelTimeframeToQueryString(queryString string, alert template.Alert) string {
+	builder := strings.Builder{}
+
+	builder.WriteString(queryString)
+	if len(queryString) > 0 {
+		builder.WriteString("&")
+	}
+
+	startTime := alert.StartsAt.UnixMilli() - time.Minute.Milliseconds()*alertPanelWindowBeforeTriggerInMinutes
+	builder.WriteString("from=")
+	builder.WriteString(strconv.FormatInt(startTime, 10))
+
+	var endTime int64
+	// If alert is not yet resolved - end time will be set to past date
+	if alert.EndsAt.After(alert.StartsAt) {
+		endTime = alert.EndsAt.UnixMilli()
+	} else {
+		endTime = alert.StartsAt.UnixMilli()
+	}
+
+	builder.WriteString("&")
+	builder.WriteString("to=")
+	builder.WriteString(strconv.FormatInt(endTime, 10))
+
+	return builder.String()
+}
+
+//LOGZ.IO GRAFANA CHANGE :: end
 
 // LOGZ.IO GRAFANA CHANGE :: DEV-45254 - Access evaluation results in grafana alert template
 func parseEvalValues(evaluationStr string) []EvalValue {
