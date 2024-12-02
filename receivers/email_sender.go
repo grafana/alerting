@@ -34,6 +34,7 @@ type EmailSenderConfig struct {
 	StartTLSPolicy string
 	StaticHeaders  map[string]string
 	Version        string
+	SentBy         string
 }
 
 type defaultEmailSender struct {
@@ -131,6 +132,7 @@ func (s *defaultEmailSender) setDefaultTemplateData(data map[string]any) {
 	data["AppUrl"] = s.cfg.ExternalURL
 	data["BuildVersion"] = s.cfg.Version
 	data["Subject"] = map[string]any{}
+	data["SentBy"] = s.cfg.SentBy
 	dataCopy := map[string]any{}
 	for k, v := range data {
 		dataCopy[k] = v
