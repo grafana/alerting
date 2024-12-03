@@ -19,6 +19,8 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
+const subjectSizeLimit = 100
+
 // Notifier is responsible for sending
 // alert notifications to Amazon SNS.
 type Notifier struct {
@@ -167,7 +169,7 @@ func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 		messageAttributes["truncated"] = &sns.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String("true")}
 	}
 
-	subject, subjIsTrunc, err := validateAndTruncateString(tmpl(s.settings.Subject), 100)
+	subject, subjIsTrunc, err := validateAndTruncateString(tmpl(s.settings.Subject), subjectSizeLimit)
 	if err != nil {
 		return nil, fmt.Errorf("subject validation failed: %v", err)
 	}
