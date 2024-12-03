@@ -63,8 +63,4 @@ Annotations: {{ template "__default_sorted_pairs" $annotations }}
 {{- end }}
 
 
-{{- if .SentBy -}}
 Sent by {{.SentBy}} (c) {{now | date "2006"}} Grafana Labs
-{{- else -}}
-Sent by Grafana v{{.BuildVersion}} (c) {{now | date "2006"}} Grafana Labs
-{{- end -}}
