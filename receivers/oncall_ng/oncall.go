@@ -44,10 +44,18 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 	}
 }
 
+type chatOpsConfig struct {
+	SlackChannelId    string `json:"slackChannelId"`
+	MsTeamsChannelId  string `json:"msTeamsChannelId"`
+	TelegramChannelId string `json:"telegramChannelId"`
+}
+
 type routingConfig struct {
-	EscalationChainId string `json:"escalationChainId"`
-	ReceiveName       string `json:"receiverName"`
-	ReceiverUID       string `json:"receiverUID"`
+	EscalationChainId string         `json:"escalationChainId"`
+	ReceiveName       string         `json:"receiverName"`
+	ReceiverUID       string         `json:"receiverUID"`
+	TeamName          string         `json:"teamName,omitempty"`
+	ChatOps           *chatOpsConfig `json:"chatOps,omitempty"`
 }
 
 // oncallMessage defines the JSON object send to Grafana on-call.
@@ -94,6 +102,15 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		},
 		as...)
 
+	var chatOps *chatOpsConfig
+	if n.settings.MsTeamsChannelId != "" || n.settings.TelegramChannelId != "" || n.settings.SlackChannelID != "" {
+		chatOps = &chatOpsConfig{
+			SlackChannelId:    n.settings.SlackChannelID,
+			MsTeamsChannelId:  n.settings.MsTeamsChannelId,
+			TelegramChannelId: n.settings.TelegramChannelId,
+		}
+	}
+
 	msg := &oncallMessage{
 		Version:      "1",
 		ExtendedData: data,
@@ -105,6 +122,8 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 			EscalationChainId: n.settings.EscalationChainID,
 			ReceiveName:       n.Name,
 			ReceiverUID:       base64.RawURLEncoding.EncodeToString([]byte(n.Name)),
+			TeamName:          n.settings.TeamName,
+			ChatOps:           chatOps,
 		},
 	}
 

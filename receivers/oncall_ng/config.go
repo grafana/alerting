@@ -15,6 +15,10 @@ type Config struct {
 	AuthorizationScheme      string `json:"authorization_scheme,omitempty"`
 	AuthorizationCredentials string `json:"authorization_credentials,omitempty"`
 	EscalationChainID        string `json:"escalation_chain_id"`
+	TeamName                 string `json:"team_name"`
+	SlackChannelID           string `json:"slack_channel_id"`
+	MsTeamsChannelId         string `json:"ms_teams_channel_id"`
+	TelegramChannelId        string `json:"telegram_channel_id"`
 	Title                    string `json:"title"`
 	Message                  string `json:"message"`
 }
