@@ -45,5 +45,8 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	if settings.Message == "" {
 		settings.Message = templates.DefaultMessageEmbed
 	}
+	if settings.SlackChannelID == "" && settings.MsTeamsChannelId == "" && settings.TelegramChannelId == "" && settings.EscalationChainID == "" {
+		return settings, fmt.Errorf("none of delivery targets are specified")
+	}
 	return settings, err
 }
