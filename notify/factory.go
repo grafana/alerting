@@ -18,6 +18,7 @@ import (
 	"github.com/grafana/alerting/receivers/line"
 	"github.com/grafana/alerting/receivers/mqtt"
 	"github.com/grafana/alerting/receivers/oncall"
+	"github.com/grafana/alerting/receivers/oncall_ng"
 	"github.com/grafana/alerting/receivers/opsgenie"
 	"github.com/grafana/alerting/receivers/pagerduty"
 	"github.com/grafana/alerting/receivers/pushover"
@@ -102,6 +103,9 @@ func BuildReceiverIntegrations(
 	}
 	for i, cfg := range receiver.OnCallConfigs {
 		ci(i, cfg.Metadata, oncall.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), orgID))
+	}
+	for i, cfg := range receiver.OnCallNgConfigs {
+		ci(i, cfg.Metadata, oncall_ng.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), orgID))
 	}
 	for i, cfg := range receiver.OpsgenieConfigs {
 		ci(i, cfg.Metadata, opsgenie.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))

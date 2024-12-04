@@ -25,6 +25,7 @@ import (
 	"github.com/grafana/alerting/receivers/line"
 	"github.com/grafana/alerting/receivers/mqtt"
 	"github.com/grafana/alerting/receivers/oncall"
+	"github.com/grafana/alerting/receivers/oncall_ng"
 	"github.com/grafana/alerting/receivers/opsgenie"
 	"github.com/grafana/alerting/receivers/pagerduty"
 	"github.com/grafana/alerting/receivers/pushover"
@@ -194,6 +195,7 @@ type GrafanaReceiverConfig struct {
 	MqttConfigs         []*NotifierConfig[mqtt.Config]
 	PagerdutyConfigs    []*NotifierConfig[pagerduty.Config]
 	OnCallConfigs       []*NotifierConfig[oncall.Config]
+	OnCallNgConfigs     []*NotifierConfig[oncall_ng.Config]
 	PushoverConfigs     []*NotifierConfig[pushover.Config]
 	SensugoConfigs      []*NotifierConfig[sensugo.Config]
 	SlackConfigs        []*NotifierConfig[slack.Config]
@@ -324,6 +326,12 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.OnCallConfigs = append(result.OnCallConfigs, newNotifierConfig(receiver, cfg))
+	case "oncall-ng":
+		cfg, err := oncall_ng.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.OnCallNgConfigs = append(result.OnCallNgConfigs, newNotifierConfig(receiver, cfg))
 	case "pushover":
 		cfg, err := pushover.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
