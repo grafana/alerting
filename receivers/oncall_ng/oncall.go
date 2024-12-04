@@ -2,8 +2,10 @@ package oncall_ng
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"net/url"
 
 	"github.com/prometheus/alertmanager/notify"
@@ -44,7 +46,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 type routingConfig struct {
 	EscalationChainId string `json:"escalationChainId"`
-	ReceiveName       string `json:"receiveName"`
+	ReceiveName       string `json:"receiverName"`
 	ReceiverUID       string `json:"receiverUID"`
 }
 
@@ -101,8 +103,8 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		Message:      tmpl(n.settings.Message),
 		RoutingConfig: routingConfig{
 			EscalationChainId: n.settings.EscalationChainID,
-			ReceiveName: n.Name,
-			ReceiverUID:
+			ReceiveName:       n.Name,
+			ReceiverUID:       base64.RawURLEncoding.EncodeToString([]byte(n.Name)),
 		},
 	}
 
@@ -128,7 +130,13 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	}
 
 	u, _ := url.Parse(n.settings.APIURL)
-	u.Path = fmt.Sprintf("/integrations/v1/adaptive_grafana_alerting/%s/", n.UID[:30])
+	key := n.UID
+	if key == "" { // IF UID is empty, fallback to name
+		f := fnv.New64()
+		_, _ = f.Write([]byte(n.Name))
+		key = fmt.Sprintf("%x", f.Sum(nil))
+	}
+	u.Path = fmt.Sprintf("/integrations/v1/adaptive_grafana_alerting/%s/", key)
 
 	cmd := &receivers.SendWebhookSettings{
 		URL:        u.String(),
