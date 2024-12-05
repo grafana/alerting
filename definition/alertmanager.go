@@ -52,6 +52,9 @@ type Route struct {
 	RepeatInterval *model.Duration `yaml:"repeat_interval,omitempty" json:"repeat_interval,omitempty"`
 
 	Provenance Provenance `yaml:"provenance,omitempty" json:"provenance,omitempty"`
+
+	// Experimental.
+	Enrichments []config.Enrichment `yaml:"enrichments,omitempty" json:"enrichments,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface for Route. This is a copy of alertmanager's upstream except it removes validation on the label key.
@@ -81,6 +84,7 @@ func (r *Route) AsAMRoute() *config.Route {
 		GroupWait:      r.GroupWait,
 		GroupInterval:  r.GroupInterval,
 		RepeatInterval: r.RepeatInterval,
+		Enrichments:    r.Enrichments,
 
 		Routes: make([]*config.Route, 0, len(r.Routes)),
 	}
@@ -108,6 +112,7 @@ func AsGrafanaRoute(r *config.Route) *Route {
 		GroupWait:      r.GroupWait,
 		GroupInterval:  r.GroupInterval,
 		RepeatInterval: r.RepeatInterval,
+		Enrichments:    r.Enrichments,
 
 		Routes: make([]*Route, 0, len(r.Routes)),
 	}
