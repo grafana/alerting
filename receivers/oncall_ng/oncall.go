@@ -147,6 +147,9 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	if n.settings.AuthorizationScheme != "" && n.settings.AuthorizationCredentials != "" {
 		headers["Authorization"] = fmt.Sprintf("%s %s", n.settings.AuthorizationScheme, n.settings.AuthorizationCredentials)
 	}
+	if n.settings.StackId != "" {
+		headers["X-Grafana-Org-Id"] = n.settings.StackId
+	}
 
 	u, _ := url.Parse(n.settings.APIURL)
 	key := n.UID

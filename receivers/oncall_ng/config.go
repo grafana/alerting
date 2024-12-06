@@ -12,6 +12,7 @@ import (
 
 type Config struct {
 	APIURL                   string `json:"api_url"`
+	StackId                  string `json:"stack_id"`
 	AuthorizationScheme      string `json:"authorization_scheme,omitempty"`
 	AuthorizationCredentials string `json:"authorization_credentials,omitempty"`
 	EscalationChainID        string `json:"escalation_chain_id"`
