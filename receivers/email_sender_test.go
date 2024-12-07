@@ -27,7 +27,7 @@ func TestBuildEmailMessage(t *testing.T) {
 	testValue := "test-value"
 	testData := map[string]interface{}{"Value": testValue}
 	externalURL := "http://test.org"
-	buildVersion := "testVersion"
+	sentBy := "Grafana testVersion"
 
 	tests := []struct {
 		name          string
@@ -51,30 +51,30 @@ func TestBuildEmailMessage(t *testing.T) {
 			name:          "subject in template, template data provided",
 			contentTypes:  []string{"text/plain"},
 			data:          testData,
-			template:      fmt.Sprintf("{{ define %q -}} {{ Subject .Subject .TemplateData %q }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template.txt", "{{ .Value }}"),
+			template:      fmt.Sprintf("{{ define %q -}} {{ Subject .Subject .TemplateData %q }} {{ .AppUrl }} {{ .SentBy }} {{- end }}", "test_template.txt", "{{ .Value }}"),
 			templateName:  "test_template",
 			embeddedFiles: []string{"embedded-1", "embedded-2"},
 			expSubject:    testValue,
-			expBody:       fmt.Sprintf("%s %s %s", testValue, externalURL, buildVersion),
+			expBody:       fmt.Sprintf("%s %s %s", testValue, externalURL, sentBy),
 		},
 		{
 			name:         "subject via config, template data provided",
 			contentTypes: []string{"text/html"},
 			data:         testData,
 			subject:      "test_subject",
-			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template.html"),
+			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .SentBy }} {{- end }}", "test_template.html"),
 			templateName: "test_template",
 			expSubject:   "test_subject",
-			expBody:      fmt.Sprintf("%s %s %s", testValue, externalURL, buildVersion),
+			expBody:      fmt.Sprintf("%s %s %s", testValue, externalURL, sentBy),
 		},
 		{
 			name:         "default data only",
 			contentTypes: []string{"text/plain"},
 			subject:      "test_subject",
-			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template.txt"),
+			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .SentBy }} {{- end }}", "test_template.txt"),
 			templateName: "test_template",
 			expSubject:   "test_subject",
-			expBody:      fmt.Sprintf(" %s %s", externalURL, buildVersion),
+			expBody:      fmt.Sprintf(" %s %s", externalURL, sentBy),
 		},
 		{
 			name:         "attempting to execute an undefined template",
@@ -90,7 +90,7 @@ func TestBuildEmailMessage(t *testing.T) {
 			s, err := NewEmailSenderFactory(EmailSenderConfig{
 				ContentTypes: test.contentTypes,
 				ExternalURL:  externalURL,
-				Version:      buildVersion,
+				SentBy:       sentBy,
 			})(Metadata{})
 			require.NoError(t, err)
 			ds, ok := s.(*defaultEmailSender)
@@ -125,7 +125,6 @@ func TestBuildEmailMessage(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestCreateDialer(t *testing.T) {
