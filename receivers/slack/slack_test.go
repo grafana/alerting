@@ -3,16 +3,14 @@ package slack
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
-	"mime"
-	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/prometheus/alertmanager/notify"
@@ -203,7 +201,6 @@ func TestNotify_PostMessage(t *testing.T) {
 		name            string
 		alerts          []*types.Alert
 		expectedMessage *slackMessage
-		expectedReplies []interface{} // can contain either slackMessage or map[string]struct{} for multipart/form-data
 		expectedError   string
 		settings        Config
 	}{{
@@ -422,54 +419,6 @@ func TestNotify_PostMessage(t *testing.T) {
 			},
 		},
 	}, {
-		name: "Message is sent and image is uploaded",
-		settings: Config{
-			EndpointURL:    APIURL,
-			URL:            APIURL,
-			Token:          "1234",
-			Recipient:      "#test",
-			Text:           templates.DefaultMessageEmbed,
-			Title:          templates.DefaultMessageTitleEmbed,
-			Username:       "Grafana",
-			IconEmoji:      ":emoji:",
-			IconURL:        "",
-			MentionChannel: "",
-			MentionUsers:   nil,
-			MentionGroups:  nil,
-		},
-		alerts: []*types.Alert{{
-			Alert: model.Alert{
-				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-				Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", "__alertImageToken__": "image-on-disk"},
-			},
-		}},
-		expectedMessage: &slackMessage{
-			Channel:   "#test",
-			Username:  "Grafana",
-			IconEmoji: ":emoji:",
-			Attachments: []attachment{
-				{
-					Title:      "[FIRING:1]  (val1)",
-					TitleLink:  "http://localhost/alerting/list",
-					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
-					Fallback:   "[FIRING:1]  (val1)",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "#D63232",
-				},
-			},
-		},
-		expectedReplies: []interface{}{
-			// check that the following parts are present in the multipart/form-data
-			map[string]struct{}{
-				"file":            {},
-				"channels":        {},
-				"initial_comment": {},
-				"thread_ts":       {},
-			},
-		},
-	}, {
 		name: "Errors in templates, message is sent",
 		settings: Config{
 			EndpointURL:    APIURL,
@@ -566,9 +515,101 @@ func TestNotify_PostMessage(t *testing.T) {
 				assert.NoError(t, err)
 				assert.True(t, ok)
 
+				require.Len(t, recorder.requests, 1)
+
+				// Get the request and check that it's sending to the URL
+				r := recorder.requests[0]
+				assert.Equal(t, notifier.settings.URL, r.URL.String())
+
+				// Check that the request contains the expected message
+				b, err := io.ReadAll(r.Body)
+				require.NoError(t, err)
+
+				message := slackMessage{}
+				require.NoError(t, json.Unmarshal(b, &message))
+				for i, v := range message.Attachments {
+					// Need to update the ts as these cannot be set in the test definition
+					test.expectedMessage.Attachments[i].Ts = v.Ts
+				}
+				assert.Equal(t, *test.expectedMessage, message)
+			}
+		})
+	}
+}
+
+func TestNotify_PostMessageWithImage(t *testing.T) {
+	tests := []struct {
+		name                 string
+		alerts               []*types.Alert
+		expectedMessage      *slackMessage
+		expectedImageUploads int
+		expectedError        string
+		settings             Config
+	}{
+		{
+			name: "Message is sent and image is uploaded",
+			settings: Config{
+				EndpointURL:    APIURL,
+				URL:            APIURL,
+				Token:          "1234",
+				Recipient:      "#test",
+				Text:           templates.DefaultMessageEmbed,
+				Title:          templates.DefaultMessageTitleEmbed,
+				Username:       "Grafana",
+				IconEmoji:      ":emoji:",
+				IconURL:        "",
+				MentionChannel: "",
+				MentionUsers:   nil,
+				MentionGroups:  nil,
+			},
+			alerts: []*types.Alert{{
+				Alert: model.Alert{
+					Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+					Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", "__alertImageToken__": "image-on-disk"},
+				},
+			}},
+			expectedMessage: &slackMessage{
+				Channel:   "#test",
+				Username:  "Grafana",
+				IconEmoji: ":emoji:",
+				Attachments: []attachment{
+					{
+						Title:      "[FIRING:1]  (val1)",
+						TitleLink:  "http://localhost/alerting/list",
+						Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+						Fallback:   "[FIRING:1]  (val1)",
+						Fields:     nil,
+						Footer:     "Grafana v" + appVersion,
+						FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+						Color:      "#D63232",
+					},
+				},
+			},
+			expectedImageUploads: 1,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			notifier, recorder, err := setupSlackForTests(t, test.settings)
+			require.NoError(t, err)
+
+			ctx := context.Background()
+			ctx = notify.WithGroupKey(ctx, "alertname")
+			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+
+			ok, err := notifier.Notify(ctx, test.alerts...)
+			if test.expectedError != "" {
+				assert.EqualError(t, err, test.expectedError)
+				assert.False(t, ok)
+			} else {
+				assert.NoError(t, err)
+				assert.True(t, ok)
+
 				// When sending a notification via PostMessage some content, such as images,
 				// are sent as replies to the original message
-				require.Len(t, recorder.requests, len(test.expectedReplies)+1)
+				imageUploadRequestCount := test.expectedImageUploads * 3
+				require.Len(t, recorder.requests, 1+imageUploadRequestCount)
 
 				// Get the request and check that it's sending to the URL
 				r := recorder.requests[0]
@@ -586,23 +627,32 @@ func TestNotify_PostMessage(t *testing.T) {
 				}
 				assert.Equal(t, *test.expectedMessage, message)
 
-				// Check that the replies match expectations
-				for i := 1; i < len(recorder.requests); i++ {
-					r = recorder.requests[i]
-					assert.Equal(t, "https://slack.com/api/files.upload", r.URL.String())
+				tokenHeader := fmt.Sprintf("Bearer %s", test.settings.Token)
 
-					media, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
-					require.NoError(t, err)
-					if media == "multipart/form-data" {
-						// Some replies are file uploads, so check the multipart form
-						checkMultipart(t, test.expectedReplies[i-1].(map[string]struct{}), r.Body, params["boundary"])
-					} else {
-						b, err = io.ReadAll(r.Body)
-						require.NoError(t, err)
-						message = slackMessage{}
-						require.NoError(t, json.Unmarshal(b, &message))
-						assert.Equal(t, test.expectedReplies[i-1], message)
-					}
+				for i := 0; i < test.expectedImageUploads; i++ {
+					// check first request is to get the upload URL
+					initRequest := recorder.requests[i*3+1]
+					assert.Equal(t, "GET", initRequest.Method)
+					pathParts := strings.Split(initRequest.URL.EscapedPath(), "/")
+					assert.Equal(t, "files.getUploadURLExternal", pathParts[len(pathParts)-1])
+					assert.Contains(t, strings.Split(initRequest.Header.Get("Content-Type"), ";"), "application/x-www-form-urlencoded")
+					assert.Contains(t, initRequest.URL.Query(), "filename")
+					assert.Contains(t, initRequest.URL.Query(), "length")
+					assert.Equal(t, tokenHeader, initRequest.Header.Get("Authorization"))
+					// check second request is to upload the image
+					uploadRequest := recorder.requests[i*3+2]
+					assert.Equal(t, "POST", uploadRequest.Method)
+					assert.NoError(t, uploadRequest.ParseMultipartForm(32<<20))
+					assert.Equal(t, "test.png", uploadRequest.MultipartForm.File["filename"][0].Filename)
+					assert.Contains(t, strings.Split(uploadRequest.Header.Get("Content-Type"), ";"), "multipart/form-data")
+					assert.Equal(t, tokenHeader, uploadRequest.Header.Get("Authorization"))
+					// check third request is to finalize the upload
+					finalizeRequest := recorder.requests[i*3+3]
+					assert.Equal(t, "POST", finalizeRequest.Method)
+					pathParts = strings.Split(finalizeRequest.URL.EscapedPath(), "/")
+					assert.Equal(t, "files.completeUploadExternal", pathParts[len(pathParts)-1])
+					assert.Contains(t, strings.Split(finalizeRequest.Header.Get("Content-Type"), ";"), "application/json")
+					assert.Equal(t, tokenHeader, finalizeRequest.Header.Get("Authorization"))
 				}
 			}
 		})
@@ -614,24 +664,22 @@ type slackRequestRecorder struct {
 	requests []*http.Request
 }
 
-func (s *slackRequestRecorder) fn(_ context.Context, r *http.Request, _ logging.Logger) (string, error) {
+func (s *slackRequestRecorder) recordMessageRequest(_ context.Context, r *http.Request, _ logging.Logger) (string, error) {
 	s.requests = append(s.requests, r)
 	return "", nil
 }
 
-// checkMulipart checks that each part is present, but not its contents
-func checkMultipart(t *testing.T, expected map[string]struct{}, r io.Reader, boundary string) {
-	m := multipart.NewReader(r, boundary)
-	visited := make(map[string]struct{})
-	for {
-		part, err := m.NextPart()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		require.NoError(t, err)
-		visited[part.FormName()] = struct{}{}
-	}
-	assert.Equal(t, expected, visited)
+func (s *slackRequestRecorder) recordInitFileUploadRequest(_ context.Context, r *http.Request, _ logging.Logger) (*FileUploadURLResponse, error) {
+	s.requests = append(s.requests, r)
+	return &FileUploadURLResponse{
+		FileID:    "file-id",
+		UploadURL: "TODO: replace this with some function that actually allows you to return something to test the flow",
+	}, nil
+}
+
+func (s *slackRequestRecorder) recordFileUploadRequest(_ context.Context, r *http.Request, _ logging.Logger) error {
+	s.requests = append(s.requests, r)
+	return nil
 }
 
 func setupSlackForTests(t *testing.T, settings Config) (*Notifier, *slackRequestRecorder, error) {
@@ -640,7 +688,7 @@ func setupSlackForTests(t *testing.T, settings Config) (*Notifier, *slackRequest
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
 
-	f, err := os.Create(t.TempDir() + "test.png")
+	f, err := os.Create(t.TempDir() + "/test.png")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		_ = f.Close()
@@ -676,7 +724,11 @@ func setupSlackForTests(t *testing.T, settings Config) (*Notifier, *slackRequest
 	}
 
 	sr := &slackRequestRecorder{}
-	sn.sendFn = sr.fn
+	sn.sendMessageFn = sr.recordMessageRequest
+	sn.initFileUploadFn = sr.recordInitFileUploadRequest
+	sn.uploadFileFn = sr.recordFileUploadRequest
+	sn.completeFileUploadFn = sr.recordFileUploadRequest
+
 	return sn, sr, nil
 }
 
@@ -793,7 +845,7 @@ func TestSendSlackRequest(t *testing.T) {
 			req, err := http.NewRequest(http.MethodGet, server.URL, nil)
 			require.NoError(tt, err)
 
-			_, err = sendSlackRequest(context.Background(), req, &logging.FakeLogger{})
+			_, err = sendSlackMessage(context.Background(), req, &logging.FakeLogger{})
 			if !test.expectError {
 				require.NoError(tt, err)
 			} else {
