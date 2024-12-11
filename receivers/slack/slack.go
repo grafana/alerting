@@ -212,107 +212,6 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 	return true, nil
 }
 
-// sendSlackMessage sends a request to the Slack API.
-// Stubbable by tests.
-func sendSlackMessage(_ context.Context, req *http.Request, logger logging.Logger) (string, error) {
-	resp, err := slackClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
-	}
-
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			logger.Warn("Failed to close response body", "err", err)
-		}
-	}()
-
-	if err := errorForStatusCode(logger, resp.StatusCode); err != nil {
-		return "", err
-	}
-
-	content := resp.Header.Get("Content-Type")
-	if strings.HasPrefix(content, "application/json") {
-		return handleSlackMessageJSONResponse(resp, logger)
-	}
-	// If the response is not JSON it could be the response to an incoming webhook
-	return handleSlackIncomingWebhookResponse(resp, logger)
-}
-
-func handleSlackIncomingWebhookResponse(resp *http.Response, logger logging.Logger) (string, error) {
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	// Incoming webhooks return the string "ok" on success
-	if bytes.Equal(b, []byte("ok")) {
-		logger.Debug("The incoming webhook was successful")
-		return "", nil
-	}
-
-	logger.Debug("Incoming webhook was unsuccessful", "status", resp.StatusCode, "body", string(b))
-
-	// There are a number of known errors that we can check. The documentation incoming webhooks
-	// errors can be found at https://api.slack.com/messaging/webhooks#handling_errors and
-	// https://api.slack.com/changelog/2016-05-17-changes-to-errors-for-incoming-webhooks
-	if bytes.Equal(b, []byte("user_not_found")) {
-		return "", errors.New("the user does not exist or is invalid")
-	}
-
-	if bytes.Equal(b, []byte("channel_not_found")) {
-		return "", errors.New("the channel does not exist or is invalid")
-	}
-
-	if bytes.Equal(b, []byte("channel_is_archived")) {
-		return "", errors.New("cannot send an incoming webhook for an archived channel")
-	}
-
-	if bytes.Equal(b, []byte("posting_to_general_channel_denied")) {
-		return "", errors.New("cannot send an incoming webhook to the #general channel")
-	}
-
-	if bytes.Equal(b, []byte("no_service")) {
-		return "", errors.New("the incoming webhook is either disabled, removed, or invalid")
-	}
-
-	if bytes.Equal(b, []byte("no_text")) {
-		return "", errors.New("cannot send an incoming webhook without a message")
-	}
-
-	return "", fmt.Errorf("failed incoming webhook: %s", string(b))
-}
-
-func handleSlackMessageJSONResponse(resp *http.Response, logger logging.Logger) (string, error) {
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
-	}
-
-	if len(b) == 0 {
-		logger.Error("Expected JSON but got empty response")
-		return "", errors.New("unexpected empty response")
-	}
-
-	// Slack responds to some requests with a JSON document, that might contain an error.
-	result := struct {
-		CommonAPIResponse
-		slackMessageResponse
-	}{}
-
-	if err := json.Unmarshal(b, &result); err != nil {
-		logger.Error("Failed to unmarshal response", "body", string(b), "err", err)
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
-	}
-
-	if !result.OK {
-		logger.Error("The request was unsuccessful", "body", string(b), "err", result.Error)
-		return "", fmt.Errorf("failed to send request: %s", result.Error)
-	}
-
-	logger.Debug("The request was successful")
-	return result.Ts, nil
-}
-
 func (sn *Notifier) commonAlertGeneratorURL(_ context.Context, alerts []*types.Alert) bool {
 	if len(alerts[0].GeneratorURL) == 0 {
 		return false
@@ -645,6 +544,107 @@ func errorForStatusCode(logger logging.Logger, statusCode int) error {
 		return fmt.Errorf("unexpected 5xx status code: %d", statusCode)
 	}
 	return nil
+}
+
+// sendSlackMessage sends a request to the Slack API.
+// Stubbable by tests.
+func sendSlackMessage(_ context.Context, req *http.Request, logger logging.Logger) (string, error) {
+	resp, err := slackClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			logger.Warn("Failed to close response body", "err", err)
+		}
+	}()
+
+	if err := errorForStatusCode(logger, resp.StatusCode); err != nil {
+		return "", err
+	}
+
+	content := resp.Header.Get("Content-Type")
+	if strings.HasPrefix(content, "application/json") {
+		return handleSlackMessageJSONResponse(resp, logger)
+	}
+	// If the response is not JSON it could be the response to an incoming webhook
+	return handleSlackIncomingWebhookResponse(resp, logger)
+}
+
+func handleSlackIncomingWebhookResponse(resp *http.Response, logger logging.Logger) (string, error) {
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Incoming webhooks return the string "ok" on success
+	if bytes.Equal(b, []byte("ok")) {
+		logger.Debug("The incoming webhook was successful")
+		return "", nil
+	}
+
+	logger.Debug("Incoming webhook was unsuccessful", "status", resp.StatusCode, "body", string(b))
+
+	// There are a number of known errors that we can check. The documentation incoming webhooks
+	// errors can be found at https://api.slack.com/messaging/webhooks#handling_errors and
+	// https://api.slack.com/changelog/2016-05-17-changes-to-errors-for-incoming-webhooks
+	if bytes.Equal(b, []byte("user_not_found")) {
+		return "", errors.New("the user does not exist or is invalid")
+	}
+
+	if bytes.Equal(b, []byte("channel_not_found")) {
+		return "", errors.New("the channel does not exist or is invalid")
+	}
+
+	if bytes.Equal(b, []byte("channel_is_archived")) {
+		return "", errors.New("cannot send an incoming webhook for an archived channel")
+	}
+
+	if bytes.Equal(b, []byte("posting_to_general_channel_denied")) {
+		return "", errors.New("cannot send an incoming webhook to the #general channel")
+	}
+
+	if bytes.Equal(b, []byte("no_service")) {
+		return "", errors.New("the incoming webhook is either disabled, removed, or invalid")
+	}
+
+	if bytes.Equal(b, []byte("no_text")) {
+		return "", errors.New("cannot send an incoming webhook without a message")
+	}
+
+	return "", fmt.Errorf("failed incoming webhook: %s", string(b))
+}
+
+func handleSlackMessageJSONResponse(resp *http.Response, logger logging.Logger) (string, error) {
+	b, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if len(b) == 0 {
+		logger.Error("Expected JSON but got empty response")
+		return "", errors.New("unexpected empty response")
+	}
+
+	// Slack responds to some requests with a JSON document, that might contain an error.
+	result := struct {
+		CommonAPIResponse
+		slackMessageResponse
+	}{}
+
+	if err := json.Unmarshal(b, &result); err != nil {
+		logger.Error("Failed to unmarshal response", "body", string(b), "err", err)
+		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	if !result.OK {
+		logger.Error("The request was unsuccessful", "body", string(b), "err", result.Error)
+		return "", fmt.Errorf("failed to send request: %s", result.Error)
+	}
+
+	logger.Debug("The request was successful")
+	return result.Ts, nil
 }
 
 func initFileUpload(_ context.Context, req *http.Request, logger logging.Logger) (*FileUploadURLResponse, error) {
