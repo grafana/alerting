@@ -120,6 +120,31 @@ func TestNewConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "Full valid configuration",
+			settings: FullValidConfigForTesting,
+			secureSettings: map[string][]byte{
+				"password": []byte("test-password"),
+			},
+			expectedConfig: Config{
+				Message:       templates.DefaultMessageEmbed,
+				BrokerURL:     "tcp://localhost:1883",
+				Topic:         "grafana/alerts",
+				MessageFormat: MessageFormatJSON,
+				ClientID:      "grafana-test-client-id",
+				Username:      "test-username",
+				Password:      "test-password",
+				QoS:           "0",
+				TLSConfig: &receivers.TLSConfig{
+					InsecureSkipVerify: false,
+					ServerName:         "localhost",
+					CACertificate:      "test-tls-ca-certificate",
+					ClientKey:          "test-tls-client-key",
+					ClientCertificate:  "test-tls-client-certificate",
+				},
+				AddGroupKeyToTopic: true,
+			},
+		},
 	}
 
 	for _, c := range cases {
