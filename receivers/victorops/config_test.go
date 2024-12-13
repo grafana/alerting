@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -13,6 +14,7 @@ func TestNewConfig(t *testing.T) {
 	cases := []struct {
 		name              string
 		settings          string
+		secureSettings    map[string][]byte
 		expectedConfig    Config
 		expectedInitError string
 	}{
@@ -31,6 +33,19 @@ func TestNewConfig(t *testing.T) {
 			settings: `{"url": "http://localhost" }`,
 			expectedConfig: Config{
 				URL:         "http://localhost",
+				MessageType: DefaultMessageType,
+				Title:       templates.DefaultMessageTitleEmbed,
+				Description: templates.DefaultMessageEmbed,
+			},
+		},
+		{
+			name:     "Minimal valid configuration with secrets",
+			settings: `{}`,
+			secureSettings: map[string][]byte{
+				"url": []byte("http://localhost-secret"),
+			},
+			expectedConfig: Config{
+				URL:         "http://localhost-secret",
 				MessageType: DefaultMessageType,
 				Title:       templates.DefaultMessageTitleEmbed,
 				Description: templates.DefaultMessageEmbed,
@@ -61,11 +76,22 @@ func TestNewConfig(t *testing.T) {
 				Description: "test-description",
 			},
 		},
+		{
+			name:           "Should overwrite from secrets",
+			settings:       FullValidConfigForTesting,
+			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			expectedConfig: Config{
+				URL:         "http://localhost-secret",
+				MessageType: "test-messagetype",
+				Title:       "test-title",
+				Description: "test-description",
+			},
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			actual, err := NewConfig(json.RawMessage(c.settings))
+			actual, err := NewConfig(json.RawMessage(c.settings), receiversTesting.DecryptForTesting(c.secureSettings))
 
 			if c.expectedInitError != "" {
 				require.ErrorContains(t, err, c.expectedInitError)
