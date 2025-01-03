@@ -2,6 +2,7 @@ package notify
 
 import (
 	"fmt"
+	"github.com/grafana/alerting/receivers/dooray"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
@@ -79,6 +80,9 @@ func BuildReceiverIntegrations(
 	}
 	for i, cfg := range receiver.DiscordConfigs {
 		ci(i, cfg.Metadata, discord.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), version))
+	}
+	for i, cfg := range receiver.DoorayConfigs {
+		ci(i, cfg.Metadata, dooray.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.EmailConfigs {
 		mailCli, e := newEmailSender(cfg.Metadata)

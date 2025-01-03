@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/grafana/alerting/receivers/dooray"
 	"net/url"
 	"strings"
 	"time"
@@ -205,6 +206,7 @@ type GrafanaReceiverConfig struct {
 	WebhookConfigs      []*NotifierConfig[webhook.Config]
 	WecomConfigs        []*NotifierConfig[wecom.Config]
 	WebexConfigs        []*NotifierConfig[webex.Config]
+	DoorayConfigs       []*NotifierConfig[dooray.Config]
 }
 
 // NotifierConfig represents parsed GrafanaIntegrationConfig.
@@ -390,6 +392,12 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.WebexConfigs = append(result.WebexConfigs, newNotifierConfig(receiver, cfg))
+	case "dooray":
+		cfg, err := dooray.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.DoorayConfigs = append(result.DoorayConfigs, newNotifierConfig(receiver, cfg))
 	default:
 		return fmt.Errorf("notifier %s is not supported", receiver.Type)
 	}
