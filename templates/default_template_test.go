@@ -3,12 +3,14 @@ package templates
 import (
 	"context"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/logging"
 )
@@ -126,6 +128,19 @@ func TestDefaultTemplateString(t *testing.T) {
 	var tmplErr error
 	l := &logging.FakeLogger{}
 	expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+
+	tmplDef, err := DefaultTemplate()
+	require.NoError(t, err)
+
+	tmplFromDefinition, err := newTemplate()
+	require.NoError(t, err)
+	// Parse default template string.
+	err = tmplFromDefinition.Parse(strings.NewReader(tmplDef.Template))
+	require.NoError(t, err)
+	tmplFromDefinition.ExternalURL = externalURL
+
+	var tmplDefErr error
+	expandFromDefinition, _ := TmplText(context.Background(), tmplFromDefinition, alerts, l, &tmplDefErr)
 
 	cases := []struct {
 		templateString string
@@ -305,10 +320,19 @@ Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&mat
 
 	for _, c := range cases {
 		t.Run(c.templateString, func(t *testing.T) {
-			act := expand(c.templateString)
-			require.NoError(t, tmplErr)
-			require.Equal(t, c.expected, act)
+			t.Run("FromContent", func(t *testing.T) {
+				act := expand(c.templateString)
+				require.NoError(t, tmplErr)
+				require.Equal(t, c.expected, act)
+			})
+
+			t.Run("DefaultTemplate", func(t *testing.T) {
+				act := expandFromDefinition(c.templateString)
+				require.NoError(t, tmplDefErr)
+				require.Equal(t, c.expected, act)
+			})
 		})
 	}
 	require.NoError(t, tmplErr)
+	require.NoError(t, tmplDefErr)
 }
