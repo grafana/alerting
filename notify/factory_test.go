@@ -36,7 +36,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 		for notifierType, cfg := range AllKnownConfigsForTesting {
 			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
 		}
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, GetDecryptedValueFnForTesting)
+		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
 		require.NoError(t, err)
 		return parsed, len(recCfg.Integrations)
 	}
