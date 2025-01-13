@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/prometheus/alertmanager/types"
 	"net/url"
-	"path"
 
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
@@ -94,7 +93,7 @@ func (dr *Notifier) SendResolved() bool {
 }
 
 func (dr *Notifier) buildMessage(ctx context.Context, as ...*types.Alert) (string, string, error) {
-	ruleURL := path.Join(dr.tmpl.ExternalURL.String(), "/alerting/list")
+	ruleURL := receivers.JoinURLPath(dr.tmpl.ExternalURL.String(), "/alerting/list", dr.log)
 
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, dr.tmpl, as, dr.log, &tmplErr)
