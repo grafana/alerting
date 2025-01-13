@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"math/rand"
+	"net/http"
 	"net/url"
 	"testing"
 
@@ -297,8 +298,9 @@ func TestNotify(t *testing.T) {
 }
 
 func Test_ValidateResponse(t *testing.T) {
-	require.NoError(t, validateResponse([]byte("1"), rand.Int()))
-	err := validateResponse([]byte("some error message"), rand.Int())
+	randInt := rand.Int() + http.StatusAccepted
+	require.NoError(t, validateResponse([]byte("1"), randInt))
+	err := validateResponse([]byte("some error message"), randInt)
 	require.Error(t, err)
 	require.Equal(t, "some error message", err.Error())
 }
