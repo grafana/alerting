@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"path"
 	"slices"
-	"sort"
 	"strings"
 	tmpltext "text/template"
 	"time"
@@ -232,19 +231,17 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 }
 
 func generateSilenceURL(alert template.Alert, baseUrl url.URL, externalPath string) string {
-	matchers := make([]string, 0)
-	for key, value := range alert.Labels {
-		if !(strings.HasPrefix(key, "__") && strings.HasSuffix(key, "__")) {
-			matchers = append(matchers, key+"="+value)
-		}
-	}
-	sort.Strings(matchers)
 	baseUrl.Path = path.Join(externalPath, "/alerting/silence/new")
 
 	query := make(url.Values)
 	query.Add("alertmanager", "grafana")
-	for _, matcher := range matchers {
-		query.Add("matcher", matcher)
+
+	for _, pair := range alert.Labels.SortedPairs() {
+		if strings.HasPrefix(pair.Name, "__") && strings.HasSuffix(pair.Name, "__") {
+			continue
+		}
+
+		query.Add("matcher", pair.Name+"="+pair.Value)
 	}
 
 	baseUrl.RawQuery = query.Encode()
