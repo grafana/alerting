@@ -236,8 +236,19 @@ func generateSilenceURL(alert template.Alert, baseUrl url.URL, externalPath stri
 	query := make(url.Values)
 	query.Add("alertmanager", "grafana")
 
+	ruleUid := alert.Labels[models.RuleUIDLabel]
+	if ruleUid != "" {
+		query.Add("matcher", models.RuleUIDLabel+"="+ruleUid)
+	}
+
 	for _, pair := range alert.Labels.SortedPairs() {
 		if strings.HasPrefix(pair.Name, "__") && strings.HasSuffix(pair.Name, "__") {
+			continue
+		}
+
+		// If the alert has a rule uid available, it can more succinctly and accurately replace alertname + folder labels.
+		// In addition, using rule uid is more compatible with minimal permission RBAC users as they require the rule uid to silence.
+		if ruleUid != "" && (pair.Name == models.FolderTitleLabel || pair.Name == model.AlertNameLabel) {
 			continue
 		}
 
