@@ -230,15 +230,15 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	return extended
 }
 
-func generateSilenceURL(alert template.Alert, baseUrl url.URL, externalPath string) string {
-	baseUrl.Path = path.Join(externalPath, "/alerting/silence/new")
+func generateSilenceURL(alert template.Alert, baseURL url.URL, externalPath string) string {
+	baseURL.Path = path.Join(externalPath, "/alerting/silence/new")
 
 	query := make(url.Values)
 	query.Add("alertmanager", "grafana")
 
-	ruleUid := alert.Labels[models.RuleUIDLabel]
-	if ruleUid != "" {
-		query.Add("matcher", models.RuleUIDLabel+"="+ruleUid)
+	ruleUID := alert.Labels[models.RuleUIDLabel]
+	if ruleUID != "" {
+		query.Add("matcher", models.RuleUIDLabel+"="+ruleUID)
 	}
 
 	for _, pair := range alert.Labels.SortedPairs() {
@@ -248,21 +248,21 @@ func generateSilenceURL(alert template.Alert, baseUrl url.URL, externalPath stri
 
 		// If the alert has a rule uid available, it can more succinctly and accurately replace alertname + folder labels.
 		// In addition, using rule uid is more compatible with minimal permission RBAC users as they require the rule uid to silence.
-		if ruleUid != "" && (pair.Name == models.FolderTitleLabel || pair.Name == model.AlertNameLabel) {
+		if ruleUID != "" && (pair.Name == models.FolderTitleLabel || pair.Name == model.AlertNameLabel) {
 			continue
 		}
 
 		query.Add("matcher", pair.Name+"="+pair.Value)
 	}
 
-	baseUrl.RawQuery = query.Encode()
+	baseURL.RawQuery = query.Encode()
 
 	orgID := alert.Annotations[models.OrgIDAnnotation]
 	if len(orgID) > 0 {
-		_ = setOrgIDQueryParam(&baseUrl, orgID)
+		_ = setOrgIDQueryParam(&baseURL, orgID)
 	}
 
-	return baseUrl.String()
+	return baseURL.String()
 }
 
 func setOrgIDQueryParam(url *url.URL, orgID string) string {
