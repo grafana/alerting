@@ -226,6 +226,12 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		extended.ValueString = alert.Annotations[models.ValueStringAnnotation]
 	}
 
+	extended.SilenceURL = generateSilenceURL(alert, *u, externalPath)
+
+	return extended
+}
+
+func generateSilenceURL(alert template.Alert, baseUrl url.URL, externalPath string) string {
 	matchers := make([]string, 0)
 	for key, value := range alert.Labels {
 		if !(strings.HasPrefix(key, "__") && strings.HasSuffix(key, "__")) {
@@ -233,7 +239,7 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		}
 	}
 	sort.Strings(matchers)
-	u.Path = path.Join(externalPath, "/alerting/silence/new")
+	baseUrl.Path = path.Join(externalPath, "/alerting/silence/new")
 
 	query := make(url.Values)
 	query.Add("alertmanager", "grafana")
@@ -241,13 +247,14 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		query.Add("matcher", matcher)
 	}
 
-	u.RawQuery = query.Encode()
+	baseUrl.RawQuery = query.Encode()
+
+	orgID := alert.Annotations[models.OrgIDAnnotation]
 	if len(orgID) > 0 {
-		extended.SilenceURL = setOrgIDQueryParam(u, orgID)
-	} else {
-		extended.SilenceURL = u.String()
+		_ = setOrgIDQueryParam(&baseUrl, orgID)
 	}
-	return extended
+
+	return baseUrl.String()
 }
 
 func setOrgIDQueryParam(url *url.URL, orgID string) string {
