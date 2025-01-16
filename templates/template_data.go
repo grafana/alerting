@@ -230,6 +230,7 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	return extended
 }
 
+// generateSilenceURL generates a URL to silence the given alert in Grafana.
 func generateSilenceURL(alert template.Alert, baseURL url.URL, externalPath string) string {
 	baseURL.Path = path.Join(externalPath, "/alerting/silence/new")
 
