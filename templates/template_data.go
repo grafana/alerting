@@ -176,41 +176,25 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	if len(externalURL) == 0 {
 		return extended
 	}
-	u, err := url.Parse(externalURL)
+	baseURL, err := url.Parse(externalURL)
 	if err != nil {
 		level.Debug(logger).Log("msg", "failed to parse external URL while extending template data", "url", externalURL, "error", err.Error())
 		return extended
 	}
-	externalPath := u.Path
 
-	generatorURL, err := url.Parse(extended.GeneratorURL)
-	if err != nil {
+	if generatorURL, err := url.Parse(extended.GeneratorURL); err != nil {
 		level.Debug(logger).Log("msg", "failed to parse generator URL while extending template data", "url", extended.GeneratorURL, "error", err.Error())
 		return extended
+	} else if orgID := alert.Annotations[models.OrgIDAnnotation]; len(orgID) > 0 {
+		// Refactor note: We only modify the URL if there is something to add. Otherwise, the original string is kept.
+		setQueryParam(generatorURL, "orgId", orgID)
+		extended.GeneratorURL = generatorURL.String()
 	}
 
-	orgID := alert.Annotations[models.OrgIDAnnotation]
-	if len(orgID) > 0 {
-		extended.GeneratorURL = setOrgIDQueryParam(generatorURL, orgID)
-	}
-
-	dashboardUID := alert.Annotations[models.DashboardUIDAnnotation]
-	if len(dashboardUID) > 0 {
-		u.Path = path.Join(externalPath, "/d/", dashboardUID)
-		extended.DashboardURL = u.String()
-		panelID := alert.Annotations[models.PanelIDAnnotation]
-		if len(panelID) > 0 {
-			u.RawQuery = "viewPanel=" + panelID
-			extended.PanelURL = u.String()
-		}
-		dashboardURL, err := url.Parse(extended.DashboardURL)
-		if err != nil {
-			level.Debug(logger).Log("msg", "failed to parse dashboard URL while extending template data", "url", extended.DashboardURL, "error", err.Error())
-			return extended
-		}
-		if len(orgID) > 0 {
-			extended.DashboardURL = setOrgIDQueryParam(dashboardURL, orgID)
-			extended.PanelURL = setOrgIDQueryParam(u, orgID)
+	if dashboardURL := generateDashboardURL(alert, *baseURL); dashboardURL != nil {
+		extended.DashboardURL = dashboardURL.String()
+		if panelURL := generatePanelURL(alert, *dashboardURL); panelURL != nil {
+			extended.PanelURL = panelURL.String()
 		}
 	}
 
@@ -225,16 +209,45 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		extended.ValueString = alert.Annotations[models.ValueStringAnnotation]
 	}
 
-	extended.SilenceURL = generateSilenceURL(alert, *u, externalPath)
+	if silenceURL := generateSilenceURL(alert, *baseURL); silenceURL != nil {
+		extended.SilenceURL = silenceURL.String()
+	}
 
 	return extended
 }
 
-// generateSilenceURL generates a URL to silence the given alert in Grafana.
-func generateSilenceURL(alert template.Alert, baseURL url.URL, externalPath string) string {
-	baseURL.Path = path.Join(externalPath, "/alerting/silence/new")
+// generateDashboardURL generates a URL to the attached dashboard for the given alert in Grafana. Returns a new URL.
+func generateDashboardURL(alert template.Alert, baseURL url.URL) *url.URL {
+	dashboardUID := alert.Annotations[models.DashboardUIDAnnotation]
+	if dashboardUID == "" {
+		return nil
+	}
+	dashboardURL := baseURL.JoinPath("/d/", dashboardUID)
 
-	query := make(url.Values)
+	orgID := alert.Annotations[models.OrgIDAnnotation]
+	if len(orgID) > 0 {
+		setQueryParam(dashboardURL, "orgId", orgID)
+	}
+
+	return dashboardURL
+}
+
+// generatePanelURL generates a URL to the attached dashboard panel for a given alert in Grafana. Returns a new URL.
+func generatePanelURL(alert template.Alert, dashboardURL url.URL) *url.URL {
+	panelID := alert.Annotations[models.PanelIDAnnotation]
+	if panelID == "" {
+		return nil
+	}
+	setQueryParam(&dashboardURL, "viewPanel", panelID)
+
+	return &dashboardURL
+}
+
+// generateSilenceURL generates a URL to silence the given alert in Grafana. Returns a new URL.
+func generateSilenceURL(alert template.Alert, baseURL url.URL) *url.URL {
+	silenceURL := baseURL.JoinPath("/alerting/silence/new")
+
+	query := silenceURL.Query()
 	query.Add("alertmanager", "grafana")
 
 	ruleUID := alert.Labels[models.RuleUIDLabel]
@@ -256,22 +269,21 @@ func generateSilenceURL(alert template.Alert, baseURL url.URL, externalPath stri
 		query.Add("matcher", pair.Name+"="+pair.Value)
 	}
 
-	baseURL.RawQuery = query.Encode()
-
 	orgID := alert.Annotations[models.OrgIDAnnotation]
 	if len(orgID) > 0 {
-		_ = setOrgIDQueryParam(&baseURL, orgID)
+		query.Set("orgId", orgID)
 	}
 
-	return baseURL.String()
+	silenceURL.RawQuery = query.Encode()
+
+	return silenceURL
 }
 
-func setOrgIDQueryParam(url *url.URL, orgID string) string {
+// setQueryParam sets the query parameter key to value in the given URL. Modifies the URL in place.
+func setQueryParam(url *url.URL, key, value string) {
 	q := url.Query()
-	q.Set("orgId", orgID)
+	q.Set(key, value)
 	url.RawQuery = q.Encode()
-
-	return url.String()
 }
 
 func ExtendData(data *Data, logger log.Logger) *ExtendedData {
