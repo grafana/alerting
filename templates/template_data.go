@@ -172,30 +172,12 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		Fingerprint:  alert.Fingerprint,
 	}
 
-	// fill in some grafana-specific urls
-	if len(externalURL) == 0 {
-		return extended
-	}
-	baseURL, err := url.Parse(externalURL)
-	if err != nil {
-		level.Debug(logger).Log("msg", "failed to parse external URL while extending template data", "url", externalURL, "error", err.Error())
-		return extended
-	}
-
 	if generatorURL, err := url.Parse(extended.GeneratorURL); err != nil {
 		level.Debug(logger).Log("msg", "failed to parse generator URL while extending template data", "url", extended.GeneratorURL, "error", err.Error())
-		return extended
 	} else if orgID := alert.Annotations[models.OrgIDAnnotation]; len(orgID) > 0 {
 		// Refactor note: We only modify the URL if there is something to add. Otherwise, the original string is kept.
 		setQueryParam(generatorURL, "orgId", orgID)
 		extended.GeneratorURL = generatorURL.String()
-	}
-
-	if dashboardURL := generateDashboardURL(alert, *baseURL); dashboardURL != nil {
-		extended.DashboardURL = dashboardURL.String()
-		if panelURL := generatePanelURL(alert, *dashboardURL); panelURL != nil {
-			extended.PanelURL = panelURL.String()
-		}
 	}
 
 	if alert.Annotations != nil {
@@ -209,6 +191,22 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		extended.ValueString = alert.Annotations[models.ValueStringAnnotation]
 	}
 
+	// fill in some grafana-specific urls
+	if len(externalURL) == 0 {
+		return extended
+	}
+	baseURL, err := url.Parse(externalURL)
+	if err != nil {
+		level.Debug(logger).Log("msg", "failed to parse external URL while extending template data", "url", externalURL, "error", err.Error())
+		return extended
+	}
+
+	if dashboardURL := generateDashboardURL(alert, *baseURL); dashboardURL != nil {
+		extended.DashboardURL = dashboardURL.String()
+		if panelURL := generatePanelURL(alert, *dashboardURL); panelURL != nil {
+			extended.PanelURL = panelURL.String()
+		}
+	}
 	if silenceURL := generateSilenceURL(alert, *baseURL); silenceURL != nil {
 		extended.SilenceURL = silenceURL.String()
 	}
