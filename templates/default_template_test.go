@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/grafana/alerting/models"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
@@ -20,8 +21,10 @@ func TestDefaultTemplateString(t *testing.T) {
 		{ // Firing with dashboard and panel ID.
 			Alert: model.Alert{
 				Labels: model.LabelSet{
-					"alertname": "alert1",
-					"lbl1":      "val1",
+					"alertname":             "alert1",
+					"lbl1":                  "val1",
+					models.FolderTitleLabel: "folder1",
+					models.RuleUIDLabel:     "ruleuid1",
 				},
 				Annotations: model.LabelSet{
 					"ann1":             "annv1",
@@ -38,8 +41,9 @@ func TestDefaultTemplateString(t *testing.T) {
 		}, { // Firing without dashboard and panel ID.
 			Alert: model.Alert{
 				Labels: model.LabelSet{
-					"alertname": "alert1",
-					"lbl1":      "val2",
+					"alertname":         "alert1",
+					"lbl1":              "val2",
+					models.RuleUIDLabel: "ruleuid1", // No folder available.
 				},
 				Annotations: model.LabelSet{
 					"ann1":             "annv2",
@@ -53,8 +57,9 @@ func TestDefaultTemplateString(t *testing.T) {
 		}, { // Firing with OrgID and without dashboard and panel ID.
 			Alert: model.Alert{
 				Labels: model.LabelSet{
-					"alertname": "alert1",
-					"lbl1":      "val3",
+					"alertname":             "alert1",
+					"lbl1":                  "val3",
+					models.FolderTitleLabel: "folder1",
 				},
 				Annotations: model.LabelSet{
 					"ann1":             "annv3",
@@ -157,11 +162,12 @@ func TestDefaultTemplateString(t *testing.T) {
 Value: A=1234
 Labels:
  - alertname = alert1
+ - grafana_folder = folder1
  - lbl1 = val1
 Annotations:
  - ann1 = annv1
 Source: http://localhost/alert1?orgId=1
-Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1
+Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Druleuid1&matcher=lbl1%3Dval1&orgId=1
 Dashboard: http://localhost/grafana/d/dbuid123?orgId=1
 Panel: http://localhost/grafana/d/dbuid123?orgId=1&viewPanel=puid123
 
@@ -172,16 +178,17 @@ Labels:
 Annotations:
  - ann1 = annv2
 Source: http://localhost/alert2
-Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2
+Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Druleuid1&matcher=lbl1%3Dval2
 
 Value: A=1234
 Labels:
  - alertname = alert1
+ - grafana_folder = folder1
  - lbl1 = val3
 Annotations:
  - ann1 = annv3
 Source: http://localhost/alert3?orgId=1
-Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval3&orgId=1
+Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=grafana_folder%3Dfolder1&matcher=lbl1%3Dval3&orgId=1
 
 
 **Resolved**
@@ -223,6 +230,7 @@ Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matc
 Value: A=1234
 Labels:
  - alertname = alert1
+ - grafana_folder = folder1
  - lbl1 = val1
 
 Annotations:
@@ -230,7 +238,7 @@ Annotations:
 
 Source: [http://localhost/alert1?orgId=1](http://localhost/alert1?orgId=1)
 
-Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1)
+Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Druleuid1&matcher=lbl1%3Dval1&orgId=1](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Druleuid1&matcher=lbl1%3Dval1&orgId=1)
 
 Dashboard: [http://localhost/grafana/d/dbuid123?orgId=1](http://localhost/grafana/d/dbuid123?orgId=1)
 
@@ -248,13 +256,14 @@ Annotations:
 
 Source: [http://localhost/alert2](http://localhost/alert2)
 
-Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2)
+Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Druleuid1&matcher=lbl1%3Dval2](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Druleuid1&matcher=lbl1%3Dval2)
 
 
 
 Value: A=1234
 Labels:
  - alertname = alert1
+ - grafana_folder = folder1
  - lbl1 = val3
 
 Annotations:
@@ -262,7 +271,7 @@ Annotations:
 
 Source: [http://localhost/alert3?orgId=1](http://localhost/alert3?orgId=1)
 
-Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval3&orgId=1](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval3&orgId=1)
+Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=grafana_folder%3Dfolder1&matcher=lbl1%3Dval3&orgId=1](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=grafana_folder%3Dfolder1&matcher=lbl1%3Dval3&orgId=1)
 
 
 
