@@ -173,7 +173,7 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	}
 
 	if generatorURL, err := url.Parse(extended.GeneratorURL); err != nil {
-		level.Debug(logger).Log("msg", "failed to parse generator URL while extending template data", "url", extended.GeneratorURL, "error", err.Error())
+		level.Warn(logger).Log("msg", "failed to parse generator URL while extending template data", "url", extended.GeneratorURL, "error", err.Error())
 	} else if orgID := alert.Annotations[models.OrgIDAnnotation]; len(orgID) > 0 {
 		// Refactor note: We only modify the URL if there is something to add. Otherwise, the original string is kept.
 		setQueryParam(generatorURL, "orgId", orgID)
@@ -187,7 +187,7 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 			}
 		}
 
-		// TODO: Remove in Grafana 10
+		// TODO: Remove in Grafana 12
 		extended.ValueString = alert.Annotations[models.ValueStringAnnotation]
 	}
 
@@ -197,7 +197,7 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 	}
 	baseURL, err := url.Parse(externalURL)
 	if err != nil {
-		level.Debug(logger).Log("msg", "failed to parse external URL while extending template data", "url", externalURL, "error", err.Error())
+		level.Warn(logger).Log("msg", "failed to parse external URL while extending template data", "url", externalURL, "error", err.Error())
 		return extended
 	}
 
