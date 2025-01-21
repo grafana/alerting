@@ -201,6 +201,11 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		return extended
 	}
 
+	orgID := alert.Annotations[models.OrgIDAnnotation]
+	if len(orgID) > 0 {
+		setQueryParam(baseURL, "orgId", orgID)
+	}
+
 	if dashboardURL := generateDashboardURL(alert, *baseURL); dashboardURL != nil {
 		extended.DashboardURL = dashboardURL.String()
 		if panelURL := generatePanelURL(alert, *dashboardURL); panelURL != nil {
@@ -220,14 +225,8 @@ func generateDashboardURL(alert template.Alert, baseURL url.URL) *url.URL {
 	if dashboardUID == "" {
 		return nil
 	}
-	dashboardURL := baseURL.JoinPath("/d/", dashboardUID)
 
-	orgID := alert.Annotations[models.OrgIDAnnotation]
-	if len(orgID) > 0 {
-		setQueryParam(dashboardURL, "orgId", orgID)
-	}
-
-	return dashboardURL
+	return baseURL.JoinPath("/d/", dashboardUID)
 }
 
 // generatePanelURL generates a URL to the attached dashboard panel for a given alert in Grafana. Returns a new URL.
@@ -265,11 +264,6 @@ func generateSilenceURL(alert template.Alert, baseURL url.URL) *url.URL {
 		}
 
 		query.Add("matcher", pair.Name+"="+pair.Value)
-	}
-
-	orgID := alert.Annotations[models.OrgIDAnnotation]
-	if len(orgID) > 0 {
-		query.Set("orgId", orgID)
 	}
 
 	silenceURL.RawQuery = query.Encode()
