@@ -36,8 +36,8 @@ import (
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/cluster"
-	"github.com/grafana/alerting/notify/experimental"
 	"github.com/grafana/alerting/notify/nfstatus"
+	"github.com/grafana/alerting/notify/pipeline"
 
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/templates"
@@ -899,7 +899,7 @@ func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*
 		s = append(s, notify.NewWaitStage(wait))
 		s = append(s, notify.NewDedupStage(integrations[i], notificationLog, recv))
 		if act == LogOnly || act == StopPipeline {
-			s = append(s, experimental.NewPipelineAndStateTimestampCoordinationStage(notificationLog, recv, act == StopPipeline))
+			s = append(s, pipeline.NewPipelineAndStateTimestampCoordinationStage(notificationLog, recv, act == StopPipeline))
 		}
 		s = append(s, notify.NewRetryStage(integrations[i], name, am.stageMetrics))
 		s = append(s, notify.NewSetNotifiesStage(notificationLog, recv))
