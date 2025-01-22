@@ -36,6 +36,7 @@ import (
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/cluster"
+	"github.com/grafana/alerting/notify/experimental"
 	"github.com/grafana/alerting/notify/nfstatus"
 
 	"github.com/grafana/alerting/models"
@@ -888,6 +889,7 @@ func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*
 		var s notify.MultiStage
 		s = append(s, notify.NewWaitStage(wait))
 		s = append(s, notify.NewDedupStage(integrations[i], notificationLog, recv))
+		s = append(s, experimental.NewPipelineAndStateTimestampCoordinationStage(notificationLog, recv, false))
 		s = append(s, notify.NewRetryStage(integrations[i], name, am.stageMetrics))
 		s = append(s, notify.NewSetNotifiesStage(notificationLog, recv))
 
