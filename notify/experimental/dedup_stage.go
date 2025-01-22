@@ -19,7 +19,7 @@ type PipelineAndStateTimestampCoordinationStage struct {
 	stopPipeline bool
 }
 
-func NewHaDedupStage(l notify.NotificationLog, recv *nflogpb.Receiver, drop bool) *PipelineAndStateTimestampCoordinationStage {
+func NewPipelineAndStateTimestampCoordinationStage(l notify.NotificationLog, recv *nflogpb.Receiver, drop bool) *PipelineAndStateTimestampCoordinationStage {
 	return &PipelineAndStateTimestampCoordinationStage{
 		nflog:        l,
 		recv:         recv,

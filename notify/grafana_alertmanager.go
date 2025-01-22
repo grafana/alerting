@@ -158,7 +158,16 @@ type Configuration interface {
 
 	Hash() [16]byte
 	Raw() []byte
+	PipelineAndSateTimestampsMismatchAction() PipelineAndSateTimestampsMismatchAction
 }
+
+type PipelineAndSateTimestampsMismatchAction string
+
+var (
+	Disabled     PipelineAndSateTimestampsMismatchAction = "disabled"
+	LogOnly      PipelineAndSateTimestampsMismatchAction = "log-only"
+	StopPipeline PipelineAndSateTimestampsMismatchAction = "stop-pipeline"
+)
 
 type Limits struct {
 	MaxSilences         int
@@ -711,7 +720,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	var receivers []*nfstatus.Receiver
 	activeReceivers := GetActiveReceiversMap(am.route)
 	for name := range integrationsMap {
-		stage := am.createReceiverStage(name, nfstatus.GetIntegrations(integrationsMap[name]), am.waitFunc, am.notificationLog)
+		stage := am.createReceiverStage(name, nfstatus.GetIntegrations(integrationsMap[name]), am.waitFunc, am.notificationLog, cfg.PipelineAndSateTimestampsMismatchAction())
 		routingStage[name] = notify.MultiStage{meshStage, silencingStage, timeMuteStage, inhibitionStage, stage}
 		_, isActive := activeReceivers[name]
 
@@ -878,7 +887,7 @@ func (e AlertValidationError) Error() string {
 }
 
 // createReceiverStage creates a pipeline of stages for a receiver.
-func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*notify.Integration, wait func() time.Duration, notificationLog notify.NotificationLog) notify.Stage {
+func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*notify.Integration, wait func() time.Duration, notificationLog notify.NotificationLog, act PipelineAndSateTimestampsMismatchAction) notify.Stage {
 	var fs notify.FanoutStage
 	for i := range integrations {
 		recv := &nflogpb.Receiver{
@@ -889,7 +898,9 @@ func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*
 		var s notify.MultiStage
 		s = append(s, notify.NewWaitStage(wait))
 		s = append(s, notify.NewDedupStage(integrations[i], notificationLog, recv))
-		s = append(s, experimental.NewPipelineAndStateTimestampCoordinationStage(notificationLog, recv, false))
+		if act == LogOnly || act == StopPipeline {
+			s = append(s, experimental.NewPipelineAndStateTimestampCoordinationStage(notificationLog, recv, act == StopPipeline))
+		}
 		s = append(s, notify.NewRetryStage(integrations[i], name, am.stageMetrics))
 		s = append(s, notify.NewSetNotifiesStage(notificationLog, recv))
 
