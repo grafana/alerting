@@ -13,17 +13,36 @@ import (
 	"github.com/prometheus/alertmanager/types"
 )
 
+type Action string
+
+const (
+	Disabled     Action = "disabled"
+	LogOnly      Action = "log-only"
+	StopPipeline Action = "stop-pipeline"
+)
+
 type PipelineAndStateTimestampCoordinationStage struct {
 	nflog        notify.NotificationLog
 	recv         *nflogpb.Receiver
 	stopPipeline bool
 }
 
-func NewPipelineAndStateTimestampCoordinationStage(l notify.NotificationLog, recv *nflogpb.Receiver, drop bool) *PipelineAndStateTimestampCoordinationStage {
+func NewPipelineAndStateTimestampCoordinationStage(l notify.NotificationLog, recv *nflogpb.Receiver, action Action) *PipelineAndStateTimestampCoordinationStage {
+	var stop bool
+	switch action {
+	case LogOnly:
+		stop = false
+		break
+	case StopPipeline:
+		stop = true
+		break
+	default:
+		return nil
+	}
 	return &PipelineAndStateTimestampCoordinationStage{
 		nflog:        l,
 		recv:         recv,
-		stopPipeline: drop,
+		stopPipeline: stop,
 	}
 }
 
