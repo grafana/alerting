@@ -37,7 +37,7 @@ import (
 
 	"github.com/grafana/alerting/cluster"
 	"github.com/grafana/alerting/notify/nfstatus"
-	"github.com/grafana/alerting/notify/pipeline"
+	"github.com/grafana/alerting/notify/stages"
 
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/templates"
@@ -110,7 +110,7 @@ type GrafanaAlertmanager struct {
 	// templates contains the template name -> template contents for each user-defined template.
 	templates []templates.TemplateDefinition
 	// controls whether instance runs pipeline.PipelineAndStateTimestampCoordinationStage and in what mode. The stage is run after notify.DedupStage
-	pipelineAndStateTimestampsMismatchAction pipeline.Action
+	pipelineAndStateTimestampsMismatchAction stages.Action
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -178,7 +178,7 @@ type GrafanaAlertmanagerConfig struct {
 	Limits Limits
 
 	// PipelineAndStateTimestampsMismatchAction defines the action to take when there's a mismatch in pipeline and state timestamps.
-	PipelineAndStateTimestampsMismatchAction pipeline.Action
+	PipelineAndStateTimestampsMismatchAction stages.Action
 }
 
 func (c *GrafanaAlertmanagerConfig) Validate() error {
@@ -884,7 +884,7 @@ func (e AlertValidationError) Error() string {
 }
 
 // createReceiverStage creates a pipeline of stages for a receiver.
-func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*notify.Integration, wait func() time.Duration, notificationLog notify.NotificationLog, act pipeline.Action) notify.Stage {
+func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*notify.Integration, wait func() time.Duration, notificationLog notify.NotificationLog, act stages.Action) notify.Stage {
 	var fs notify.FanoutStage
 	for i := range integrations {
 		recv := &nflogpb.Receiver{
@@ -895,7 +895,7 @@ func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*
 		var s notify.MultiStage
 		s = append(s, notify.NewWaitStage(wait))
 		s = append(s, notify.NewDedupStage(integrations[i], notificationLog, recv))
-		stage := pipeline.NewPipelineAndStateTimestampCoordinationStage(notificationLog, recv, act)
+		stage := stages.NewPipelineAndStateTimestampCoordinationStage(notificationLog, recv, act)
 		if stage != nil {
 			s = append(s, stage)
 		}
