@@ -100,7 +100,7 @@ type testNflog struct {
 	logFunc func(r *nflogpb.Receiver, gkey string, firingAlerts, resolvedAlerts []uint64, expiry time.Duration) error
 }
 
-func (l *testNflog) Query(p ...nflog.QueryParam) ([]*nflogpb.Entry, error) {
+func (l *testNflog) Query(_ ...nflog.QueryParam) ([]*nflogpb.Entry, error) {
 	return l.qres, l.qerr
 }
 

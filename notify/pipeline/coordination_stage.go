@@ -32,10 +32,8 @@ func NewPipelineAndStateTimestampCoordinationStage(l notify.NotificationLog, rec
 	switch action {
 	case LogOnly:
 		stop = false
-		break
 	case StopPipeline:
 		stop = true
-		break
 	default:
 		return nil
 	}
