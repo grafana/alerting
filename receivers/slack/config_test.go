@@ -54,6 +54,7 @@ func TestNewConfig(t *testing.T) {
 				MentionChannel: "",
 				MentionUsers:   nil,
 				MentionGroups:  nil,
+				Color:          templates.DefaultMessageColor,
 			},
 		},
 		{
@@ -75,6 +76,7 @@ func TestNewConfig(t *testing.T) {
 				MentionChannel: "",
 				MentionUsers:   nil,
 				MentionGroups:  nil,
+				Color:          templates.DefaultMessageColor,
 			},
 		},
 		{
@@ -93,6 +95,7 @@ func TestNewConfig(t *testing.T) {
 				MentionChannel: "",
 				MentionUsers:   nil,
 				MentionGroups:  nil,
+				Color:          templates.DefaultMessageColor,
 			},
 		},
 		{
@@ -114,6 +117,7 @@ func TestNewConfig(t *testing.T) {
 				MentionChannel: "",
 				MentionUsers:   nil,
 				MentionGroups:  nil,
+				Color:          templates.DefaultMessageColor,
 			},
 		},
 		{
@@ -149,6 +153,7 @@ func TestNewConfig(t *testing.T) {
 				MentionChannel: "",
 				MentionUsers:   nil,
 				MentionGroups:  nil,
+				Color:          templates.DefaultMessageColor,
 			},
 		},
 		{
@@ -178,6 +183,7 @@ func TestNewConfig(t *testing.T) {
 				MentionChannel: "here",
 				MentionUsers:   nil,
 				MentionGroups:  nil,
+				Color:          templates.DefaultMessageColor,
 			},
 		},
 		{
@@ -199,6 +205,7 @@ func TestNewConfig(t *testing.T) {
 				MentionChannel: "channel",
 				MentionUsers:   nil,
 				MentionGroups:  nil,
+				Color:          templates.DefaultMessageColor,
 			},
 		},
 		{
@@ -224,6 +231,7 @@ func TestNewConfig(t *testing.T) {
 					"user-3",
 				},
 				MentionGroups: nil,
+				Color:         templates.DefaultMessageColor,
 			},
 		},
 		{
@@ -249,6 +257,29 @@ func TestNewConfig(t *testing.T) {
 					"users-2",
 					"users-3",
 				},
+				Color: templates.DefaultMessageColor,
+			},
+		},
+		{
+			name:     "Should parse color",
+			settings: `{ "recipient" : "test-recipient" , "color": "{{ if eq .Status \"firing\" }}#33a2ff{{ else }}#36a64f{{ end }}"}`,
+			secureSettings: map[string][]byte{
+				"token": []byte("test-token"),
+			},
+			expectedConfig: Config{
+				EndpointURL:    APIURL,
+				URL:            APIURL,
+				Token:          "test-token",
+				Recipient:      "test-recipient",
+				Text:           templates.DefaultMessageEmbed,
+				Title:          templates.DefaultMessageTitleEmbed,
+				Username:       "Grafana",
+				IconEmoji:      "",
+				IconURL:        "",
+				MentionChannel: "",
+				MentionUsers:   nil,
+				MentionGroups:  nil,
+				Color:          `{{ if eq .Status "firing" }}#33a2ff{{ else }}#36a64f{{ end }}`,
 			},
 		},
 		{
@@ -267,6 +298,7 @@ func TestNewConfig(t *testing.T) {
 				MentionChannel: "channel",
 				MentionUsers:   []string{"test-mentionUsers"},
 				MentionGroups:  []string{"test-mentionGroups"},
+				Color:          "test-color",
 			},
 		},
 		{
@@ -286,6 +318,7 @@ func TestNewConfig(t *testing.T) {
 				MentionChannel: "channel",
 				MentionUsers:   []string{"test-mentionUsers"},
 				MentionGroups:  []string{"test-mentionGroups"},
+				Color:          "test-color",
 			},
 		},
 	}
