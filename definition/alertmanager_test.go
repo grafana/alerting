@@ -12,6 +12,7 @@ import (
 
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/pkg/labels"
+	"github.com/prometheus/common/model"
 )
 
 func Test_ApiReceiver_Marshaling(t *testing.T) {
@@ -1356,4 +1357,69 @@ func TestDecryptSecureSettings(t *testing.T) {
 			require.Equal(t, test.expSecureSettings, res)
 		})
 	}
+}
+
+// This test asserts that the correct normalization is applied when
+// decoding a JSON configuration containing inhibition rules. In
+// particular, it avoids regressions where EqualStr is not decoded
+// into Equal. See prometheus/alertmanager#4177.
+func TestInhibitRule_Unmarshal_JSON(t *testing.T) {
+	s := `{
+	"route": {
+		"receiver": "test"
+	},
+	"inhibit_rules": [{
+			"source_matchers": ["foo=bar"],
+			"target_matchers": ["bar=baz"],
+			"equal": ["qux", "corge"]
+	}]
+}`
+	var c Config
+	require.NoError(t, json.Unmarshal([]byte(s), &c))
+	require.Len(t, c.InhibitRules, 1)
+	r := c.InhibitRules[0]
+	require.Equal(t, config.Matchers{{
+		Name:  "foo",
+		Type:  labels.MatchEqual,
+		Value: "bar",
+	}}, r.SourceMatchers)
+	require.Equal(t, config.Matchers{{
+		Name:  "bar",
+		Type:  labels.MatchEqual,
+		Value: "baz",
+	}}, r.TargetMatchers)
+	require.Equal(t, model.LabelNames{"qux", "corge"}, r.Equal)
+	require.Equal(t, []string{"qux", "corge"}, r.EqualStr)
+}
+
+func TestInhibitRule_Unmarshal_YAML(t *testing.T) {
+	s := `
+route:
+  receiver: test
+inhibit_rules:
+- source_matchers:
+    - foo=bar
+  target_matchers:
+    - bar=baz
+  equal:
+    - qux
+    - corge
+`
+	var c Config
+	require.NoError(t, yaml.Unmarshal([]byte(s), &c))
+	require.Len(t, c.InhibitRules, 1)
+	r := c.InhibitRules[0]
+	t.Log(r)
+	require.Equal(t, config.Matchers{{
+		Name:  "foo",
+		Type:  labels.MatchEqual,
+		Value: "bar",
+	}}, r.SourceMatchers)
+	require.Equal(t, config.Matchers{{
+		Name:  "bar",
+		Type:  labels.MatchEqual,
+		Value: "baz",
+	}}, r.TargetMatchers)
+	require.Equal(t, model.LabelNames{"qux", "corge"}, r.Equal)
+	require.Equal(t, []string{"qux", "corge"}, r.EqualStr)
 }
