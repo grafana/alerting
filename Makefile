@@ -1,6 +1,19 @@
 # Put tools at the root of the folder.
 PATH := $(CURDIR)/.tools/bin:$(PATH)
 
+integration-tests: ## Run all integration tests.
+	## Pull the required Docker images outside the test run, as it can be slow.
+	go run tools/setup_integration_test_images.go
+	go test -timeout 20m -tags=requires_docker ./integration/...
+
+integration-tests-matrix: ## Run integration tests against all supported Grafana versions.
+	## Pull the required Docker images outside the test run, as it can be slow.
+	@for version in instant fast steady slow; do \
+		echo Running integration tests against "$${version}" Grafana version; \
+		GRAFANA_VERSION=$${version} go run tools/setup_integration_test_images.go; \
+		GRAFANA_VERSION=$${version} go test -tags=requires_docker ./integration/...; \
+	done
+
 .PHONY: clean
 clean:
 	@# go mod makes the modules read-only, so before deletion we need to make them deleteable
