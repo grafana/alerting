@@ -1,12 +1,11 @@
 package integration
 
 import (
-	"bytes"
 	_ "embed"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/grafana/e2e"
 )
@@ -53,8 +52,20 @@ func NewWebhookClient(u string) (*WebhookClient, error) {
 	}, nil
 }
 
+type GetAlertsResponse struct {
+	Stats   map[string]int `json:"stats"`
+	History []struct {
+		Status            string    `json:"status"`
+		TimeNow           time.Time `json:"timeNow"`
+		StartsAt          time.Time `json:"startsAt"`
+		Node              string    `json:"node"`
+		DeltaLastSeconds  float64   `json:"deltaLastSeconds"`
+		DeltaStartSeconds float64   `json:"deltaStartSeconds"`
+	} `json:"history"`
+}
+
 // GetAlerts fetches the alerts from the webhook server
-func (c *WebhookClient) GetAlerts() (map[string]any, error) {
+func (c *WebhookClient) GetAlerts() (*GetAlertsResponse, error) {
 	u := c.u.ResolveReference(&url.URL{Path: "/alerts"})
 
 	resp, err := c.c.Get(u.String())
@@ -63,34 +74,12 @@ func (c *WebhookClient) GetAlerts() (map[string]any, error) {
 	}
 	defer resp.Body.Close()
 
-	res := make(map[string]any)
+	res := GetAlertsResponse{}
 
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
 		return nil, err
 	}
 
-	return res, nil
-}
-
-// CreateAlert creates a new alert
-func (c *WebhookClient) CreateAlert(a map[string]any) error {
-	u := c.u.ResolveReference(&url.URL{Path: "/alert"})
-
-	d, err := json.Marshal(a)
-	if err != nil {
-		return err
-	}
-
-	resp, err := c.c.Post(u.String(), "application/json", bytes.NewReader(d))
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	return nil
+	return &res, nil
 }

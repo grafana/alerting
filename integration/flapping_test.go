@@ -33,6 +33,9 @@ func TestFlappingAlerts(t *testing.T) {
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
 
+	// notifications only start arriving after 2 to 3 minutes so we wait for that
+	time.Sleep(time.Minute * 2)
+
 	for {
 		select {
 		case <-ticker.C:
@@ -52,6 +55,7 @@ func TestFlappingAlerts(t *testing.T) {
 			fmt.Println()
 
 		case <-timeout:
+			t.Error("test timedout")
 			t.FailNow()
 		}
 	}

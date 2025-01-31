@@ -53,8 +53,6 @@ type Alert struct {
 }
 
 type NotificationHandler struct {
-	// ns    map[string]map[string][]Notification
-	// ag    map[string][]string
 	startedAt time.Time
 	stats     map[string]int
 	hist      []Event
@@ -63,8 +61,6 @@ type NotificationHandler struct {
 
 func NewNotificationHandler() *NotificationHandler {
 	return &NotificationHandler{
-		// ns:    make(map[string]map[string][]Notification, 0),
-		// ag:    make(map[string][]string, 0),
 		startedAt: time.Now(),
 		stats:     make(map[string]int),
 		hist:      make([]Event, 0),
