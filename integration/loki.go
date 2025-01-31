@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/grafana/e2e"
@@ -109,10 +110,11 @@ type AlertStateResponse struct {
 
 // GetCurrentAlertState fetches the current alert state from loki
 func (c *LokiClient) GetCurrentAlertState() (*AlertStateResponse, error) {
-	u := c.u.ResolveReference(&url.URL{Path: "/loki/api/v1/query"})
+	u := c.u.ResolveReference(&url.URL{Path: "/loki/api/v1/query_range"})
 
 	vs := url.Values{}
 	vs.Add("query", `{from="state-history"} | json`)
+	vs.Add("since", "60s")
 
 	u.RawQuery = vs.Encode()
 
@@ -137,13 +139,13 @@ func (c *LokiClient) GetCurrentAlertState() (*AlertStateResponse, error) {
 	}
 
 	r := res.Data.Result[0]
-	ts, err := time.Parse(time.UnixDate, r.Values[0][0])
+	it, err := strconv.ParseInt(r.Values[0][0], 10, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse timestamp: %v", err)
 	}
 
 	return &AlertStateResponse{
 		State:     AlertState(r.Stream.Current),
-		Timestamp: ts,
+		Timestamp: time.Unix(0, it),
 	}, nil
 }
