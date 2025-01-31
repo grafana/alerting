@@ -13,6 +13,8 @@ require (
 	github.com/go-kit/log v0.2.1
 	github.com/go-openapi/strfmt v0.22.0
 	github.com/google/go-cmp v0.6.0
+	github.com/grafana/e2e v0.1.1
+	github.com/grafana/grafana-api-golang-client v0.27.0
 	github.com/matttproud/golang_protobuf_extensions v1.0.4
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/alertmanager v0.25.0
@@ -53,8 +55,6 @@ require (
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/uuid v1.5.0 // indirect
 	github.com/grafana/dskit v0.0.0-20230914143233-4b32fbf08128 // indirect
-	github.com/grafana/e2e v0.1.1 // indirect
-	github.com/grafana/grafana-api-golang-client v0.27.0 // indirect
 	github.com/grafana/regexp v0.0.0-20221122212121-6b5c0a4cb7fd // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
