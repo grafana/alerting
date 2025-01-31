@@ -112,7 +112,7 @@ func (ah *NotificationHandler) Notify(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (ah *NotificationHandler) GetNotifications(w http.ResponseWriter, r *http.Request) {
+func (ah *NotificationHandler) GetNotifications(w http.ResponseWriter, _ *http.Request) {
 	ah.m.Lock()
 	defer ah.m.Unlock()
 	w.Header().Set("Content-Type", "application/json")
@@ -120,6 +120,7 @@ func (ah *NotificationHandler) GetNotifications(w http.ResponseWriter, r *http.R
 	res, err := json.MarshalIndent(map[string]any{"stats": ah.stats, "history": ah.hist}, "", "\t")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
+		//nolint:errcheck
 		w.Write([]byte(`{"error":"failed to marshal alerts"}`))
 		fmt.Printf("failed to marshal alerts: %v\n", err)
 		return
@@ -136,7 +137,7 @@ func (ah *NotificationHandler) GetNotifications(w http.ResponseWriter, r *http.R
 func main() {
 	ah := NewNotificationHandler()
 
-	http.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/ready", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -144,5 +145,6 @@ func main() {
 	http.HandleFunc("/notifications", ah.GetNotifications)
 
 	log.Println("Listening")
+	//nolint:errcheck
 	http.ListenAndServe("0.0.0.0:8080", nil)
 }

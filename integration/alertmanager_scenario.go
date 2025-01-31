@@ -12,10 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	runtimeConfigFilename = "runtime_config.yaml"
-)
-
 type alertRuleConfig struct {
 	pendingPeriod                  string
 	groupEvaluationIntervalSeconds int64
@@ -320,7 +316,7 @@ func (s *AlertmanagerScenario) NewLokiService(name string) *LokiService {
 }
 
 func (s *AlertmanagerScenario) NewPostgresService(name string) *PostgresService {
-	ps := NewPostgresService(name, nil, map[string]string{"POSTGRES_PASSWORD": "password", "POSTGRES_DB": "grafana"})
+	ps := NewPostgresService(name, map[string]string{"POSTGRES_PASSWORD": "password", "POSTGRES_DB": "grafana"})
 	s.Postgres = ps
 
 	return ps

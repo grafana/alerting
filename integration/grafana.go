@@ -12,7 +12,7 @@ import (
 )
 
 //go:embed grafana-versions.yaml
-var grafanaVersionsJson []byte
+var grafanaVersionsJSON []byte
 
 const (
 	defaultGrafanaImage = "grafana/grafana-enterprise-dev:10.1.0-58862pre"
@@ -28,7 +28,7 @@ func GetGrafanaImage() string {
 
 	if version := os.Getenv("GRAFANA_VERSION"); version != "" {
 		var versions map[string]string
-		if err := yaml.Unmarshal(grafanaVersionsJson, &versions); err != nil {
+		if err := yaml.Unmarshal(grafanaVersionsJSON, &versions); err != nil {
 			panic(err)
 		}
 

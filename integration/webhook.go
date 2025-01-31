@@ -1,7 +1,6 @@
 package integration
 
 import (
-	_ "embed"
 	"encoding/json"
 	"net/http"
 	"net/url"

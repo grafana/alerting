@@ -1,7 +1,6 @@
 package integration
 
 import (
-	_ "embed"
 	"os"
 
 	"github.com/grafana/e2e"
@@ -26,7 +25,7 @@ type PostgresService struct {
 	*e2e.HTTPService
 }
 
-func NewPostgresService(name string, flags, envVars map[string]string) *PostgresService {
+func NewPostgresService(name string, envVars map[string]string) *PostgresService {
 	svc := &PostgresService{
 		HTTPService: e2e.NewHTTPService(
 			name,
