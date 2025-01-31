@@ -107,7 +107,7 @@ func (s *AlertmanagerScenario) Provision(t *testing.T, cfg provisionCfg) { //}*G
 		Name: "webhook",
 		Type: "webhook",
 		Settings: map[string]any{
-			"url": "http://webhook:8080/alert",
+			"url": "http://webhook:8080/notify",
 		},
 	})
 	require.NoError(t, err)

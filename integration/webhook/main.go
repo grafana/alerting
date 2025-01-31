@@ -67,7 +67,7 @@ func NewNotificationHandler() *NotificationHandler {
 	}
 }
 
-func (ah *NotificationHandler) AddNotification(w http.ResponseWriter, r *http.Request) {
+func (ah *NotificationHandler) Notify(w http.ResponseWriter, r *http.Request) {
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Println(err)
@@ -112,7 +112,7 @@ func (ah *NotificationHandler) AddNotification(w http.ResponseWriter, r *http.Re
 	})
 }
 
-func (ah *NotificationHandler) GetAlerts(w http.ResponseWriter, r *http.Request) {
+func (ah *NotificationHandler) GetNotifications(w http.ResponseWriter, r *http.Request) {
 	ah.m.Lock()
 	defer ah.m.Unlock()
 	w.Header().Set("Content-Type", "application/json")
@@ -140,8 +140,8 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	http.HandleFunc("/alert", ah.AddNotification)
-	http.HandleFunc("/alerts", ah.GetAlerts)
+	http.HandleFunc("/notify", ah.Notify)
+	http.HandleFunc("/notifications", ah.GetNotifications)
 
 	log.Println("Listening")
 	http.ListenAndServe("0.0.0.0:8080", nil)

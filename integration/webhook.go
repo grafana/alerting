@@ -52,7 +52,7 @@ func NewWebhookClient(u string) (*WebhookClient, error) {
 	}, nil
 }
 
-type GetAlertsResponse struct {
+type GetNotificationsResponse struct {
 	Stats   map[string]int `json:"stats"`
 	History []struct {
 		Status            string    `json:"status"`
@@ -64,9 +64,9 @@ type GetAlertsResponse struct {
 	} `json:"history"`
 }
 
-// GetAlerts fetches the alerts from the webhook server
-func (c *WebhookClient) GetAlerts() (*GetAlertsResponse, error) {
-	u := c.u.ResolveReference(&url.URL{Path: "/alerts"})
+// GetNotifications fetches notifications from the webhook server
+func (c *WebhookClient) GetNotifications() (*GetNotificationsResponse, error) {
+	u := c.u.ResolveReference(&url.URL{Path: "/notifications"})
 
 	resp, err := c.c.Get(u.String())
 	if err != nil {
@@ -74,7 +74,7 @@ func (c *WebhookClient) GetAlerts() (*GetAlertsResponse, error) {
 	}
 	defer resp.Body.Close()
 
-	res := GetAlertsResponse{}
+	res := GetNotificationsResponse{}
 
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {

@@ -42,7 +42,7 @@ func TestFlappingAlerts(t *testing.T) {
 	for {
 		select {
 		case <-ticker.C:
-			ar, err := wc.GetAlerts()
+			ar, err := wc.GetNotifications()
 			if err != nil {
 				fmt.Printf("failed to get alert notifications: %v\n", err)
 				continue
