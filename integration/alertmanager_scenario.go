@@ -263,7 +263,7 @@ func (s *AlertmanagerScenario) NewGrafanaService(name string, peers []string, pe
 	flags := map[string]string{}
 	envVars := map[string]string{
 		"GF_LOG_MODE":                                       "file", // disable console logging
-		"GF_FEATURE_TOGGLES_ENABLE":                         "alertStateHistoryLokiSecondary,alertStateHistoryLokiPrimary,alertStateHistoryLokiOnly",
+		"GF_FEATURE_TOGGLES_ENABLE":                         "alertStateHistoryLokiSecondary,alertStateHistoryLokiPrimary,alertStateHistoryLokiOnly,alertingAlertmanagerExtraDedupStage,alertingAlertmanagerExtraDedupStageStopPipeline",
 		"GF_UNIFIED_ALERTING_ENABLED":                       "true",
 		"GF_UNIFIED_ALERTING_EXECUTE_ALERTS":                "true",
 		"GF_UNIFIED_ALERTING_HA_PEER_TIMEOUT":               peerTimeout,
