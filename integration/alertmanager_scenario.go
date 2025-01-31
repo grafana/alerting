@@ -266,7 +266,7 @@ func (s *AlertmanagerScenario) Provision(t *testing.T, cfg provisionCfg) { //}*G
 func (s *AlertmanagerScenario) NewGrafanaService(name string, peers []string, peerTimeout string) *GrafanaService {
 	flags := map[string]string{}
 	envVars := map[string]string{
-		"GF_LOG_LEVEL":                                      "debug",
+		"GF_LOG_MODE":                                       "file", // disable console logging
 		"GF_FEATURE_TOGGLES_ENABLE":                         "alertStateHistoryLokiSecondary,alertStateHistoryLokiPrimary,alertStateHistoryLokiOnly",
 		"GF_UNIFIED_ALERTING_ENABLED":                       "true",
 		"GF_UNIFIED_ALERTING_EXECUTE_ALERTS":                "true",
