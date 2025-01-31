@@ -2,9 +2,12 @@ package integration
 
 import (
 	_ "embed"
+	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/grafana/e2e"
+	gapi "github.com/grafana/grafana-api-golang-client"
 	"gopkg.in/yaml.v3"
 )
 
@@ -58,4 +61,29 @@ func NewGrafanaService(name string, flags, envVars map[string]string) *GrafanaSe
 	svc.SetEnvVars(envVars)
 
 	return svc
+}
+
+type GrafanaClient struct {
+	*gapi.Client
+}
+
+// NewGrafanaClient creates a client for using the Grafana API. Note we don't bother
+// wrapping the client library, and just use it as-is, until we find a reason not to.
+func NewGrafanaClient(host string, orgID int64) (*GrafanaClient, error) {
+	cfg := gapi.Config{
+		BasicAuth: url.UserPassword("admin", "admin"),
+		OrgID:     orgID,
+		HTTPHeaders: map[string]string{
+			"X-Disable-Provenance": "true",
+		},
+	}
+
+	client, err := gapi.New(fmt.Sprintf("http://%s/", host), cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return &GrafanaClient{
+		Client: client,
+	}, nil
 }
