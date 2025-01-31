@@ -32,12 +32,12 @@ func TestFlappingAlerts(t *testing.T) {
 	lc, err := s.NewLokiClient()
 	require.NoError(t, err)
 
-	timeout := time.After(time.Minute * 10)
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-
 	// notifications only start arriving after 2 to 3 minutes so we wait for that
 	time.Sleep(time.Minute * 2)
+
+	timeout := time.After(30 * time.Minute)
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 
 	for {
 		select {
@@ -51,6 +51,7 @@ func TestFlappingAlerts(t *testing.T) {
 			st, err := lc.GetCurrentAlertState()
 			if err != nil {
 				fmt.Printf("failed to get alert notifications: %v\n", err)
+				fmt.Printf("failed to get alert state: %v\n", err)
 				continue
 			}
 
