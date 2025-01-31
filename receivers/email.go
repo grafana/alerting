@@ -1,16 +1,20 @@
 package receivers
 
-import "context"
+import (
+	"context"
+	"io"
+)
 
 // SendEmailSettings is the command for sending emails
 type SendEmailSettings struct {
-	To            []string
-	SingleEmail   bool
-	Template      string
-	Subject       string
-	Data          map[string]interface{}
-	ReplyTo       []string
-	EmbeddedFiles []string
+	To              []string
+	SingleEmail     bool
+	Template        string
+	Subject         string
+	Data            map[string]interface{}
+	ReplyTo         []string
+	EmbeddedFiles   []string
+	EmbeddedReaders map[string]io.Reader
 }
 
 type EmailSender interface {

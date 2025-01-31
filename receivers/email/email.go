@@ -2,6 +2,7 @@ package email
 
 import (
 	"context"
+	"io"
 	"net/url"
 	"os"
 	"path"
@@ -57,16 +58,25 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 	}
 
 	// Extend alerts data with images, if available.
-	var embeddedFiles []string
+	var embeddedFiles map[string]io.Reader
+	defer func() {
+		if embeddedFiles != nil {
+			for _, reader := range embeddedFiles {
+				if closer, ok := reader.(io.Closer); ok {
+					closer.Close()
+				}
+			}
+		}
+	}()
 	_ = images.WithStoredImages(ctx, en.log, en.images,
 		func(index int, image images.Image) error {
 			if len(image.URL) != 0 {
 				data.Alerts[index].ImageURL = image.URL
 			} else if len(image.Path) != 0 {
-				_, err := os.Stat(image.Path)
-				if err == nil {
-					data.Alerts[index].EmbeddedImage = filepath.Base(image.Path)
-					embeddedFiles = append(embeddedFiles, image.Path)
+				if f, err := openFile(image.Path); err == nil {
+					name := filepath.Base(image.Path)
+					data.Alerts[index].EmbeddedImage = name
+					embeddedFiles[name] = f
 				} else {
 					en.log.Warn("failed to get image file for email attachment", "file", image.Path, "error", err)
 				}
@@ -88,10 +98,10 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 			"RuleUrl":           ruleURL,
 			"AlertPageUrl":      alertPageURL,
 		},
-		EmbeddedFiles: embeddedFiles,
-		To:            en.settings.Addresses,
-		SingleEmail:   en.settings.SingleEmail,
-		Template:      "ng_alert_notification",
+		EmbeddedReaders: embeddedFiles,
+		To:              en.settings.Addresses,
+		SingleEmail:     en.settings.SingleEmail,
+		Template:        "ng_alert_notification",
 	}
 
 	if tmplErr != nil {
@@ -107,4 +117,12 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 
 func (en *Notifier) SendResolved() bool {
 	return !en.GetDisableResolveMessage()
+}
+
+func openFile(path string) (io.ReadCloser, error) {
+	_, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	return os.Open(path)
 }
