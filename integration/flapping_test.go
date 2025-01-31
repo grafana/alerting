@@ -54,10 +54,12 @@ func TestFlappingAlerts(t *testing.T) {
 					t.Logf("failed to get alert state: %v\n", err)
 					continue
 				}
+
 				// if the last state is not normal, ignore
 				// we might be missing other cases of flapping notifications but for now we are only interested in this one
 				// (alerting notification when state is already normal)
 				if st.State != AlertStateNormal {
+					continue
 				}
 
 				// history is ordered - fetch the first notification that is after the last state change
