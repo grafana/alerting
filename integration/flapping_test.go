@@ -83,6 +83,7 @@ func TestFlappingAlerts(t *testing.T) {
 				}
 
 			case <-timeout:
+				// if after the timeout there are no such cases, we assume there are no flapping notifications
 				return
 			}
 		}
