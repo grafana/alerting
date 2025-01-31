@@ -29,6 +29,9 @@ func TestFlappingAlerts(t *testing.T) {
 	wc, err := s.NewWebhookClient()
 	require.NoError(t, err)
 
+	lc, err := s.NewLokiClient()
+	require.NoError(t, err)
+
 	timeout := time.After(time.Minute * 10)
 	ticker := time.NewTicker(15 * time.Second)
 	defer ticker.Stop()
@@ -39,20 +42,32 @@ func TestFlappingAlerts(t *testing.T) {
 	for {
 		select {
 		case <-ticker.C:
-			// as, err := c.AlertmanagerGetAlertsNames()
-			as, err := wc.GetAlerts()
-			// as, err := c.AlertQuery()
-			// require.NoError(t, err)
+			ar, err := wc.GetAlerts()
 			if err != nil {
 				fmt.Printf("failed to get alert notifications: %v\n", err)
 				continue
 			}
-			//if err = s.Grafanas["grafana-1"].Pause(); err != nil {
-			//	fmt.Printf("err = %v\n", err)
-			//}
-			fmt.Println()
-			fmt.Printf("alerts: %v\n", as)
-			fmt.Println()
+
+			st, err := lc.GetCurrentAlertState()
+			if err != nil {
+				fmt.Printf("failed to get alert notifications: %v\n", err)
+				continue
+			}
+
+			// we want to fetch all notifications after the last state change
+			var i int
+			for i = range ar.History {
+				if ar.History[i].TimeNow.Before(st.Timestamp) {
+					continue
+				}
+			}
+
+			for ; i < len(ar.History); i++ {
+				alert := ar.History[i]
+				if st.State != AlertStateAlerting && alert.Status == "firing" {
+					t.Errorf("flapping notifications - got firing notification when alert state wasn't firing anymore, state = %v, notification = %v", st, alert)
+				}
+			}
 
 		case <-timeout:
 			t.Error("test timedout")

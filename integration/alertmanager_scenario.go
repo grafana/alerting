@@ -325,3 +325,7 @@ func (s *AlertmanagerScenario) NewPostgresService(name string) *PostgresService 
 
 	return ps
 }
+
+func (s *AlertmanagerScenario) NewLokiClient() (*LokiClient, error) {
+	return NewLokiClient("http://" + s.Loki.HTTPEndpoint())
+}
