@@ -51,18 +51,3 @@ type Provider interface {
 	// GetImage takes an alert and returns its associated image.
 	GetImage(ctx context.Context, alert types.Alert) (*Image, error)
 }
-
-type UnavailableProvider struct{}
-
-// GetImage returns the image with the corresponding token, or ErrImageNotFound.
-func (u *UnavailableProvider) GetImage(context.Context, string) (*Image, error) {
-	return nil, ErrImagesUnavailable
-}
-
-func (u *UnavailableProvider) GetImageURL(context.Context, *types.Alert) (string, error) {
-	return "", ErrImagesUnavailable
-}
-
-func (u *UnavailableProvider) GetRawImage(context.Context, *types.Alert) (io.ReadCloser, string, error) {
-	return nil, "", ErrImagesUnavailable
-}

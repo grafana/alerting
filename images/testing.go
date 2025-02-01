@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/prometheus/alertmanager/types"
+	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/models"
 )
@@ -156,4 +157,24 @@ func newTestImage() (string, error) {
 	}
 
 	return f.Name(), nil
+}
+
+func newAlertWithImageURL(url string) types.Alert {
+	return types.Alert{
+		Alert: model.Alert{
+			Annotations: model.LabelSet{
+				models.ImageURLAnnotation: model.LabelValue(url),
+			},
+		},
+	}
+}
+
+func newAlertWithImageToken(token string) types.Alert {
+	return types.Alert{
+		Alert: model.Alert{
+			Annotations: model.LabelSet{
+				models.ImageTokenAnnotation: model.LabelValue(token),
+			},
+		},
+	}
 }
