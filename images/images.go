@@ -15,16 +15,7 @@ var (
 	// the maximum number of images has been iterated.
 	ErrImagesDone = errors.New("images done")
 
-	// ErrImagesNoPath is returned whenever an image is found but has no path on disk.
-	ErrImagesNoPath = errors.New("no path for image")
-
-	// ErrImagesNoURL is returned whenever an image is found but has no URL.
-	ErrImagesNoURL = errors.New("no URL for image")
-
 	ErrImagesUnavailable = errors.New("alert screenshots are unavailable")
-
-	// ErrNoImageForAlert is returned when no image is associated to a given alert.
-	ErrNoImageForAlert = errors.New("no image for alert")
 )
 
 type ImageContent struct {
