@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 
@@ -773,24 +772,23 @@ func setupSlackForTests(t *testing.T, settings Config) (*Notifier, *slackRequest
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
 
-	f, err := os.Create(t.TempDir() + "/test.png")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		_ = f.Close()
-		if err := os.Remove(f.Name()); err != nil {
-			t.Logf("failed to delete test file: %s", err)
-		}
-	})
-
-	images := &images.FakeProvider{
-		Images: []*images.Image{{
-			Token: "image-on-disk",
-			Path:  f.Name(),
-		}, {
-			Token: "image-with-url",
-			URL:   "https://www.example.com/test.png",
-		}},
-	}
+	images := images.NewTokenProvider(images.NewFakeTokenStoreFromImages(map[string]*images.Image{
+		"image-on-disk": {
+			RawData: func(_ context.Context) (images.ImageContent, error) {
+				return images.ImageContent{
+					Name:    "test.png",
+					Content: []byte("some image"),
+				}, nil
+			},
+		},
+		"image-with-url": {
+			URL: "https://www.example.com/test.png",
+			RawData: func(_ context.Context) (images.ImageContent, error) {
+				return images.ImageContent{}, images.ErrImageNotFound
+			},
+		},
+	},
+	), &logging.FakeLogger{})
 	notificationService := receivers.MockNotificationService()
 
 	sn := &Notifier{

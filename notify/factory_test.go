@@ -19,7 +19,7 @@ import (
 func TestBuildReceiverIntegrations(t *testing.T) {
 	var orgID = rand.Int63()
 	var version = fmt.Sprintf("Grafana v%d", rand.Uint32())
-	imageProvider := &images.FakeProvider{}
+	imageProvider := &images.URLProvider{}
 	tmpl := templates.ForTests(t)
 
 	emailFactory := func(_ receivers.Metadata) (receivers.EmailSender, error) {

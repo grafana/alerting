@@ -122,13 +122,3 @@ func TestTokenProvider_GetImage(t *testing.T) {
 		})
 	}
 }
-
-type FakeTokenStore struct {
-	Images map[string]*Image
-}
-
-var _ TokenStore = (*FakeTokenStore)(nil)
-
-func (f FakeTokenStore) GetImage(ctx context.Context, token string) (*Image, error) {
-	return f.Images[token], nil
-}
