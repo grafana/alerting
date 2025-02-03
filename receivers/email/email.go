@@ -60,11 +60,9 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 	// Extend alerts data with images, if available.
 	var embeddedFiles map[string]io.Reader
 	defer func() {
-		if embeddedFiles != nil {
-			for _, reader := range embeddedFiles {
-				if closer, ok := reader.(io.Closer); ok {
-					closer.Close()
-				}
+		for _, reader := range embeddedFiles {
+			if closer, ok := reader.(io.Closer); ok {
+				closer.Close()
 			}
 		}
 	}()
