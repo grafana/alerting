@@ -3,7 +3,6 @@ package receivers
 import (
 	"bytes"
 	"fmt"
-	"io"
 	"strings"
 	"testing"
 
@@ -31,17 +30,17 @@ func TestBuildEmailMessage(t *testing.T) {
 	sentBy := "Grafana testVersion"
 
 	tests := []struct {
-		name            string
-		contentTypes    []string
-		data            map[string]interface{}
-		subject         string
-		template        string
-		templateName    string
-		embeddedFiles   []string
-		embeddedReaders map[string]io.Reader
-		expErr          string
-		expSubject      string
-		expBody         string
+		name             string
+		contentTypes     []string
+		data             map[string]interface{}
+		subject          string
+		template         string
+		templateName     string
+		embeddedFiles    []string
+		embeddedContents []EmbeddedContent
+		expErr           string
+		expSubject       string
+		expBody          string
 	}{
 		{
 			name:         "no subject",
@@ -56,9 +55,9 @@ func TestBuildEmailMessage(t *testing.T) {
 			template:      fmt.Sprintf("{{ define %q -}} {{ Subject .Subject .TemplateData %q }} {{ .AppUrl }} {{ .SentBy }} {{- end }}", "test_template.txt", "{{ .Value }}"),
 			templateName:  "test_template",
 			embeddedFiles: []string{"embedded-1", "embedded-2"},
-			embeddedReaders: map[string]io.Reader{
-				"embedded-1": strings.NewReader("embedded-1 data"),
-				"embedded-2": strings.NewReader("embedded-2 data"),
+			embeddedContents: []EmbeddedContent{
+				{Name: "embedded-1", Content: []byte("embedded-1 data")},
+				{Name: "embedded-2", Content: []byte("embedded-2 data")},
 			},
 			expSubject: testValue,
 			expBody:    fmt.Sprintf("%s %s %s", testValue, externalURL, sentBy),
@@ -106,14 +105,14 @@ func TestBuildEmailMessage(t *testing.T) {
 			require.NoError(t, err)
 
 			cfg := SendEmailSettings{
-				To:              []string{"test@test.com"},
-				SingleEmail:     true,
-				Template:        test.templateName,
-				Data:            test.data,
-				ReplyTo:         []string{"test2@test.com"},
-				EmbeddedFiles:   test.embeddedFiles,
-				EmbeddedReaders: test.embeddedReaders,
-				Subject:         test.subject,
+				To:               []string{"test@test.com"},
+				SingleEmail:      true,
+				Template:         test.templateName,
+				Data:             test.data,
+				ReplyTo:          []string{"test2@test.com"},
+				EmbeddedFiles:    test.embeddedFiles,
+				EmbeddedContents: test.embeddedContents,
+				Subject:          test.subject,
 			}
 			m, err := ds.buildEmailMessage(&cfg)
 			if test.expErr != "" {
@@ -124,7 +123,7 @@ func TestBuildEmailMessage(t *testing.T) {
 				require.Equal(t, cfg.SingleEmail, m.SingleEmail)
 				require.Equal(t, cfg.ReplyTo, m.ReplyTo)
 				require.Equal(t, cfg.EmbeddedFiles, m.EmbeddedFiles)
-				require.Equal(t, cfg.EmbeddedReaders, m.EmbeddedReaders)
+				require.Equal(t, cfg.EmbeddedContents, m.EmbeddedContents)
 				require.Equal(t, test.expSubject, m.Subject)
 
 				for _, ct := range test.contentTypes {

@@ -58,23 +58,19 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 	}
 
 	// Extend alerts data with images, if available.
-	embeddedFiles := make(map[string]io.Reader)
-	defer func() {
-		for _, reader := range embeddedFiles {
-			if closer, ok := reader.(io.Closer); ok {
-				closer.Close()
-			}
-		}
-	}()
+	embeddedContents := make([]receivers.EmbeddedContent, 0)
 	_ = images.WithStoredImages(ctx, en.log, en.images,
 		func(index int, image images.Image) error {
 			if len(image.URL) != 0 {
 				data.Alerts[index].ImageURL = image.URL
 			} else if len(image.Path) != 0 {
-				if f, err := openFile(image.Path); err == nil {
+				if b, err := readFile(image.Path); err == nil {
 					name := filepath.Base(image.Path)
 					data.Alerts[index].EmbeddedImage = name
-					embeddedFiles[name] = f
+					embeddedContents = append(embeddedContents, receivers.EmbeddedContent{
+						Name:    name,
+						Content: b,
+					})
 				} else {
 					en.log.Warn("failed to get image file for email attachment", "file", image.Path, "error", err)
 				}
@@ -96,10 +92,10 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 			"RuleUrl":           ruleURL,
 			"AlertPageUrl":      alertPageURL,
 		},
-		EmbeddedReaders: embeddedFiles,
-		To:              en.settings.Addresses,
-		SingleEmail:     en.settings.SingleEmail,
-		Template:        "ng_alert_notification",
+		EmbeddedContents: embeddedContents,
+		To:               en.settings.Addresses,
+		SingleEmail:      en.settings.SingleEmail,
+		Template:         "ng_alert_notification",
 	}
 
 	if tmplErr != nil {
@@ -117,10 +113,20 @@ func (en *Notifier) SendResolved() bool {
 	return !en.GetDisableResolveMessage()
 }
 
-func openFile(path string) (io.ReadCloser, error) {
+func readFile(path string) ([]byte, error) {
 	_, err := os.Stat(path)
 	if err != nil {
 		return nil, err
 	}
-	return os.Open(path)
+
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		_ = f.Close()
+	}()
+
+	return io.ReadAll(f)
 }
