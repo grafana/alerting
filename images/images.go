@@ -3,8 +3,6 @@ package images
 import (
 	"context"
 	"errors"
-	"io"
-	"time"
 
 	"github.com/prometheus/alertmanager/types"
 )
@@ -29,11 +27,20 @@ var (
 	ErrNoImageForAlert = errors.New("no image for alert")
 )
 
+type ImageContent struct {
+	// Name is the unique identifier for the image. Usually this will be an image filename, but is not required to be.
+	Name string
+	// Content is the raw image data.
+	Content []byte
+}
+
 type Image struct {
-	Token     string
-	Path      string
-	URL       string
-	CreatedAt time.Time
+	// URL is the public URL of the image. This URL should not be treated as a trusted source and should not be
+	// downloaded directly. RawData should be used to retrieve the image data.
+	URL string
+	// RawData returns the raw image data. Depending on the provider, this may be a file read, a network request, or
+	// unsupported. It's the responsibility of the Provider to ensure that the data is safe to read.
+	RawData func(ctx context.Context) (ImageContent, error)
 }
 
 func (i Image) HasURL() bool {
@@ -41,24 +48,8 @@ func (i Image) HasURL() bool {
 }
 
 type Provider interface {
-	// GetImage takes a token (identifier) and returns the image that token belongs to.
-	// Returns `ErrImageNotFound` if there's no image for said token.
-	//
-	// Deprecated: This method will be removed when all integrations use GetImageURL and/or GetRawImage,
-	// which allow integrations to get just the data they need for adding images to notifications.
-	// Use any of those two methods instead.
-	GetImage(ctx context.Context, token string) (*Image, error)
-
-	// GetImageURL returns the URL of an image associated with a given alert.
-	//	- Returns `ErrImageNotFound` if no image is found.
-	//	- Returns `ErrImagesNoURL` if the image doesn't have a URL.
-	GetImageURL(ctx context.Context, alert *types.Alert) (string, error)
-
-	// GetRawImage returns an io.Reader to read the bytes of an image associated with a given alert
-	// and a string representing the filename.
-	//	- Returns `ErrImageNotFound` if no image is found.
-	//	- Returns `ErrImagesNoPath` if the image doesn't have a path on disk.
-	GetRawImage(ctx context.Context, alert *types.Alert) (io.ReadCloser, string, error)
+	// GetImage takes an alert and returns its associated image.
+	GetImage(ctx context.Context, alert types.Alert) (*Image, error)
 }
 
 type UnavailableProvider struct{}
