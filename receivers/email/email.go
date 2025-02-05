@@ -114,11 +114,6 @@ func (en *Notifier) SendResolved() bool {
 }
 
 func readFile(path string) ([]byte, error) {
-	_, err := os.Stat(path)
-	if err != nil {
-		return nil, err
-	}
-
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
