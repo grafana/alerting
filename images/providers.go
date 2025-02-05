@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/models"
 	"github.com/prometheus/alertmanager/types"
 )
@@ -44,6 +45,53 @@ func (u *URLProvider) GetImage(_ context.Context, alert types.Alert) (*Image, er
 			return ImageContent{}, ErrImageUploadNotSupported
 		},
 	}, nil
+}
+
+type TokenStore interface {
+	GetImage(ctx context.Context, token string) (*Image, error)
+}
+
+// TokenProvider is an implementation of the Image Provider interface that retrieves images from a store
+// using tokens.
+// Image data should be considered trusted by the fact that the stored image url and content and not user-modifiable.
+type TokenProvider struct {
+	store  TokenStore
+	logger logging.Logger
+}
+
+var _ Provider = (*TokenProvider)(nil)
+
+func NewTokenProvider(store TokenStore, logger logging.Logger) Provider {
+	return &TokenProvider{
+		store:  store,
+		logger: logger,
+	}
+}
+
+func (i TokenProvider) GetImage(ctx context.Context, alert types.Alert) (*Image, error) {
+	token := GetImageToken(alert)
+	if token == "" {
+		return nil, nil
+	}
+
+	// Assume the uri is a token because we used to store tokens as plain strings.
+	logger := i.logger.New("token", token)
+	logger.Debug("Received an image token in annotations")
+	image, err := i.store.GetImage(ctx, token)
+	if err != nil {
+		if errors.Is(err, ErrImageNotFound) {
+			logger.Info("Image not found in database")
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return image, nil
+}
+
+// GetImageToken is a helper function to retrieve the image token from the alert annotations.
+func GetImageToken(alert types.Alert) string {
+	return string(alert.Annotations[models.ImageTokenAnnotation])
 }
 
 // GetImageURL is a helper function to retrieve the image url from the alert annotations.
