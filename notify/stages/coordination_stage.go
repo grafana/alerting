@@ -72,7 +72,7 @@ func (n *PipelineAndStateTimestampCoordinationStage) Exec(ctx context.Context, l
 	if ok && entry.Timestamp.After(timeNow) {
 		diff := entry.Timestamp.Sub(timeNow)
 		// this usually means that the WaitStage took longer than the group_wait, and the subsequent node in the cluster sees the event from the first node
-		_ = level.Warn(l).Log("msg", "timestamp of notification log entry is after the current pipeline timestamp.", "entry_time", entry.Timestamp, "pipeline_time", timeNow, "diff", diff, "dropped", n.stopPipeline)
+		_ = level.Warn(l).Log("msg", "timestamp of notification log entry is after the current pipeline timestamp.", "entry_time", entry.Timestamp, "pipeline_time", timeNow, "diff", diff, "dropped", n.stopPipeline, "aggrGroup", gkey, "alerts", fmt.Sprintf("%+v", alerts), "receiver", n.recv.GroupName, "integration", n.recv.Integration)
 		if n.stopPipeline {
 			return ctx, nil, nil
 		}
