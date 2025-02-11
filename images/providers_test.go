@@ -69,7 +69,7 @@ func TestURLProvider_GetImage(t *testing.T) {
 			}
 			assert.Equal(tt, test.expImage.URL, img.URL)
 			_, err = img.RawData(context.Background())
-			assert.Equal(tt, ErrImageUploadNotSupported, err)
+			assert.ErrorIs(tt, err, ErrImageUploadNotSupported)
 		})
 	}
 }
