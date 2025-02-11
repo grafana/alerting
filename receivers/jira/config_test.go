@@ -52,7 +52,7 @@ func TestNewConfig(t *testing.T) {
 				"resolve_transition": "Test Resolve Transition",
 				"wont_fix_resolution": "Test Won't Fix Resolution",
 				"reopen_duration":    "1m",
-				"custom_fields":            {"test-field": "test-value"}
+				"fields":            {"test-field": "test-value"}
 			}`,
 			expectedConfig: Config{
 				URL:               "http://localhost",

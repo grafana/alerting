@@ -23,7 +23,7 @@ type Config struct {
 	WontFixResolution string         `yaml:"wont_fix_resolution,omitempty" json:"wont_fix_resolution,omitempty"`
 	ReopenDuration    model.Duration `yaml:"reopen_duration,omitempty" json:"reopen_duration,omitempty"`
 
-	Fields map[string]any `yaml:"fields,omitempty" json:"custom_fields,omitempty"`
+	Fields map[string]any `yaml:"fields,omitempty" json:"fields,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage) (Config, error) {
