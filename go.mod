@@ -105,7 +105,7 @@ require (
 )
 
 // Using a fork of the Alertmanager with Alerting Squad specific changes.
-replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.25.1-0.20240930132144-b5e64e81e8d3
+replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.25.1-0.20250211112812-e32be5e2a455
 
 replace github.com/Unknwon/com v1.0.1 => github.com/unknwon/com v1.0.1
 
