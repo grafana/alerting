@@ -217,7 +217,7 @@ func (d Notifier) SendResolved() bool {
 
 func (d Notifier) constructAttachments(ctx context.Context, alerts []*types.Alert, embedQuota int) []discordAttachment {
 	attachments := make([]discordAttachment, 0, embedQuota)
-	_ = images.WithStoredImages(ctx, d.log, d.images,
+	err := images.WithStoredImages(ctx, d.log, d.images,
 		func(index int, image images.Image) error {
 			// Check if the image limit has been reached at the start of each iteration.
 			if len(attachments) >= embedQuota {
@@ -236,6 +236,10 @@ func (d Notifier) constructAttachments(ctx context.Context, alerts []*types.Aler
 			attachments = append(attachments, *attachment)
 			return nil
 		}, alerts...)
+	if err != nil {
+		// We still return the attachments we managed to create before reaching the error.
+		d.log.Warn("failed to create all image attachments for Discord notification", "error", err)
+	}
 
 	return attachments
 }

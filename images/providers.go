@@ -3,6 +3,7 @@ package images
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/models"
@@ -39,10 +40,10 @@ func (u *URLProvider) GetImage(_ context.Context, alert types.Alert) (*Image, er
 	return &Image{
 		URL: url,
 		RawData: func(_ context.Context) (ImageContent, error) {
-			// Raw images are not available for alerts provided directly by annotations as the image data is non-local.
+			// Raw images are not available for URLs provided directly by annotations as the image data is non-local.
 			// While it might be possible to download the image data, it's generally not safe to do so as the URL is
 			// not guaranteed to be trusted.
-			return ImageContent{}, ErrImageUploadNotSupported
+			return ImageContent{}, fmt.Errorf("%w: URLProvider does not support raw image data", ErrImageUploadNotSupported)
 		},
 	}, nil
 }
@@ -51,9 +52,8 @@ type TokenStore interface {
 	GetImage(ctx context.Context, token string) (*Image, error)
 }
 
-// TokenProvider is an implementation of the Image Provider interface that retrieves images from a store
-// using tokens.
-// Image data should be considered trusted by the fact that the stored image url and content and not user-modifiable.
+// TokenProvider implements the ImageProvider interface, retrieving images from a store using tokens.
+// Image data should be considered trusted as the stored image URL and content are not user-modifiable.
 type TokenProvider struct {
 	store  TokenStore
 	logger logging.Logger
@@ -75,12 +75,11 @@ func (i TokenProvider) GetImage(ctx context.Context, alert types.Alert) (*Image,
 	}
 
 	// Assume the uri is a token because we used to store tokens as plain strings.
-	logger := i.logger.New("token", token)
-	logger.Debug("Received an image token in annotations")
+	i.logger.Debug("Received an image token in annotations", "token", token)
 	image, err := i.store.GetImage(ctx, token)
 	if err != nil {
 		if errors.Is(err, ErrImageNotFound) {
-			logger.Info("Image not found in database")
+			i.logger.Info("Image not found in database", "token", token)
 			return nil, nil
 		}
 		return nil, err

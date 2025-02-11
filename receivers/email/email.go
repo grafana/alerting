@@ -56,7 +56,7 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 
 	// Extend alerts data with images, if available.
 	embeddedContents := make([]receivers.EmbeddedContent, 0)
-	_ = images.WithStoredImages(ctx, en.log, en.images,
+	err = images.WithStoredImages(ctx, en.log, en.images,
 		func(index int, image images.Image) error {
 			if image.HasURL() {
 				data.Alerts[index].ImageURL = image.URL
@@ -73,6 +73,9 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 			}
 			return nil
 		}, alerts...)
+	if err != nil {
+		en.log.Warn("failed to get all images for email", "error", err)
+	}
 
 	cmd := &receivers.SendEmailSettings{
 		Subject: subject,
