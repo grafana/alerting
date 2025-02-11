@@ -189,6 +189,7 @@ type GrafanaReceiverConfig struct {
 	DiscordConfigs      []*NotifierConfig[discord.Config]
 	EmailConfigs        []*NotifierConfig[email.Config]
 	GooglechatConfigs   []*NotifierConfig[googlechat.Config]
+	JiraConfigs         []*NotifierConfig[jira.Config]
 	KafkaConfigs        []*NotifierConfig[kafka.Config]
 	LineConfigs         []*NotifierConfig[line.Config]
 	OpsgenieConfigs     []*NotifierConfig[opsgenie.Config]
