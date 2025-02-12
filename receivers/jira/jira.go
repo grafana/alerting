@@ -216,39 +216,7 @@ func (n *Notifier) prepareDescription(desc string, logger logging.Logger) any {
 }
 
 func (n *Notifier) searchExistingIssue(ctx context.Context, logger logging.Logger, groupID string, firing bool) (*issue, bool, error) {
-	jql := strings.Builder{}
-
-	if n.conf.WontFixResolution != "" {
-		jql.WriteString(fmt.Sprintf(`resolution != %q and `, n.conf.WontFixResolution))
-	}
-
-	// If the group is firing, do not search for closed issues unless a reopen transition is defined.
-	if firing {
-		if n.conf.ReopenTransition == "" {
-			jql.WriteString(`statusCategory != Done and `)
-		}
-	} else {
-		reopenDuration := int64(time.Duration(n.conf.ReopenDuration).Minutes())
-		if reopenDuration != 0 {
-			jql.WriteString(fmt.Sprintf(`(resolutiondate is EMPTY OR resolutiondate >= -%dm) and `, reopenDuration))
-		}
-	}
-
-	alertLabel := fmt.Sprintf("ALERT{%s}", groupID)
-	if n.conf.DedupKeyFieldName != "" {
-		jql.WriteString(fmt.Sprintf(`(labels = %q or cf[%s] ~ %q) and `, alertLabel, n.conf.DedupKeyFieldName, groupID))
-	} else {
-		jql.WriteString(fmt.Sprintf(`labels = %q and `, alertLabel))
-	}
-
-	jql.WriteString(fmt.Sprintf(`project=%q order by status ASC,resolutiondate DESC`, n.conf.Project))
-
-	requestBody := issueSearch{
-		JQL:        jql.String(),
-		MaxResults: 2,
-		Fields:     []string{"status"},
-		Expand:     []string{},
-	}
+	requestBody := getSearchJql(n.conf, groupID, firing)
 
 	logger.Debug("search for recent issues", "jql", requestBody.JQL)
 
@@ -273,6 +241,42 @@ func (n *Notifier) searchExistingIssue(ctx context.Context, logger logging.Logge
 	}
 
 	return &issueSearchResult.Issues[0], false, nil
+}
+
+func getSearchJql(conf Config, groupID string, firing bool) issueSearch {
+	jql := strings.Builder{}
+
+	if conf.WontFixResolution != "" {
+		jql.WriteString(fmt.Sprintf(`resolution != %q and `, conf.WontFixResolution))
+	}
+
+	// If the group is firing, do not search for closed issues unless a reopen transition is defined.
+	if firing {
+		if conf.ReopenTransition == "" {
+			jql.WriteString(`statusCategory != Done and `)
+		}
+	} else {
+		reopenDuration := int64(time.Duration(conf.ReopenDuration).Minutes())
+		if reopenDuration != 0 {
+			jql.WriteString(fmt.Sprintf(`(resolutiondate is EMPTY OR resolutiondate >= -%dm) and `, reopenDuration))
+		}
+	}
+
+	alertLabel := fmt.Sprintf("ALERT{%s}", groupID)
+	if conf.DedupKeyFieldName != "" {
+		jql.WriteString(fmt.Sprintf(`(labels = %q or cf[%s] ~ %q) and `, alertLabel, conf.DedupKeyFieldName, groupID))
+	} else {
+		jql.WriteString(fmt.Sprintf(`labels = %q and `, alertLabel))
+	}
+
+	jql.WriteString(fmt.Sprintf(`project=%q order by status ASC,resolutiondate DESC`, conf.Project))
+
+	return issueSearch{
+		JQL:        jql.String(),
+		MaxResults: 2,
+		Fields:     []string{"status"},
+		Expand:     []string{},
+	}
 }
 
 func (n *Notifier) getIssueTransitionByName(ctx context.Context, issueKey, transitionName string) (string, bool, error) {
