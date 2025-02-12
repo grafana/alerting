@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"regexp"
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/model"
@@ -32,7 +33,8 @@ type Config struct {
 	WontFixResolution string
 	ReopenDuration    model.Duration
 
-	Fields map[string]any
+	DedupKeyFieldName string
+	Fields            map[string]any
 
 	User     string
 	Password string
@@ -41,17 +43,19 @@ type Config struct {
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	type raw struct {
-		URL               string         `yaml:"api_url,omitempty" json:"api_url,omitempty"`
-		Project           string         `yaml:"project,omitempty" json:"project,omitempty"`
-		Summary           string         `yaml:"summary,omitempty" json:"summary,omitempty"`
-		Description       string         `yaml:"description,omitempty" json:"description,omitempty"`
-		Labels            []string       `yaml:"labels,omitempty" json:"labels,omitempty"`
-		Priority          string         `yaml:"priority,omitempty" json:"priority,omitempty"`
-		IssueType         string         `yaml:"issue_type,omitempty" json:"issue_type,omitempty"`
-		ReopenTransition  string         `yaml:"reopen_transition,omitempty" json:"reopen_transition,omitempty"`
-		ResolveTransition string         `yaml:"resolve_transition,omitempty" json:"resolve_transition,omitempty"`
-		WontFixResolution string         `yaml:"wont_fix_resolution,omitempty" json:"wont_fix_resolution,omitempty"`
-		ReopenDuration    string         `yaml:"reopen_duration,omitempty" json:"reopen_duration,omitempty"`
+		URL               string   `yaml:"api_url,omitempty" json:"api_url,omitempty"`
+		Project           string   `yaml:"project,omitempty" json:"project,omitempty"`
+		Summary           string   `yaml:"summary,omitempty" json:"summary,omitempty"`
+		Description       string   `yaml:"description,omitempty" json:"description,omitempty"`
+		Labels            []string `yaml:"labels,omitempty" json:"labels,omitempty"`
+		Priority          string   `yaml:"priority,omitempty" json:"priority,omitempty"`
+		IssueType         string   `yaml:"issue_type,omitempty" json:"issue_type,omitempty"`
+		ReopenTransition  string   `yaml:"reopen_transition,omitempty" json:"reopen_transition,omitempty"`
+		ResolveTransition string   `yaml:"resolve_transition,omitempty" json:"resolve_transition,omitempty"`
+		WontFixResolution string   `yaml:"wont_fix_resolution,omitempty" json:"wont_fix_resolution,omitempty"`
+		ReopenDuration    string   `yaml:"reopen_duration,omitempty" json:"reopen_duration,omitempty"`
+		// allows to store group key identifier in a custom field instead of a label
+		DedupKeyFieldName string         `yaml:"dedup_key_field,omitempty" json:"dedup_key_field,omitempty"`
 		Fields            map[string]any `yaml:"fields,omitempty" json:"fields,omitempty"`
 		// This is user (email) and password - api token from https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/.
 		// See https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/#basic-auth-for-rest-apis
@@ -100,7 +104,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		settings.Priority = DefaultPriority
 	}
 
-	settings.User = decryptFn("username", settings.User)
+	settings.User = decryptFn("user", settings.User)
 	settings.Password = decryptFn("password", settings.Password)
 	settings.Token = decryptFn("api_token", settings.Token)
 	if settings.Token == "" && (settings.User == "" || settings.Password == "") {
@@ -109,6 +113,14 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	if settings.Token != "" && (settings.User != "" || settings.Password != "") {
 		return Config{}, errors.New("provided both token and user/password, only one is allowed at a time")
 	}
+
+	if settings.DedupKeyFieldName != "" {
+		matched, err := regexp.MatchString(`^[0-9]+$`, settings.DedupKeyFieldName)
+		if err != nil {
+			return Config{}, fmt.Errorf("failed to validate dedup_key_field: %w", err)
+		}
+		if !matched {
+			return Config{}, errors.New("dedup_key_field must match the format [0-9]+")
 		}
 	}
 
@@ -128,5 +140,6 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		User:              settings.User,
 		Password:          settings.Password,
 		Token:             settings.Token,
+		DedupKeyFieldName: settings.DedupKeyFieldName,
 	}, nil
 }

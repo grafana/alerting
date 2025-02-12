@@ -152,12 +152,21 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 		}
 		fields.Labels = append(fields.Labels, label)
 	}
-	fields.Labels = append(fields.Labels, fmt.Sprintf("ALERT{%s}", groupID))
 	sort.Strings(fields.Labels)
 
 	priority := strings.TrimSpace(renderOrDefault("priority", n.conf.Priority, ""))
 	if priority != "" {
 		fields.Priority = &idNameValue{Name: priority}
+	}
+
+	if n.conf.DedupKeyFieldName != "" {
+		if fields.Fields == nil {
+			fields.Fields = make(map[string]any)
+		}
+		fields.Fields[fmt.Sprintf("customfield_%s", n.conf.DedupKeyFieldName)] = groupID
+	} else {
+		// this label is added to be able to search for an existing one
+		fields.Labels = append(fields.Labels, fmt.Sprintf("ALERT{%s}", groupID))
 	}
 
 	return issue{Fields: fields}, nil
@@ -205,6 +214,7 @@ func (n *Notifier) prepareDescription(desc string, logger logging.Logger) any {
 	}
 	return truncatedDescr
 }
+
 func (n *Notifier) searchExistingIssue(ctx context.Context, logger logging.Logger, groupID string, firing bool) (*issue, bool, error) {
 	jql := strings.Builder{}
 
@@ -225,7 +235,13 @@ func (n *Notifier) searchExistingIssue(ctx context.Context, logger logging.Logge
 	}
 
 	alertLabel := fmt.Sprintf("ALERT{%s}", groupID)
-	jql.WriteString(fmt.Sprintf(`project=%q and labels=%q order by status ASC,resolutiondate DESC`, n.conf.Project, alertLabel))
+	if n.conf.DedupKeyFieldName != "" {
+		jql.WriteString(fmt.Sprintf(`(labels = %q or cf[%s] ~ %q) and `, alertLabel, n.conf.DedupKeyFieldName, groupID))
+	} else {
+		jql.WriteString(fmt.Sprintf(`labels = %q and `, alertLabel))
+	}
+
+	jql.WriteString(fmt.Sprintf(`project=%q order by status ASC,resolutiondate DESC`, n.conf.Project))
 
 	requestBody := issueSearch{
 		JQL:        jql.String(),
