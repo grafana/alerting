@@ -149,9 +149,9 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 	// }
 
 	issueDescriptionString := renderOrDefault("description", n.conf.Description, DefaultDescription)
-	issueDescriptionString, truncated = notify.TruncateInRunes(issueDescriptionString, MaxDescriptionLenRunes)
-	if truncated {
-		logger.Warn("Truncated description", "max_runes", MaxDescriptionLenRunes)
+	if len([]rune(issueDescriptionString)) > MaxDescriptionLenRunes {
+		logger.Warn("Description exceeds the max length, falling back to default description", "max_runes", MaxDescriptionLenRunes, "description_length", len(issueDescriptionString))
+		issueDescriptionString = DefaultDescription
 	}
 
 	fields.Description = issueDescriptionString
