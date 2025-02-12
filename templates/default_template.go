@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -182,5 +183,8 @@ Labels:
 func ForTests(t *testing.T) *Template {
 	tmpl, err := FromContent([]string{TemplateForTestsString})
 	require.NoError(t, err)
+	externalURL, err := url.Parse("http://test.com")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
 	return tmpl
 }
