@@ -107,7 +107,7 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 		if tmplErr == nil {
 			return result
 		}
-		if fallback == "" {
+		if fallback == "" || fallback == template {
 			logger.Error("failed to render template", "error", tmplErr, "configField", fieldName, "template", template)
 			return ""
 		}
@@ -349,7 +349,6 @@ func (n *Notifier) doAPIRequest(ctx context.Context, method, path string, reques
 			shouldRetry, err = n.retrier.Check(code, bytes.NewReader(body))
 			return err
 		},
-		TLSConfig: nil, // TODO support TLS?
 	})
 	if err != nil {
 		return nil, shouldRetry, err
