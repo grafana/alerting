@@ -23,6 +23,7 @@ import (
 const (
 	MaxSummaryLenRunes     = 255
 	MaxDescriptionLenRunes = 32767
+	adfDocOverhead         = 87
 )
 
 // Notifier implements a Notifier for JIRA notifications. Can use V2 and V3 API to create issues, depending on Config.URL
@@ -132,6 +133,9 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 		Fields:  n.conf.Fields,
 	}
 
+	issueDescriptionString := renderOrDefault("description", n.conf.Description, DefaultDescription)
+	fields.Description = n.prepareDescription(issueDescriptionString, logger)
+
 	projectKey := strings.TrimSpace(renderOrDefault("project", n.conf.Project, ""))
 	if projectKey != "" {
 		fields.Project = &issueProject{Key: projectKey}
@@ -139,29 +143,6 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 	issueType := strings.TrimSpace(renderOrDefault("issue_type", n.conf.IssueType, ""))
 	if issueType != "" {
 		fields.Issuetype = &idNameValue{Name: issueType}
-	}
-
-	// // Recursively convert any maps to map[string]interface{}, filtering out all non-string keys, so the json encoder
-	// // doesn't blow up when marshaling JIRA requests.
-	// fieldsWithStringKeys, err := tcontainer.ConvertToMarshalMap(n.conf.Fields, func(v string) string { return v })
-	// if err != nil {
-	// 	return issue{}, fmt.Errorf("convertToMarshalMap: %w", err)
-	// }
-
-	issueDescriptionString := renderOrDefault("description", n.conf.Description, DefaultDescription)
-	if len([]rune(issueDescriptionString)) > MaxDescriptionLenRunes {
-		logger.Warn("Description exceeds the max length, falling back to default description", "max_runes", MaxDescriptionLenRunes, "description_length", len(issueDescriptionString))
-		issueDescriptionString = DefaultDescription
-	}
-
-	fields.Description = issueDescriptionString
-	if strings.HasSuffix(n.conf.URL.Path, "/3") {
-		var issueDescription any
-		// TODO what to do if truncated and not unmarshalled?
-		if err := json.Unmarshal([]byte(issueDescriptionString), &issueDescription); err != nil {
-			return issue{}, fmt.Errorf("description unmarshaling: %w", err)
-		}
-		fields.Description = issueDescription
 	}
 
 	for i, label := range n.conf.Labels {
@@ -182,6 +163,48 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 	return issue{Fields: fields}, nil
 }
 
+func (n *Notifier) prepareDescription(desc string, logger logging.Logger) any {
+	if strings.HasSuffix(n.conf.URL.Path, "/3") {
+		// V3 API supports structured description in ADF format
+		// check if the payload is a valid JSON and assign it in that case
+		if json.Valid([]byte(desc)) {
+			// we do not check the size of description if it's structured data because we can't truncate it.
+			var issueDescription any
+			err := json.Unmarshal([]byte(desc), &issueDescription)
+			if err == nil {
+				return issueDescription
+			}
+			logger.Warn("Failed to parse description as JSON. Fallback to string mode", "error", err)
+		}
+
+		// if it's just a text. Create a document. Consider the document overhead while truncating
+		truncatedDescr, truncated := notify.TruncateInRunes(desc, MaxDescriptionLenRunes-adfDocOverhead)
+		if truncated {
+			logger.Warn("Truncated description", "max_runes", MaxDescriptionLenRunes-adfDocOverhead, "length", len(desc))
+		}
+		return adfDocument{
+			Version: 1,
+			Type:    "doc",
+			Content: []adfNode{
+				{
+					Type: "paragraph",
+					Content: []adfNode{
+						{
+							Type: "text",
+							Text: truncatedDescr,
+						},
+					},
+				}},
+		}
+
+	}
+
+	truncatedDescr, truncated := notify.TruncateInRunes(desc, MaxDescriptionLenRunes)
+	if truncated {
+		logger.Warn("Truncated description", "max_runes", MaxDescriptionLenRunes, "length", len(desc))
+	}
+	return truncatedDescr
+}
 func (n *Notifier) searchExistingIssue(ctx context.Context, logger logging.Logger, groupID string, firing bool) (*issue, bool, error) {
 	jql := strings.Builder{}
 

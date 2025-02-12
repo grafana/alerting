@@ -95,3 +95,16 @@ func (i issueFields) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(jsonFields)
 }
+
+// adfDocument represents Atlassian Document Format structure (https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/)
+type adfDocument struct {
+	Version int       `json:"version"`
+	Type    string    `json:"type"`
+	Content []adfNode `json:"content"`
+}
+
+type adfNode struct {
+	Type    string    `json:"type"`
+	Content []adfNode `json:"content,omitempty"`
+	Text    string    `json:"text,omitempty"`
+}
