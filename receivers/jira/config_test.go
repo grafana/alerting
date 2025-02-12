@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 )
 
 func TestNewConfig(t *testing.T) {
@@ -66,7 +67,7 @@ func TestNewConfig(t *testing.T) {
 			}`,
 			secureSettings: map[string][]byte{
 				"password": []byte("test-password"),
-				"username": []byte("test-username"),
+				"user":     []byte("test-username"),
 			},
 			expectedConfig: Config{
 				URL:               testURL,

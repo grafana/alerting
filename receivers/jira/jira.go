@@ -307,6 +307,9 @@ func (n *Notifier) doAPIRequest(ctx context.Context, method, path string, reques
 	headers := make(map[string]string, 3)
 	headers["Content-Type"] = "application/json"
 	headers["Accept-Language"] = "en"
+	if n.conf.Token != "" {
+		headers["Authorization"] = fmt.Sprintf("Bearer %s", n.conf.Token)
+	}
 
 	var shouldRetry bool
 	var responseBody []byte

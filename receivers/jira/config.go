@@ -53,9 +53,12 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		WontFixResolution string         `yaml:"wont_fix_resolution,omitempty" json:"wont_fix_resolution,omitempty"`
 		ReopenDuration    string         `yaml:"reopen_duration,omitempty" json:"reopen_duration,omitempty"`
 		Fields            map[string]any `yaml:"fields,omitempty" json:"fields,omitempty"`
-		User              string         `yaml:"username,omitempty" json:"username,omitempty"`
-		Password          string         `yaml:"password,omitempty" json:"password,omitempty"`
-		Token             string         `yaml:"api_token,omitempty" json:"api_token,omitempty"`
+		// This is user (email) and password - api token from https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/.
+		// See https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/#basic-auth-for-rest-apis
+		User     string `yaml:"user,omitempty" json:"user,omitempty"`
+		Password string `yaml:"password,omitempty" json:"password,omitempty"`
+		// This is PAT token https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html
+		Token string `yaml:"api_token,omitempty" json:"api_token,omitempty"`
 	}
 
 	settings := raw{}
@@ -97,13 +100,15 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		settings.Priority = DefaultPriority
 	}
 
-	// https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/#basic-auth-for-rest-apis
 	settings.User = decryptFn("username", settings.User)
 	settings.Password = decryptFn("password", settings.Password)
 	settings.Token = decryptFn("api_token", settings.Token)
-	if settings.Token == "" {
-		if settings.User == "" || settings.Password == "" {
-			return Config{}, errors.New("either username and password or api_token must be provided")
+	if settings.Token == "" && (settings.User == "" || settings.Password == "") {
+		return Config{}, errors.New("either token or both user and password must be set")
+	}
+	if settings.Token != "" && (settings.User != "" || settings.Password != "") {
+		return Config{}, errors.New("provided both token and user/password, only one is allowed at a time")
+	}
 		}
 	}
 
