@@ -50,6 +50,10 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify implements the Notifier interface.
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+	if n.conf.URL == nil {
+		// this should not happen but it's better to avoid panic
+		return false, fmt.Errorf("missing JIRA URL")
+	}
 	var (
 		alerts = types.Alerts(as...)
 	)
