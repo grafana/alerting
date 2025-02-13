@@ -124,6 +124,27 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		}
 	}
 
+	var fields map[string]any
+	if len(settings.Fields) > 0 {
+		fields = make(map[string]any, len(settings.Fields))
+		for k, v := range settings.Fields {
+			val := v
+			// The current UI does not support complex structures and therefore all values are strings.
+			// However, it's not the case in provisioning or if integration was created via API.
+			// Here we check if the value is string and it's a valid JSON, and then parse it and assign to the key
+			if strVal, ok := v.(string); ok {
+				var jsonData any
+				if json.Valid([]byte(strVal)) {
+					err := json.Unmarshal([]byte(strVal), &jsonData)
+					if err == nil {
+						val = jsonData
+					}
+				}
+			}
+			fields[k] = val
+		}
+	}
+
 	return Config{
 		URL:               u,
 		Project:           settings.Project,
@@ -136,7 +157,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		ResolveTransition: settings.ResolveTransition,
 		WontFixResolution: settings.WontFixResolution,
 		ReopenDuration:    d,
-		Fields:            settings.Fields,
+		Fields:            fields,
 		User:              settings.User,
 		Password:          settings.Password,
 		Token:             settings.Token,
