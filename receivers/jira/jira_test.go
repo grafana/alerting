@@ -397,7 +397,7 @@ func TestNotify(t *testing.T) {
 	ctx := notify.WithGroupKey(context.Background(), "test_group")
 	groupKey, _ := notify.ExtractGroupKey(ctx)
 	tmpl := templates.ForTests(t)
-	baseUrl := "https://jira.example.com/2"
+	baseURL := "https://jira.example.com/2"
 
 	t.Run("when firing", func(t *testing.T) {
 		alert := &types.Alert{
@@ -414,7 +414,7 @@ func TestNotify(t *testing.T) {
 			},
 		}
 
-		u, _ := url.Parse(baseUrl)
+		u, _ := url.Parse(baseURL)
 		cfg := Config{
 			URL:         u,
 			Summary:     "sum",
@@ -426,11 +426,11 @@ func TestNotify(t *testing.T) {
 
 		t.Run("creates a new issue if no existing", func(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
-			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseUrl + "/search":
+				case baseURL + "/search":
 					return cmd.Validation(mustMarshal(issueSearchResult{}), 200)
-				case baseUrl + "/issue":
+				case baseURL + "/issue":
 					return cmd.Validation(nil, 201)
 				default:
 					t.Fatalf("unexpected url: %s", cmd.URL)
@@ -448,23 +448,23 @@ func TestNotify(t *testing.T) {
 			assert.Equal(t, cfg.User, searchRequest.User)
 			assert.Equal(t, cfg.Password, searchRequest.Password)
 			assert.JSONEq(t, string(mustMarshal(getSearchJql(cfg, groupKey.Hash(), true))), searchRequest.Body)
-			assert.Equal(t, baseUrl+"/search", searchRequest.URL)
+			assert.Equal(t, baseURL+"/search", searchRequest.URL)
 			assert.Equal(t, "POST", searchRequest.HTTPMethod)
 
 			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, submitRequest.User)
 			assert.Equal(t, cfg.Password, submitRequest.Password)
 			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
-			assert.Equal(t, baseUrl+"/issue", submitRequest.URL)
+			assert.Equal(t, baseURL+"/issue", submitRequest.URL)
 			assert.Equal(t, "POST", submitRequest.HTTPMethod)
 		})
 
 		t.Run("updates existing issue if firing", func(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
 			issueKey := "TEST-1"
-			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseUrl + "/search":
+				case baseURL + "/search":
 					return cmd.Validation(mustMarshal(issueSearchResult{
 						Total: 1,
 						Issues: []issue{
@@ -481,7 +481,7 @@ func TestNotify(t *testing.T) {
 							},
 						},
 					}), 200)
-				case baseUrl + "/issue/" + issueKey:
+				case baseURL + "/issue/" + issueKey:
 					return cmd.Validation(nil, 201)
 				default:
 					t.Fatalf("unexpected url: %s", cmd.URL)
@@ -499,7 +499,7 @@ func TestNotify(t *testing.T) {
 			assert.Equal(t, cfg.User, submitRequest.User)
 			assert.Equal(t, cfg.Password, submitRequest.Password)
 			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
-			assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+			assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 		})
 
@@ -520,9 +520,9 @@ func TestNotify(t *testing.T) {
 			}
 
 			mock := receivers.NewMockWebhookSender()
-			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseUrl + "/search":
+				case baseURL + "/search":
 					return cmd.Validation(mustMarshal(issueSearchResult{
 						Total: 1,
 						Issues: []issue{
@@ -535,9 +535,9 @@ func TestNotify(t *testing.T) {
 							},
 						},
 					}), 200)
-				case baseUrl + "/issue/" + issueKey:
+				case baseURL + "/issue/" + issueKey:
 					return cmd.Validation(nil, 200)
-				case baseUrl + "/issue/" + issueKey + "/transitions":
+				case baseURL + "/issue/" + issueKey + "/transitions":
 					if cmd.HTTPMethod == "GET" {
 						return cmd.Validation(mustMarshal(issueTransitions{
 							Transitions: []idNameValue{
@@ -563,19 +563,19 @@ func TestNotify(t *testing.T) {
 			assert.Equal(t, cfg.User, submitRequest.User)
 			assert.Equal(t, cfg.Password, submitRequest.Password)
 			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
-			assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+			assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 
 			transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, transitionsSearchRequest.User)
 			assert.Equal(t, cfg.Password, transitionsSearchRequest.Password)
-			assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
+			assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
 			assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
 
 			transitionRequest := mock.Calls[3].Args[1].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, transitionRequest.User)
 			assert.Equal(t, cfg.Password, transitionRequest.Password)
-			assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionRequest.URL)
+			assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionRequest.URL)
 			assert.Equal(t, "POST", transitionRequest.HTTPMethod)
 			assert.JSONEq(t, string(mustMarshal(issue{
 				Transition: &idNameValue{
@@ -594,7 +594,7 @@ func TestNotify(t *testing.T) {
 				assert.Len(t, mock.Calls, 2)
 
 				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
-				assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+				assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 			})
 
@@ -610,11 +610,11 @@ func TestNotify(t *testing.T) {
 				assert.Len(t, mock.Calls, 3)
 
 				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
-				assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+				assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 
 				transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
-				assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
+				assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
 				assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
 			})
 		})
@@ -635,7 +635,7 @@ func TestNotify(t *testing.T) {
 			},
 		}
 
-		u, _ := url.Parse(baseUrl)
+		u, _ := url.Parse(baseURL)
 		cfg := Config{
 			URL:         u,
 			Summary:     "sum",
@@ -647,9 +647,9 @@ func TestNotify(t *testing.T) {
 
 		t.Run("does nothing if issue is not found", func(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
-			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseUrl + "/search":
+				case baseURL + "/search":
 					return cmd.Validation(mustMarshal(issueSearchResult{}), 200)
 				default:
 					t.Fatalf("unexpected url: %s", cmd.URL)
@@ -674,9 +674,9 @@ func TestNotify(t *testing.T) {
 			}
 
 			mock := receivers.NewMockWebhookSender()
-			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseUrl + "/search":
+				case baseURL + "/search":
 					return cmd.Validation(mustMarshal(issueSearchResult{
 						Total: 1,
 						Issues: []issue{
@@ -688,7 +688,7 @@ func TestNotify(t *testing.T) {
 							},
 						},
 					}), 200)
-				case baseUrl + "/issue/" + issueKey:
+				case baseURL + "/issue/" + issueKey:
 					return cmd.Validation(nil, 200)
 				default:
 					t.Fatalf("unexpected url: %s", cmd.URL)
@@ -706,7 +706,7 @@ func TestNotify(t *testing.T) {
 			assert.Equal(t, cfg.User, submitRequest.User)
 			assert.Equal(t, cfg.Password, submitRequest.Password)
 			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
-			assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+			assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 		})
 
@@ -726,9 +726,9 @@ func TestNotify(t *testing.T) {
 			}
 
 			mock := receivers.NewMockWebhookSender()
-			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseUrl + "/search":
+				case baseURL + "/search":
 					return cmd.Validation(mustMarshal(issueSearchResult{
 						Total: 1,
 						Issues: []issue{
@@ -740,9 +740,9 @@ func TestNotify(t *testing.T) {
 							},
 						},
 					}), 200)
-				case baseUrl + "/issue/" + issueKey:
+				case baseURL + "/issue/" + issueKey:
 					return cmd.Validation(nil, 200)
-				case baseUrl + "/issue/" + issueKey + "/transitions":
+				case baseURL + "/issue/" + issueKey + "/transitions":
 					if cmd.HTTPMethod == "GET" {
 						return cmd.Validation(mustMarshal(issueTransitions{
 							Transitions: []idNameValue{
@@ -768,19 +768,19 @@ func TestNotify(t *testing.T) {
 			assert.Equal(t, cfg.User, submitRequest.User)
 			assert.Equal(t, cfg.Password, submitRequest.Password)
 			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
-			assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+			assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 
 			transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, transitionsSearchRequest.User)
 			assert.Equal(t, cfg.Password, transitionsSearchRequest.Password)
-			assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
+			assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
 			assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
 
 			transitionRequest := mock.Calls[3].Args[1].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, transitionRequest.User)
 			assert.Equal(t, cfg.Password, transitionRequest.Password)
-			assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionRequest.URL)
+			assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionRequest.URL)
 			assert.Equal(t, "POST", transitionRequest.HTTPMethod)
 			assert.JSONEq(t, string(mustMarshal(issue{
 				Transition: &idNameValue{
@@ -799,7 +799,7 @@ func TestNotify(t *testing.T) {
 				assert.Len(t, mock.Calls, 2)
 
 				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
-				assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+				assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 			})
 
@@ -815,11 +815,11 @@ func TestNotify(t *testing.T) {
 				assert.Len(t, mock.Calls, 3)
 
 				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
-				assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+				assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 
 				transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
-				assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
+				assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
 				assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
 			})
 		})
