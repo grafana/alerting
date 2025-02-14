@@ -399,32 +399,19 @@ func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
 	baseUrl := "https://jira.example.com/2"
 
-	alert := &types.Alert{
-		Alert: model.Alert{
-			Labels: model.LabelSet{
-				"alertname": "TestAlert",
-				"severity":  "critical",
+	t.Run("when firing", func(t *testing.T) {
+		alert := &types.Alert{
+			Alert: model.Alert{
+				Labels: model.LabelSet{
+					"alertname": "TestAlert",
+					"severity":  "critical",
+				},
+				Annotations: model.LabelSet{
+					"summary":     "Test alert summary",
+					"description": "Test alert description",
+				},
+				StartsAt: time.Now(),
 			},
-			Annotations: model.LabelSet{
-				"summary":     "Test alert summary",
-				"description": "Test alert description",
-			},
-			StartsAt: time.Now(),
-		},
-	}
-
-	t.Run("creates a new issue if no existing", func(t *testing.T) {
-		mock := receivers.NewMockWebhookSender()
-		mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
-			switch cmd.URL {
-			case baseUrl + "/search":
-				return cmd.Validation(mustMarshal(issueSearchResult{}), 200)
-			case baseUrl + "/issue":
-				return cmd.Validation(nil, 201)
-			default:
-				t.FailNow()
-				return nil
-			}
 		}
 
 		u, _ := url.Parse(baseUrl)
@@ -436,55 +423,216 @@ func TestNotify(t *testing.T) {
 			User:        "test",
 			Password:    "test",
 		}
-		n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
-		retry, err := n.Notify(ctx, alert)
-		require.NoError(t, err)
-		require.False(t, retry)
-		require.Len(t, mock.Calls, 2)
 
-		searchRequest := mock.Calls[0].Args[1].(*receivers.SendWebhookSettings)
-		assert.Equal(t, cfg.User, searchRequest.User)
-		assert.Equal(t, cfg.Password, searchRequest.Password)
-		assert.JSONEq(t, string(mustMarshal(getSearchJql(cfg, groupKey.Hash(), true))), searchRequest.Body)
-		assert.Equal(t, baseUrl+"/search", searchRequest.URL)
-		assert.Equal(t, "POST", searchRequest.HTTPMethod)
+		t.Run("creates a new issue if no existing", func(t *testing.T) {
+			mock := receivers.NewMockWebhookSender()
+			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+				switch cmd.URL {
+				case baseUrl + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResult{}), 200)
+				case baseUrl + "/issue":
+					return cmd.Validation(nil, 201)
+				default:
+					t.Fatalf("unexpected url: %s", cmd.URL)
+					return nil
+				}
+			}
 
-		submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
-		assert.Equal(t, cfg.User, submitRequest.User)
-		assert.Equal(t, cfg.Password, submitRequest.Password)
-		assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
-		assert.Equal(t, baseUrl+"/issue", submitRequest.URL)
-		assert.Equal(t, "POST", submitRequest.HTTPMethod)
-	})
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			retry, err := n.Notify(ctx, alert)
+			require.NoError(t, err)
+			require.False(t, retry)
+			require.Len(t, mock.Calls, 2)
 
-	t.Run("updates existing issue if firing", func(t *testing.T) {
-		mock := receivers.NewMockWebhookSender()
-		issueKey := "TEST-1"
-		mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
-			switch cmd.URL {
-			case baseUrl + "/search":
-				return cmd.Validation(mustMarshal(issueSearchResult{
-					Total: 1,
-					Issues: []issue{
-						{
-							Key: issueKey,
-							Fields: &issueFields{
-								Status: &issueStatus{
-									StatusCategory: keyValue{
-										Key: "blah",
+			searchRequest := mock.Calls[0].Args[1].(*receivers.SendWebhookSettings)
+			assert.Equal(t, cfg.User, searchRequest.User)
+			assert.Equal(t, cfg.Password, searchRequest.Password)
+			assert.JSONEq(t, string(mustMarshal(getSearchJql(cfg, groupKey.Hash(), true))), searchRequest.Body)
+			assert.Equal(t, baseUrl+"/search", searchRequest.URL)
+			assert.Equal(t, "POST", searchRequest.HTTPMethod)
+
+			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+			assert.Equal(t, cfg.User, submitRequest.User)
+			assert.Equal(t, cfg.Password, submitRequest.Password)
+			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+			assert.Equal(t, baseUrl+"/issue", submitRequest.URL)
+			assert.Equal(t, "POST", submitRequest.HTTPMethod)
+		})
+
+		t.Run("updates existing issue if firing", func(t *testing.T) {
+			mock := receivers.NewMockWebhookSender()
+			issueKey := "TEST-1"
+			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+				switch cmd.URL {
+				case baseUrl + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResult{
+						Total: 1,
+						Issues: []issue{
+							{
+								Key: issueKey,
+								Fields: &issueFields{
+									Status: &issueStatus{
+										StatusCategory: keyValue{
+											Key: "blah",
+										},
 									},
 								},
+								Transition: nil,
 							},
-							Transition: nil,
 						},
-					},
-				}), 200)
-			case baseUrl + "/issue/" + issueKey:
-				return cmd.Validation(nil, 201)
-			default:
-				t.Fatalf("unexpected url: %s", cmd.URL)
-				return nil
+					}), 200)
+				case baseUrl + "/issue/" + issueKey:
+					return cmd.Validation(nil, 201)
+				default:
+					t.Fatalf("unexpected url: %s", cmd.URL)
+					return nil
+				}
 			}
+
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			retry, err := n.Notify(ctx, alert)
+			require.NoError(t, err)
+			require.False(t, retry)
+			assert.Len(t, mock.Calls, 2)
+
+			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+			assert.Equal(t, cfg.User, submitRequest.User)
+			assert.Equal(t, cfg.Password, submitRequest.Password)
+			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+			assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
+		})
+
+		t.Run("reopen the issue if it's status is done", func(t *testing.T) {
+			cfg := cfg
+			cfg.ReopenTransition = "quickly"
+
+			// API presets
+			transition := idNameValue{
+				ID:   "1234",
+				Name: cfg.ReopenTransition,
+			}
+			issueKey := "TEST-1"
+			issueStatus := &issueStatus{
+				StatusCategory: keyValue{
+					Key: "done", // this should trigger reopen and transition
+				},
+			}
+
+			mock := receivers.NewMockWebhookSender()
+			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+				switch cmd.URL {
+				case baseUrl + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResult{
+						Total: 1,
+						Issues: []issue{
+							{
+								Key: issueKey,
+								Fields: &issueFields{
+									Status: issueStatus,
+								},
+								Transition: nil,
+							},
+						},
+					}), 200)
+				case baseUrl + "/issue/" + issueKey:
+					return cmd.Validation(nil, 200)
+				case baseUrl + "/issue/" + issueKey + "/transitions":
+					if cmd.HTTPMethod == "GET" {
+						return cmd.Validation(mustMarshal(issueTransitions{
+							Transitions: []idNameValue{
+								transition,
+							},
+						}), 200)
+					} else {
+						return cmd.Validation(nil, 200)
+					}
+				default:
+					t.Fatalf("unexpected url: %s", cmd.URL)
+					return nil
+				}
+			}
+
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			retry, err := n.Notify(ctx, alert)
+			require.NoError(t, err)
+			require.False(t, retry)
+			assert.Len(t, mock.Calls, 4)
+
+			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+			assert.Equal(t, cfg.User, submitRequest.User)
+			assert.Equal(t, cfg.Password, submitRequest.Password)
+			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+			assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
+
+			transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
+			assert.Equal(t, cfg.User, transitionsSearchRequest.User)
+			assert.Equal(t, cfg.Password, transitionsSearchRequest.Password)
+			assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
+			assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
+
+			transitionRequest := mock.Calls[3].Args[1].(*receivers.SendWebhookSettings)
+			assert.Equal(t, cfg.User, transitionRequest.User)
+			assert.Equal(t, cfg.Password, transitionRequest.Password)
+			assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionRequest.URL)
+			assert.Equal(t, "POST", transitionRequest.HTTPMethod)
+			assert.JSONEq(t, string(mustMarshal(issue{
+				Transition: &idNameValue{
+					ID: transition.ID,
+				},
+			})), transitionRequest.Body)
+
+			t.Run("do not reopen if ReopenTransition is empty", func(t *testing.T) {
+				mock.Calls = nil
+				cfg.ReopenTransition = ""
+
+				n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+				retry, err := n.Notify(ctx, alert)
+				require.NoError(t, err)
+				require.False(t, retry)
+				assert.Len(t, mock.Calls, 2)
+
+				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+				assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
+			})
+
+			t.Run("fail if transition is not found in supported (no-retry)", func(t *testing.T) {
+				mock.Calls = nil
+				cfg.ReopenTransition = "something-else"
+
+				n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+				retry, err := n.Notify(ctx, alert)
+				require.Error(t, err)
+				require.False(t, retry)
+
+				assert.Len(t, mock.Calls, 3)
+
+				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+				assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
+
+				transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
+				assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
+				assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
+			})
+		})
+	})
+
+	t.Run("when resolved", func(t *testing.T) {
+		alert := &types.Alert{
+			Alert: model.Alert{
+				Labels: model.LabelSet{
+					"alertname": "TestAlert",
+					"severity":  "critical",
+				},
+				Annotations: model.LabelSet{
+					"summary":     "Test alert summary",
+					"description": "Test alert description",
+				},
+				EndsAt: time.Now().Add(-1 * time.Second),
+			},
 		}
 
 		u, _ := url.Parse(baseUrl)
@@ -496,18 +644,185 @@ func TestNotify(t *testing.T) {
 			User:        "test",
 			Password:    "test",
 		}
-		n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
-		retry, err := n.Notify(ctx, alert)
-		require.NoError(t, err)
-		require.False(t, retry)
-		assert.Len(t, mock.Calls, 2)
 
-		submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
-		assert.Equal(t, cfg.User, submitRequest.User)
-		assert.Equal(t, cfg.Password, submitRequest.Password)
-		assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
-		assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
-		assert.Equal(t, "PUT", submitRequest.HTTPMethod)
+		t.Run("does nothing if issue is not found", func(t *testing.T) {
+			mock := receivers.NewMockWebhookSender()
+			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+				switch cmd.URL {
+				case baseUrl + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResult{}), 200)
+				default:
+					t.Fatalf("unexpected url: %s", cmd.URL)
+					return nil
+				}
+			}
+
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			retry, err := n.Notify(ctx, alert)
+			require.NoError(t, err)
+			require.False(t, retry)
+			require.Len(t, mock.Calls, 1)
+		})
+
+		t.Run("updates the issue even if it's resolved, no transition", func(t *testing.T) {
+			// API presets
+			issueKey := "TEST-1"
+			issueStatus := &issueStatus{
+				StatusCategory: keyValue{
+					Key: "done",
+				},
+			}
+
+			mock := receivers.NewMockWebhookSender()
+			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+				switch cmd.URL {
+				case baseUrl + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResult{
+						Total: 1,
+						Issues: []issue{
+							{
+								Key: issueKey,
+								Fields: &issueFields{
+									Status: issueStatus,
+								},
+							},
+						},
+					}), 200)
+				case baseUrl + "/issue/" + issueKey:
+					return cmd.Validation(nil, 200)
+				default:
+					t.Fatalf("unexpected url: %s", cmd.URL)
+					return nil
+				}
+			}
+
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			retry, err := n.Notify(ctx, alert)
+			require.NoError(t, err)
+			require.False(t, retry)
+			require.Len(t, mock.Calls, 2)
+
+			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+			assert.Equal(t, cfg.User, submitRequest.User)
+			assert.Equal(t, cfg.Password, submitRequest.Password)
+			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+			assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
+		})
+
+		t.Run("updates the issue and transitions if it's not resolved", func(t *testing.T) {
+			cfg := cfg
+			cfg.ResolveTransition = "quickly"
+			// API presets
+			transition := idNameValue{
+				ID:   "1234",
+				Name: cfg.ResolveTransition,
+			}
+			issueKey := "TEST-1"
+			issueStatus := &issueStatus{
+				StatusCategory: keyValue{
+					Key: "test", // should trigger resolve
+				},
+			}
+
+			mock := receivers.NewMockWebhookSender()
+			mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+				switch cmd.URL {
+				case baseUrl + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResult{
+						Total: 1,
+						Issues: []issue{
+							{
+								Key: issueKey,
+								Fields: &issueFields{
+									Status: issueStatus,
+								},
+							},
+						},
+					}), 200)
+				case baseUrl + "/issue/" + issueKey:
+					return cmd.Validation(nil, 200)
+				case baseUrl + "/issue/" + issueKey + "/transitions":
+					if cmd.HTTPMethod == "GET" {
+						return cmd.Validation(mustMarshal(issueTransitions{
+							Transitions: []idNameValue{
+								transition,
+							},
+						}), 200)
+					} else {
+						return cmd.Validation(nil, 200)
+					}
+				default:
+					t.Fatalf("unexpected url: %s", cmd.URL)
+					return nil
+				}
+			}
+
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			retry, err := n.Notify(ctx, alert)
+			require.NoError(t, err)
+			require.False(t, retry)
+			require.Len(t, mock.Calls, 4)
+
+			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+			assert.Equal(t, cfg.User, submitRequest.User)
+			assert.Equal(t, cfg.Password, submitRequest.Password)
+			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+			assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
+
+			transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
+			assert.Equal(t, cfg.User, transitionsSearchRequest.User)
+			assert.Equal(t, cfg.Password, transitionsSearchRequest.Password)
+			assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
+			assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
+
+			transitionRequest := mock.Calls[3].Args[1].(*receivers.SendWebhookSettings)
+			assert.Equal(t, cfg.User, transitionRequest.User)
+			assert.Equal(t, cfg.Password, transitionRequest.Password)
+			assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionRequest.URL)
+			assert.Equal(t, "POST", transitionRequest.HTTPMethod)
+			assert.JSONEq(t, string(mustMarshal(issue{
+				Transition: &idNameValue{
+					ID: transition.ID,
+				},
+			})), transitionRequest.Body)
+
+			t.Run("do not resolve if ResolveTransition is empty", func(t *testing.T) {
+				mock.Calls = nil
+				cfg.ResolveTransition = ""
+
+				n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+				retry, err := n.Notify(ctx, alert)
+				require.NoError(t, err)
+				require.False(t, retry)
+				assert.Len(t, mock.Calls, 2)
+
+				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+				assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
+			})
+
+			t.Run("fail if transition is not found in supported (no-retry)", func(t *testing.T) {
+				mock.Calls = nil
+				cfg.ResolveTransition = "something-else"
+
+				n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+				retry, err := n.Notify(ctx, alert)
+				assert.Error(t, err)
+				assert.False(t, retry)
+
+				assert.Len(t, mock.Calls, 3)
+
+				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+				assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
+
+				transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
+				assert.Equal(t, baseUrl+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
+				assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
+			})
+		})
 	})
 }
 
