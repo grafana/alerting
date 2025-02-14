@@ -3,7 +3,6 @@ package http
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -17,40 +16,25 @@ import (
 
 // This is carbon copy of https://github.com/grafana/grafana/blob/71d04a326be9578e2d678f23c1efa61768e0541f/pkg/services/notifications/webhook.go#L38
 
-type Webhook struct {
-	Url         string
-	User        string
-	Password    string
-	Body        string
-	HttpMethod  string
-	HttpHeader  map[string]string
-	ContentType string
-	TLSConfig   *tls.Config
-
-	// Validation is a function that will validate the response body and statusCode of the webhook. Any returned error will cause the webhook request to be considered failed.
-	// This can be useful when a webhook service communicates failures in creative ways, such as using the response body instead of the status code.
-	Validation func(body []byte, statusCode int) error
-}
-
 type NotificationService struct {
 	log logging.Logger
 }
 
-func (ns *NotificationService) sendWebRequestSync(ctx context.Context, webhook *Webhook) error {
-	if webhook.HttpMethod == "" {
-		webhook.HttpMethod = http.MethodPost
+func (ns *NotificationService) SendWebhook(ctx context.Context, webhook *receivers.SendWebhookSettings) error {
+	if webhook.HTTPMethod == "" {
+		webhook.HTTPMethod = http.MethodPost
 	}
-	ns.log.Debug("Sending webhook", "url", webhook.Url, "http method", webhook.HttpMethod)
+	ns.log.Debug("Sending webhook", "url", webhook.URL, "http method", webhook.HTTPMethod)
 
-	if webhook.HttpMethod != http.MethodPost && webhook.HttpMethod != http.MethodPut {
+	if webhook.HTTPMethod != http.MethodPost && webhook.HTTPMethod != http.MethodPut {
 		return fmt.Errorf("webhook only supports HTTP methods PUT or POST")
 	}
 
-	request, err := http.NewRequestWithContext(ctx, webhook.HttpMethod, webhook.Url, bytes.NewReader([]byte(webhook.Body)))
+	request, err := http.NewRequestWithContext(ctx, webhook.HTTPMethod, webhook.URL, bytes.NewReader([]byte(webhook.Body)))
 	if err != nil {
 		return err
 	}
-	url, err := url.Parse(webhook.Url)
+	url, err := url.Parse(webhook.URL)
 	if err != nil {
 		// Should not be possible - NewRequestWithContext should also err if the URL is bad.
 		return err
@@ -67,7 +51,7 @@ func (ns *NotificationService) sendWebRequestSync(ctx context.Context, webhook *
 		request.Header.Set("Authorization", GetBasicAuthHeader(webhook.User, webhook.Password))
 	}
 
-	for k, v := range webhook.HttpHeader {
+	for k, v := range webhook.HTTPHeader {
 		request.Header.Set(k, v)
 	}
 
