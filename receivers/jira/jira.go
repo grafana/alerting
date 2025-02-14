@@ -295,19 +295,25 @@ func (n *Notifier) transitionIssue(ctx context.Context, logger logging.Logger, i
 	if i == nil || i.Key == "" || i.Fields == nil || i.Fields.Status == nil {
 		return false, nil
 	}
-
+	logger = logger.New("issue_key", i.Key, "firing", firing)
 	var transition string
 	if firing {
 		if i.Fields.Status.StatusCategory.Key != "done" {
 			return false, nil
 		}
-
+		if n.conf.ReopenTransition == "" {
+			logger.Debug("no reopen transition is specified. Skipping reopen the issue.")
+			return false, nil
+		}
 		transition = n.conf.ReopenTransition
 	} else {
 		if i.Fields.Status.StatusCategory.Key == "done" {
 			return false, nil
 		}
-
+		if n.conf.ResolveTransition == "" {
+			logger.Debug("no resolve transition is specified. Skipping transition to resolve")
+			return false, nil
+		}
 		transition = n.conf.ResolveTransition
 	}
 
