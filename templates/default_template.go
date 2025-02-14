@@ -68,16 +68,16 @@ Annotations:
 {{ template "__teams_text_alert_list" .Alerts.Resolved }}{{ end }}{{ end }}
 
 {{ define "jira.default.summary" }}{{ template "__subject" . }}{{ end }}
-{{ define "jira.default.description" }}
-{{ if gt (len .Alerts.Firing) 0 }}
+{{- define "jira.default.description" -}}
+{{- if gt (len .Alerts.Firing) 0 -}}
 # Alerts Firing:
 {{ template "__text_alert_list_markdown" .Alerts.Firing }}
-{{ end }}
-{{ if gt (len .Alerts.Resolved) 0 }}
+{{- end -}}
+{{- if gt (len .Alerts.Resolved) 0 -}}
 # Alerts Resolved:
-{{ template "__text_alert_list_markdown" .Alerts.Resolved }}
-{{ end }}
-{{ end }}
+{{- template "__text_alert_list_markdown" .Alerts.Resolved -}}
+{{- end -}}
+{{- end -}}
 
 {{- define "jira.default.priority" -}}
 {{- $priority := "" }}
@@ -139,18 +139,18 @@ Labels:
 
 {{ define "teams.default.message" }}{{ template "default.message" . }}{{ end }}
 
-
 {{ define "jira.default.summary" }}{{ template "__subject" . }}{{ end }}
-{{ define "jira.default.description" }}
-{{ if gt (len .Alerts.Firing) 0 }}
+
+{{- define "jira.default.description" -}}
+{{- if gt (len .Alerts.Firing) 0 -}}
 # Alerts Firing:
 {{ template "__text_alert_list_markdown" .Alerts.Firing }}
-{{ end }}
-{{ if gt (len .Alerts.Resolved) 0 }}
+{{- end -}}
+{{- if gt (len .Alerts.Resolved) 0 -}}
 # Alerts Resolved:
-{{ template "__text_alert_list_markdown" .Alerts.Resolved }}
-{{ end }}
-{{ end }}
+{{- template "__text_alert_list_markdown" .Alerts.Resolved -}}
+{{- end -}}
+{{- end -}}
 
 {{- define "jira.default.priority" -}}
 {{- $priority := "" }}
