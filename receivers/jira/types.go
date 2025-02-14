@@ -13,14 +13,14 @@ type issue struct {
 }
 
 type issueFields struct {
-	Description any           `json:"description"`
-	Issuetype   *idNameValue  `json:"issuetype,omitempty"`
-	Labels      []string      `json:"labels,omitempty"`
-	Priority    *idNameValue  `json:"priority,omitempty"`
-	Project     *issueProject `json:"project,omitempty"`
-	Resolution  *idNameValue  `json:"resolution,omitempty"`
-	Summary     string        `json:"summary"`
-	Status      *issueStatus  `json:"status,omitempty"`
+	Description any          `json:"description"`
+	Issuetype   *idNameValue `json:"issuetype,omitempty"`
+	Labels      []string     `json:"labels,omitempty"`
+	Priority    *idNameValue `json:"priority,omitempty"`
+	Project     *keyValue    `json:"project,omitempty"`
+	Resolution  *idNameValue `json:"resolution,omitempty"`
+	Summary     string       `json:"summary"`
+	Status      *issueStatus `json:"status,omitempty"`
 
 	Fields map[string]any `json:"-"`
 }
@@ -30,15 +30,13 @@ type idNameValue struct {
 	Name string `json:"name,omitempty"`
 }
 
-type issueProject struct {
+type keyValue struct {
 	Key string `json:"key"`
 }
 
 type issueStatus struct {
-	Name           string `json:"name"`
-	StatusCategory struct {
-		Key string `json:"key"`
-	} `json:"statusCategory"`
+	Name           string   `json:"name"`
+	StatusCategory keyValue `json:"statusCategory"`
 }
 
 type issueSearch struct {

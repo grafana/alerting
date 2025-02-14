@@ -139,7 +139,7 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 
 	projectKey := strings.TrimSpace(renderOrDefault("project", n.conf.Project, ""))
 	if projectKey != "" {
-		fields.Project = &issueProject{Key: projectKey}
+		fields.Project = &keyValue{Key: projectKey}
 	}
 	issueType := strings.TrimSpace(renderOrDefault("issue_type", n.conf.IssueType, ""))
 	if issueType != "" {
