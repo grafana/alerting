@@ -14,11 +14,29 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-type NotificationService struct {
-	log logging.Logger
+var ErrInvalidMethod = errors.New("webhook only supports HTTP methods PUT or POST")
+
+type ClientConfiguration struct {
+	UserAgent string
 }
 
-func (ns *NotificationService) SendWebhook(ctx context.Context, webhook *receivers.SendWebhookSettings) error {
+var DefaultClientConfiguration = ClientConfiguration{
+	UserAgent: "Grafana",
+}
+
+type Client struct {
+	log   logging.Logger
+	agent string
+}
+
+func NewClient(log logging.Logger, cfg ClientConfiguration) *Client {
+	return &Client{
+		log:   log,
+		agent: cfg.UserAgent,
+	}
+}
+
+func (ns *Client) SendWebhook(ctx context.Context, webhook *receivers.SendWebhookSettings) error {
 	// This method is carbon copy of https://github.com/grafana/grafana/blob/71d04a326be9578e2d678f23c1efa61768e0541f/pkg/services/notifications/webhook.go#L38
 	if webhook.HTTPMethod == "" {
 		webhook.HTTPMethod = http.MethodPost
@@ -26,7 +44,7 @@ func (ns *NotificationService) SendWebhook(ctx context.Context, webhook *receive
 	ns.log.Debug("Sending webhook", "url", webhook.URL, "http method", webhook.HTTPMethod)
 
 	if webhook.HTTPMethod != http.MethodPost && webhook.HTTPMethod != http.MethodPut {
-		return fmt.Errorf("webhook only supports HTTP methods PUT or POST")
+		return ErrInvalidMethod
 	}
 
 	request, err := http.NewRequestWithContext(ctx, webhook.HTTPMethod, webhook.URL, bytes.NewReader([]byte(webhook.Body)))
@@ -44,7 +62,7 @@ func (ns *NotificationService) SendWebhook(ctx context.Context, webhook *receive
 	}
 
 	request.Header.Set("Content-Type", webhook.ContentType)
-	request.Header.Set("User-Agent", "Grafana")
+	request.Header.Set("User-Agent", ns.agent)
 
 	if webhook.User != "" && webhook.Password != "" {
 		request.Header.Set("Authorization", GetBasicAuthHeader(webhook.User, webhook.Password))
