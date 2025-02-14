@@ -86,10 +86,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		logger.Debug("updating existing issue", "issue_key", existingIssue.Key)
 	}
 
-	requestBody, err := n.prepareIssueRequestBody(ctx, logger, key.Hash(), as...)
-	if err != nil {
-		return false, err
-	}
+	requestBody := n.prepareIssueRequestBody(ctx, logger, key.Hash(), as...)
 
 	_, shouldRetry, err = n.doAPIRequest(ctx, method, path, requestBody)
 	if err != nil {
@@ -99,7 +96,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	return n.transitionIssue(ctx, logger, existingIssue, alerts.HasFiring())
 }
 
-func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.Logger, groupID string, as ...*types.Alert) (issue, error) {
+func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.Logger, groupID string, as ...*types.Alert) issue {
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, n.tmpl, as, n.log, &tmplErr)
 
@@ -173,7 +170,7 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 		fields.Labels = append(fields.Labels, fmt.Sprintf("ALERT{%s}", groupID))
 	}
 
-	return issue{Fields: fields}, nil
+	return issue{Fields: fields}
 }
 
 func (n *Notifier) prepareDescription(desc string, logger logging.Logger) any {
