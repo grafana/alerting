@@ -14,13 +14,12 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-// This is carbon copy of https://github.com/grafana/grafana/blob/71d04a326be9578e2d678f23c1efa61768e0541f/pkg/services/notifications/webhook.go#L38
-
 type NotificationService struct {
 	log logging.Logger
 }
 
 func (ns *NotificationService) SendWebhook(ctx context.Context, webhook *receivers.SendWebhookSettings) error {
+	// This method is carbon copy of https://github.com/grafana/grafana/blob/71d04a326be9578e2d678f23c1efa61768e0541f/pkg/services/notifications/webhook.go#L38
 	if webhook.HTTPMethod == "" {
 		webhook.HTTPMethod = http.MethodPost
 	}
