@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -81,7 +82,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		method = http.MethodPost
 		logger.Debug("create new issue")
 	} else {
-		path = "issue/" + existingIssue.Key
+		path = "issue/" + url.PathEscape(existingIssue.Key)
 		method = http.MethodPut
 		logger.Debug("updating existing issue", "issue_key", existingIssue.Key)
 	}
@@ -268,7 +269,7 @@ func getSearchJql(conf Config, groupID string, firing bool) issueSearch {
 }
 
 func (n *Notifier) getIssueTransitionByName(ctx context.Context, issueKey, transitionName string) (string, bool, error) {
-	path := fmt.Sprintf("issue/%s/transitions", issueKey)
+	path := fmt.Sprintf("issue/%s/transitions", url.PathEscape(issueKey))
 
 	responseBody, shouldRetry, err := n.doAPIRequest(ctx, http.MethodGet, path, nil)
 	if err != nil {
@@ -321,7 +322,7 @@ func (n *Notifier) transitionIssue(ctx context.Context, logger logging.Logger, i
 		},
 	}
 
-	path := fmt.Sprintf("issue/%s/transitions", i.Key)
+	path := fmt.Sprintf("issue/%s/transitions", url.PathEscape(i.Key))
 
 	logger.Debug("transitions jira issue", "issue_key", i.Key, "transition", transition)
 	_, shouldRetry, err = n.doAPIRequest(ctx, http.MethodPost, path, requestBody)
