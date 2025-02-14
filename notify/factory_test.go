@@ -42,7 +42,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should build all supported notifiers", func(t *testing.T) {
 		fullCfg, qty := getFullConfig(t)
 
-		logger := func(name string, _ ...interface{}) logging.Logger {
+		logger := func(_ string, _ ...interface{}) logging.Logger {
 			return &logging.FakeLogger{}
 		}
 
