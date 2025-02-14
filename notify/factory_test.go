@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
@@ -21,9 +22,6 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	imageProvider := &images.FakeProvider{}
 	tmpl := templates.ForTests(t)
 
-	webhookFactory := func(_ receivers.Metadata) (receivers.WebhookSender, error) {
-		return receivers.MockNotificationService(), nil
-	}
 	emailFactory := func(_ receivers.Metadata) (receivers.EmailSender, error) {
 		return receivers.MockNotificationService(), nil
 	}
@@ -51,10 +49,6 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 		}
 
 		webhooks := make(map[receivers.Metadata]struct{}, qty)
-		wh := func(n receivers.Metadata) (receivers.WebhookSender, error) {
-			webhooks[n] = struct{}{}
-			return webhookFactory(n)
-		}
 
 		emails := make(map[receivers.Metadata]struct{}, qty)
 		em := func(n receivers.Metadata) (receivers.EmailSender, error) {
@@ -62,7 +56,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return emailFactory(n)
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, wh, em, orgID, version)
+		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, http.DefaultClientConfiguration, em, orgID, version)
 
 		require.NoError(t, err)
 		require.Len(t, integrations, qty)
@@ -77,21 +71,6 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			require.Len(t, emails, 1) // we have only email notifier that needs sender
 		})
 	})
-	t.Run("should return errors if webhook factory fails", func(t *testing.T) {
-		fullCfg, _ := getFullConfig(t)
-		calls := 0
-		failingFactory := func(_ receivers.Metadata) (receivers.WebhookSender, error) {
-			calls++
-			return nil, errors.New("bad-test")
-		}
-
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, failingFactory, emailFactory, orgID, version)
-
-		require.Empty(t, integrations)
-		require.NotNil(t, err)
-		require.ErrorContains(t, err, "bad-test")
-		require.Greater(t, calls, 0)
-	})
 	t.Run("should return errors if email factory fails", func(t *testing.T) {
 		fullCfg, _ := getFullConfig(t)
 		calls := 0
@@ -100,7 +79,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return nil, errors.New("bad-test")
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, webhookFactory, failingFactory, orgID, version)
+		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, http.DefaultClientConfiguration, failingFactory, orgID, version)
 
 		require.Empty(t, integrations)
 		require.NotNil(t, err)
@@ -110,7 +89,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should not produce any integration if config is empty", func(t *testing.T) {
 		cfg := GrafanaReceiverConfig{Name: "test"}
 
-		integrations, err := BuildReceiverIntegrations(cfg, tmpl, imageProvider, loggerFactory, webhookFactory, emailFactory, orgID, version)
+		integrations, err := BuildReceiverIntegrations(cfg, tmpl, imageProvider, loggerFactory, http.DefaultClientConfiguration, emailFactory, orgID, version)
 
 		require.NoError(t, err)
 		require.Empty(t, integrations)
