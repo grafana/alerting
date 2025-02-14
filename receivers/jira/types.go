@@ -108,3 +108,20 @@ type adfNode struct {
 	Content []adfNode `json:"content,omitempty"`
 	Text    string    `json:"text,omitempty"`
 }
+
+func simpleAdfDocument(description string) adfDocument {
+	return adfDocument{
+		Version: 1,
+		Type:    "doc",
+		Content: []adfNode{
+			{
+				Type: "paragraph",
+				Content: []adfNode{
+					{
+						Type: "text",
+						Text: description,
+					},
+				},
+			}},
+	}
+}

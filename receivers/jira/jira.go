@@ -190,26 +190,13 @@ func (n *Notifier) prepareDescription(desc string, logger logging.Logger) any {
 			logger.Warn("Failed to parse description as JSON. Fallback to string mode", "error", err)
 		}
 
+		maxLen := MaxDescriptionLenRunes - adfDocOverhead
 		// if it's just a text. Create a document. Consider the document overhead while truncating
-		truncatedDescr, truncated := notify.TruncateInRunes(desc, MaxDescriptionLenRunes-adfDocOverhead)
+		truncatedDescr, truncated := notify.TruncateInRunes(desc, maxLen)
 		if truncated {
-			logger.Warn("Truncated description", "max_runes", MaxDescriptionLenRunes-adfDocOverhead, "length", len(desc))
+			logger.Warn("Truncated description", "max_runes", maxLen, "length", len(desc))
 		}
-		return adfDocument{
-			Version: 1,
-			Type:    "doc",
-			Content: []adfNode{
-				{
-					Type: "paragraph",
-					Content: []adfNode{
-						{
-							Type: "text",
-							Text: truncatedDescr,
-						},
-					},
-				}},
-		}
-
+		return simpleAdfDocument(truncatedDescr)
 	}
 
 	truncatedDescr, truncated := notify.TruncateInRunes(desc, MaxDescriptionLenRunes)
