@@ -6,6 +6,7 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 
+	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
@@ -93,7 +94,7 @@ func BuildReceiverIntegrations(
 		ci(i, cfg.Metadata, googlechat.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), version))
 	}
 	for i, cfg := range receiver.JiraConfigs {
-		ci(i, cfg.Metadata, jira.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), nl(cfg.Metadata)))
+		ci(i, cfg.Metadata, jira.New(cfg.Settings, cfg.Metadata, tmpl, http.NewForkedSender(nw(cfg.Metadata)), nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.KafkaConfigs {
 		ci(i, cfg.Metadata, kafka.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))
