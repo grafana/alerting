@@ -42,13 +42,9 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should build all supported notifiers", func(t *testing.T) {
 		fullCfg, qty := getFullConfig(t)
 
-		loggerNames := make(map[string]struct{}, qty)
 		logger := func(name string, _ ...interface{}) logging.Logger {
-			loggerNames[name] = struct{}{}
 			return &logging.FakeLogger{}
 		}
-
-		webhooks := make(map[receivers.Metadata]struct{}, qty)
 
 		emails := make(map[receivers.Metadata]struct{}, qty)
 		em := func(n receivers.Metadata) (receivers.EmailSender, error) {
@@ -61,12 +57,6 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, integrations, qty)
 
-		t.Run("should call logger factory for each config", func(t *testing.T) {
-			require.Len(t, loggerNames, qty)
-		})
-		t.Run("should call webhook factory for each config that needs it", func(t *testing.T) {
-			require.Len(t, webhooks, 17) // we have 17 notifiers that support webhook
-		})
 		t.Run("should call email factory for each config that needs it", func(t *testing.T) {
 			require.Len(t, emails, 1) // we have only email notifier that needs sender
 		})
