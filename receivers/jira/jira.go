@@ -175,7 +175,7 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 }
 
 func (n *Notifier) prepareDescription(desc string, logger logging.Logger) any {
-	if strings.HasSuffix(n.conf.URL.Path, "/3") {
+	if strings.HasSuffix(strings.TrimRight(n.conf.URL.Path, "/"), "/3") {
 		// V3 API supports structured description in ADF format
 		// check if the payload is a valid JSON and assign it in that case
 		if json.Valid([]byte(desc)) {
