@@ -2,16 +2,17 @@ package jira
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/logging"
@@ -19,167 +20,272 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestNotify(t *testing.T) {
-	tmpl := templates.ForTests(t)
-
-	exampleAlert := &types.Alert{
-		Alert: model.Alert{
-			Labels: model.LabelSet{
-				"alertname": "TestAlert",
-				"severity":  "critical",
-			},
-			Annotations: model.LabelSet{
-				"summary":     "Test alert summary",
-				"description": "Test alert description",
-			},
-			StartsAt: time.Now(),
-		},
-	}
-
-	serverV2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println(r.Method, r.URL.Path)
-		if r.Method == http.MethodGet && r.URL.Path == "/search" {
-			w.Write([]byte(`{"issues": []}`))
-		}
-		if r.Method == http.MethodPost && r.URL.Path == "/issue" {
-			w.Write([]byte(`{"key": "TEST-123"}`))
-		}
-	}))
-	defer serverV2.Close()
-
-	serverV3 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet && r.URL.Path == "/search" {
-			w.Write([]byte(`{"issues": []}`))
-		}
-		if r.Method == http.MethodPost && r.URL.Path == "/issue" {
-			w.Write([]byte(`{"key": "TEST-123"}`))
-		}
-	}))
-	defer serverV3.Close()
-
-	serverV2URL, err := url.Parse(serverV2.URL)
-	require.NoError(t, err)
-	serverV3URL, err := url.Parse(serverV3.URL)
-	require.NoError(t, err)
-
-	cases := []struct {
+func TestPrepareDescription(t *testing.T) {
+	tests := []struct {
 		name        string
-		alerts      []*types.Alert
-		apiVersion  string
-		expHeaders  map[string]string
-		expBody     string
-		expURL      string
-		statusCode  int
-		expMsgError string
+		description string
+		apiPath     string
+		expected    any
 	}{
 		{
-			name:       "Single alert with v2 API creates issue",
-			alerts:     []*types.Alert{exampleAlert},
-			apiVersion: "2",
-			expHeaders: map[string]string{
-				"Content-Type":    "application/json",
-				"Accept-Language": "en",
-			},
-			expURL:     "http://jira.example.com/issue",
-			statusCode: http.StatusOK,
+			name:        "Valid JSON input for API v3",
+			description: `{"key":"value"}`,
+			apiPath:     "/3",
+			expected:    map[string]any{"key": "value"},
 		},
-		// {
-		// 	name:       "Single alert with v3 API creates issue",
-		// 	alerts:     []*types.Alert{exampleAlert},
-		// 	apiVersion: "3",
-		// 	expHeaders: map[string]string{
-		// 		"Content-Type":    "application/json",
-		// 		"Accept-Language": "en",
-		// 	},
-		// 	expURL:     "http://jira.example.com/3/issue",
-		// 	statusCode: http.StatusOK,
-		// },
+		{
+			name:        "adfDocument document for non-json and API v3",
+			description: `description`,
+			apiPath:     "/3",
+			expected:    simpleAdfDocument("description"),
+		},
+		{
+			name:        "Long description API v3 with truncation to ADF",
+			description: strings.Repeat("A", MaxDescriptionLenRunes+1),
+			apiPath:     "/3",
+			expected:    simpleAdfDocument(strings.Repeat("A", MaxDescriptionLenRunes-adfDocOverhead-1) + "…"),
+		},
+		{
+			name:        "Fallback to string for invalid JSON (v3)",
+			description: `{"key:"value",}`, // Invalid JSON
+			apiPath:     "/3",
+			expected:    simpleAdfDocument(`{"key:"value",}`),
+		},
+		{
+			name:        "Plain string for default API (non-v3)",
+			description: "This is a test description",
+			apiPath:     "/2",
+			expected:    "This is a test description",
+		},
+		{
+			name:        "Truncated string for overly long description (non-v3)",
+			description: strings.Repeat("B", MaxDescriptionLenRunes+10),
+			apiPath:     "/2",
+			expected:    strings.Repeat("B", MaxDescriptionLenRunes-1) + "…",
+		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			webhookSender := receivers.MockNotificationService()
-			webhookSender.StatusCode = c.statusCode
-			webhookSender.ResponseBody = []byte(`{"key": "TEST-123"}`)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup
+			conf := Config{URL: &url.URL{Path: tt.apiPath}}
+			logger := logging.FakeLogger{}
+			notifier := &Notifier{conf: conf}
 
-			baseURL := serverV2URL
-			if c.apiVersion == "3" {
-				baseURL = serverV3URL
-			}
-
-			cfg := Config{
-				URL:         baseURL,
-				Project:     "Test project",
-				IssueType:   "Bug",
-				Priority:    "High",
-				Summary:     "{{ .CommonLabels.alertname }}",
-				Description: "{{ .CommonAnnotations.description }}",
-			}
-
-			// Create notifier
-			n := New(cfg, receivers.Metadata{}, tmpl, webhookSender, logging.FakeLogger{})
-
-			// Test notification
-			ctx := context.Background()
-			ctx = notify.WithGroupKey(ctx, "test_group")
-
-			ok, err := n.Notify(ctx, c.alerts...)
-
-			if c.expMsgError != "" {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), c.expMsgError)
-				return
-			}
-			require.NoError(t, err)
-			require.True(t, ok)
+			// Execute
+			desc := notifier.prepareDescription(tt.description, logger)
+			assert.EqualValues(t, tt.expected, desc)
 		})
 	}
 }
 
 func TestPrepareIssueRequestBody(t *testing.T) {
-	tmpl := templates.ForTests(t)
 
+	v2 := &url.URL{Path: "/2"}
+	v3 := &url.URL{Path: "/3"}
+	tmpl := templates.ForTests(t)
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "severity": "critical"},
+				Annotations: model.LabelSet{"ann1": "annv1", "type": "bug", "project": "PROJ"},
+			},
+		},
+	}
 	tests := []struct {
 		name       string
+		path       string
 		conf       Config
-		alerts     []*types.Alert
-		expSummary string
-		expError   string
+		expPayload string
 	}{
 		{
-			name: "Default summary template",
+			name: "Fields with template v2",
 			conf: Config{
-				Project:   "PROJ",
-				IssueType: "Bug",
+				URL:         v2,
+				Project:     "{{ .CommonAnnotations.project }}",
+				IssueType:   "{{ .CommonAnnotations.type }}",
+				Summary:     DefaultSummary,
+				Description: DefaultDescription,
+				Priority:    DefaultPriority,
+				Labels:      []string{"{{ .CommonLabels.alertname }}"},
 			},
-			alerts: []*types.Alert{
-				{
-					Alert: model.Alert{
-						Labels: model.LabelSet{
-							"alertname": "TestAlert",
-						},
-					},
-				},
-			},
-			expSummary: "[FIRING:1] TestAlert",
+			expPayload: `{
+	          "fields": {
+	            "description": "# Alerts Firing:\n\nLabels:\n  - alertname = alert1\n  - severity = critical\n\nAnnotations:\n  - ann1 = annv1\n  - project = PROJ\n  - type = bug\n\nSource: \n\n",
+	            "issuetype": {
+	              "name": "bug"
+	            },
+	            "labels": [
+                  "alert1",
+	              "ALERT{test_group}"
+	            ],
+	            "priority": {
+	              "name": "High"
+	            },
+	            "project": {
+	              "key": "PROJ"
+	            },
+	            "summary": "[FIRING:1]  (alert1 critical)"
+	          }
+	        }`,
 		},
 		{
-			name: "Custom summary template",
+			name: "Fields with template v3",
 			conf: Config{
-				Project:   "PROJ",
-				IssueType: "Bug",
-				Summary:   "Custom: {{ .CommonLabels.alertname }}",
+				URL:         v3,
+				Project:     "{{ .CommonAnnotations.project }}",
+				IssueType:   "{{ .CommonAnnotations.type }}",
+				Summary:     DefaultSummary,
+				Description: DefaultDescription,
+				Priority:    DefaultPriority,
+				Labels:      []string{"{{ .CommonLabels.alertname }}"},
 			},
-			alerts: []*types.Alert{
-				{
-					Alert: model.Alert{
-						Labels: model.LabelSet{
-							"alertname": "TestAlert",
-						},
-					},
+			expPayload: `{
+	          "fields": {
+	            "description": {
+	              "version": 1,
+	              "type": "doc",
+	              "content": [
+	                {
+	                  "type": "paragraph",
+	                  "content": [
+	                    {
+	                      "type": "text",
+	                      "text": "# Alerts Firing:\n\nLabels:\n  - alertname = alert1\n  - severity = critical\n\nAnnotations:\n  - ann1 = annv1\n  - project = PROJ\n  - type = bug\n\nSource: \n\n"
+	                    }
+	                  ]
+	                }
+	              ]
+	            },
+	            "issuetype": {
+	              "name": "bug"
+	            },
+	            "labels": [
+                  "alert1",
+	              "ALERT{test_group}"
+	            ],
+	            "priority": {
+	              "name": "High"
+	            },
+	            "project": {
+	              "key": "PROJ"
+	            },
+	            "summary": "[FIRING:1]  (alert1 critical)"
+	          }
+	        }`,
+		},
+		{
+			name: "Fallback to default templates if invalid",
+			conf: Config{
+				URL:         v2,
+				Project:     "{{",
+				IssueType:   "{{",
+				Summary:     "{{",
+				Description: "{{",
+				Priority:    "{{",
+				Labels:      []string{"{{"},
+			},
+			expPayload: `{
+	          "fields": {
+	            "description": "# Alerts Firing:\n\nLabels:\n  - alertname = alert1\n  - severity = critical\n\nAnnotations:\n  - ann1 = annv1\n  - project = PROJ\n  - type = bug\n\nSource: \n\n",
+	            "labels": [
+	              "ALERT{test_group}"
+	            ],
+	            "summary": "[FIRING:1]  (alert1 critical)"
+	          }
+	        }`,
+		},
+		{
+			name: "summary should be truncated",
+			conf: Config{
+				URL:         v2,
+				Project:     "{{ .CommonAnnotations.project }}",
+				IssueType:   "{{ .CommonAnnotations.type }}",
+				Summary:     strings.Repeat("A", MaxSummaryLenRunes+1),
+				Description: DefaultDescription,
+				Priority:    DefaultPriority,
+			},
+			expPayload: fmt.Sprintf(`{
+	          "fields": {
+	            "description": "# Alerts Firing:\n\nLabels:\n  - alertname = alert1\n  - severity = critical\n\nAnnotations:\n  - ann1 = annv1\n  - project = PROJ\n  - type = bug\n\nSource: \n\n",
+	            "issuetype": {
+	              "name": "bug"
+	            },
+	            "labels": [
+	              "ALERT{test_group}"
+	            ],
+	            "priority": {
+	              "name": "High"
+	            },
+	            "project": {
+	              "key": "PROJ"
+	            },
+	            "summary": "%s…"
+	          }
+	        }`, strings.Repeat("A", MaxSummaryLenRunes-1)),
+		},
+		{
+			name: "should append fields to custom fields",
+			conf: Config{
+				URL:         v2,
+				Summary:     "sum",
+				Description: "desc",
+				Priority:    "high",
+				Fields: map[string]any{
+					"customfield_10001": map[string]any{"value": "green"},
+					"customfield_10002": "2011-10-03",
+					"customfield_10004": "Free text goes here.  Type away!",
+					"customfield_10008": []any{map[string]any{"value": "red"}},
+					"customfield_10010": 42.07,
 				},
 			},
-			expSummary: "Custom: TestAlert",
+			expPayload: `{
+	          "fields": {
+	            "customfield_10001": {
+	              "value": "green"
+	            },
+	            "customfield_10002": "2011-10-03",
+	            "customfield_10004": "Free text goes here.  Type away!",
+	            "customfield_10008": [
+	              {
+	                "value": "red"
+	              }
+	            ],
+	            "customfield_10010": 42.07,
+	            "description": "desc",
+	            "labels": [
+	              "ALERT{test_group}"
+	            ],
+	            "priority": {
+	              "name": "high"
+	            },
+	            "summary": "sum"
+	          }
+	        }`,
+		},
+		{
+			name: "should add group key to custom fields if dedup key field is set",
+			conf: Config{
+				URL:               v2,
+				Summary:           "sum",
+				Description:       "desc",
+				Priority:          "high",
+				DedupKeyFieldName: "12345",
+				Fields: map[string]any{
+					"customfield_12345": "should-override",
+				},
+			},
+			expPayload: `{
+	          "fields": {
+	            "customfield_12345": "test_group",
+	            "description": "desc",
+	            "labels": [],
+	            "priority": {
+	              "name": "high"
+	            },
+	            "summary": "sum"
+	          }
+	        }`,
 		},
 	}
 
@@ -187,16 +293,12 @@ func TestPrepareIssueRequestBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			n := New(tt.conf, receivers.Metadata{}, tmpl, nil, logging.FakeLogger{})
 
-			issue, err := n.prepareIssueRequestBody(context.Background(), logging.FakeLogger{}, "test_group", tt.alerts...)
+			issue := n.prepareIssueRequestBody(context.Background(), logging.FakeLogger{}, "test_group", alerts...)
 
-			if tt.expError != "" {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tt.expError)
-				return
-			}
-
+			d, err := json.MarshalIndent(issue, "", "  ")
 			require.NoError(t, err)
-			require.Equal(t, tt.expSummary, issue.Fields.Summary)
+			t.Log(string(d))
+			require.JSONEq(t, tt.expPayload, string(d))
 		})
 	}
 }
@@ -261,4 +363,130 @@ func TestGetSearchJql(t *testing.T) {
 			require.Equal(t, tt.expectedJql, result.JQL)
 		})
 	}
+}
+
+func TestNotify(t *testing.T) {
+	ctx := notify.WithGroupKey(context.Background(), "test_group")
+	groupKey, _ := notify.ExtractGroupKey(ctx)
+	tmpl := templates.ForTests(t)
+	baseUrl := "https://jira.example.com/2"
+
+	alert := &types.Alert{
+		Alert: model.Alert{
+			Labels: model.LabelSet{
+				"alertname": "TestAlert",
+				"severity":  "critical",
+			},
+			Annotations: model.LabelSet{
+				"summary":     "Test alert summary",
+				"description": "Test alert description",
+			},
+			StartsAt: time.Now(),
+		},
+	}
+
+	t.Run("creates a new issue if no existing", func(t *testing.T) {
+		mock := receivers.NewMockWebhookSender()
+		mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+			switch cmd.URL {
+			case baseUrl + "/search":
+				return cmd.Validation(mustMarshal(issueSearchResult{}), 200)
+			case baseUrl + "/issue":
+				return cmd.Validation(nil, 201)
+			default:
+				t.FailNow()
+				return nil
+			}
+		}
+
+		u, _ := url.Parse(baseUrl)
+		cfg := Config{
+			URL:         u,
+			Summary:     "sum",
+			Description: "desc",
+			Priority:    "high",
+			User:        "test",
+			Password:    "test",
+		}
+		n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+		retry, err := n.Notify(ctx, alert)
+		require.NoError(t, err)
+		require.False(t, retry)
+		require.Len(t, mock.Calls, 2)
+
+		searchRequest := mock.Calls[0].Args[1].(*receivers.SendWebhookSettings)
+		assert.Equal(t, cfg.User, searchRequest.User)
+		assert.Equal(t, cfg.Password, searchRequest.Password)
+		assert.JSONEq(t, string(mustMarshal(getSearchJql(cfg, groupKey.Hash(), true))), searchRequest.Body)
+		assert.Equal(t, baseUrl+"/search", searchRequest.URL)
+		assert.Equal(t, "POST", searchRequest.HTTPMethod)
+
+		submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+		assert.Equal(t, cfg.User, submitRequest.User)
+		assert.Equal(t, cfg.Password, submitRequest.Password)
+		assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+		assert.Equal(t, baseUrl+"/issue", submitRequest.URL)
+		assert.Equal(t, "POST", submitRequest.HTTPMethod)
+	})
+
+	t.Run("updates existing issue if firing", func(t *testing.T) {
+		mock := receivers.NewMockWebhookSender()
+		issueKey := "TEST-1"
+		mock.SendWebhookFunc = func(ctx context.Context, cmd *receivers.SendWebhookSettings) error {
+			switch cmd.URL {
+			case baseUrl + "/search":
+				return cmd.Validation(mustMarshal(issueSearchResult{
+					Total: 1,
+					Issues: []issue{
+						{
+							Key: issueKey,
+							Fields: &issueFields{
+								Status: &issueStatus{
+									StatusCategory: keyValue{
+										Key: "blah",
+									},
+								},
+							},
+							Transition: nil,
+						},
+					},
+				}), 200)
+			case baseUrl + "/issue/" + issueKey:
+				return cmd.Validation(nil, 201)
+			default:
+				t.Fatalf("unexpected url: %s", cmd.URL)
+				return nil
+			}
+		}
+
+		u, _ := url.Parse(baseUrl)
+		cfg := Config{
+			URL:         u,
+			Summary:     "sum",
+			Description: "desc",
+			Priority:    "high",
+			User:        "test",
+			Password:    "test",
+		}
+		n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+		retry, err := n.Notify(ctx, alert)
+		require.NoError(t, err)
+		require.False(t, retry)
+		assert.Len(t, mock.Calls, 2)
+
+		submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+		assert.Equal(t, cfg.User, submitRequest.User)
+		assert.Equal(t, cfg.Password, submitRequest.Password)
+		assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+		assert.Equal(t, baseUrl+"/issue/"+issueKey, submitRequest.URL)
+		assert.Equal(t, "PUT", submitRequest.HTTPMethod)
+	})
+}
+
+func mustMarshal(v interface{}) []byte {
+	j, err := json.Marshal(v)
+	if err != nil {
+		panic(err)
+	}
+	return j
 }
