@@ -312,7 +312,7 @@ func TestGetSearchJql(t *testing.T) {
 		expectedJql string
 	}{
 		{
-			name: "Default configuration without custom fields",
+			name: "firing and default configuration",
 			conf: Config{
 				Project: "TEST",
 			},
@@ -320,7 +320,7 @@ func TestGetSearchJql(t *testing.T) {
 			expectedJql: `statusCategory != Done and labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 		{
-			name: "Configuration with wont-fix resolution",
+			name: "firing and configuration with wont-fix resolution",
 			conf: Config{
 				Project:           "TEST",
 				WontFixResolution: "won't fix",
@@ -329,7 +329,7 @@ func TestGetSearchJql(t *testing.T) {
 			expectedJql: `resolution != "won't fix" and statusCategory != Done and labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 		{
-			name: "Reopen transition is set",
+			name: "firing and reopen transition is set",
 			conf: Config{
 				Project:          "TEST",
 				ReopenTransition: "test",
@@ -338,7 +338,24 @@ func TestGetSearchJql(t *testing.T) {
 			expectedJql: `labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 		{
-			name: "Reopen duration specified",
+			name: "firing and custom dedup key field",
+			conf: Config{
+				Project:           "TEST",
+				DedupKeyFieldName: "12345",
+			},
+			firing:      true,
+			expectedJql: `statusCategory != Done and (labels = "ALERT{group1}" or cf[12345] ~ "group1") and project="TEST" order by status ASC,resolutiondate DESC`,
+		},
+		{
+			name: "resolved and default configuration",
+			conf: Config{
+				Project: "TEST",
+			},
+			firing:      false,
+			expectedJql: `labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
+		},
+		{
+			name: "resolved and reopen duration specified",
 			conf: Config{
 				Project:        "TEST",
 				ReopenDuration: model.Duration(30 * time.Minute),
@@ -347,19 +364,30 @@ func TestGetSearchJql(t *testing.T) {
 			expectedJql: `(resolutiondate is EMPTY OR resolutiondate >= -30m) and labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 		{
-			name: "Custom dedup key field",
+			name: "resolved and configuration with wont-fix resolution",
+			conf: Config{
+				Project:           "TEST",
+				WontFixResolution: "won't fix",
+			},
+			firing:      false,
+			expectedJql: `resolution != "won't fix" and labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
+		},
+		{
+			name: "resolved and custom dedup key field",
 			conf: Config{
 				Project:           "TEST",
 				DedupKeyFieldName: "12345",
 			},
-			firing:      true,
-			expectedJql: `statusCategory != Done and (labels = "ALERT{group1}" or cf[12345] ~ "group1") and project="TEST" order by status ASC,resolutiondate DESC`,
+			firing:      false,
+			expectedJql: `(labels = "ALERT{group1}" or cf[12345] ~ "group1") and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getSearchJql(tt.conf, groupKey, tt.firing)
+			assert.Containsf(t, result.Fields, "status", "query should always request status")
+			assert.NotZero(t, result.MaxResults, "query should always request more than 0 results")
 			require.Equal(t, tt.expectedJql, result.JQL)
 		})
 	}
