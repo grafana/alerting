@@ -71,7 +71,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			require.Len(t, loggerNames, qty)
 		})
 		t.Run("should call webhook factory for each config that needs it", func(t *testing.T) {
-			require.Len(t, webhooks, 17) // we have 17 notifiers that support webhook
+			require.Len(t, webhooks, 18) // we have 18 notifiers that support webhook
 		})
 		t.Run("should call email factory for each config that needs it", func(t *testing.T) {
 			require.Len(t, emails, 1) // we have only email notifier that needs sender
