@@ -418,27 +418,31 @@ func (sn *Notifier) uploadImage(ctx context.Context, image images.Image, channel
 	if err != nil {
 		return err
 	}
-	sn.log.Debug("Uploading image", "image", f.Name)
+
+	// get the upload url
+	uploadURLResponse, err := sn.getUploadURL(ctx, f.Name, len(f.Content))
+	if err != nil {
+		return fmt.Errorf("failed to get upload URL: %w", err)
+	}
 
 	headers, data, err := sn.createImageMultipart(f)
 	if err != nil {
 		return fmt.Errorf("failed to create multipart form: %w", err)
 	}
 
-	// get the upload url
-	uploadURLResponse, err := sn.getUploadURL(ctx, f.Name, len(data))
-	if err != nil {
-		return fmt.Errorf("failed to get upload URL: %w", err)
-	}
-
 	// upload the image
+	sn.log.Debug("Uploading image", "image", f.Name)
 	uploadErr := sn.sendMultipart(ctx, uploadURLResponse.UploadURL, headers, bytes.NewReader(data))
 	if uploadErr != nil {
 		return fmt.Errorf("failed to upload image: %w", uploadErr)
 	}
 	// complete file upload to upload the image to the channel/thread with the comment
 	// need to use uploadURLResponse.FileID to complete the upload
-	return sn.finalizeUpload(ctx, uploadURLResponse.FileID, channelID, threadTs, comment)
+	err = sn.finalizeUpload(ctx, uploadURLResponse.FileID, channelID, threadTs, comment)
+	if err != nil {
+		return fmt.Errorf("failed to finalize upload: %w", err)
+	}
+	return nil
 }
 
 // getUploadURL returns the URL to upload the image to. It returns an error if the image cannot be uploaded.
