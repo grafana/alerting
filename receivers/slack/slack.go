@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
@@ -524,16 +525,15 @@ func initialCommentForImage(alert *types.Alert) string {
 	sb.WriteString(", ")
 
 	sb.WriteString("*Labels*: ")
-
-	var n int
-	for k, v := range alert.Labels {
-		sb.WriteString(string(k))
-		sb.WriteString(" = ")
-		sb.WriteString(string(v))
-		if n < len(alert.Labels)-1 {
-			sb.WriteString(", ")
-			n++
+	if len(alert.Labels) == 0 {
+		sb.WriteString("None")
+	} else {
+		lstrs := make([]string, 0, len(alert.Labels))
+		for l, v := range alert.Labels {
+			lstrs = append(lstrs, fmt.Sprintf("%s=%s", l, v))
 		}
+		sort.Strings(lstrs)
+		sb.WriteString(strings.Join(lstrs, ", "))
 	}
 
 	return sb.String()
