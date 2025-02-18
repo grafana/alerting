@@ -13,11 +13,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
@@ -177,10 +178,10 @@ func TestNotify_IncomingWebhook(t *testing.T) {
 				// When sending a notification to an Incoming Webhook there should a single request.
 				// This is different from PostMessage where some content, such as images, are sent
 				// as replies to the original message
-				require.Len(t, recorder.requests, 1)
+				require.Equal(t, recorder.requestCount, 1)
 
 				// Get the request and check that it's sending to the URL of the Incoming Webhook
-				r := recorder.requests[0]
+				r := recorder.messageRequest
 				assert.Equal(t, notifier.settings.URL, r.URL.String())
 
 				// Check that the request contains the expected message
@@ -565,10 +566,10 @@ func TestNotify_PostMessage(t *testing.T) {
 				assert.NoError(t, err)
 				assert.True(t, ok)
 
-				require.Len(t, recorder.requests, 1)
+				require.Equal(t, recorder.requestCount, 1)
 
 				// Get the request and check that it's sending to the URL
-				r := recorder.requests[0]
+				r := recorder.messageRequest
 				assert.Equal(t, notifier.settings.URL, r.URL.String())
 
 				// Check that the request contains the expected message
@@ -592,7 +593,7 @@ func TestNotify_PostMessageWithImage(t *testing.T) {
 		name                 string
 		alerts               []*types.Alert
 		expectedMessage      *slackMessage
-		expectedImageUploads int
+		expectedImageUploads []CompleteFileUploadRequest
 		expectedError        string
 		settings             Config
 	}{
@@ -636,7 +637,18 @@ func TestNotify_PostMessageWithImage(t *testing.T) {
 					},
 				},
 			},
-			expectedImageUploads: 1,
+			expectedImageUploads: []CompleteFileUploadRequest{
+				{
+					Files: []struct {
+						ID string `json:"id"`
+					}{
+						{ID: "file-id"},
+					},
+					ChannelID:      "C123ABC456",
+					ThreadTs:       "1503435956.000247",
+					InitialComment: "*Firing*: alert1, *Labels*: alertname = alert1, lbl1 = val1",
+				},
+			},
 		},
 	}
 
@@ -659,11 +671,11 @@ func TestNotify_PostMessageWithImage(t *testing.T) {
 
 				// When sending a notification via PostMessage some content, such as images,
 				// are sent as replies to the original message
-				imageUploadRequestCount := test.expectedImageUploads * 3
-				require.Len(t, recorder.requests, 1+imageUploadRequestCount)
+				imageUploadRequestCount := len(test.expectedImageUploads) * 3
+				require.Equal(t, recorder.requestCount, 1+imageUploadRequestCount)
 
 				// Get the request and check that it's sending to the URL
-				r := recorder.requests[0]
+				r := recorder.messageRequest
 				assert.Equal(t, notifier.settings.URL, r.URL.String())
 
 				// Check that the request contains the expected message
@@ -680,9 +692,15 @@ func TestNotify_PostMessageWithImage(t *testing.T) {
 
 				tokenHeader := fmt.Sprintf("Bearer %s", test.settings.Token)
 
-				for i := 0; i < test.expectedImageUploads; i++ {
+				readBody := func(r *http.Request) []byte {
+					b, err := io.ReadAll(r.Body)
+					assert.NoError(t, err)
+					return b
+				}
+
+				for i := 0; i < len(test.expectedImageUploads); i++ {
 					// check first request is to get the upload URL
-					initRequest := recorder.requests[i*3+1]
+					initRequest := recorder.initFileUploadRequests[i]
 					assert.Equal(t, "GET", initRequest.Method)
 					pathParts := strings.Split(initRequest.URL.EscapedPath(), "/")
 					assert.Equal(t, "files.getUploadURLExternal", pathParts[len(pathParts)-1])
@@ -691,19 +709,22 @@ func TestNotify_PostMessageWithImage(t *testing.T) {
 					assert.Contains(t, initRequest.URL.Query(), "length")
 					assert.Equal(t, tokenHeader, initRequest.Header.Get("Authorization"))
 					// check second request is to upload the image
-					uploadRequest := recorder.requests[i*3+2]
+					uploadRequest := recorder.fileUploadRequests[i]
 					assert.Equal(t, "POST", uploadRequest.Method)
 					assert.NoError(t, uploadRequest.ParseMultipartForm(32<<20))
 					assert.Equal(t, "test.png", uploadRequest.MultipartForm.File["filename"][0].Filename)
 					assert.Contains(t, strings.Split(uploadRequest.Header.Get("Content-Type"), ";"), "multipart/form-data")
 					assert.Equal(t, tokenHeader, uploadRequest.Header.Get("Authorization"))
 					// check third request is to finalize the upload
-					finalizeRequest := recorder.requests[i*3+3]
+					finalizeRequest := recorder.completeFileUploads[i]
 					assert.Equal(t, "POST", finalizeRequest.Method)
 					pathParts = strings.Split(finalizeRequest.URL.EscapedPath(), "/")
 					assert.Equal(t, "files.completeUploadExternal", pathParts[len(pathParts)-1])
 					assert.Contains(t, strings.Split(finalizeRequest.Header.Get("Content-Type"), ";"), "application/json")
 					assert.Equal(t, tokenHeader, finalizeRequest.Header.Get("Authorization"))
+					var finalizeReqBody CompleteFileUploadRequest
+					assert.NoError(t, json.Unmarshal(readBody(finalizeRequest), &finalizeReqBody))
+					assert.Equal(t, test.expectedImageUploads[i], finalizeReqBody)
 				}
 			}
 		})
@@ -712,16 +733,22 @@ func TestNotify_PostMessageWithImage(t *testing.T) {
 
 // slackRequestRecorder is used in tests to record all requests.
 type slackRequestRecorder struct {
-	requests []*http.Request
+	requestCount           int
+	messageRequest         *http.Request
+	initFileUploadRequests []*http.Request
+	fileUploadRequests     []*http.Request
+	completeFileUploads    []*http.Request
 }
 
-func (s *slackRequestRecorder) recordMessageRequest(_ context.Context, r *http.Request, _ logging.Logger) (string, error) {
-	s.requests = append(s.requests, r)
-	return "", nil
+func (s *slackRequestRecorder) recordMessageRequest(_ context.Context, r *http.Request, _ logging.Logger) (slackMessageResponse, error) {
+	s.requestCount++
+	s.messageRequest = r
+	return slackMessageResponse{Ts: "1503435956.000247", Channel: "C123ABC456"}, nil
 }
 
 func (s *slackRequestRecorder) recordInitFileUploadRequest(_ context.Context, r *http.Request, _ logging.Logger) (*FileUploadURLResponse, error) {
-	s.requests = append(s.requests, r)
+	s.requestCount++
+	s.initFileUploadRequests = append(s.initFileUploadRequests, r)
 	return &FileUploadURLResponse{
 		FileID:    "file-id",
 		UploadURL: "TODO: replace this with some function that actually allows you to return something to test the flow",
@@ -729,7 +756,14 @@ func (s *slackRequestRecorder) recordInitFileUploadRequest(_ context.Context, r 
 }
 
 func (s *slackRequestRecorder) recordFileUploadRequest(_ context.Context, r *http.Request, _ logging.Logger) error {
-	s.requests = append(s.requests, r)
+	s.requestCount++
+	s.fileUploadRequests = append(s.fileUploadRequests, r)
+	return nil
+}
+
+func (s *slackRequestRecorder) recordCompleteFileUpload(_ context.Context, r *http.Request, _ logging.Logger) error {
+	s.requestCount++
+	s.completeFileUploads = append(s.completeFileUploads, r)
 	return nil
 }
 
@@ -778,7 +812,7 @@ func setupSlackForTests(t *testing.T, settings Config) (*Notifier, *slackRequest
 	sn.sendMessageFn = sr.recordMessageRequest
 	sn.initFileUploadFn = sr.recordInitFileUploadRequest
 	sn.uploadFileFn = sr.recordFileUploadRequest
-	sn.completeFileUploadFn = sr.recordFileUploadRequest
+	sn.completeFileUploadFn = sr.recordCompleteFileUpload
 
 	return sn, sr, nil
 }
