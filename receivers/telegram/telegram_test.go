@@ -50,6 +50,7 @@ func TestNotify(t *testing.T) {
 				DisableWebPagePreview: true,
 				ProtectContent:        true,
 				DisableNotifications:  true,
+				IncludeScreenshotURL:  false,
 			},
 			alerts: []*types.Alert{
 				{
@@ -129,6 +130,38 @@ func TestNotify(t *testing.T) {
 				"chat_id":    "someid",
 				"parse_mode": "HTML",
 				"text":       strings.Repeat("1", 4096-1) + "…",
+			}},
+			expMsgError: nil,
+		}, {
+			name: "A single alert with default template and inline image URL",
+			settings: Config{
+				BotToken:              "abcdefgh0123456789",
+				ChatID:                "someid",
+				MessageThreadID:       "threadid",
+				Message:               templates.DefaultMessageEmbed,
+				ParseMode:             "Markdown",
+				DisableWebPagePreview: true,
+				ProtectContent:        true,
+				DisableNotifications:  true,
+				IncludeScreenshotURL:  true,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", "__alertImageToken__": "test-image-1"},
+						GeneratorURL: "a URL",
+					},
+				},
+			},
+			expMsg: []map[string]string{{
+				"chat_id":                  "someid",
+				"message_thread_id":        "threadid",
+				"parse_mode":               "Markdown",
+				"text":                     "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n https://www.example.com/test-image-1",
+				"disable_web_page_preview": "true",
+				"protect_content":          "true",
+				"disable_notification":     "true",
 			}},
 			expMsgError: nil,
 		},

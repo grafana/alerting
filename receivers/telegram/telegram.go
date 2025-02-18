@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/url"
 	"os"
 
 	"github.com/prometheus/alertmanager/notify"
@@ -73,7 +74,13 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		return false, fmt.Errorf("failed to send telegram message: %w", err)
 	}
 
+	// IncludeScreenshotURL set to true, no need to upload images.
+	if tn.settings.IncludeScreenshotURL {
+		return true, nil
+	}
+
 	// Create the cmd to upload each image
+	// Works only if IncludeScreenshotURL is set to false.
 	_ = images.WithStoredImages(ctx, tn.log, tn.images, func(_ int, image images.Image) error {
 		cmd, err = tn.newWebhookSyncCmd("sendPhoto", func(w *multipart.Writer) error {
 			f, err := os.Open(image.Path)
@@ -116,7 +123,18 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert)
 
 	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, tn.log, &tmplErr)
 	// Telegram supports 4096 chars max
-	messageText, truncated := receivers.TruncateInRunes(tmpl(tn.settings.Message), telegramMaxMessageLenRunes)
+	rawMessage := tmpl(tn.settings.Message)
+	if tn.settings.IncludeScreenshotURL {
+		_ = images.WithStoredImages(ctx, tn.log, tn.images, func(_ int, image images.Image) error {
+			// Change to add the template ImageURL
+			imageURL, err := url.Parse(image.URL)
+			if err == nil {
+				tn.tmpl.ExternalURL = imageURL
+			}
+			return nil
+		}, as...)
+	}
+	messageText, truncated := receivers.TruncateInRunes(rawMessage, telegramMaxMessageLenRunes)
 	if truncated {
 		key, err := notify.ExtractGroupKey(ctx)
 		if err != nil {
