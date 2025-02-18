@@ -1,4 +1,4 @@
-name: Update Grafana Dependency
+name: Update Dependency in Grafana
 
 on:
   pull_request:
