@@ -1,0 +1,116 @@
+name: Update Grafana Dependency
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  update-grafana:
+    if: github.event.pull_request.merged == true && !contains(github.event.pull_request.labels.*.name, 'no-grafana-pr')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout alerting repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          "go-version-file": "go.mod"
+
+      - name: Verify dependencies
+        run: make mod-check
+
+      - name: Run linting
+        run: make lint
+
+      - name: Run tests
+        run: make test
+
+      - name: Get current commit hash
+        id: get_hash
+        run: |
+          echo "COMMIT_HASH=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "BRANCH_NAME=alerting/dep-$(git rev-parse --short=8 HEAD)" >> $GITHUB_ENV
+
+      - name: Checkout Grafana repository
+        uses: actions/checkout@v4
+        with:
+          repository: grafana/grafana
+          path: grafana
+
+      - name: Extract current alerting hash from Grafana
+        working-directory: grafana
+        run: |
+          CURRENT_HASH=$(go list -m -json github.com/grafana/alerting | jq -r .Version | sed 's/^v\{0,1\}\(.*\)/\1/')
+          echo "CURRENT_HASH=${CURRENT_HASH}" >> $GITHUB_ENV
+
+      - name: Check if update is needed
+        run: |
+          if [ "${{ env.CURRENT_HASH }}" == "${{ env.COMMIT_HASH }}" ]; then
+            echo "Current version (${{ env.CURRENT_HASH }}) is already up to date. Skipping update."
+            exit 78  # This is a special exit code in GitHub Actions that marks the job as neutral/skipped
+          fi
+          echo "Update needed: ${{ env.CURRENT_HASH }} -> ${{ env.COMMIT_HASH }}"
+
+      - name: Create branch in Grafana
+        working-directory: grafana
+        run: |
+          git checkout -b "${{ env.BRANCH_NAME }}"
+
+
+      - name: Update go.mod
+        working-directory: grafana
+        run: |
+          go get github.com/grafana/alerting@${{ env.COMMIT_HASH }}
+
+      - name: Update workspace
+        working-directory: grafana
+        run: make update-workspace
+
+      - name: Push changes
+        working-directory: grafana
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add go.mod go.sum
+          git commit -m "Update alerting module to ${{ env.COMMIT_HASH }}"
+          git push origin "${{ env.BRANCH_NAME }}"
+
+      - name: Get commit log
+        id: get_log
+        run: |
+          LOG=$(git log --oneline "${{ env.CURRENT_HASH }}..${{ env.COMMIT_HASH }}")
+          echo "COMMIT_LOG<<EOF" >> $GITHUB_ENV
+          echo "$LOG" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create PR in Grafana repository
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: grafana
+          base: main
+          branch: "${{ env.BRANCH_NAME }}"
+          title: "deps: Update alerting module"
+          labels: |
+            area/alerting
+            area/backend
+            no-backport
+            no-changelog
+          body: |
+             Updates the github.com/grafana/alerting module from ${{ env.CURRENT_HASH }} to ${{ env.COMMIT_HASH }}
+            
+             ### Changes included in this update:
+             ```
+             ${{ env.COMMIT_LOG }}
+             ```
+            
+             ### Compare changes
+             https://github.com/grafana/alerting/compare/${{ env.CURRENT_HASH }}...${{ env.COMMIT_HASH }}
+            
+             This PR was automatically generated.
+
