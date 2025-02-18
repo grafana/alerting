@@ -43,6 +43,17 @@ type HTTPCfg struct {
 	Password string
 }
 
+// HMACConfig contains configuration for HMAC signing of HTTP requests
+type HMACConfig struct {
+	// Secret to use for HMAC signing.
+	Secret string `json:"secret,omitempty" yaml:"secret,omitempty"`
+	// Header is the name of the header containing the HMAC signature.
+	Header string `json:"header,omitempty" yaml:"header,omitempty"`
+	// TimestampHeader is the name of the header containing the timestamp
+	// used to generate the HMAC signature. If empty, timestamp is not included.
+	TimestampHeader string `yaml:"timestampHeader,omitempty" json:"timestampHeader,omitempty"`
+}
+
 type TLSConfig struct {
 	CACertificate      string `json:"caCertificate,omitempty" yaml:"caCertificate,omitempty"`
 	ClientCertificate  string `json:"clientCertificate,omitempty" yaml:"clientCertificate,omitempty"`
