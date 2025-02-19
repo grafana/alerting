@@ -533,7 +533,8 @@ func initialCommentForImage(alert templates.ExtendedAlert) string {
 	if len(alert.Labels) == 0 {
 		sb.WriteString("None")
 	} else {
-		sb.WriteString(alert.Labels.SortedPairs().String())
+		// Write all labels except the first one, which is the alert name.
+		sb.WriteString(alert.Labels.SortedPairs()[1:].String())
 	}
 
 	return sb.String()

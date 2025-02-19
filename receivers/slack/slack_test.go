@@ -646,7 +646,7 @@ func TestNotify_PostMessageWithImage(t *testing.T) {
 					},
 					ChannelID:      "C123ABC456",
 					ThreadTs:       "1503435956.000247",
-					InitialComment: "*Firing*: alert1, *Labels*: alertname=alert1, lbl1=val1",
+					InitialComment: "*Firing*: alert1, *Labels*: lbl1=val1",
 				},
 			},
 		},
