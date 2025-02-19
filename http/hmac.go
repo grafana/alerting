@@ -16,7 +16,7 @@ import (
 
 const (
 	// defaultHeaderName is the default HTTP header used for the HMAC signature
-	defaultHeaderName = "X-Grafana-Alert-Signature"
+	defaultHeaderName = "X-Grafana-Alerting-Signature"
 	// timestampSeparator is used to separate the timestamp from the request body in the HMAC calculation
 	timestampSeparator = ":"
 )
