@@ -9,14 +9,15 @@ import (
 	"mime"
 	"mime/multipart"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
-	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
@@ -383,17 +384,26 @@ func TestNotify(t *testing.T) {
 
 func TestNotify_WithImages(t *testing.T) {
 	imageWithURL := images.Image{
-		Token:     "test-image-1",
-		URL:       "https://www.example.com/test-image-1.jpg",
-		CreatedAt: time.Now().UTC(),
+		URL: "https://www.example.com/test-image-1.jpg",
+		RawData: func(_ context.Context) (images.ImageContent, error) {
+			return images.ImageContent{}, images.ErrImageNotFound
+		},
+	}
+	imageWithoutURLContent := images.ImageContent{
+		Name:    "test-image-2.jpg",
+		Content: []byte("test bytes"),
 	}
 	imageWithoutURL := images.Image{
-		Token:     "test-image-2",
-		Path:      "/test/test2/test-image-2.jpg",
-		CreatedAt: time.Now().UTC(),
+		URL: "",
+		RawData: func(_ context.Context) (images.ImageContent, error) {
+			return imageWithoutURLContent, nil
+		},
 	}
-	expectedBytes := []byte("test bytes")
-	imageProvider := &images.FakeProvider{Images: []*images.Image{&imageWithURL, &imageWithoutURL}, Bytes: expectedBytes}
+
+	imageProvider := images.NewTokenProvider(images.NewFakeTokenStoreFromImages(map[string]*images.Image{
+		"test-token-url":    &imageWithURL,
+		"test-token-no-url": &imageWithoutURL,
+	}), &logging.FakeLogger{})
 	tmpl := templates.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
@@ -422,7 +432,7 @@ func TestNotify_WithImages(t *testing.T) {
 				{
 					Alert: model.Alert{
 						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.ImageTokenAnnotation: model.LabelValue(imageWithURL.Token)},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.ImageTokenAnnotation: model.LabelValue("test-token-url")},
 					},
 				},
 			},
@@ -462,7 +472,7 @@ func TestNotify_WithImages(t *testing.T) {
 				{
 					Alert: model.Alert{
 						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.ImageTokenAnnotation: model.LabelValue(imageWithoutURL.Token)},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.ImageTokenAnnotation: model.LabelValue("test-token-no-url")},
 					},
 				},
 			},
@@ -480,7 +490,7 @@ func TestNotify_WithImages(t *testing.T) {
 				},
 					map[string]interface{}{
 						"image": map[string]interface{}{
-							"url": "attachment://test-image-2.jpg",
+							"url": "attachment://" + imageWithoutURLContent.Name,
 						},
 						"title": "alert1",
 						"color": 1.4037554e+07,
@@ -488,7 +498,7 @@ func TestNotify_WithImages(t *testing.T) {
 				"username": "Grafana",
 			},
 			expMsgError: nil,
-			expBytes:    expectedBytes,
+			expBytes:    imageWithoutURLContent.Content,
 		},
 	}
 
@@ -555,18 +565,25 @@ func TestNotify_WithImages(t *testing.T) {
 			UseDiscordUsername: false,
 		}
 
-		// Create 10 alerts with an image each, Discord's embed limit is 10, and we should be using a maximum of 9 for images.
+		tokenStore := images.NewFakeTokenStore(15)
+		imageProvider := images.NewTokenProvider(tokenStore, &logging.FakeLogger{})
+
+		// Create 15 alerts with an image each, Discord's embed limit is 10, and we should be using a maximum of 9 for images.
 		var alerts []*types.Alert
-		for i := 0; i < 15; i++ {
-			alertName := fmt.Sprintf("alert-%d", i)
+		for token := range tokenStore.Images {
+			alertName := token
 			alert := types.Alert{
 				Alert: model.Alert{
 					Labels:      model.LabelSet{"alertname": model.LabelValue(alertName), "lbl1": "val"},
-					Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.ImageTokenAnnotation: model.LabelValue(imageWithURL.URL)},
+					Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.ImageTokenAnnotation: model.LabelValue(token)},
 				}}
 
 			alerts = append(alerts, &alert)
 		}
+		// Sort alerts to ensure the expected images are deterministic.
+		slices.SortFunc(alerts, func(a, b *types.Alert) int {
+			return strings.Compare(a.Name(), b.Name())
+		})
 
 		expEmbeds := []interface{}{
 			map[string]interface{}{
@@ -581,11 +598,12 @@ func TestNotify_WithImages(t *testing.T) {
 			}}
 
 		for i := 0; i < 9; i++ {
+			alert := alerts[i]
 			imageEmbed := map[string]interface{}{
 				"image": map[string]interface{}{
-					"url": imageWithURL.URL,
+					"url": tokenStore.Images[alert.Name()].URL,
 				},
-				"title": fmt.Sprintf("alert-%d", i),
+				"title": alert.Name(),
 				"color": 1.4037554e+07,
 			}
 			expEmbeds = append(expEmbeds, imageEmbed)

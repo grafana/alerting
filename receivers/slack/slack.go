@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -285,7 +284,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 	if isIncomingWebhook(sn.settings) {
 		// Incoming webhooks cannot upload files, instead share images via their URL
 		_ = images.WithStoredImages(ctx, sn.log, sn.images, func(_ int, image images.Image) error {
-			if image.URL != "" {
+			if image.HasURL() {
 				req.Attachments[0].ImageURL = image.URL
 				return images.ErrImagesDone
 			}
@@ -367,7 +366,7 @@ func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (slac
 // createImageMultipart returns the multipart/form-data request and headers for the url from getUploadURL
 // It returns an error if the image does not exist or there was an error preparing the
 // multipart form.
-func (sn *Notifier) createImageMultipart(image images.Image) (http.Header, []byte, error) {
+func (sn *Notifier) createImageMultipart(f images.ImageContent) (http.Header, []byte, error) {
 	buf := bytes.Buffer{}
 	w := multipart.NewWriter(&buf)
 	defer func() {
@@ -376,23 +375,13 @@ func (sn *Notifier) createImageMultipart(image images.Image) (http.Header, []byt
 		}
 	}()
 
-	f, err := os.Open(image.Path)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			sn.log.Error("Failed to close image file reader", "error", err)
-		}
-	}()
-
-	fw, err := w.CreateFormFile("filename", image.Path)
+	fw, err := w.CreateFormFile("filename", f.Name)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create form file: %w", err)
 	}
 
-	if _, err := io.Copy(fw, f); err != nil {
-		return nil, nil, fmt.Errorf("failed to copy file to form: %w", err)
+	if _, err := fw.Write(f.Content); err != nil {
+		return nil, nil, fmt.Errorf("failed to write file to form: %w", err)
 	}
 
 	if err := w.Close(); err != nil {
@@ -424,36 +413,40 @@ func (sn *Notifier) sendMultipart(ctx context.Context, uploadURL string, headers
 // does not exist, or if there was an error either preparing or sending the multipart/form-data
 // request.
 func (sn *Notifier) uploadImage(ctx context.Context, image images.Image, channelID, comment, threadTs string) error {
-	sn.log.Debug("Uploading image", "image", image.Token)
-
-	imageData, err := os.Stat(image.Path)
+	sn.log.Debug("Retrieving image data")
+	f, err := image.RawData(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to get image info: %w", err)
+		return err
 	}
 
 	// get the upload url
-	uploadURLResponse, err := sn.getUploadURL(ctx, image.Path, imageData.Size())
+	uploadURLResponse, err := sn.getUploadURL(ctx, f.Name, len(f.Content))
 	if err != nil {
 		return fmt.Errorf("failed to get upload URL: %w", err)
 	}
 
-	// upload the image
-	headers, data, err := sn.createImageMultipart(image)
+	headers, data, err := sn.createImageMultipart(f)
 	if err != nil {
 		return fmt.Errorf("failed to create multipart form: %w", err)
 	}
 
+	// upload the image
+	sn.log.Debug("Uploading image", "image", f.Name)
 	uploadErr := sn.sendMultipart(ctx, uploadURLResponse.UploadURL, headers, bytes.NewReader(data))
 	if uploadErr != nil {
 		return fmt.Errorf("failed to upload image: %w", uploadErr)
 	}
 	// complete file upload to upload the image to the channel/thread with the comment
 	// need to use uploadURLResponse.FileID to complete the upload
-	return sn.finalizeUpload(ctx, uploadURLResponse.FileID, channelID, threadTs, comment)
+	err = sn.finalizeUpload(ctx, uploadURLResponse.FileID, channelID, threadTs, comment)
+	if err != nil {
+		return fmt.Errorf("failed to finalize upload: %w", err)
+	}
+	return nil
 }
 
 // getUploadURL returns the URL to upload the image to. It returns an error if the image cannot be uploaded.
-func (sn *Notifier) getUploadURL(ctx context.Context, filename string, imageSize int64) (*FileUploadURLResponse, error) {
+func (sn *Notifier) getUploadURL(ctx context.Context, filename string, imageSize int) (*FileUploadURLResponse, error) {
 	apiEndpoint, err := endpointURL(sn.settings, "files.getUploadURLExternal")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get URL for files.getUploadURLExternal: %w", err)

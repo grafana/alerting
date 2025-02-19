@@ -3,12 +3,12 @@ package images
 import (
 	"context"
 	"testing"
-	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/models"
@@ -29,15 +29,18 @@ func TestWithStoredImages(t *testing.T) {
 			},
 		},
 	}}
-	imageProvider := &FakeProvider{Images: []*Image{{
-		Token:     "test-image-1",
-		URL:       "https://www.example.com/test-image-1.jpg",
-		CreatedAt: time.Now().UTC(),
-	}, {
-		Token:     "test-image-2",
-		URL:       "https://www.example.com/test-image-2.jpg",
-		CreatedAt: time.Now().UTC(),
-	}}}
+	imageProvider := &TokenProvider{
+		store: NewFakeTokenStoreFromImages(map[string]*Image{
+			"test-image-1": {
+				URL: "https://www.example.com/test-image-1.jpg",
+			},
+			"test-image-2": {
+				URL: "https://www.example.com/test-image-2.jpg",
+			},
+		},
+		),
+		logger: &logging.FakeLogger{},
+	}
 
 	var (
 		err error
