@@ -10,11 +10,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	images2 "github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
@@ -28,8 +29,8 @@ func TestNotify(t *testing.T) {
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
-	image1Name := images.GetImageFileName("test-image-1")
-	image2Name := images.GetImageFileName("test-image-2")
+	image1Name := "test-image-1.jpg"
+	image2Name := "test-image-2.jpg"
 
 	cases := []struct {
 		name        string
