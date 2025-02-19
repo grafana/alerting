@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"time"
 
@@ -56,7 +57,7 @@ var (
 	}
 )
 
-type sendMessageFunc func(ctx context.Context, req *http.Request, logger logging.Logger) (string, error)
+type sendMessageFunc func(ctx context.Context, req *http.Request, logger logging.Logger) (slackMessageResponse, error)
 
 type initFileUploadFunc func(ctx context.Context, req *http.Request, logger logging.Logger) (*FileUploadURLResponse, error)
 
@@ -180,7 +181,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 		return false, fmt.Errorf("failed to create Slack message: %w", err)
 	}
 
-	threadTs, err := sn.sendSlackMessage(ctx, m)
+	slackResp, err := sn.sendSlackMessage(ctx, m)
 	if err != nil {
 		sn.log.Error("Failed to send Slack message", "err", err)
 		return false, fmt.Errorf("failed to send Slack message: %w", err)
@@ -195,14 +196,21 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 				if _, err := sn.sendSlackMessage(ctx, &slackMessage{
 					Channel:  sn.settings.Recipient,
 					Text:     maxImagesPerThreadTsMessage,
-					ThreadTs: threadTs,
+					ThreadTs: slackResp.Ts,
 				}); err != nil {
 					sn.log.Error("Failed to send Slack message", "err", err)
 				}
 				return images.ErrImagesDone
 			}
 			comment := initialCommentForImage(alerts[index])
-			return sn.uploadImage(ctx, image, sn.settings.Recipient, comment, threadTs)
+			// settings.Recipient can be either a channel name or ID. However, file upload v2 requires channel ID only.
+			// chat.postMessage API returns channel ID in slackResp.Channel, so we use it when it exists as a more
+			// reliable source of the channel ID.
+			channelID := sn.settings.Recipient
+			if slackResp.Channel != "" {
+				channelID = slackResp.Channel
+			}
+			return sn.uploadImage(ctx, image, channelID, comment, slackResp.Ts)
 		}, alerts...); err != nil {
 			// Do not return an error here as we might have exceeded the rate limit for uploading files
 			sn.log.Error("Failed to upload image", "err", err)
@@ -321,16 +329,16 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 	return req, nil
 }
 
-func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (string, error) {
+func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (slackMessageResponse, error) {
 	b, err := json.Marshal(m)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal Slack message: %w", err)
+		return slackMessageResponse{}, fmt.Errorf("failed to marshal Slack message: %w", err)
 	}
 
 	sn.log.Debug("sending Slack API request", "url", sn.settings.URL, "data", string(b))
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, sn.settings.URL, bytes.NewReader(b))
 	if err != nil {
-		return "", fmt.Errorf("failed to create HTTP request: %w", err)
+		return slackMessageResponse{}, fmt.Errorf("failed to create HTTP request: %w", err)
 	}
 
 	request.Header.Set("Content-Type", "application/json; charset=utf-8")
@@ -345,12 +353,12 @@ func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (stri
 		request.Header.Set("Authorization", "Bearer "+sn.settings.Token)
 	}
 
-	threadTs, err := sn.sendMessageFn(ctx, request, sn.log)
+	slackResp, err := sn.sendMessageFn(ctx, request, sn.log)
 	if err != nil {
-		return "", err
+		return slackMessageResponse{}, err
 	}
 
-	return threadTs, nil
+	return slackResp, nil
 }
 
 // createImageMultipart returns the multipart/form-data request and headers for the url from getUploadURL
@@ -412,7 +420,7 @@ func (sn *Notifier) sendMultipart(ctx context.Context, uploadURL string, headers
 // uploadImage shares the image to the channel names or IDs. It returns an error if the file
 // does not exist, or if there was an error either preparing or sending the multipart/form-data
 // request.
-func (sn *Notifier) uploadImage(ctx context.Context, image images.Image, channel, comment, threadTs string) error {
+func (sn *Notifier) uploadImage(ctx context.Context, image images.Image, channelID, comment, threadTs string) error {
 	sn.log.Debug("Uploading image", "image", image.Token)
 
 	imageData, err := os.Stat(image.Path)
@@ -438,7 +446,7 @@ func (sn *Notifier) uploadImage(ctx context.Context, image images.Image, channel
 	}
 	// complete file upload to upload the image to the channel/thread with the comment
 	// need to use uploadURLResponse.FileID to complete the upload
-	return sn.finalizeUpload(ctx, uploadURLResponse.FileID, channel, threadTs, comment)
+	return sn.finalizeUpload(ctx, uploadURLResponse.FileID, channelID, threadTs, comment)
 }
 
 // getUploadURL returns the URL to upload the image to. It returns an error if the image cannot be uploaded.
@@ -463,7 +471,7 @@ func (sn *Notifier) getUploadURL(ctx context.Context, filename string, imageSize
 	return sn.initFileUploadFn(ctx, req, sn.log)
 }
 
-func (sn *Notifier) finalizeUpload(ctx context.Context, fileID, channel, threadTs, comment string) error {
+func (sn *Notifier) finalizeUpload(ctx context.Context, fileID, channelID, threadTs, comment string) error {
 	completeUploadEndpoint, err := endpointURL(sn.settings, "files.completeUploadExternal")
 	if err != nil {
 		return fmt.Errorf("failed to get URL for files.completeUploadExternal: %w", err)
@@ -475,7 +483,7 @@ func (sn *Notifier) finalizeUpload(ctx context.Context, fileID, channel, threadT
 		}{
 			{ID: fileID},
 		},
-		ChannelID:      channel,
+		ChannelID:      channelID,
 		ThreadTs:       threadTs,
 		InitialComment: comment,
 	}
@@ -517,16 +525,15 @@ func initialCommentForImage(alert *types.Alert) string {
 	sb.WriteString(", ")
 
 	sb.WriteString("*Labels*: ")
-
-	var n int
-	for k, v := range alert.Labels {
-		sb.WriteString(string(k))
-		sb.WriteString(" = ")
-		sb.WriteString(string(v))
-		if n < len(alert.Labels)-1 {
-			sb.WriteString(", ")
-			n++
+	if len(alert.Labels) == 0 {
+		sb.WriteString("None")
+	} else {
+		lstrs := make([]string, 0, len(alert.Labels))
+		for l, v := range alert.Labels {
+			lstrs = append(lstrs, fmt.Sprintf("%s=%s", l, v))
 		}
+		sort.Strings(lstrs)
+		sb.WriteString(strings.Join(lstrs, ", "))
 	}
 
 	return sb.String()
@@ -548,10 +555,10 @@ func errorForStatusCode(logger logging.Logger, statusCode int) error {
 
 // sendSlackMessage sends a request to the Slack API.
 // Stubbable by tests.
-func sendSlackMessage(_ context.Context, req *http.Request, logger logging.Logger) (string, error) {
+func sendSlackMessage(_ context.Context, req *http.Request, logger logging.Logger) (slackMessageResponse, error) {
 	resp, err := slackClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to send request: %w", err)
+		return slackMessageResponse{}, fmt.Errorf("failed to send request: %w", err)
 	}
 
 	defer func() {
@@ -561,7 +568,7 @@ func sendSlackMessage(_ context.Context, req *http.Request, logger logging.Logge
 	}()
 
 	if err := errorForStatusCode(logger, resp.StatusCode); err != nil {
-		return "", err
+		return slackMessageResponse{}, err
 	}
 
 	content := resp.Header.Get("Content-Type")
@@ -569,19 +576,19 @@ func sendSlackMessage(_ context.Context, req *http.Request, logger logging.Logge
 		return handleSlackMessageJSONResponse(resp, logger)
 	}
 	// If the response is not JSON it could be the response to an incoming webhook
-	return handleSlackIncomingWebhookResponse(resp, logger)
+	return slackMessageResponse{}, handleSlackIncomingWebhookResponse(resp, logger)
 }
 
-func handleSlackIncomingWebhookResponse(resp *http.Response, logger logging.Logger) (string, error) {
+func handleSlackIncomingWebhookResponse(resp *http.Response, logger logging.Logger) error {
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
+		return fmt.Errorf("failed to read response: %w", err)
 	}
 
 	// Incoming webhooks return the string "ok" on success
 	if bytes.Equal(b, []byte("ok")) {
 		logger.Debug("The incoming webhook was successful")
-		return "", nil
+		return nil
 	}
 
 	logger.Debug("Incoming webhook was unsuccessful", "status", resp.StatusCode, "body", string(b))
@@ -590,41 +597,41 @@ func handleSlackIncomingWebhookResponse(resp *http.Response, logger logging.Logg
 	// errors can be found at https://api.slack.com/messaging/webhooks#handling_errors and
 	// https://api.slack.com/changelog/2016-05-17-changes-to-errors-for-incoming-webhooks
 	if bytes.Equal(b, []byte("user_not_found")) {
-		return "", errors.New("the user does not exist or is invalid")
+		return errors.New("the user does not exist or is invalid")
 	}
 
 	if bytes.Equal(b, []byte("channel_not_found")) {
-		return "", errors.New("the channel does not exist or is invalid")
+		return errors.New("the channel does not exist or is invalid")
 	}
 
 	if bytes.Equal(b, []byte("channel_is_archived")) {
-		return "", errors.New("cannot send an incoming webhook for an archived channel")
+		return errors.New("cannot send an incoming webhook for an archived channel")
 	}
 
 	if bytes.Equal(b, []byte("posting_to_general_channel_denied")) {
-		return "", errors.New("cannot send an incoming webhook to the #general channel")
+		return errors.New("cannot send an incoming webhook to the #general channel")
 	}
 
 	if bytes.Equal(b, []byte("no_service")) {
-		return "", errors.New("the incoming webhook is either disabled, removed, or invalid")
+		return errors.New("the incoming webhook is either disabled, removed, or invalid")
 	}
 
 	if bytes.Equal(b, []byte("no_text")) {
-		return "", errors.New("cannot send an incoming webhook without a message")
+		return errors.New("cannot send an incoming webhook without a message")
 	}
 
-	return "", fmt.Errorf("failed incoming webhook: %s", string(b))
+	return fmt.Errorf("failed incoming webhook: %s", string(b))
 }
 
-func handleSlackMessageJSONResponse(resp *http.Response, logger logging.Logger) (string, error) {
+func handleSlackMessageJSONResponse(resp *http.Response, logger logging.Logger) (slackMessageResponse, error) {
 	b, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("failed to read response: %w", err)
+		return slackMessageResponse{}, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if len(b) == 0 {
 		logger.Error("Expected JSON but got empty response")
-		return "", errors.New("unexpected empty response")
+		return slackMessageResponse{}, errors.New("unexpected empty response")
 	}
 
 	// Slack responds to some requests with a JSON document, that might contain an error.
@@ -635,16 +642,16 @@ func handleSlackMessageJSONResponse(resp *http.Response, logger logging.Logger) 
 
 	if err := json.Unmarshal(b, &result); err != nil {
 		logger.Error("Failed to unmarshal response", "body", string(b), "err", err)
-		return "", fmt.Errorf("failed to unmarshal response: %w", err)
+		return slackMessageResponse{}, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
 	if !result.OK {
 		logger.Error("The request was unsuccessful", "body", string(b), "err", result.Error)
-		return "", fmt.Errorf("failed to send request: %s", result.Error)
+		return slackMessageResponse{}, fmt.Errorf("failed to send request: %s", result.Error)
 	}
 
 	logger.Debug("The request was successful")
-	return result.Ts, nil
+	return result.slackMessageResponse, nil
 }
 
 func initFileUpload(_ context.Context, req *http.Request, logger logging.Logger) (*FileUploadURLResponse, error) {
