@@ -14,12 +14,12 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"sort"
 	"strings"
 	"time"
 
 	amConfig "github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/common/model"
 
 	"github.com/prometheus/alertmanager/types"
 
@@ -175,7 +175,7 @@ type CompleteFileUploadRequest struct {
 func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
 	sn.log.Debug("Creating slack message", "alerts", len(alerts))
 
-	m, err := sn.createSlackMessage(ctx, alerts)
+	m, data, err := sn.createSlackMessage(ctx, alerts)
 	if err != nil {
 		sn.log.Error("Failed to create Slack message", "err", err)
 		return false, fmt.Errorf("failed to create Slack message: %w", err)
@@ -202,7 +202,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 				}
 				return images.ErrImagesDone
 			}
-			comment := initialCommentForImage(alerts[index])
+			comment := initialCommentForImage(data.Alerts[index])
 			// settings.Recipient can be either a channel name or ID. However, file upload v2 requires channel ID only.
 			// chat.postMessage API returns channel ID in slackResp.Channel, so we use it when it exists as a more
 			// reliable source of the channel ID.
@@ -220,40 +220,43 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 	return true, nil
 }
 
-func (sn *Notifier) commonAlertGeneratorURL(_ context.Context, alerts []*types.Alert) bool {
+// commonAlertGeneratorURL returns the common GeneratorURL for all alerts, or an empty string if they differ.
+func commonAlertGeneratorURL(_ context.Context, alerts templates.ExtendedAlerts) string {
 	if len(alerts[0].GeneratorURL) == 0 {
-		return false
+		return ""
 	}
 	firstURL := alerts[0].GeneratorURL
 	for _, a := range alerts {
 		if a.GeneratorURL != firstURL {
-			return false
+			return ""
 		}
 	}
-	return true
+	return firstURL
 }
 
-func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert) (*slackMessage, error) {
+func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert) (*slackMessage, *templates.ExtendedData, error) {
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, sn.log, &tmplErr)
-
+	tmpl, data := templates.TmplText(ctx, sn.tmpl, alerts, sn.log, &tmplErr)
 	ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", sn.log)
 
 	// If all alerts have the same GeneratorURL, use that.
-	if sn.commonAlertGeneratorURL(ctx, alerts) {
-		ruleURL = alerts[0].GeneratorURL
+	if commonGeneratorURL := commonAlertGeneratorURL(ctx, data.Alerts); commonGeneratorURL != "" {
+		ruleURL = commonGeneratorURL
 	}
 
 	title, truncated := receivers.TruncateInRunes(tmpl(sn.settings.Title), slackMaxTitleLenRunes)
 	if truncated {
 		key, err := notify.ExtractGroupKey(ctx)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		sn.log.Warn("Truncated title", "key", key, "max_runes", slackMaxTitleLenRunes)
 	}
 	if tmplErr != nil {
 		sn.log.Warn("failed to template Slack title", "error", tmplErr.Error())
+		// Reset the error as we have logged it.
+		// This is more important than it looks, as otherwise the subsequent calls to tmpl(sn.settings.Text) would
+		//return emptry, thus not setting important settings for delivery, such as Channel.
 		tmplErr = nil
 	}
 
@@ -326,7 +329,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 		req.Attachments[0].Pretext = mentionsBuilder.String()
 	}
 
-	return req, nil
+	return req, data, nil
 }
 
 func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (slackMessageResponse, error) {
@@ -511,29 +514,27 @@ func (sn *Notifier) SendResolved() bool {
 //	Resolved|Firing: AlertName, Labels: A=B, C=D
 //
 // where Resolved|Firing and Labels is in bold text.
-func initialCommentForImage(alert *types.Alert) string {
+func initialCommentForImage(alert templates.ExtendedAlert) string {
 	sb := strings.Builder{}
 
-	if alert.Resolved() {
+	if alert.Status == string(model.AlertResolved) {
 		sb.WriteString("*Resolved*:")
 	} else {
 		sb.WriteString("*Firing*:")
 	}
 
 	sb.WriteString(" ")
-	sb.WriteString(alert.Name())
+	if alert.Labels != nil {
+		sb.WriteString(string(alert.Labels[model.AlertNameLabel]))
+	}
 	sb.WriteString(", ")
 
 	sb.WriteString("*Labels*: ")
 	if len(alert.Labels) == 0 {
 		sb.WriteString("None")
 	} else {
-		lstrs := make([]string, 0, len(alert.Labels))
-		for l, v := range alert.Labels {
-			lstrs = append(lstrs, fmt.Sprintf("%s=%s", l, v))
-		}
-		sort.Strings(lstrs)
-		sb.WriteString(strings.Join(lstrs, ", "))
+		// Write all labels except the first one, which is the alert name.
+		sb.WriteString(alert.Labels.SortedPairs()[1:].String())
 	}
 
 	return sb.String()
