@@ -36,7 +36,7 @@ func (f ForkedSender) SendWebhook(ctx context.Context, cmd *receivers.SendWebhoo
 	request.Header.Set("User-Agent", "Grafana")
 
 	if cmd.User != "" && cmd.Password != "" {
-		request.Header.Set("Authorization", GetBasicAuthHeader(cmd.User, cmd.Password))
+		request.SetBasicAuth(cmd.User, cmd.Password)
 	}
 
 	for k, v := range cmd.HTTPHeader {
