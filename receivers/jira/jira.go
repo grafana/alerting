@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -52,13 +52,11 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 // Notify implements the Notifier interface.
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	if n.conf.URL == nil {
-		// this should not happen but it's better to avoid panic
+		// This should not happen, but it's better to avoid panics.
 		return false, fmt.Errorf("missing JIRA URL")
 	}
-	var (
-		alerts = types.Alerts(as...)
-	)
 
+	alerts := types.Alerts(as...)
 	key, err := notify.ExtractGroupKey(ctx)
 	if err != nil {
 		return false, err
@@ -71,15 +69,13 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		return shouldRetry, fmt.Errorf("failed to look up existing issues: %w", err)
 	}
 
-	var method string
-	var path string
+	method := http.MethodPost
+	path := "issue"
 	if existingIssue == nil {
-		// Do not create new issues for resolved alerts
+		// Do not create new issues for resolved alerts.
 		if alerts.Status() == model.AlertResolved {
 			return false, nil
 		}
-		path = "issue"
-		method = http.MethodPost
 		logger.Debug("create new issue")
 	} else {
 		path = "issue/" + url.PathEscape(existingIssue.Key)
@@ -154,7 +150,7 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 		}
 		fields.Labels = append(fields.Labels, label)
 	}
-	sort.Strings(fields.Labels)
+	slices.Sort(fields.Labels)
 
 	priority := strings.TrimSpace(renderOrDefault("priority", n.conf.Priority, ""))
 	if priority != "" {
@@ -167,7 +163,7 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 		}
 		fields.Fields[fmt.Sprintf("customfield_%s", n.conf.DedupKeyFieldName)] = groupID
 	} else {
-		// this label is added to be able to search for an existing one
+		// This label is added to be able to search for an existing one.
 		fields.Labels = append(fields.Labels, fmt.Sprintf("ALERT{%s}", groupID))
 	}
 
@@ -176,10 +172,10 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger logging.L
 
 func (n *Notifier) prepareDescription(desc string, logger logging.Logger) any {
 	if strings.HasSuffix(strings.TrimRight(n.conf.URL.Path, "/"), "/3") {
-		// V3 API supports structured description in ADF format
-		// check if the payload is a valid JSON and assign it in that case
+		// V3 API supports structured description in ADF format.
+		// Check if the payload is a valid JSON and assign it in that case.
 		if json.Valid([]byte(desc)) {
-			// we do not check the size of description if it's structured data because we can't truncate it.
+			// We do not check the size of the description if it's structured data because we can't truncate it.
 			var issueDescription any
 			err := json.Unmarshal([]byte(desc), &issueDescription)
 			if err == nil {
@@ -188,8 +184,9 @@ func (n *Notifier) prepareDescription(desc string, logger logging.Logger) any {
 			logger.Warn("Failed to parse description as JSON. Fallback to string mode", "error", err)
 		}
 
+		// if it's just text, create a document.
+		// Consider the document overhead while truncating.
 		maxLen := MaxDescriptionLenRunes - adfDocOverhead
-		// if it's just a text. Create a document. Consider the document overhead while truncating
 		truncatedDescr, truncated := notify.TruncateInRunes(desc, maxLen)
 		if truncated {
 			logger.Warn("Truncated description", "max_runes", maxLen, "length", len(desc))

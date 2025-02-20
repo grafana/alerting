@@ -80,7 +80,6 @@ func TestPrepareDescription(t *testing.T) {
 }
 
 func TestPrepareIssueRequestBody(t *testing.T) {
-
 	v2 := &url.URL{Path: "/2"}
 	v3 := &url.URL{Path: "/3"}
 	tmpl := templates.ForTests(t)

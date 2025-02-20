@@ -54,10 +54,10 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		ResolveTransition string   `yaml:"resolve_transition,omitempty" json:"resolve_transition,omitempty"`
 		WontFixResolution string   `yaml:"wont_fix_resolution,omitempty" json:"wont_fix_resolution,omitempty"`
 		ReopenDuration    string   `yaml:"reopen_duration,omitempty" json:"reopen_duration,omitempty"`
-		// allows to store group key identifier in a custom field instead of a label
+		// Allows to store group key identifier in a custom field instead of a label.
 		DedupKeyFieldName string         `yaml:"dedup_key_field,omitempty" json:"dedup_key_field,omitempty"`
 		Fields            map[string]any `yaml:"fields,omitempty" json:"fields,omitempty"`
-		// This is user (email) and password - api token from https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/.
+		// This is user (email) and password - api token from https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/
 		// See https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/#basic-auth-for-rest-apis
 		User     string `yaml:"user,omitempty" json:"user,omitempty"`
 		Password string `yaml:"password,omitempty" json:"password,omitempty"`
@@ -131,7 +131,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 			val := v
 			// The current UI does not support complex structures and therefore all values are strings.
 			// However, it's not the case in provisioning or if integration was created via API.
-			// Here we check if the value is string and it's a valid JSON, and then parse it and assign to the key
+			// Here we check if the value is string and it's a valid JSON, and then parse it and assign to the key.
 			if strVal, ok := v.(string); ok {
 				var jsonData any
 				if json.Valid([]byte(strVal)) {
