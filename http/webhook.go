@@ -2,8 +2,6 @@ package http
 
 import (
 	"context"
-	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -70,18 +68,4 @@ func (f ForkedSender) SendWebhook(ctx context.Context, cmd *receivers.SendWebhoo
 	}
 
 	return fmt.Errorf("webhook response status %v", resp.Status)
-}
-
-func GetBasicAuthHeader(user string, password string) string {
-	var userAndPass = user + ":" + password
-	return "Basic " + base64.StdEncoding.EncodeToString([]byte(userAndPass))
-}
-
-func redactURL(err error) error {
-	var e *url.Error
-	if !errors.As(err, &e) {
-		return err
-	}
-	e.URL = "<redacted>"
-	return e
 }
