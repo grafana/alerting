@@ -143,7 +143,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	tmplDef, err := DefaultTemplate()
 	require.NoError(t, err)
 
-	tmplFromDefinition, err := newTemplate()
+	tmplFromDefinition, err := NewTemplate()
 	require.NoError(t, err)
 	// Parse default template string.
 	err = tmplFromDefinition.Parse(strings.NewReader(tmplDef.Template))

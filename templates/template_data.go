@@ -15,6 +15,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
+	"github.com/grafana/alerting/templates/gomplate"
 	"github.com/prometheus/alertmanager/asset"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
@@ -27,8 +28,6 @@ import (
 type Template = template.Template
 type KV = template.KV
 type Data = template.Data
-
-var newTemplate = template.New
 
 var (
 	// Provides current time. Can be overwritten in tests.
@@ -119,9 +118,36 @@ func DefaultTemplate(options ...template.Option) (TemplateDefinition, error) {
 	}, nil
 }
 
+// addFuncs is a template.Option that adds functions to the function map fo the given templates.
+// This differs from FuncMap in that it includes dynamic functions that require a reference to the underlying
+// template, such as "tmpl".
+func addFuncs(text *tmpltext.Template, html *tmplhtml.Template) {
+	funcs := gomplate.FuncMap(text)
+
+	text.Funcs(funcs)
+	html.Funcs(funcs)
+}
+
+func NewTemplate(options ...template.Option) (*Template, error) {
+	return template.New(append([]template.Option{addFuncs}, options...)...)
+}
+
+func NewRawTemplate(options ...template.Option) (*tmpltext.Template, error) {
+	var tmpl *tmpltext.Template
+	var capture template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
+		tmpl = text
+	}
+
+	_, err := NewTemplate(capture)
+	if err != nil {
+		return nil, err
+	}
+	return tmpl, nil
+}
+
 // FromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
 func FromContent(tmpls []string, options ...template.Option) (*Template, error) {
-	t, err := newTemplate(options...)
+	t, err := NewTemplate(options...)
 	if err != nil {
 		return nil, err
 	}
