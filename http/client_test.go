@@ -89,3 +89,74 @@ func TestSendWebhook(t *testing.T) {
 	}
 	require.Error(t, s.SendWebhook(context.Background(), &cmd))
 }
+
+func TestSendWebhookHMAC(t *testing.T) {
+	var capturedRequest *http.Request
+
+	initServer := func(serverType func(http.Handler) *httptest.Server) *httptest.Server {
+		capturedRequest = nil
+		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			capturedRequest = r
+			w.WriteHeader(http.StatusOK)
+		})
+		server := serverType(handler)
+		return server
+	}
+
+	t.Run("with plain HTTP", func(t *testing.T) {
+		server := initServer(httptest.NewServer)
+		defer server.Close()
+
+		client := NewClient(logging.FakeLogger{}, DefaultClientConfiguration)
+		webhook := &receivers.SendWebhookSettings{
+			URL:        server.URL,
+			Body:       "test-body",
+			HTTPMethod: http.MethodPost,
+			HMACConfig: &receivers.HMACConfig{
+				Secret:          "test-secret",
+				Header:          "X-Custom-HMAC",
+				TimestampHeader: "X-Custom-Timestamp",
+			},
+		}
+
+		err := client.SendWebhook(context.Background(), webhook)
+		require.NoError(t, err)
+
+		require.NotNil(t, capturedRequest)
+		require.NotEmpty(t, capturedRequest.Header.Get("X-Custom-HMAC"))
+		timestamp := capturedRequest.Header.Get("X-Custom-Timestamp")
+		require.NotEmpty(t, timestamp)
+	})
+
+	t.Run("with TLS", func(t *testing.T) {
+		server := initServer(httptest.NewTLSServer)
+		defer server.Close()
+
+		tlsConfig := &receivers.TLSConfig{
+			InsecureSkipVerify: true,
+		}
+		cfg, err := tlsConfig.ToCryptoTLSConfig()
+		require.NoError(t, err)
+
+		client := NewClient(logging.FakeLogger{}, DefaultClientConfiguration)
+		webhook := &receivers.SendWebhookSettings{
+			URL:        server.URL,
+			Body:       "test-body",
+			HTTPMethod: http.MethodPost,
+			TLSConfig:  cfg,
+			HMACConfig: &receivers.HMACConfig{
+				Secret:          "test-secret",
+				Header:          "X-Custom-HMAC",
+				TimestampHeader: "X-Custom-Timestamp",
+			},
+		}
+
+		err = client.SendWebhook(context.Background(), webhook)
+		require.NoError(t, err)
+
+		require.NotNil(t, capturedRequest)
+		require.NotEmpty(t, capturedRequest.Header.Get("X-Custom-HMAC"))
+		timestamp := capturedRequest.Header.Get("X-Custom-Timestamp")
+		require.NotEmpty(t, timestamp)
+	})
+}
