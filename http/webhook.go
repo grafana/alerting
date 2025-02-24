@@ -43,7 +43,7 @@ func (f ForkedSender) SendWebhook(ctx context.Context, cmd *receivers.SendWebhoo
 		request.Header.Set(k, v)
 	}
 
-	resp, err := receivers.NewTLSClient(cmd.TLSConfig).Do(request)
+	resp, err := NewTLSClient(cmd.TLSConfig).Do(request)
 	if err != nil {
 		return redactURL(err)
 	}

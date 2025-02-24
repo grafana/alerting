@@ -74,7 +74,7 @@ func (ns *Client) SendWebhook(ctx context.Context, webhook *receivers.SendWebhoo
 		request.Header.Set(k, v)
 	}
 
-	client := receivers.NewTLSClient(webhook.TLSConfig)
+	client := NewTLSClient(webhook.TLSConfig)
 
 	if webhook.HMACConfig != nil {
 		ns.log.Debug("Adding HMAC roundtripper to client")
