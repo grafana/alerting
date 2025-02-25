@@ -26,6 +26,7 @@ type Config struct {
 	DisableWebPagePreview bool   `json:"disable_web_page_preview,omitempty" yaml:"disable_web_page_preview,omitempty"`
 	ProtectContent        bool   `json:"protect_content,omitempty" yaml:"protect_content,omitempty"`
 	DisableNotifications  bool   `json:"disable_notifications,omitempty" yaml:"disable_notifications,omitempty"`
+	APIURL                string `json:"api_url,omitempty" yaml:"api_url,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
@@ -70,6 +71,9 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	}
 	if !found {
 		return settings, fmt.Errorf("unknown parse_mode, must be Markdown, MarkdownV2, HTML or None")
+	}
+	if settings.APIURL == "" {
+		settings.APIURL = APIURL
 	}
 	return settings, nil
 }
