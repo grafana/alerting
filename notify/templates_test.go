@@ -7,9 +7,10 @@ import (
 	"github.com/grafana/alerting/templates"
 
 	"github.com/go-openapi/strfmt"
-	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 )
 
 var (
@@ -39,8 +40,9 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "Template Contents",
+				Name:  "slack.title",
+				Text:  "Template Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -53,8 +55,9 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "17",
+				Name:  "slack.title",
+				Text:  "17",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -67,8 +70,9 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "TEMPLATE CONTENTS",
+				Name:  "slack.title",
+				Text:  "TEMPLATE CONTENTS",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -110,8 +114,9 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "Other Contents",
+				Name:  "slack.title",
+				Text:  "Other Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -124,11 +129,13 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "discord.title",
-				Text: "Discord Title",
+				Name:  "discord.title",
+				Text:  "Discord Title",
+				Scope: rootScope,
 			}, {
-				Name: "slack.title",
-				Text: "Other Contents",
+				Name:  "slack.title",
+				Text:  "Other Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -141,8 +148,9 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "discord.title",
-				Text: "Discord Title",
+				Name:  "discord.title",
+				Text:  "Discord Title",
+				Scope: rootScope,
 			}},
 			Errors: []TestTemplatesErrorResult{{
 				Name:  "slack.title",
@@ -178,8 +186,9 @@ func TestTemplateSpecialCases(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "Template Contents",
+				Name:  "slack.title",
+				Text:  "Template Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -203,8 +212,9 @@ func TestTemplateSpecialCases(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "discord.title",
-				Text: "Template Contents",
+				Name:  "discord.title",
+				Text:  "Template Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -231,8 +241,9 @@ func TestTemplateSpecialCases(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "",
-				Text: "Template Contents",
+				Name:  "",
+				Text:  "Template Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -245,11 +256,13 @@ func TestTemplateSpecialCases(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "",
-				Text: "abcdef",
+				Name:  "",
+				Text:  "abcdef",
+				Scope: rootScope,
 			}, {
-				Name: "slack.title",
-				Text: "Template Contents",
+				Name:  "slack.title",
+				Text:  "Template Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -283,8 +296,9 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 		existingTemplates: nil,
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "[FIRING:1] group_label_value (alert1 val1)",
+				Name:  "slack.title",
+				Text:  "[FIRING:1] group_label_value (alert1 val1)",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -301,8 +315,9 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "Some existing template",
+				Name:  "slack.title",
+				Text:  "Some existing template",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -319,8 +334,9 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "New template",
+				Name:  "slack.title",
+				Text:  "New template",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -356,8 +372,9 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "Some new alternate template",
+				Name:  "slack.title",
+				Text:  "Some new alternate template",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -384,12 +401,13 @@ func TestTemplateAlertData(t *testing.T) {
 		name     string
 		input    TestTemplatesConfigBodyParams
 		expected TestTemplatesResults
-	}{{
-		name: "check various extended data",
-		input: TestTemplatesConfigBodyParams{
-			Alerts: []*amv2.PostableAlert{&simpleAlert},
-			Name:   "slack.title",
-			Template: `{{ define "slack.title" }}
+	}{
+		{
+			name: "check various extended data",
+			input: TestTemplatesConfigBodyParams{
+				Alerts: []*amv2.PostableAlert{&simpleAlert},
+				Name:   "slack.title",
+				Template: `{{ define "slack.title" }}
 Receiver: {{ .Receiver }}
 Status: {{ .Status }}
 ExternalURL: {{ .ExternalURL }}
@@ -400,15 +418,82 @@ GroupLabels: {{ range .GroupLabels.SortedPairs }}{{ .Name }}={{ .Value }}{{ end 
 CommonLabels: {{ range .CommonLabels.SortedPairs }}{{ .Name }}={{ .Value }}{{ end }}
 CommonAnnotations: {{ range .CommonAnnotations.SortedPairs }}{{ .Name }}={{ .Value }}{{ end }}
 {{ end }}`,
+			},
+			expected: TestTemplatesResults{
+				Results: []TestTemplatesResult{{
+					Name:  "slack.title",
+					Text:  "\nReceiver: TestReceiver\nStatus: firing\nExternalURL: http://localhost:9093\nAlerts: 1\nFiring Alerts: 1\nResolved Alerts: 0\nGroupLabels: group_label=group_label_value\nCommonLabels: alertname=alert1lbl1=val1\nCommonAnnotations: ann1=annv1\n",
+					Scope: rootScope,
+				}},
+				Errors: nil,
+			},
 		},
-		expected: TestTemplatesResults{
-			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "\nReceiver: TestReceiver\nStatus: firing\nExternalURL: http://localhost:9093\nAlerts: 1\nFiring Alerts: 1\nResolved Alerts: 0\nGroupLabels: group_label=group_label_value\nCommonLabels: alertname=alert1lbl1=val1\nCommonAnnotations: ann1=annv1\n",
-			}},
-			Errors: nil,
+		{
+			name: "template scoped to .Alerts",
+			input: TestTemplatesConfigBodyParams{
+				Alerts: []*amv2.PostableAlert{&simpleAlert},
+				Name:   "alerts.custom",
+				Template: `{{ define "alerts.custom" }}{{ range . }}
+Labels:
+{{ range .Labels.SortedPairs }} - {{ .Name }} = {{ .Value }}
+{{ end }}Annotations:
+{{ range .Annotations.SortedPairs }} - {{ .Name }} = {{ .Value }}
+{{ end }}{{ if gt (len .GeneratorURL) 0 }}Source: {{ .GeneratorURL }}
+{{ end }}{{ if gt (len .SilenceURL) 0 }}Silence: {{ .SilenceURL }}
+{{ end }}{{ if gt (len .DashboardURL) 0 }}Dashboard: {{ .DashboardURL }}
+{{ end }}{{ if gt (len .PanelURL) 0 }}Panel: {{ .PanelURL }}
+{{ end }}{{ end }}{{ end }}`,
+			},
+			expected: TestTemplatesResults{
+				Results: []TestTemplatesResult{{
+					Name:  "alerts.custom",
+					Text:  "\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost:9093/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Drule+uid&matcher=lbl1%3Dval1\nDashboard: http://localhost:9093/d/abcd\nPanel: http://localhost:9093/d/abcd?viewPanel=efgh\n",
+					Scope: alertsScope,
+				}},
+				Errors: nil,
+			},
 		},
-	},
+		{
+			name: "template scoped to .Alert",
+			input: TestTemplatesConfigBodyParams{
+				Alerts: []*amv2.PostableAlert{&simpleAlert},
+				Name:   "alerts.custom.single",
+				Template: `{{ define "alerts.custom.single" }}
+Labels:
+{{ range .Labels.SortedPairs }} - {{ .Name }} = {{ .Value }}
+{{ end }}Annotations:
+{{ range .Annotations.SortedPairs }} - {{ .Name }} = {{ .Value }}
+{{ end }}{{ if gt (len .GeneratorURL) 0 }}Source: {{ .GeneratorURL }}
+{{ end }}{{ if gt (len .SilenceURL) 0 }}Silence: {{ .SilenceURL }}
+{{ end }}{{ if gt (len .DashboardURL) 0 }}Dashboard: {{ .DashboardURL }}
+{{ end }}{{ if gt (len .PanelURL) 0 }}Panel: {{ .PanelURL }}
+{{ end }}{{ end }}`,
+			},
+			expected: TestTemplatesResults{
+				Results: []TestTemplatesResult{{
+					Name:  "alerts.custom.single",
+					Text:  "\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost:9093/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Drule+uid&matcher=lbl1%3Dval1\nDashboard: http://localhost:9093/d/abcd\nPanel: http://localhost:9093/d/abcd?viewPanel=efgh\n",
+					Scope: alertScope,
+				}},
+				Errors: nil,
+			},
+		},
+		{
+			name: "failing scope",
+			input: TestTemplatesConfigBodyParams{
+				Alerts:   []*amv2.PostableAlert{&simpleAlert},
+				Name:     "alerts.custom.failing",
+				Template: `{{ define "alerts.custom.failing" }}{{ .DOESNOTEXIST }} {{ end }}`,
+			},
+			expected: TestTemplatesResults{
+				Results: nil,
+				Errors: []TestTemplatesErrorResult{{
+					Name:  "alerts.custom.failing",
+					Kind:  ExecutionError,
+					Error: `template: :1:39: executing "alerts.custom.failing" at <.DOESNOTEXIST>: can't evaluate field DOESNOTEXIST in type *templates.ExtendedData`,
+				}},
+			},
+		},
 	}
 
 	for _, test := range tests {
