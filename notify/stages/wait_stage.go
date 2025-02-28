@@ -40,11 +40,8 @@ func (ws *WaitStage) Exec(ctx context.Context, l log.Logger, alerts ...*types.Al
 		return ctx, alerts, nil
 	}
 
-	t := time.NewTimer(wait)
-	defer t.Stop()
-
 	select {
-	case <-t.C:
+	case <-time.After(wait):
 	case <-ctx.Done():
 		return ctx, nil, ctx.Err()
 	}
