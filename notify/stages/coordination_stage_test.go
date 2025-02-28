@@ -79,6 +79,10 @@ func TestPipelineAndStateTimestampCoordinationStage(t *testing.T) {
 			stage := PipelineAndStateTimestampCoordinationStage{
 				nflog:        n,
 				stopPipeline: tc.stopPipeline,
+				recv: &nflogpb.Receiver{
+					GroupName:   "test-receiver",
+					Integration: "test-integration",
+				},
 			}
 			alerts := []*types.Alert{{}, {}, {}}
 			rCtx, rAlerts, err := stage.Exec(ctx, log.NewNopLogger(), alerts...)
