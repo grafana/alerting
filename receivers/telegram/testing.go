@@ -2,6 +2,7 @@ package telegram
 
 // FullValidConfigForTesting is a string representation of a JSON object that contains all fields supported by the notifier Config. It can be used without secrets.
 const FullValidConfigForTesting = `{
+	"api_url": "https://api.test.com/bot%s/%s",
 	"bottoken" :"test-token",
 	"chatid" :"12345678",
 	"message" :"test-message",
