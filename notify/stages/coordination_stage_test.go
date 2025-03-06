@@ -101,13 +101,13 @@ type testNflog struct {
 	qres []*nflogpb.Entry
 	qerr error
 
-	logFunc func(r *nflogpb.Receiver, gkey string, firingAlerts, resolvedAlerts []uint64, expiry time.Duration) error
+	logFunc func(r *nflogpb.Receiver, gkey string, firingAlerts, resolvedAlerts []uint64, expiry time.Duration, pipelineTime time.Time) error
 }
 
 func (l *testNflog) Query(_ ...nflog.QueryParam) ([]*nflogpb.Entry, error) {
 	return l.qres, l.qerr
 }
 
-func (l *testNflog) Log(r *nflogpb.Receiver, gkey string, firingAlerts, resolvedAlerts []uint64, expiry time.Duration) error {
-	return l.logFunc(r, gkey, firingAlerts, resolvedAlerts, expiry)
+func (l *testNflog) Log(r *nflogpb.Receiver, gkey string, firingAlerts, resolvedAlerts []uint64, expiry time.Duration, pipelineTime time.Time) error {
+	return l.logFunc(r, gkey, firingAlerts, resolvedAlerts, expiry, pipelineTime)
 }
