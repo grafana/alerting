@@ -76,9 +76,9 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 			if sc.HTTPConfig == nil {
 				sc.HTTPConfig = c.Global.HTTPConfig
 			}
-			if sc.APIURL == nil {
-				if c.Global.SlackAPIURL == nil {
-					return nil, fmt.Errorf("no global Slack API URL set")
+			if sc.APIURL == nil && len(sc.APIURLFile) == 0 {
+				if c.Global.SlackAPIURL == nil && len(c.Global.SlackAPIURLFile) == 0 {
+					return nil, fmt.Errorf("no global Slack API URL set either inline or in a file")
 				}
 				sc.APIURL = c.Global.SlackAPIURL
 			}
@@ -112,11 +112,12 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 			if !strings.HasSuffix(ogc.APIURL.Path, "/") {
 				ogc.APIURL.Path += "/"
 			}
-			if ogc.APIKey == "" {
-				if c.Global.OpsGenieAPIKey == "" {
-					return nil, fmt.Errorf("no global OpsGenie API Key set")
+			if ogc.APIKey == "" && len(ogc.APIKeyFile) == 0 {
+				if c.Global.OpsGenieAPIKey == "" && len(c.Global.OpsGenieAPIKeyFile) == 0 {
+					return nil, fmt.Errorf("no global OpsGenie API Key set either inline or in a file")
 				}
 				ogc.APIKey = c.Global.OpsGenieAPIKey
+				ogc.APIKeyFile = c.Global.OpsGenieAPIKeyFile
 			}
 		}
 		for _, wcc := range rcv.WechatConfigs {
@@ -162,11 +163,12 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 			if !strings.HasSuffix(voc.APIURL.Path, "/") {
 				voc.APIURL.Path += "/"
 			}
-			if voc.APIKey == "" {
-				if c.Global.VictorOpsAPIKey == "" {
+			if voc.APIKey == "" && len(voc.APIKeyFile) == 0 {
+				if c.Global.VictorOpsAPIKey == "" && len(c.Global.VictorOpsAPIKeyFile) == 0 {
 					return nil, fmt.Errorf("no global VictorOps API Key set")
 				}
 				voc.APIKey = c.Global.VictorOpsAPIKey
+				voc.APIKeyFile = c.Global.VictorOpsAPIKeyFile
 			}
 		}
 		for _, sns := range rcv.SNSConfigs {
@@ -187,8 +189,8 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 			if discord.HTTPConfig == nil {
 				discord.HTTPConfig = c.Global.HTTPConfig
 			}
-			if discord.WebhookURL == nil {
-				return nil, fmt.Errorf("no discord webhook URL provided")
+			if discord.WebhookURL == nil && len(discord.WebhookURLFile) == 0 {
+				return nil, fmt.Errorf("no discord webhook URL or URLFile provided")
 			}
 		}
 		for _, webex := range rcv.WebexConfigs {
@@ -204,8 +206,8 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 			if msteams.HTTPConfig == nil {
 				msteams.HTTPConfig = c.Global.HTTPConfig
 			}
-			if msteams.WebhookURL == nil {
-				return nil, fmt.Errorf("no msteams webhook URL provided")
+			if msteams.WebhookURL == nil && len(msteams.WebhookURLFile) == 0 {
+				return nil, fmt.Errorf("no msteams webhook URL or URLFile provided")
 			}
 		}
 		names[rcv.Name] = struct{}{}
