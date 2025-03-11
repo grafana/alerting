@@ -2,6 +2,7 @@ package stages
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -68,6 +69,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 	now := time.Now()
 	groupKey := []byte("test-group")
 	groupWait := 30 * time.Second
+	nflogQueryErr := errors.New("nflog query error")
 
 	tests := []struct {
 		name           string
@@ -78,6 +80,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 		skipGroupKey   bool
 		skipNow        bool
 		skipGroupWait  bool
+		nflogErr       error
 		expectedErr    error
 	}{
 		{
@@ -109,6 +112,12 @@ func TestSyncFlushStageExec(t *testing.T) {
 			pipelineTime:  now,
 			skipGroupWait: true,
 			expectedErr:   ErrMissingGroupInterval,
+		},
+		{
+			name:         "nflog query error",
+			pipelineTime: now,
+			nflogErr:     nflogQueryErr,
+			expectedErr:  nflogQueryErr,
 		},
 		{
 			name: "entry exists but no wait needed",
@@ -194,6 +203,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 			}
 
 			nflog := &testNflog{
+				qerr: tc.nflogErr,
 				qres: tc.entries,
 			}
 
