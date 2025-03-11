@@ -123,6 +123,7 @@ func (sfs *SyncFlushStage) Exec(ctx context.Context, l log.Logger, alerts ...*ty
 	if sfs.sync {
 		select {
 		case <-time.After(wait):
+			ctx = notify.WithNow(ctx, curPipelineTime.Add(wait))
 		case <-ctx.Done():
 			return ctx, nil, ctx.Err()
 		}
