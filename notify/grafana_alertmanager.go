@@ -182,7 +182,7 @@ type GrafanaAlertmanagerConfig struct {
 
 	// PipelineAndStateTimestampsMismatchAction defines the action to take when there's a mismatch in pipeline and state timestamps.
 	PipelineAndStateTimestampsMismatchAction stages.Action
-	// SyncFlushAction defines weather to run the sync flush stage and in what mode.
+	// SyncFlushAction defines whether to run the sync flush stage and in what mode.
 	SyncFlushAction stages.SyncFlushAction
 	// SyncFlushMargin defines the accepted margin between the previous and current pipelines to consider if we should sync with other instances.
 	SyncFlushMargin time.Duration
