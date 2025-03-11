@@ -137,13 +137,13 @@ type MaintenanceOptions interface {
 
 var NewIntegration = nfstatus.NewIntegration
 
-type InhibitRule      = config.InhibitRule
+type InhibitRule = config.InhibitRule
 type MuteTimeInterval = config.MuteTimeInterval
-type TimeInterval     = config.TimeInterval
-type Route            = config.Route
-type Integration      = nfstatus.Integration
+type TimeInterval = config.TimeInterval
+type Route = config.Route
+type Integration = nfstatus.Integration
 type DispatcherLimits = dispatch.Limits
-type Notifier         = notify.Notifier
+type Notifier = notify.Notifier
 
 //nolint:revive
 type NotifyReceiver = nfstatus.Receiver
