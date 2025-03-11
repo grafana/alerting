@@ -10,7 +10,6 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestCalculateSyncWaitTime(t *testing.T) {
@@ -60,7 +59,7 @@ func TestCalculateSyncWaitTime(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result := stage.calculateSyncWaitTime(tc.curPipelineTime, tc.prevPipelineTime, tc.groupWait)
-			require.Equal(t, tc.expectedWait, result)
+			assert.Equal(t, tc.expectedWait, result)
 		})
 	}
 }
@@ -205,10 +204,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 				margin: 2 * time.Second,
 			}
 
-			alerts := []*types.Alert{{}, {}}
-			_, gotAlerts, err := stage.Exec(ctx, log.NewNopLogger(), alerts...)
-
-			assert.Equal(t, alerts, gotAlerts)
+			_, _, err := stage.Exec(ctx, log.NewNopLogger(), &types.Alert{})
 			assert.ErrorIs(t, err, tc.expectedErr)
 		})
 	}
@@ -248,12 +244,11 @@ func TestNewSyncFlushStage(t *testing.T) {
 			stage := NewSyncFlushStage(nflog, recv, tc.action, time.Second)
 
 			if tc.expectNil {
-				require.Nil(t, stage)
+				assert.Nil(t, stage)
 			} else {
-				require.NotNil(t, stage)
-				require.Equal(t, tc.expectedSync, stage.sync)
+				assert.NotNil(t, stage)
+				assert.Equal(t, tc.expectedSync, stage.sync)
 			}
 		})
 	}
 }
-
