@@ -195,7 +195,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 				ctx = notify.WithNow(ctx, tc.pipelineTime)
 			}
 			if !tc.skipGroupWait {
-				ctx = notify.WithGroupWait(ctx, groupWait)
+				ctx = notify.WithGroupInterval(ctx, groupWait)
 			}
 
 			nflog := &testNflog{

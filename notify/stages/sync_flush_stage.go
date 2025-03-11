@@ -50,8 +50,8 @@ func NewSyncFlushStage(l notify.NotificationLog, recv *nflogpb.Receiver, action 
 }
 
 // calculateSyncWaitTime calculates the wait time needed to synchronize flush operations.
-func (sfs *SyncFlushStage) calculateSyncWaitTime(curPipelineTime, prevPipelineTime time.Time, groupWait time.Duration) (wait time.Duration) {
-	nextFlush := prevPipelineTime.Add(groupWait)
+func (sfs *SyncFlushStage) calculateSyncWaitTime(curPipelineTime, prevPipelineTime time.Time, groupInterval time.Duration) (wait time.Duration) {
+	nextFlush := prevPipelineTime.Add(groupInterval)
 
 	// NOTE: if nextFlush is before curPipelineTime, don't try to sync the flush time in this case
 	if nextFlush.Before(curPipelineTime) {
@@ -78,7 +78,7 @@ func (sfs *SyncFlushStage) Exec(ctx context.Context, l log.Logger, alerts ...*ty
 		return ctx, nil, errors.New("now missing")
 	}
 
-	groupWait, ok := notify.GroupWait(ctx)
+	groupInterval, ok := notify.GroupInterval(ctx)
 	if !ok {
 		return ctx, nil, errors.New("groupWait missing")
 	}
@@ -100,7 +100,7 @@ func (sfs *SyncFlushStage) Exec(ctx context.Context, l log.Logger, alerts ...*ty
 	}
 
 	// calculate next flush time based on last entry on notification log
-	wait := sfs.calculateSyncWaitTime(curPipelineTime, entry.PipelineTime, groupWait)
+	wait := sfs.calculateSyncWaitTime(curPipelineTime, entry.PipelineTime, groupInterval)
 	_ = level.Debug(l).Log(
 		"msg", "syncing flush time",
 		"pipeline_time", curPipelineTime,
