@@ -22,6 +22,13 @@ const (
 	SyncFlushActionSync     SyncFlushAction = "sync"
 )
 
+var (
+	ErrMissingGroupKey           = errors.New("groupKey missing")
+	ErrMissingNow                = errors.New("now missing")
+	ErrMissingGroupInterval      = errors.New("groupInterval missing")
+	ErrUnexpectedEntryResultSize = errors.New("unexpected entry result size")
+)
+
 // SyncFlushStage delays the notification pipeline execution to sync flushes between multiple instances.
 type SyncFlushStage struct {
 	nflog  notify.NotificationLog
@@ -69,18 +76,18 @@ func (sfs *SyncFlushStage) calculateSyncWaitTime(curPipelineTime, prevPipelineTi
 func (sfs *SyncFlushStage) Exec(ctx context.Context, l log.Logger, alerts ...*types.Alert) (context.Context, []*types.Alert, error) {
 	gkey, ok := notify.GroupKey(ctx)
 	if !ok {
-		return ctx, nil, errors.New("group key missing")
+		return ctx, nil, ErrMissingGroupKey
 	}
 
 	// get the tick time from the context.
 	curPipelineTime, ok := notify.Now(ctx)
 	if !ok {
-		return ctx, nil, errors.New("now missing")
+		return ctx, nil, ErrMissingNow
 	}
 
 	groupInterval, ok := notify.GroupInterval(ctx)
 	if !ok {
-		return ctx, nil, errors.New("groupWait missing")
+		return ctx, nil, ErrMissingGroupInterval
 	}
 
 	entries, err := sfs.nflog.Query(nflog.QGroupKey(gkey), nflog.QReceiver(sfs.recv))
@@ -96,7 +103,7 @@ func (sfs *SyncFlushStage) Exec(ctx context.Context, l log.Logger, alerts ...*ty
 	case 1:
 		entry = entries[0]
 	default:
-		return ctx, nil, fmt.Errorf("unexpected entry result size %d", len(entries))
+		return ctx, nil, fmt.Errorf("%w: %d", ErrUnexpectedEntryResultSize, len(entries))
 	}
 
 	// calculate next flush time based on last entry on notification log

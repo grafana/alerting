@@ -79,14 +79,13 @@ func TestSyncFlushStageExec(t *testing.T) {
 		skipGroupKey   bool
 		skipNow        bool
 		skipGroupWait  bool
-		expectedErr    bool
+		expectedErr    error
 	}{
 		{
 			name:         "no entries",
 			sync:         true,
 			entries:      []*nflogpb.Entry{},
 			pipelineTime: now,
-			expectedErr:  false,
 		},
 		{
 			name:         "missing group key",
@@ -94,7 +93,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 			entries:      []*nflogpb.Entry{},
 			pipelineTime: now,
 			skipGroupKey: true,
-			expectedErr:  true,
+			expectedErr:  ErrMissingGroupKey,
 		},
 		{
 			name:         "missing now",
@@ -102,7 +101,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 			entries:      []*nflogpb.Entry{},
 			pipelineTime: now,
 			skipNow:      true,
-			expectedErr:  true,
+			expectedErr:  ErrMissingNow,
 		},
 		{
 			name:          "missing group wait",
@@ -110,7 +109,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 			entries:       []*nflogpb.Entry{},
 			pipelineTime:  now,
 			skipGroupWait: true,
-			expectedErr:   true,
+			expectedErr:   ErrMissingGroupInterval,
 		},
 		{
 			name: "entry exists but no wait needed",
@@ -122,7 +121,6 @@ func TestSyncFlushStageExec(t *testing.T) {
 				},
 			},
 			pipelineTime: now,
-			expectedErr:  false,
 		},
 		{
 			name: "entry exists and wait would be needed",
@@ -134,7 +132,6 @@ func TestSyncFlushStageExec(t *testing.T) {
 				},
 			},
 			pipelineTime: now,
-			expectedErr:  false,
 		},
 		{
 			name: "sync disabled",
@@ -146,7 +143,6 @@ func TestSyncFlushStageExec(t *testing.T) {
 				},
 			},
 			pipelineTime: now,
-			expectedErr:  false,
 		},
 		{
 			name: "context timeout",
@@ -159,7 +155,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 			},
 			pipelineTime:   now,
 			contextTimeout: 50 * time.Millisecond,
-			expectedErr:    true,
+			expectedErr:    context.DeadlineExceeded,
 		},
 		{
 			name: "multiple entries error",
@@ -175,7 +171,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 				},
 			},
 			pipelineTime: now,
-			expectedErr:  true,
+			expectedErr:  ErrUnexpectedEntryResultSize,
 		},
 	}
 
@@ -212,12 +208,8 @@ func TestSyncFlushStageExec(t *testing.T) {
 			alerts := []*types.Alert{{}, {}}
 			_, gotAlerts, err := stage.Exec(ctx, log.NewNopLogger(), alerts...)
 
-			if tc.expectedErr {
-				assert.Error(t, err)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, alerts, gotAlerts)
-			}
+			assert.Equal(t, alerts, gotAlerts)
+			assert.ErrorIs(t, err, tc.expectedErr)
 		})
 	}
 }
@@ -264,3 +256,4 @@ func TestNewSyncFlushStage(t *testing.T) {
 		})
 	}
 }
+
