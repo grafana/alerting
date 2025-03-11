@@ -137,15 +137,13 @@ type MaintenanceOptions interface {
 
 var NewIntegration = nfstatus.NewIntegration
 
-type (
-	InhibitRule      = config.InhibitRule
-	MuteTimeInterval = config.MuteTimeInterval
-	TimeInterval     = config.TimeInterval
-	Route            = config.Route
-	Integration      = nfstatus.Integration
-	DispatcherLimits = dispatch.Limits
-	Notifier         = notify.Notifier
-)
+type InhibitRule      = config.InhibitRule
+type MuteTimeInterval = config.MuteTimeInterval
+type TimeInterval     = config.TimeInterval
+type Route            = config.Route
+type Integration      = nfstatus.Integration
+type DispatcherLimits = dispatch.Limits
+type Notifier         = notify.Notifier
 
 //nolint:revive
 type NotifyReceiver = nfstatus.Receiver
@@ -237,6 +235,7 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 			MaxSilenceSizeBytes: func() int { return config.Limits.MaxSilenceSizeBytes },
 		},
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the silencing component of alerting: %w", err)
 	}
@@ -458,8 +457,7 @@ func TestReceivers(
 	c TestReceiversConfigBodyParams,
 	tmpls []string,
 	buildIntegrationsFunc func(*APIReceiver, *template.Template) ([]*nfstatus.Integration, error),
-	externalURL string,
-) (*TestReceiversResult, int, error) {
+	externalURL string) (*TestReceiversResult, int, error) {
 	now := time.Now() // The start time of the test
 	testAlert := newTestAlert(c, now, now)
 
