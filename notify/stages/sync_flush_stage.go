@@ -68,6 +68,12 @@ func (sfs *SyncFlushStage) calculateSyncWaitTime(curPipelineTime, prevPipelineTi
 	// if diff is greater than margin, we should wait
 	if diff := nextFlush.Sub(curPipelineTime); diff > sfs.margin {
 		wait = diff
+		// it shouldn't happen, but just in case:
+		// - if prevPipeline > curPipeline, then diff > gropuInterval
+		// - if curPipeline >= prevPipeline, diff will be, at most, groupInterval
+		if wait > groupInterval {
+			wait -= groupInterval
+		}
 	}
 	return
 }

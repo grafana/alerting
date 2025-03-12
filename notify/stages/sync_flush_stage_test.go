@@ -55,6 +55,13 @@ func TestCalculateSyncWaitTime(t *testing.T) {
 			groupInterval:    groupInterval,
 			expectedWait:     3 * time.Second,
 		},
+		{
+			name:             "wait > groupinterval",
+			curPipelineTime:  now,
+			prevPipelineTime: now.Add(10 * time.Second), // prevPipelineTime is in the future
+			groupInterval:    groupInterval,             // nextFlush = now + 10s + 30s = now + 40s
+			expectedWait:     10 * time.Second,          // wait = 40s - 30s = 10s (capped by groupInterval)
+		},
 	}
 
 	for _, tc := range tests {
