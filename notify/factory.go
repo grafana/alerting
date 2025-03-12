@@ -7,6 +7,7 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 
+	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
@@ -15,6 +16,7 @@ import (
 	"github.com/grafana/alerting/receivers/discord"
 	"github.com/grafana/alerting/receivers/email"
 	"github.com/grafana/alerting/receivers/googlechat"
+	"github.com/grafana/alerting/receivers/jira"
 	"github.com/grafana/alerting/receivers/kafka"
 	"github.com/grafana/alerting/receivers/line"
 	"github.com/grafana/alerting/receivers/mqtt"
@@ -42,7 +44,7 @@ func BuildReceiverIntegrations(
 	tmpl *templates.Template,
 	img images.Provider,
 	logger logging.LoggerFactory,
-	newWebhookSender func(n receivers.Metadata) (receivers.WebhookSender, error),
+	httpClientConfiguration http.ClientConfiguration,
 	newEmailSender func(n receivers.Metadata) (receivers.EmailSender, error),
 	orgID int64,
 	version string,
@@ -62,13 +64,7 @@ func BuildReceiverIntegrations(
 			integrations = append(integrations, i)
 		}
 		nw = func(cfg receivers.Metadata) receivers.WebhookSender {
-			w, e := newWebhookSender(cfg)
-			if e != nil {
-				errors.Add(fmt.Errorf("unable to build webhook client for %s notifier %s (UID: %s): %w ", cfg.Type, cfg.Name, cfg.UID, e))
-				return nil // return nil to simplify the construction code. This works because constructor in notifiers do not check the argument for nil.
-				// This does not cause misconfigured notifiers because it populates `errors`, which causes the function to return nil integrations and non-nil error.
-			}
-			return w
+			return http.NewClient(logger("ngalert.notifier."+cfg.Type+".client", "notifierUID", cfg.UID), httpClientConfiguration)
 		}
 	)
 	// Range through each notification channel in the receiver and create an integration for it.
@@ -94,6 +90,9 @@ func BuildReceiverIntegrations(
 	}
 	for i, cfg := range receiver.GooglechatConfigs {
 		ci(i, cfg.Metadata, googlechat.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), version))
+	}
+	for i, cfg := range receiver.JiraConfigs {
+		ci(i, cfg.Metadata, jira.New(cfg.Settings, cfg.Metadata, tmpl, http.NewForkedSender(nw(cfg.Metadata)), nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.KafkaConfigs {
 		ci(i, cfg.Metadata, kafka.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))

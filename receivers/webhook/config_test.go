@@ -89,6 +89,11 @@ func TestNewConfig(t *testing.T) {
 					ClientKey:          "test-client-key",
 					CACertificate:      "test-ca-certificate",
 				},
+				HMACConfig: &receivers.HMACConfig{
+					Secret:          "test-hmac-secret",
+					Header:          "X-Grafana-Alerting-Signature",
+					TimestampHeader: "X-Grafana-Alerting-Timestamp",
+				},
 			},
 		},
 		{
@@ -107,9 +112,14 @@ func TestNewConfig(t *testing.T) {
 				Message:                  "test-message",
 				TLSConfig: &receivers.TLSConfig{
 					InsecureSkipVerify: false,
-					ClientCertificate:  "test-client-certificate",
-					ClientKey:          "test-client-key",
-					CACertificate:      "test-ca-certificate",
+					ClientCertificate:  "test-override-client-certificate",
+					ClientKey:          "test-override-client-key",
+					CACertificate:      "test-override-ca-certificate",
+				},
+				HMACConfig: &receivers.HMACConfig{
+					Secret:          "test-override-hmac-secret",
+					Header:          "X-Grafana-Alerting-Signature",
+					TimestampHeader: "X-Grafana-Alerting-Timestamp",
 				},
 			},
 		},
@@ -248,6 +258,31 @@ func TestNewConfig(t *testing.T) {
 				Password:                 "",
 				Title:                    templates.DefaultMessageTitleEmbed,
 				Message:                  templates.DefaultMessageEmbed,
+			},
+		},
+		{
+			name: "with HMAC config",
+			settings: `{
+				"url": "http://localhost/test1",
+				"hmacConfig": {
+					"header": "X-Test-Hash",
+					"timestampHeader": "X-Test-Timestamp"
+				}
+			}`,
+			secretSettings: map[string][]byte{
+				"hmacConfig.secret": []byte("test-secret-from-secrets"),
+			},
+			expectedConfig: Config{
+				URL:        "http://localhost/test1",
+				HTTPMethod: http.MethodPost,
+				MaxAlerts:  0,
+				Title:      templates.DefaultMessageTitleEmbed,
+				Message:    templates.DefaultMessageEmbed,
+				HMACConfig: &receivers.HMACConfig{
+					Secret:          "test-secret-from-secrets",
+					Header:          "X-Test-Hash",
+					TimestampHeader: "X-Test-Timestamp",
+				},
 			},
 		},
 		{
