@@ -930,6 +930,7 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 	}
 
 	// NOTE: Increase the flush timeout if the sync stage is enabled to decrease the chance of getting context canceled.
+	// doubling the groupInterval since waitTime will be, at most, groupInterval
 	if am.syncFlushStageAction != stages.SyncFlushActionDisabled {
 		d *= 2
 	}
