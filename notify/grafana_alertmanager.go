@@ -928,6 +928,11 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 	if d < notify.MinTimeout {
 		d = notify.MinTimeout
 	}
+
+	// NOTE: Increase the flush timeout if the sync stage is enabled to decrease the chance of getting context canceled.
+	if am.syncFlushStageAction != stages.SyncFlushActionDisabled {
+		d *= 2
+	}
 	return d + am.waitFunc()
 }
 
