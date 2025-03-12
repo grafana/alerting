@@ -110,6 +110,10 @@ type GrafanaAlertmanager struct {
 	templates []templates.TemplateDefinition
 	// controls whether instance runs pipeline.PipelineAndStateTimestampCoordinationStage and in what mode. The stage is run after notify.DedupStage
 	pipelineAndStateTimestampsMismatchAction stages.Action
+	// controls whether instance runs pipeline.syncFlushStage and in what mode. If running, the stage will be the first one to run.
+	syncFlushStageAction stages.SyncFlushAction
+	// controls the accepted margin between the previous and current pipelines to consider if we should sync with other instances.
+	syncFlushStageActionMargin time.Duration
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -178,6 +182,10 @@ type GrafanaAlertmanagerConfig struct {
 
 	// PipelineAndStateTimestampsMismatchAction defines the action to take when there's a mismatch in pipeline and state timestamps.
 	PipelineAndStateTimestampsMismatchAction stages.Action
+	// SyncFlushAction defines whether to run the sync flush stage and in what mode.
+	SyncFlushAction stages.SyncFlushAction
+	// SyncFlushMargin defines the accepted margin between the previous and current pipelines to consider if we should sync with other instances.
+	SyncFlushMargin time.Duration
 }
 
 func (c *GrafanaAlertmanagerConfig) Validate() error {
@@ -207,6 +215,8 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		tenantID:                                 tenantID,
 		externalURL:                              config.ExternalURL,
 		pipelineAndStateTimestampsMismatchAction: config.PipelineAndStateTimestampsMismatchAction,
+		syncFlushStageAction:                     config.SyncFlushAction,
+		syncFlushStageActionMargin:               config.SyncFlushMargin,
 	}
 
 	if err := config.Validate(); err != nil {
@@ -225,6 +235,7 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 			MaxSilenceSizeBytes: func() int { return config.Limits.MaxSilenceSizeBytes },
 		},
 	})
+
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the silencing component of alerting: %w", err)
 	}
@@ -236,7 +247,6 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 		Logger:         logger,
 		Metrics:        m.Registerer,
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the notification log component of alerting: %w", err)
 	}
@@ -448,7 +458,6 @@ func TestReceivers(
 	tmpls []string,
 	buildIntegrationsFunc func(*APIReceiver, *template.Template) ([]*nfstatus.Integration, error),
 	externalURL string) (*TestReceiversResult, int, error) {
-
 	now := time.Now() // The start time of the test
 	testAlert := newTestAlert(c, now, now)
 
@@ -716,7 +725,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	var receivers []*nfstatus.Receiver
 	activeReceivers := GetActiveReceiversMap(am.route)
 	for name := range integrationsMap {
-		stage := am.createReceiverStage(name, nfstatus.GetIntegrations(integrationsMap[name]), am.notificationLog, am.pipelineAndStateTimestampsMismatchAction)
+		stage := am.createReceiverStage(name, nfstatus.GetIntegrations(integrationsMap[name]), am.notificationLog, am.pipelineAndStateTimestampsMismatchAction, am.syncFlushStageAction, am.syncFlushStageActionMargin)
 		routingStage[name] = notify.MultiStage{meshStage, silencingStage, timeMuteStage, inhibitionStage, stage}
 		_, isActive := activeReceivers[name]
 
@@ -883,7 +892,7 @@ func (e AlertValidationError) Error() string {
 }
 
 // createReceiverStage creates a pipeline of stages for a receiver.
-func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*notify.Integration, notificationLog notify.NotificationLog, act stages.Action) notify.Stage {
+func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*notify.Integration, notificationLog notify.NotificationLog, act stages.Action, syncAct stages.SyncFlushAction, syncMargin time.Duration) notify.Stage {
 	var fs notify.FanoutStage
 	for i := range integrations {
 		recv := &nflogpb.Receiver{
@@ -892,6 +901,9 @@ func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*
 			Idx:         uint32(integrations[i].Index()),
 		}
 		var s notify.MultiStage
+		if stage := stages.NewSyncFlushStage(notificationLog, recv, syncAct, syncMargin); stage != nil {
+			s = append(s, stage)
+		}
 		s = append(s, stages.NewWaitStage(am.peer, am.peerTimeout))
 		s = append(s, notify.NewDedupStage(integrations[i], notificationLog, recv))
 		stage := stages.NewPipelineAndStateTimestampCoordinationStage(notificationLog, recv, act)
@@ -915,6 +927,12 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 	// we need to make sure (non-position-0) peers in the cluster wait before flushing the notifications.
 	if d < notify.MinTimeout {
 		d = notify.MinTimeout
+	}
+
+	// NOTE: Increase the flush timeout if the sync stage is enabled to decrease the chance of getting context canceled.
+	// doubling the groupInterval since waitTime will be, at most, groupInterval
+	if am.syncFlushStageAction != stages.SyncFlushActionDisabled {
+		d *= 2
 	}
 	return d + am.waitFunc()
 }
