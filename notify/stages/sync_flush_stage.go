@@ -60,7 +60,7 @@ func NewSyncFlushStage(l notify.NotificationLog, recv *nflogpb.Receiver, action 
 func (sfs *SyncFlushStage) calculateSyncWaitTime(curPipelineTime, prevPipelineTime time.Time, groupInterval time.Duration) (wait time.Duration) {
 	nextFlush := prevPipelineTime.Add(groupInterval)
 
-	// NOTE: if nextFlush is before curPipelineTime, don't try to sync the flush time in this case
+	// NOTE: if nextFlush is before curPipelineTime, don't try to sync the flush time
 	if nextFlush.Before(curPipelineTime) {
 		return
 	}
