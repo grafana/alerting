@@ -19,47 +19,47 @@ func TestCalculateSyncWaitTime(t *testing.T) {
 	}
 
 	now := time.Now()
-	groupWait := 30 * time.Second
+	groupInterval := 30 * time.Second
 	tests := []struct {
 		name             string
 		curPipelineTime  time.Time
 		prevPipelineTime time.Time
-		groupWait        time.Duration
+		groupInterval    time.Duration
 		expectedWait     time.Duration
 	}{
 		{
 			name:             "nextFlush before curPipelineTime",
 			curPipelineTime:  now,
-			prevPipelineTime: now.Add(-31 * time.Second), // nextFlush = prevPipelineTime + groupWait = now - 1s
-			groupWait:        groupWait,
+			prevPipelineTime: now.Add(-31 * time.Second), // nextFlush = prevPipelineTime + groupInterval = now - 1s
+			groupInterval:    groupInterval,
 			expectedWait:     0,
 		},
 		{
 			name:             "nextFlush within margin",
 			curPipelineTime:  now,
-			prevPipelineTime: now.Add(-29 * time.Second), // nextFlush = prevPipelineTime + groupWait = now + 1s
-			groupWait:        groupWait,
+			prevPipelineTime: now.Add(-29 * time.Second), // nextFlush = prevPipelineTime + groupInterval = now + 1s
+			groupInterval:    groupInterval,
 			expectedWait:     0,
 		},
 		{
 			name:             "nextFlush at margin boundary",
 			curPipelineTime:  now,
-			prevPipelineTime: now.Add(-28 * time.Second), // nextFlush = prevPipelineTime + groupWait = now + 2s
-			groupWait:        groupWait,
+			prevPipelineTime: now.Add(-28 * time.Second), // nextFlush = prevPipelineTime + groupInterval = now + 2s
+			groupInterval:    groupInterval,
 			expectedWait:     0,
 		},
 		{
 			name:             "nextFlush after margin",
 			curPipelineTime:  now,
-			prevPipelineTime: now.Add(-27 * time.Second), // nextFlush = prevPipelineTime + groupWait = now + 3s
-			groupWait:        groupWait,
+			prevPipelineTime: now.Add(-27 * time.Second), // nextFlush = prevPipelineTime + groupInterval = now + 3s
+			groupInterval:    groupInterval,
 			expectedWait:     3 * time.Second,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := stage.calculateSyncWaitTime(tc.curPipelineTime, tc.prevPipelineTime, tc.groupWait)
+			result := stage.calculateSyncWaitTime(tc.curPipelineTime, tc.prevPipelineTime, tc.groupInterval)
 			assert.Equal(t, tc.expectedWait, result)
 		})
 	}
@@ -68,7 +68,7 @@ func TestCalculateSyncWaitTime(t *testing.T) {
 func TestSyncFlushStageExec(t *testing.T) {
 	now := time.Now()
 	groupKey := []byte("test-group")
-	groupWait := 30 * time.Second
+	groupInterval := 30 * time.Second
 	nflogQueryErr := errors.New("nflog query error")
 
 	tests := []struct {
@@ -125,7 +125,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 			entries: []*nflogpb.Entry{
 				{
 					GroupKey:     groupKey,
-					PipelineTime: now.Add(-groupWait),
+					PipelineTime: now.Add(-groupInterval),
 				},
 			},
 			pipelineTime: now,
@@ -199,7 +199,7 @@ func TestSyncFlushStageExec(t *testing.T) {
 				ctx = notify.WithNow(ctx, tc.pipelineTime)
 			}
 			if !tc.skipGroupWait {
-				ctx = notify.WithGroupInterval(ctx, groupWait)
+				ctx = notify.WithGroupInterval(ctx, groupInterval)
 			}
 
 			nflog := &testNflog{
