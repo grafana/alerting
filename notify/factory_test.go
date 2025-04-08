@@ -28,6 +28,9 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	loggerFactory := func(_ string, _ ...interface{}) logging.Logger {
 		return &logging.FakeLogger{}
 	}
+	noopWrapper := func(_ string, n Notifier) Notifier {
+		return n
+	}
 
 	getFullConfig := func(t *testing.T) (GrafanaReceiverConfig, int) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
@@ -52,13 +55,22 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return emailFactory(n)
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, http.DefaultClientConfiguration, em, orgID, version)
+		wrapped := 0
+		notifyWrapper := func(_ string, n Notifier) Notifier {
+			wrapped++
+			return n
+		}
+
+		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, http.DefaultClientConfiguration, em, notifyWrapper, orgID, version)
 
 		require.NoError(t, err)
 		require.Len(t, integrations, qty)
 
 		t.Run("should call email factory for each config that needs it", func(t *testing.T) {
 			require.Len(t, emails, 1) // we have only email notifier that needs sender
+		})
+		t.Run("should call notify wrapper for each config", func(t *testing.T) {
+			require.Equal(t, qty, wrapped)
 		})
 	})
 	t.Run("should return errors if email factory fails", func(t *testing.T) {
@@ -69,7 +81,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return nil, errors.New("bad-test")
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, http.DefaultClientConfiguration, failingFactory, orgID, version)
+		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, http.DefaultClientConfiguration, failingFactory, noopWrapper, orgID, version)
 
 		require.Empty(t, integrations)
 		require.NotNil(t, err)
@@ -79,7 +91,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should not produce any integration if config is empty", func(t *testing.T) {
 		cfg := GrafanaReceiverConfig{Name: "test"}
 
-		integrations, err := BuildReceiverIntegrations(cfg, tmpl, imageProvider, loggerFactory, http.DefaultClientConfiguration, emailFactory, orgID, version)
+		integrations, err := BuildReceiverIntegrations(cfg, tmpl, imageProvider, loggerFactory, http.DefaultClientConfiguration, emailFactory, noopWrapper, orgID, version)
 
 		require.NoError(t, err)
 		require.Empty(t, integrations)
