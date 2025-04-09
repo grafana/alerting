@@ -18,7 +18,7 @@ type CustomPayload struct {
 
 	// Vars is a map of variables that can be used in the payload template. This is useful for providing
 	// additional context to the payload template without storing it in the template itself.
-	// Variables are accessible in the template through `.Extra.Vars.<key>`.
+	// Variables are accessible in the template through `.Vars.<key>`.
 	Vars map[string]string `json:"vars,omitempty" yaml:"vars,omitempty"`
 }
 

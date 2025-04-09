@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"path"
 	"slices"
+	"strconv"
 	"strings"
 	tmpltext "text/template"
 	"time"
@@ -56,6 +57,7 @@ type ExtendedAlert struct {
 	ValueString   string             `json:"valueString"` // TODO: Remove in Grafana 10
 	ImageURL      string             `json:"imageURL,omitempty"`
 	EmbeddedImage string             `json:"embeddedImage,omitempty"`
+	OrgId         *int64             `json:"orgId,omitempty"`
 }
 
 type ExtendedAlerts []ExtendedAlert
@@ -71,8 +73,14 @@ type ExtendedData struct {
 
 	ExternalURL string `json:"externalURL"`
 
-	// Optional extra integration-specific data useable in templates.
-	Extra map[string]any `json:"-"`
+	// Webhook-specific fields
+	GroupKey string `json:"groupKey"`
+
+	// Most notifiers don't truncate alerts, but a nil or zero default is safe in those cases.
+	TruncatedAlerts *int `json:"truncatedAlerts,omitempty"`
+
+	// Optional variables for templating, currently only used for webhook custom payloads.
+	Vars map[string]string `json:"-"`
 }
 
 var DefaultTemplateName = "__default__"
@@ -204,6 +212,15 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		EndsAt:       alert.EndsAt,
 		GeneratorURL: alert.GeneratorURL,
 		Fingerprint:  alert.Fingerprint,
+	}
+
+	if alert.Annotations[models.OrgIDAnnotation] != "" {
+		orgID, err := strconv.ParseInt(alert.Annotations[models.OrgIDAnnotation], 10, 0)
+		if err != nil {
+			level.Debug(logger).Log("msg", "failed to parse org ID annotation", "error", err.Error())
+		} else {
+			extended.OrgId = &orgID
+		}
 	}
 
 	if generatorURL, err := url.Parse(extended.GeneratorURL); err != nil {
@@ -346,7 +363,7 @@ func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 
 		ExternalURL: data.ExternalURL,
 
-		Extra: make(map[string]any),
+		Vars: make(map[string]string),
 	}
 	return extended
 }
@@ -354,6 +371,12 @@ func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
 	promTmplData := notify.GetTemplateData(ctx, tmpl, alerts, l)
 	data := ExtendData(promTmplData, l)
+
+	if groupKey, err := notify.ExtractGroupKey(ctx); err == nil {
+		data.GroupKey = groupKey.String()
+	} else {
+		level.Debug(l).Log("msg", "failed to extract group key from context", "error", err.Error())
+	}
 
 	return func(name string) (s string) {
 		if *tmplErr != nil {

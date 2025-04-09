@@ -302,7 +302,7 @@ func TestNewConfig(t *testing.T) {
 			settings: `{
 				"url": "http://localhost/test1",
 				"payload": {
-					"template": "{{ define \"test\" }}{{ .Receiver }}{{ .Extra.Vars.var1 }}{{ end }}",
+					"template": "{{ define \"test\" }}{{ .Receiver }}{{ .Vars.var1 }}{{ end }}",
 					"vars": {
 						"var1": "variablevalue"
 					}
@@ -315,7 +315,7 @@ func TestNewConfig(t *testing.T) {
 				Title:      templates.DefaultMessageTitleEmbed,
 				Message:    templates.DefaultMessageEmbed,
 				Payload: CustomPayload{
-					Template: `{{ define "test" }}{{ .Receiver }}{{ .Extra.Vars.var1 }}{{ end }}`,
+					Template: `{{ define "test" }}{{ .Receiver }}{{ .Vars.var1 }}{{ end }}`,
 					Vars: map[string]string{
 						"var1": "variablevalue",
 					},

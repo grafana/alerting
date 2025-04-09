@@ -115,11 +115,11 @@ Annotations:
   "commonLabels" .CommonLabels
   "commonAnnotations" .CommonAnnotations
   "externalURL" .ExternalURL
-  "version" .Extra.Version
-  "orgId"  .Extra.OrgId
-  "truncatedAlerts"  .Extra.TruncatedAlerts
-  "groupKey" .Extra.GroupKey
-  "state"  .Extra.State
+  "version" "1"
+  "orgId"  (index .Alerts 0).OrgId
+  "truncatedAlerts"  .TruncatedAlerts
+  "groupKey" .GroupKey
+  "state"  (tmpl.Inline "{{ if eq .Status \"resolved\" }}ok{{ else }}alerting{{ end }}" . )
   "title" (tmpl.Exec "default.title" . )
   "message" (tmpl.Exec "default.message" . )
   | data.ToJSONPretty " "}}

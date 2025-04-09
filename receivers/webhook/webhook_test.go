@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/grafana/alerting/models"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -73,8 +74,9 @@ func TestNotify(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -95,9 +97,11 @@ func TestNotify(t *testing.T) {
 								"ann1": "annv1",
 							},
 							Fingerprint:  "fac0861a85de433a",
-							DashboardURL: "http://localhost/d/abcd",
-							PanelURL:     "http://localhost/d/abcd?viewPanel=efgh",
-							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+							DashboardURL: "http://localhost/d/abcd?orgId=1",
+							PanelURL:     "http://localhost/d/abcd?orgId=1&viewPanel=efgh",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
+							GeneratorURL: "http://localhost/test?orgId=1",
+							OrgId:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -138,18 +142,21 @@ func TestNotify(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				}, {
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
-						Annotations: model.LabelSet{"ann1": "annv2"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+						Annotations:  model.LabelSet{"ann1": "annv2", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				}, {
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val3"},
-						Annotations: model.LabelSet{"ann1": "annv3"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val3"},
+						Annotations:  model.LabelSet{"ann1": "annv3", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -171,8 +178,10 @@ func TestNotify(t *testing.T) {
 							Annotations: templates.KV{
 								"ann1": "annv1",
 							},
-							Fingerprint: "fac0861a85de433a",
-							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+							Fingerprint:  "fac0861a85de433a",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
+							GeneratorURL: "http://localhost/test?orgId=1",
+							OrgId:        &orgID,
 						}, {
 							Status: "firing",
 							Labels: templates.KV{
@@ -182,8 +191,10 @@ func TestNotify(t *testing.T) {
 							Annotations: templates.KV{
 								"ann1": "annv2",
 							},
-							Fingerprint: "fab6861a85d5eeb5",
-							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2",
+							Fingerprint:  "fab6861a85d5eeb5",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2&orgId=1",
+							GeneratorURL: "http://localhost/test?orgId=1",
+							OrgId:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -200,7 +211,7 @@ func TestNotify(t *testing.T) {
 				TruncatedAlerts: 1,
 				Title:           "Alerts firing: 2",
 				State:           "alerting",
-				Message:         "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+				Message:         "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/test?orgId=1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSource: http://localhost/test?orgId=1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2&orgId=1\n",
 				OrgID:           orgID,
 			},
 			expMsgError: nil,
@@ -222,13 +233,15 @@ func TestNotify(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				}, {
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
-						Annotations: model.LabelSet{"ann1": "annv2"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+						Annotations:  model.LabelSet{"ann1": "annv2", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -248,8 +261,10 @@ func TestNotify(t *testing.T) {
 							Annotations: templates.KV{
 								"ann1": "annv1",
 							},
-							Fingerprint: "fac0861a85de433a",
-							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+							Fingerprint:  "fac0861a85de433a",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
+							GeneratorURL: "http://localhost/test?orgId=1",
+							OrgId:        &orgID,
 						}, {
 							Status: "firing",
 							Labels: templates.KV{
@@ -259,8 +274,10 @@ func TestNotify(t *testing.T) {
 							Annotations: templates.KV{
 								"ann1": "annv2",
 							},
-							Fingerprint: "fab6861a85d5eeb5",
-							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2",
+							Fingerprint:  "fab6861a85d5eeb5",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2&orgId=1",
+							GeneratorURL: "http://localhost/test?orgId=1",
+							OrgId:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -277,7 +294,7 @@ func TestNotify(t *testing.T) {
 				TruncatedAlerts: 0,
 				Title:           "[FIRING:2]  ",
 				State:           "alerting",
-				Message:         "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+				Message:         "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/test?orgId=1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSource: http://localhost/test?orgId=1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2&orgId=1\n",
 				OrgID:           orgID,
 			},
 			expMsgError: nil,
@@ -299,8 +316,9 @@ func TestNotify(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -319,9 +337,11 @@ func TestNotify(t *testing.T) {
 								"ann1": "annv1",
 							},
 							Fingerprint:  "fac0861a85de433a",
-							DashboardURL: "http://localhost/d/abcd",
-							PanelURL:     "http://localhost/d/abcd?viewPanel=efgh",
-							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+							DashboardURL: "http://localhost/d/abcd?orgId=1",
+							PanelURL:     "http://localhost/d/abcd?orgId=1&viewPanel=efgh",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
+							GeneratorURL: "http://localhost/test?orgId=1",
+							OrgId:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -340,7 +360,7 @@ func TestNotify(t *testing.T) {
 				GroupKey: "alertname",
 				Title:    "[FIRING:1]  (val1)",
 				State:    "alerting",
-				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/test?orgId=1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1\nDashboard: http://localhost/d/abcd?orgId=1\nPanel: http://localhost/d/abcd?orgId=1&viewPanel=efgh\n",
 				OrgID:    orgID,
 			},
 			expURL:        "http://localhost/test1",
@@ -369,8 +389,9 @@ func TestNotify(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -389,9 +410,11 @@ func TestNotify(t *testing.T) {
 								"ann1": "annv1",
 							},
 							Fingerprint:  "fac0861a85de433a",
-							DashboardURL: "http://localhost/d/abcd",
-							PanelURL:     "http://localhost/d/abcd?viewPanel=efgh",
-							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+							DashboardURL: "http://localhost/d/abcd?orgId=1",
+							PanelURL:     "http://localhost/d/abcd?orgId=1&viewPanel=efgh",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
+							GeneratorURL: "http://localhost/test?orgId=1",
+							OrgId:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -410,7 +433,7 @@ func TestNotify(t *testing.T) {
 				GroupKey: "alertname",
 				Title:    "[FIRING:1]  (val1)",
 				State:    "alerting",
-				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/test?orgId=1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1\nDashboard: http://localhost/d/abcd?orgId=1\nPanel: http://localhost/d/abcd?orgId=1&viewPanel=efgh\n",
 				OrgID:    orgID,
 			},
 			expURL:        "https://localhost/test1",
@@ -439,8 +462,9 @@ func TestNotify(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -459,9 +483,11 @@ func TestNotify(t *testing.T) {
 								"ann1": "annv1",
 							},
 							Fingerprint:  "fac0861a85de433a",
-							DashboardURL: "http://localhost/d/abcd",
-							PanelURL:     "http://localhost/d/abcd?viewPanel=efgh",
-							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+							DashboardURL: "http://localhost/d/abcd?orgId=1",
+							PanelURL:     "http://localhost/d/abcd?orgId=1&viewPanel=efgh",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
+							GeneratorURL: "http://localhost/test?orgId=1",
+							OrgId:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -480,7 +506,7 @@ func TestNotify(t *testing.T) {
 				GroupKey: "alertname",
 				Title:    "[FIRING:1]  (val1)",
 				State:    "alerting",
-				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/test?orgId=1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1\nDashboard: http://localhost/d/abcd?orgId=1\nPanel: http://localhost/d/abcd?orgId=1&viewPanel=efgh\n",
 				OrgID:    orgID,
 			},
 			expURL:        "https://localhost/test1",
@@ -504,8 +530,9 @@ func TestNotify(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -523,8 +550,10 @@ func TestNotify(t *testing.T) {
 							Annotations: templates.KV{
 								"ann1": "annv1",
 							},
-							Fingerprint: "fac0861a85de433a",
-							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+							Fingerprint:  "fac0861a85de433a",
+							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
+							GeneratorURL: "http://localhost/test?orgId=1",
+							OrgId:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -543,7 +572,7 @@ func TestNotify(t *testing.T) {
 				GroupKey: "alertname",
 				Title:    "[FIRING:1]  (val1)",
 				State:    "alerting",
-				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/test?orgId=1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1\n",
 				OrgID:    orgID,
 			},
 			expURL:        "http://localhost/test1",
@@ -572,8 +601,9 @@ func TestNotify(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -595,8 +625,9 @@ func TestNotify(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -623,8 +654,9 @@ func TestNotify(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -664,8 +696,9 @@ func TestNotify(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -771,8 +804,9 @@ func TestNotify_CustomPayload(t *testing.T) {
 			alerts: []*types.Alert{
 				{
 					Alert: model.Alert{
-						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations: model.LabelSet{"ann1": "annv1"},
+						GeneratorURL: "http://localhost/test",
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 					},
 				},
 			},
@@ -789,10 +823,11 @@ func TestNotify_CustomPayload(t *testing.T) {
       },
       "startsAt": "0001-01-01T00:00:00Z",
       "endsAt": "0001-01-01T00:00:00Z",
-      "generatorURL": "",
+      "generatorURL": "http://localhost/test?orgId=1",
       "fingerprint": "fac0861a85de433a",
-      "silenceURL": "http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1",
+      "silenceURL": "http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1&orgId=1",
       "dashboardURL": "",
+      "orgId": 1,
       "panelURL": "",
       "values": null,
       "valueString": ""
@@ -810,7 +845,7 @@ func TestNotify_CustomPayload(t *testing.T) {
   "groupLabels": {
     "alertname": ""
   },
-  "message": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1\n",
+  "message": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/test?orgId=1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1&orgId=1\n",
   "orgId": 1,
   "receiver": "my_receiver",
   "state": "alerting",
@@ -829,7 +864,7 @@ func TestNotify_CustomPayload(t *testing.T) {
 				HTTPMethod: http.MethodPost,
 				MaxAlerts:  1,
 				Payload: CustomPayload{
-					Template: `{{ .Extra | data.ToJSONPretty " " }}`,
+					Template: `{{ .Vars | data.ToJSONPretty " " }}`,
 					Vars: map[string]string{
 						"var1": "val1",
 						"var2": "val2",
@@ -840,30 +875,23 @@ func TestNotify_CustomPayload(t *testing.T) {
 				{
 					Alert: model.Alert{
 						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations:  model.LabelSet{"ann1": "annv1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 						GeneratorURL: "http://localhost/generator",
 					},
 				},
 				{
 					Alert: model.Alert{
 						Labels:       model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
-						Annotations:  model.LabelSet{"ann2": "annv2"},
+						Annotations:  model.LabelSet{"ann2": "annv2", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
 						GeneratorURL: "http://localhost/generator",
 					},
 				},
 			},
 			expMsg: `
 {
- "GroupKey": "alertname",
- "OrgId": 1,
- "State": "alerting",
- "TruncatedAlerts": 1,
- "Vars": {
   "var1": "val1",
   "var2": "val2"
- },
- "Version": "1"
-}
+ }
 `,
 			expMsgError: nil,
 		},
@@ -966,7 +994,7 @@ func TestNotify_CustomPayload(t *testing.T) {
     "client" "Grafana"
     "client_url" ( print .ExternalURL  "/alerting/list")
     "alert_state" .Status
-    "incident_key" .Extra.GroupKey
+    "incident_key" .GroupKey
   )
   | data.ToJSONPretty " " }}`,
 				},

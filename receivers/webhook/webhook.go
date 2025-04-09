@@ -66,6 +66,7 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	as, numTruncated := truncateAlerts(wn.settings.MaxAlerts, as)
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
+	data.TruncatedAlerts = &numTruncated
 
 	// Fail early if we can't template the URL.
 	parsedURL := tmpl(wn.settings.URL)
@@ -89,18 +90,9 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		state = string(receivers.AlertStateAlerting)
 	}
 
-	// Extra data included in the default payload but not part of ExtendedData. This should be available when using
-	// a custom payload template. We also include it for the default payload so the two are consistent.
-	data.Extra["TruncatedAlerts"] = numTruncated
-	data.Extra["State"] = state
-	data.Extra["Version"] = "1"
-	data.Extra["OrgId"] = wn.orgID
-	data.Extra["GroupKey"] = groupKey.String()
-
-	if len(wn.settings.Payload.Vars) > 0 {
-		data.Extra["Vars"] = wn.settings.Payload.Vars
-	} else {
-		data.Extra["Vars"] = make(map[string]string)
+	// Provide variables to the template for use in the custom payload.
+	for k, v := range wn.settings.Payload.Vars {
+		data.Vars[k] = v
 	}
 
 	var body string
