@@ -101,7 +101,7 @@ func TestNotify(t *testing.T) {
 							PanelURL:     "http://localhost/d/abcd?orgId=1&viewPanel=efgh",
 							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
 							GeneratorURL: "http://localhost/test?orgId=1",
-							OrgId:        &orgID,
+							OrgID:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -181,7 +181,7 @@ func TestNotify(t *testing.T) {
 							Fingerprint:  "fac0861a85de433a",
 							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
 							GeneratorURL: "http://localhost/test?orgId=1",
-							OrgId:        &orgID,
+							OrgID:        &orgID,
 						}, {
 							Status: "firing",
 							Labels: templates.KV{
@@ -194,7 +194,7 @@ func TestNotify(t *testing.T) {
 							Fingerprint:  "fab6861a85d5eeb5",
 							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2&orgId=1",
 							GeneratorURL: "http://localhost/test?orgId=1",
-							OrgId:        &orgID,
+							OrgID:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -264,7 +264,7 @@ func TestNotify(t *testing.T) {
 							Fingerprint:  "fac0861a85de433a",
 							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
 							GeneratorURL: "http://localhost/test?orgId=1",
-							OrgId:        &orgID,
+							OrgID:        &orgID,
 						}, {
 							Status: "firing",
 							Labels: templates.KV{
@@ -277,7 +277,7 @@ func TestNotify(t *testing.T) {
 							Fingerprint:  "fab6861a85d5eeb5",
 							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2&orgId=1",
 							GeneratorURL: "http://localhost/test?orgId=1",
-							OrgId:        &orgID,
+							OrgID:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -341,7 +341,7 @@ func TestNotify(t *testing.T) {
 							PanelURL:     "http://localhost/d/abcd?orgId=1&viewPanel=efgh",
 							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
 							GeneratorURL: "http://localhost/test?orgId=1",
-							OrgId:        &orgID,
+							OrgID:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -414,7 +414,7 @@ func TestNotify(t *testing.T) {
 							PanelURL:     "http://localhost/d/abcd?orgId=1&viewPanel=efgh",
 							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
 							GeneratorURL: "http://localhost/test?orgId=1",
-							OrgId:        &orgID,
+							OrgID:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -487,7 +487,7 @@ func TestNotify(t *testing.T) {
 							PanelURL:     "http://localhost/d/abcd?orgId=1&viewPanel=efgh",
 							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
 							GeneratorURL: "http://localhost/test?orgId=1",
-							OrgId:        &orgID,
+							OrgID:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{
@@ -553,7 +553,7 @@ func TestNotify(t *testing.T) {
 							Fingerprint:  "fac0861a85de433a",
 							SilenceURL:   "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1&orgId=1",
 							GeneratorURL: "http://localhost/test?orgId=1",
-							OrgId:        &orgID,
+							OrgID:        &orgID,
 						},
 					},
 					GroupLabels: templates.KV{

@@ -57,7 +57,7 @@ type ExtendedAlert struct {
 	ValueString   string             `json:"valueString"` // TODO: Remove in Grafana 10
 	ImageURL      string             `json:"imageURL,omitempty"`
 	EmbeddedImage string             `json:"embeddedImage,omitempty"`
-	OrgId         *int64             `json:"orgId,omitempty"`
+	OrgID         *int64             `json:"orgId,omitempty"`
 }
 
 type ExtendedAlerts []ExtendedAlert
@@ -149,7 +149,7 @@ func NewRawTemplate(options ...template.Option) (*tmpltext.Template, error) {
 		tmpl = text
 	}
 
-	_, err := NewTemplate(capture)
+	_, err := NewTemplate(append(options, capture)...)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +219,7 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		if err != nil {
 			level.Debug(logger).Log("msg", "failed to parse org ID annotation", "error", err.Error())
 		} else {
-			extended.OrgId = &orgID
+			extended.OrgID = &orgID
 		}
 	}
 

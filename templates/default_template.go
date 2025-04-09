@@ -116,7 +116,7 @@ Annotations:
   "commonAnnotations" .CommonAnnotations
   "externalURL" .ExternalURL
   "version" "1"
-  "orgId"  (index .Alerts 0).OrgId
+  "orgId"  (index .Alerts 0).OrgID
   "truncatedAlerts"  .TruncatedAlerts
   "groupKey" .GroupKey
   "state"  (tmpl.Inline "{{ if eq .Status \"resolved\" }}ok{{ else }}alerting{{ end }}" . )
