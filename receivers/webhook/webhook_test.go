@@ -1023,6 +1023,27 @@ func TestNotify_CustomPayload(t *testing.T) {
 `,
 			expMsgError: nil,
 		},
+		{
+			name: "empty payload",
+			settings: Config{
+				URL:        "http://localhost/test",
+				HTTPMethod: http.MethodPost,
+				Payload: CustomPayload{
+					Template: `{{- print "" -}}`,
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1"},
+						GeneratorURL: "http://localhost/generator",
+					},
+				},
+			},
+			expMsg:      ``,
+			expMsgError: nil,
+		},
 	}
 
 	for _, c := range cases {
@@ -1055,7 +1076,7 @@ func TestNotify_CustomPayload(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, ok)
 
-			require.JSONEq(t, c.expMsg, webhookSender.Webhook.Body)
+			require.Equal(t, c.expMsg, webhookSender.Webhook.Body)
 		})
 	}
 }

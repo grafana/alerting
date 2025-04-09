@@ -101,10 +101,8 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		if tmplErr != nil {
 			return false, tmplErr // TODO: Should there be an option to fallback to the default payload?
 		}
-	}
-
-	if body == "" {
-		// We separate the templating Title and Message so we can capture any errors and reset the error state.
+	} else {
+		// We separate templating the Title and Message so we can capture any errors and reset the error state.
 		// Otherwise, if Title fails Message will not be templated either.
 		title := tmpl(wn.settings.Title)
 		if tmplErr != nil {
