@@ -789,8 +789,9 @@ func TestNotify_CustomPayload(t *testing.T) {
 		settings Config
 		alerts   []*types.Alert
 
-		expMsg      string
-		expMsgError error
+		expPlaintext bool
+		expMsg       string
+		expMsgError  error
 	}{
 		{
 			name: "Custom payload with one alert",
@@ -1041,8 +1042,9 @@ func TestNotify_CustomPayload(t *testing.T) {
 					},
 				},
 			},
-			expMsg:      ``,
-			expMsgError: nil,
+			expPlaintext: true,
+			expMsg:       ``,
+			expMsgError:  nil,
 		},
 	}
 
@@ -1075,8 +1077,11 @@ func TestNotify_CustomPayload(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.True(t, ok)
-
-			require.Equal(t, c.expMsg, webhookSender.Webhook.Body)
+			if c.expPlaintext {
+				require.Equal(t, c.expMsg, webhookSender.Webhook.Body)
+			} else {
+				require.JSONEq(t, c.expMsg, webhookSender.Webhook.Body)
+			}
 		})
 	}
 }
