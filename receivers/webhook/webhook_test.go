@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
@@ -28,6 +30,9 @@ var clientCert string
 
 //go:embed fixtures/client.key
 var clientKey string
+
+// DefaultPayloadTemplate is meant to mimic the default payload used by webhook receivers when no custom payload template is provided.
+const DefaultPayloadTemplate = `{{ template "webhook.default.payload" . }}`
 
 func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
@@ -600,8 +605,323 @@ func TestNotify(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			webhookSender := receivers.MockNotificationService()
+			// We test both the default payload and the default templated payload. This helps ensure that payload
+			// templating works as expected and also that the default payload is consistent with the templated payload.
+			for _, payloadTemplate := range []string{"", DefaultPayloadTemplate} {
+				testName := "default payload"
+				settings := c.settings
+				if payloadTemplate != "" {
+					testName = "default templated payload"
+					settings.Payload.Template = payloadTemplate
 
+					if c.settings.Message != templates.DefaultMessageEmbed || c.settings.Title != templates.DefaultMessageTitleEmbed {
+						// Not good candidates for testing the templated payload as it doesn't use the Message and Title fields.
+						continue
+					}
+				}
+				t.Run(testName, func(t *testing.T) {
+					webhookSender := receivers.MockNotificationService()
+					pn := &Notifier{
+						Base: &receivers.Base{
+							Name:                  "",
+							Type:                  "",
+							UID:                   "",
+							DisableResolveMessage: false,
+						},
+						log:      &logging.FakeLogger{},
+						ns:       webhookSender,
+						tmpl:     tmpl,
+						settings: settings,
+						images:   &images.UnavailableProvider{},
+						orgID:    1,
+					}
+
+					ctx := notify.WithGroupKey(context.Background(), "alertname")
+					ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+					ctx = notify.WithReceiverName(ctx, "my_receiver")
+					ok, err := pn.Notify(ctx, c.alerts...)
+					if c.expMsgError != nil {
+						require.False(t, ok)
+						require.Error(t, err)
+						require.Equal(t, c.expMsgError.Error(), err.Error())
+						return
+					}
+					require.NoError(t, err)
+					require.True(t, ok)
+
+					expBody, err := json.Marshal(c.expMsg)
+					require.NoError(t, err)
+
+					require.JSONEq(t, string(expBody), webhookSender.Webhook.Body)
+					require.Equal(t, c.expURL, webhookSender.Webhook.URL)
+					require.Equal(t, c.expUsername, webhookSender.Webhook.User)
+					require.Equal(t, c.expPassword, webhookSender.Webhook.Password)
+					require.Equal(t, c.expHTTPMethod, webhookSender.Webhook.HTTPMethod)
+					require.Equal(t, c.expHeaders, webhookSender.Webhook.HTTPHeader)
+				})
+			}
+		})
+	}
+}
+
+func TestNotify_CustomPayload(t *testing.T) {
+	tmpl := templates.ForTests(t)
+
+	externalURL, err := url.Parse("http://localhost")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+
+	orgID := int64(1)
+
+	cases := []struct {
+		name     string
+		settings Config
+		alerts   []*types.Alert
+
+		expMsg      string
+		expMsgError error
+	}{
+		{
+			name: "Custom payload with one alert",
+			settings: Config{
+				URL:        "http://localhost/test",
+				HTTPMethod: http.MethodPost,
+				Payload: CustomPayload{
+					Template: `{{ template "webhook.default.payload" . }}`,
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+					},
+				},
+			},
+			expMsg: `{
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "alert1",
+        "lbl1": "val1"
+      },
+      "annotations": {
+        "ann1": "annv1"
+      },
+      "startsAt": "0001-01-01T00:00:00Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "",
+      "fingerprint": "fac0861a85de433a",
+      "silenceURL": "http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1",
+      "dashboardURL": "",
+      "panelURL": "",
+      "values": null,
+      "valueString": ""
+    }
+  ],
+  "commonAnnotations": {
+    "ann1": "annv1"
+  },
+  "commonLabels": {
+    "alertname": "alert1",
+    "lbl1": "val1"
+  },
+  "externalURL": "http://localhost",
+  "groupKey": "alertname",
+  "groupLabels": {
+    "alertname": ""
+  },
+  "message": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1\n",
+  "orgId": 1,
+  "receiver": "my_receiver",
+  "state": "alerting",
+  "status": "firing",
+  "title": "[FIRING:1]  (val1)",
+  "truncatedAlerts": 0,
+  "version": "1"
+}`,
+			expMsgError: nil,
+		},
+
+		{
+			name: "variables and extra fields",
+			settings: Config{
+				URL:        "http://localhost/test",
+				HTTPMethod: http.MethodPost,
+				MaxAlerts:  1,
+				Payload: CustomPayload{
+					Template: `{{ .Extra | data.ToJSONPretty " " }}`,
+					Vars: map[string]string{
+						"var1": "val1",
+						"var2": "val2",
+					},
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1"},
+						GeneratorURL: "http://localhost/generator",
+					},
+				},
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+						Annotations:  model.LabelSet{"ann2": "annv2"},
+						GeneratorURL: "http://localhost/generator",
+					},
+				},
+			},
+			expMsg: `
+{
+ "GroupKey": "alertname",
+ "OrgId": 1,
+ "State": "alerting",
+ "TruncatedAlerts": 1,
+ "Vars": {
+  "var1": "val1",
+  "var2": "val2"
+ },
+ "Version": "1"
+}
+`,
+			expMsgError: nil,
+		},
+		{
+			name: "Alertmanager-like payload",
+			settings: Config{
+				URL:        "http://localhost/test",
+				HTTPMethod: http.MethodPost,
+				Payload: CustomPayload{
+					Template: `{{- $alerts := coll.Slice -}}
+  {{- range .Alerts -}}
+    {{- $alerts = coll.Append (coll.Dict 
+    "labels" .Labels
+    "annotations" .Annotations
+    "startsAt" .StartsAt
+    "endsAt" .EndsAt
+    "generatorURL" .GeneratorURL
+    ) $alerts }}
+  {{- end }}
+  {{- $alerts | data.ToJSONPretty " " }}`,
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1"},
+						StartsAt:     time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+						GeneratorURL: "http://localhost/generator",
+					},
+				},
+			},
+			expMsg: `
+[
+ {
+  "startsAt": "2025-01-01T00:00:00Z",
+  "endsAt": "0001-01-01T00:00:00Z",
+  "generatorURL": "http://localhost/generator",
+  "labels": {
+   "alertname": "alert1",
+   "lbl1": "val1"
+  },
+  "annotations": {
+   "ann1": "annv1"
+  }
+ }
+]
+`,
+			expMsgError: nil,
+		},
+		{
+			name: "dingding-like payload",
+			settings: Config{
+				URL:        "http://localhost/test",
+				HTTPMethod: http.MethodPost,
+				Payload: CustomPayload{
+					Template: `{{ $url := print .ExternalURL  "/alerting/list" -}}
+  {{ coll.Dict
+  "msgtype" "link"
+  "link" (coll.Dict
+    "title" (tmpl.Exec "default.title" . )
+    "text" (tmpl.Exec "default.message" . )
+    "messageUrl" (print "dingtalk://dingtalkclient/page/link?pc_slide=false&url=" ( $url | urlquery))
+  )
+  | data.ToJSONPretty " "}}`,
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1"},
+						GeneratorURL: "http://localhost/generator",
+					},
+				},
+			},
+			expMsg: `
+{
+ "link": {
+  "messageUrl": "dingtalk://dingtalkclient/page/link?pc_slide=false\u0026url=http%3A%2F%2Flocalhost%2Falerting%2Flist",
+  "text": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/generator\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1\n",
+  "title": "[FIRING:1]  (val1)"
+ },
+ "msgtype": "link"
+}
+`,
+			expMsgError: nil,
+		},
+		{
+			name: "kafka-esque payload",
+			settings: Config{
+				URL:        "http://localhost/test",
+				HTTPMethod: http.MethodPost,
+				Payload: CustomPayload{
+					Template: `{{ coll.Dict
+  "type" "JSON"
+  "data" (coll.Dict
+    "description" (tmpl.Exec "default.title" . )
+    "details" (tmpl.Exec "default.message" . )
+    "client" "Grafana"
+    "client_url" ( print .ExternalURL  "/alerting/list")
+    "alert_state" .Status
+    "incident_key" .Extra.GroupKey
+  )
+  | data.ToJSONPretty " " }}`,
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1"},
+						GeneratorURL: "http://localhost/generator",
+					},
+				},
+			},
+			expMsg: `
+{
+ "data": {
+  "alert_state": "firing",
+  "client": "Grafana",
+  "client_url": "http://localhost/alerting/list",
+  "description": "[FIRING:1]  (val1)",
+  "details": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/generator\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1\n",
+  "incident_key": "alertname"
+ },
+ "type": "JSON"
+}
+`,
+			expMsgError: nil,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			webhookSender := receivers.MockNotificationService()
 			pn := &Notifier{
 				Base: &receivers.Base{
 					Name:                  "",
@@ -613,8 +933,7 @@ func TestNotify(t *testing.T) {
 				ns:       webhookSender,
 				tmpl:     tmpl,
 				settings: c.settings,
-				images:   &images.UnavailableProvider{},
-				orgID:    1,
+				orgID:    orgID,
 			}
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
@@ -630,15 +949,7 @@ func TestNotify(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, ok)
 
-			expBody, err := json.Marshal(c.expMsg)
-			require.NoError(t, err)
-
-			require.JSONEq(t, string(expBody), webhookSender.Webhook.Body)
-			require.Equal(t, c.expURL, webhookSender.Webhook.URL)
-			require.Equal(t, c.expUsername, webhookSender.Webhook.User)
-			require.Equal(t, c.expPassword, webhookSender.Webhook.Password)
-			require.Equal(t, c.expHTTPMethod, webhookSender.Webhook.HTTPMethod)
-			require.Equal(t, c.expHeaders, webhookSender.Webhook.HTTPHeader)
+			require.JSONEq(t, c.expMsg, webhookSender.Webhook.Body)
 		})
 	}
 }

@@ -11,6 +11,16 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
+type CustomPayload struct {
+	// Template is the template used to generate the payload for the webhook.
+	Template string `json:"template,omitempty" yaml:"template,omitempty"`
+
+	// Vars is a map of variables that can be used in the payload template. This is useful for providing
+	// additional context to the payload template without storing it in the template itself.
+	// Variables are accessible in the template through `.Extra.Vars.<key>`.
+	Vars map[string]string `json:"vars,omitempty" yaml:"vars,omitempty"`
+}
+
 type Config struct {
 	URL        string
 	HTTPMethod string
@@ -26,6 +36,8 @@ type Config struct {
 	Message    string
 	TLSConfig  *receivers.TLSConfig
 	HMACConfig *receivers.HMACConfig
+
+	Payload CustomPayload
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
@@ -42,6 +54,8 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		Message                  string                   `json:"message,omitempty" yaml:"message,omitempty"`
 		TLSConfig                *receivers.TLSConfig     `json:"tlsConfig,omitempty" yaml:"tlsConfig,omitempty"`
 		HMACConfig               *receivers.HMACConfig    `json:"hmacConfig,omitempty" yaml:"hmacConfig,omitempty"`
+
+		Payload *CustomPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
 	}{}
 
 	err := json.Unmarshal(jsonData, &rawSettings)
@@ -73,6 +87,11 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	if settings.User != "" && settings.Password != "" && settings.AuthorizationScheme != "" && settings.AuthorizationCredentials != "" {
 		return settings, errors.New("both HTTP Basic Authentication and Authorization Header are set, only 1 is permitted")
 	}
+
+	if rawSettings.Payload != nil {
+		settings.Payload = *rawSettings.Payload
+	}
+
 	settings.Title = rawSettings.Title
 	if settings.Title == "" {
 		settings.Title = templates.DefaultMessageTitleEmbed

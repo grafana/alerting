@@ -105,6 +105,25 @@ Annotations:
 {{- end -}}
 {{- $priority -}}
 {{- end -}}
+
+{{ define "webhook.default.payload" -}}
+  {{ coll.Dict 
+  "receiver" .Receiver
+  "status" .Status
+  "alerts" .Alerts
+  "groupLabels" .GroupLabels
+  "commonLabels" .CommonLabels
+  "commonAnnotations" .CommonAnnotations
+  "externalURL" .ExternalURL
+  "version" .Extra.Version
+  "orgId"  .Extra.OrgId
+  "truncatedAlerts"  .Extra.TruncatedAlerts
+  "groupKey" .Extra.GroupKey
+  "state"  .Extra.State
+  "title" (tmpl.Exec "default.title" . )
+  "message" (tmpl.Exec "default.message" . )
+  | data.ToJSONPretty " "}}
+{{- end }}
 `
 
 // TemplateForTestsString is the template used for unit tests and integration tests.

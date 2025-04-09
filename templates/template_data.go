@@ -70,6 +70,9 @@ type ExtendedData struct {
 	CommonAnnotations KV `json:"commonAnnotations"`
 
 	ExternalURL string `json:"externalURL"`
+
+	// Optional extra integration-specific data useable in templates.
+	Extra map[string]any `json:"-"`
 }
 
 var DefaultTemplateName = "__default__"
@@ -342,6 +345,8 @@ func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 		CommonAnnotations: removePrivateItems(data.CommonAnnotations),
 
 		ExternalURL: data.ExternalURL,
+
+		Extra: make(map[string]any),
 	}
 	return extended
 }

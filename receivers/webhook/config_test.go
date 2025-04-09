@@ -296,6 +296,31 @@ func TestNewConfig(t *testing.T) {
 			}`,
 			expectedInitError: "both HTTP Basic Authentication and Authorization Header are set, only 1 is permitted",
 		},
+		{
+			name: "with custom payload and variables",
+			settings: `{
+				"url": "http://localhost/test1",
+				"payload": {
+					"template": "{{ define \"test\" }}{{ .Receiver }}{{ .Extra.Vars.var1 }}{{ end }}",
+					"vars": {
+						"var1": "variablevalue"
+					}
+				}
+			}`,
+			expectedConfig: Config{
+				URL:        "http://localhost/test1",
+				HTTPMethod: http.MethodPost,
+				MaxAlerts:  0,
+				Title:      templates.DefaultMessageTitleEmbed,
+				Message:    templates.DefaultMessageEmbed,
+				Payload: CustomPayload{
+					Template: `{{ define "test" }}{{ .Receiver }}{{ .Extra.Vars.var1 }}{{ end }}`,
+					Vars: map[string]string{
+						"var1": "variablevalue",
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {

@@ -67,6 +67,13 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, wn.log, &tmplErr)
 
+	// Fail early if we can't template the URL.
+	parsedURL := tmpl(wn.settings.URL)
+	if tmplErr != nil {
+		return false, tmplErr
+	}
+	tmplErr = nil // Reset the error for the next template.
+
 	// Augment our Alert data with ImageURLs if available.
 	_ = images.WithStoredImages(ctx, wn.log, wn.images,
 		func(index int, image images.Image) error {
@@ -77,39 +84,66 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		},
 		as...)
 
-	msg := &webhookMessage{
-		Version:         "1",
-		ExtendedData:    data,
-		GroupKey:        groupKey.String(),
-		TruncatedAlerts: numTruncated,
-		OrgID:           wn.orgID,
-		Title:           tmpl(wn.settings.Title),
-		Message:         tmpl(wn.settings.Message),
-	}
+	state := string(receivers.AlertStateOK)
 	if types.Alerts(as...).Status() == model.AlertFiring {
-		msg.State = string(receivers.AlertStateAlerting)
+		state = string(receivers.AlertStateAlerting)
+	}
+
+	// Extra data included in the default payload but not part of ExtendedData. This should be available when using
+	// a custom payload template. We also include it for the default payload so the two are consistent.
+	data.Extra["TruncatedAlerts"] = numTruncated
+	data.Extra["State"] = state
+	data.Extra["Version"] = "1"
+	data.Extra["OrgId"] = wn.orgID
+	data.Extra["GroupKey"] = groupKey.String()
+
+	if len(wn.settings.Payload.Vars) > 0 {
+		data.Extra["Vars"] = wn.settings.Payload.Vars
 	} else {
-		msg.State = string(receivers.AlertStateOK)
+		data.Extra["Vars"] = make(map[string]string)
 	}
 
-	if tmplErr != nil {
-		wn.log.Warn("failed to template webhook message", "error", tmplErr.Error())
-		tmplErr = nil
+	var body string
+	if wn.settings.Payload.Template != "" {
+		body = tmpl(wn.settings.Payload.Template)
+		if tmplErr != nil {
+			return false, tmplErr // TODO: Should there be an option to fallback to the default payload?
+		}
 	}
 
-	body, err := json.Marshal(msg)
-	if err != nil {
-		return false, err
+	if body == "" {
+		// We separate the templating Title and Message so we can capture any errors and reset the error state.
+		// Otherwise, if Title fails Message will not be templated either.
+		title := tmpl(wn.settings.Title)
+		if tmplErr != nil {
+			wn.log.Warn("failed to template webhook title", "error", tmplErr.Error())
+			tmplErr = nil
+		}
+		message := tmpl(wn.settings.Message)
+		if tmplErr != nil {
+			wn.log.Warn("failed to template webhook message", "error", tmplErr.Error())
+			tmplErr = nil
+		}
+		payload, err := json.Marshal(webhookMessage{
+			Version:         "1",
+			ExtendedData:    data,
+			GroupKey:        groupKey.String(),
+			TruncatedAlerts: numTruncated,
+			OrgID:           wn.orgID,
+			State:           state,
+			Title:           title,
+			Message:         message,
+		})
+		if err != nil {
+			return false, err
+		}
+
+		body = string(payload)
 	}
 
 	headers := make(map[string]string)
 	if wn.settings.AuthorizationScheme != "" && wn.settings.AuthorizationCredentials != "" {
 		headers["Authorization"] = fmt.Sprintf("%s %s", wn.settings.AuthorizationScheme, wn.settings.AuthorizationCredentials)
-	}
-
-	parsedURL := tmpl(wn.settings.URL)
-	if tmplErr != nil {
-		return false, tmplErr
 	}
 
 	var tlsConfig *tls.Config
@@ -123,7 +157,7 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		URL:        parsedURL,
 		User:       wn.settings.User,
 		Password:   wn.settings.Password,
-		Body:       string(body),
+		Body:       body,
 		HTTPMethod: wn.settings.HTTPMethod,
 		HTTPHeader: headers,
 		TLSConfig:  tlsConfig,
