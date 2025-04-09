@@ -141,7 +141,11 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		body = string(payload)
 	}
 
-	headers := make(map[string]string)
+	headers, removed := OmitRestrictedHeaders(wn.settings.ExtraHeaders)
+	if len(removed) > 0 {
+		wn.log.Debug("removed restricted headers", "headers", removed)
+	}
+
 	if wn.settings.AuthorizationScheme != "" && wn.settings.AuthorizationCredentials != "" {
 		headers["Authorization"] = fmt.Sprintf("%s %s", wn.settings.AuthorizationScheme, wn.settings.AuthorizationCredentials)
 	}

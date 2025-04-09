@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/grafana/alerting/receivers"
@@ -29,8 +30,9 @@ type Config struct {
 	AuthorizationScheme      string
 	AuthorizationCredentials string
 	// HTTP Basic Authentication.
-	User     string
-	Password string
+	User         string
+	Password     string
+	ExtraHeaders map[string]string
 
 	Title      string
 	Message    string
@@ -54,6 +56,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		Message                  string                   `json:"message,omitempty" yaml:"message,omitempty"`
 		TLSConfig                *receivers.TLSConfig     `json:"tlsConfig,omitempty" yaml:"tlsConfig,omitempty"`
 		HMACConfig               *receivers.HMACConfig    `json:"hmacConfig,omitempty" yaml:"hmacConfig,omitempty"`
+		ExtraHeaders             map[string]string        `json:"headers,omitempty" yaml:"headers,omitempty"`
 
 		Payload *CustomPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
 	}{}
@@ -118,5 +121,61 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		}
 	}
 
+	if rawSettings.ExtraHeaders != nil {
+		if _, removed := OmitRestrictedHeaders(rawSettings.ExtraHeaders); len(removed) > 0 {
+			// Sort for deterministic error message.
+			sort.Strings(removed)
+			return settings, fmt.Errorf("custom headers %q are not allowed", removed)
+		}
+		settings.ExtraHeaders = rawSettings.ExtraHeaders
+	}
+
 	return settings, err
+}
+
+// restrictedHeaders is a list of HTTP headers that should not be set by the user.
+var restrictedHeaders = map[string]struct{}{
+	http.CanonicalHeaderKey("Host"):                {},
+	http.CanonicalHeaderKey("Accept-Encoding"):     {},
+	http.CanonicalHeaderKey("Accept-Charset"):      {},
+	http.CanonicalHeaderKey("Content-Encoding"):    {},
+	http.CanonicalHeaderKey("Content-Length"):      {},
+	http.CanonicalHeaderKey("Authorization"):       {}, // Settable via other fields.
+	http.CanonicalHeaderKey("User-Agent"):          {}, // Preserve our client user-agent.
+	http.CanonicalHeaderKey("Transfer-Encoding"):   {},
+	http.CanonicalHeaderKey("Connection"):          {},
+	http.CanonicalHeaderKey("Upgrade"):             {},
+	http.CanonicalHeaderKey("Trailer"):             {},
+	http.CanonicalHeaderKey("TE"):                  {},
+	http.CanonicalHeaderKey("Proxy-Authorization"): {},
+	http.CanonicalHeaderKey("Proxy-Authenticate"):  {},
+	http.CanonicalHeaderKey("Cookie"):              {},
+	http.CanonicalHeaderKey("Set-Cookie"):          {},
+	http.CanonicalHeaderKey("Referer"):             {},
+	http.CanonicalHeaderKey("Origin"):              {},
+	http.CanonicalHeaderKey("X-Forwarded-For"):     {},
+	http.CanonicalHeaderKey("X-Real-IP"):           {},
+	http.CanonicalHeaderKey("Via"):                 {},
+	http.CanonicalHeaderKey("Forwarded"):           {},
+	http.CanonicalHeaderKey("Expect"):              {},
+	http.CanonicalHeaderKey("Keep-Alive"):          {},
+	http.CanonicalHeaderKey("Date"):                {},
+	http.CanonicalHeaderKey("Max-Forwards"):        {},
+}
+
+// OmitRestrictedHeaders returns new headers with restricted custom headers omitted. The exact risk of allowing
+// customization of these headers is not clear, but it is better to be safe at first pass. We can always loosen the
+// restrictions later if we find that it is not a problem.
+// Returns the new headers and a list of omitted headers.
+func OmitRestrictedHeaders(headers map[string]string) (map[string]string, []string) {
+	safeHeaders := make(map[string]string, len(headers))
+	omitted := make([]string, 0)
+	for k, v := range headers {
+		if _, ok := restrictedHeaders[http.CanonicalHeaderKey(k)]; ok {
+			omitted = append(omitted, k)
+			continue
+		}
+		safeHeaders[http.CanonicalHeaderKey(k)] = v
+	}
+	return safeHeaders, omitted
 }

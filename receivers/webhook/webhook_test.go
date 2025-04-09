@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -601,6 +602,82 @@ func TestNotify(t *testing.T) {
 			},
 			expMsgError: fmt.Errorf("template: :1: function \"Alerts\" not defined"),
 		},
+		{
+			name: "with extra headers",
+			settings: Config{
+				URL:                      "https://localhost/test1",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                2,
+				AuthorizationScheme:      "Bearer",
+				AuthorizationCredentials: "mysecret",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  templates.DefaultMessageEmbed,
+				ExtraHeaders: map[string]string{
+					"X-Test-Header":    "TestValue",
+					"X-Another-Header": "AnotherValue",
+					"Content-Type":     "application/text",
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expURL:        "https://localhost/test1",
+			expHTTPMethod: "POST",
+			expHeaders: map[string]string{
+				"Authorization":    "Bearer mysecret",
+				"X-Test-Header":    "TestValue",
+				"X-Another-Header": "AnotherValue",
+				"Content-Type":     "application/text",
+			},
+		},
+		{
+			name: "with restricted headers",
+			settings: Config{
+				URL:                      "https://localhost/test1",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                2,
+				AuthorizationScheme:      "Bearer",
+				AuthorizationCredentials: "mysecret",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  templates.DefaultMessageEmbed,
+				ExtraHeaders: func() map[string]string {
+					headers := map[string]string{
+						"X-Test-Header":    "TestValue",
+						"X-Another-Header": "AnotherValue",
+						"Content-Type":     "application/text",
+					}
+					for k := range restrictedHeaders {
+						headers[strings.ToLower(k)] = k // Also make sure it handled non-canonical headers.
+					}
+					return headers
+				}(),
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expURL:        "https://localhost/test1",
+			expHTTPMethod: "POST",
+			expHeaders: map[string]string{
+				"Authorization":    "Bearer mysecret",
+				"X-Test-Header":    "TestValue",
+				"X-Another-Header": "AnotherValue",
+				"Content-Type":     "application/text",
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -649,10 +726,11 @@ func TestNotify(t *testing.T) {
 					require.NoError(t, err)
 					require.True(t, ok)
 
-					expBody, err := json.Marshal(c.expMsg)
-					require.NoError(t, err)
-
-					require.JSONEq(t, string(expBody), webhookSender.Webhook.Body)
+					if c.expMsg != nil {
+						expBody, err := json.Marshal(c.expMsg)
+						require.NoError(t, err)
+						require.JSONEq(t, string(expBody), webhookSender.Webhook.Body)
+					}
 					require.Equal(t, c.expURL, webhookSender.Webhook.URL)
 					require.Equal(t, c.expUsername, webhookSender.Webhook.User)
 					require.Equal(t, c.expPassword, webhookSender.Webhook.Password)

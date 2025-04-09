@@ -3,6 +3,7 @@ package webhook
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -320,6 +321,48 @@ func TestNewConfig(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			name: "with custom headers",
+			settings: `{
+				"url": "http://localhost/test1",
+				"headers": {
+					"X-Test-Header": "test-header-value",
+					"Content-Type": "test-content-type"
+				}
+			}`,
+			expectedConfig: Config{
+				URL:        "http://localhost/test1",
+				HTTPMethod: http.MethodPost,
+				MaxAlerts:  0,
+				Title:      templates.DefaultMessageTitleEmbed,
+				Message:    templates.DefaultMessageEmbed,
+				ExtraHeaders: map[string]string{
+					"X-Test-Header": "test-header-value",
+					"Content-Type":  "test-content-type",
+				},
+			},
+		},
+		{
+			name: "with restricted custom headers",
+			settings: func() string {
+				headers := map[string]string{
+					"X-Test-Header": "test-header-value",
+					"Content-Type":  "test-content-type",
+				}
+				for k := range restrictedHeaders {
+					headers[strings.ToLower(k)] = k // Also make sure it handled non-canonical headers.
+				}
+				data, _ := json.Marshal(struct {
+					URL     string            `json:"url"`
+					Headers map[string]string `json:"headers"`
+				}{
+					URL:     "http://localhost/test1",
+					Headers: headers,
+				})
+				return string(data)
+			}(),
+			expectedInitError: "custom headers [\"accept-charset\" \"accept-encoding\" \"authorization\" \"connection\" \"content-encoding\" \"content-length\" \"cookie\" \"date\" \"expect\" \"forwarded\" \"host\" \"keep-alive\" \"max-forwards\" \"origin\" \"proxy-authenticate\" \"proxy-authorization\" \"referer\" \"set-cookie\" \"te\" \"trailer\" \"transfer-encoding\" \"upgrade\" \"user-agent\" \"via\" \"x-forwarded-for\" \"x-real-ip\"] are not allowed",
 		},
 	}
 
