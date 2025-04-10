@@ -175,7 +175,7 @@ func OmitRestrictedHeaders(headers map[string]string) (map[string]string, []stri
 			omitted = append(omitted, k)
 			continue
 		}
-		safeHeaders[http.CanonicalHeaderKey(k)] = v
+		safeHeaders[k] = v // We keep the original case of the header, as it might have been intentional.
 	}
 	return safeHeaders, omitted
 }

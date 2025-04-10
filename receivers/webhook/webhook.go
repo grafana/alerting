@@ -73,7 +73,6 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	if tmplErr != nil {
 		return false, tmplErr
 	}
-	tmplErr = nil // Reset the error for the next template.
 
 	// Augment our Alert data with ImageURLs if available.
 	_ = images.WithStoredImages(ctx, wn.log, wn.images,
@@ -107,12 +106,12 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		title := tmpl(wn.settings.Title)
 		if tmplErr != nil {
 			wn.log.Warn("failed to template webhook title", "error", tmplErr.Error())
-			tmplErr = nil
+			tmplErr = nil // Reset the error for the next template.
 		}
 		message := tmpl(wn.settings.Message)
 		if tmplErr != nil {
 			wn.log.Warn("failed to template webhook message", "error", tmplErr.Error())
-			tmplErr = nil
+			tmplErr = nil // Reset the error for the next template.
 		}
 		payload, err := json.Marshal(webhookMessage{
 			Version:         "1",
