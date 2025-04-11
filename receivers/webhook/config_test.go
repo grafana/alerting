@@ -3,6 +3,7 @@ package webhook
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -295,6 +296,73 @@ func TestNewConfig(t *testing.T) {
 				"password": "test-pass"
 			}`,
 			expectedInitError: "both HTTP Basic Authentication and Authorization Header are set, only 1 is permitted",
+		},
+		{
+			name: "with custom payload and variables",
+			settings: `{
+				"url": "http://localhost/test1",
+				"payload": {
+					"template": "{{ define \"test\" }}{{ .Receiver }}{{ .Vars.var1 }}{{ end }}",
+					"vars": {
+						"var1": "variablevalue"
+					}
+				}
+			}`,
+			expectedConfig: Config{
+				URL:        "http://localhost/test1",
+				HTTPMethod: http.MethodPost,
+				MaxAlerts:  0,
+				Title:      templates.DefaultMessageTitleEmbed,
+				Message:    templates.DefaultMessageEmbed,
+				Payload: CustomPayload{
+					Template: `{{ define "test" }}{{ .Receiver }}{{ .Vars.var1 }}{{ end }}`,
+					Vars: map[string]string{
+						"var1": "variablevalue",
+					},
+				},
+			},
+		},
+		{
+			name: "with custom headers",
+			settings: `{
+				"url": "http://localhost/test1",
+				"headers": {
+					"X-Test-Header": "test-header-value",
+					"Content-Type": "test-content-type"
+				}
+			}`,
+			expectedConfig: Config{
+				URL:        "http://localhost/test1",
+				HTTPMethod: http.MethodPost,
+				MaxAlerts:  0,
+				Title:      templates.DefaultMessageTitleEmbed,
+				Message:    templates.DefaultMessageEmbed,
+				ExtraHeaders: map[string]string{
+					"X-Test-Header": "test-header-value",
+					"Content-Type":  "test-content-type",
+				},
+			},
+		},
+		{
+			name: "with restricted custom headers",
+			settings: func() string {
+				headers := map[string]string{
+					"X-Test-Header": "test-header-value",
+					"Content-Type":  "test-content-type",
+				}
+				for k := range restrictedHeaders {
+					headers[strings.ToLower(k)] = k // Also make sure it handled non-canonical headers.
+				}
+				data, _ := json.Marshal(struct {
+					URL     string            `json:"url"`
+					Headers map[string]string `json:"headers"`
+				}{
+					URL:     "http://localhost/test1",
+					Headers: headers,
+				})
+				return string(data)
+			}(),
+			expectedInitError: "custom headers [\"accept-charset\" \"accept-encoding\" \"authorization\" \"connection\" \"content-encoding\" \"content-length\" \"cookie\" \"date\" \"expect\" \"forwarded\" \"host\" \"keep-alive\" \"max-forwards\" \"origin\" \"proxy-authenticate\" \"proxy-authorization\" \"referer\" \"set-cookie\" \"te\" \"trailer\" \"transfer-encoding\" \"upgrade\" \"user-agent\" \"via\" \"x-forwarded-for\" \"x-real-ip\"] are not allowed",
 		},
 	}
 

@@ -2,7 +2,9 @@ package notify
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/grafana/alerting/templates"
 
@@ -156,6 +158,86 @@ func TestTemplateSimple(t *testing.T) {
 				Name:  "slack.title",
 				Kind:  ExecutionError,
 				Error: `template: :1:91: executing "other" at <{{template "missing" .}}>: template "missing" not defined`,
+			}},
+		},
+	}, {
+		name: "gomplate template",
+		input: TestTemplatesConfigBodyParams{
+			Alerts: []*amv2.PostableAlert{&simpleAlert},
+			Name:   "slack.title",
+			Template: `{{ define "now" }}{{ time.Now.Year }}{{ end }}
+{{ define "dict" }}{{ coll.Dict "testkey" "testval" | data.ToJSON }}{{ end }}
+{{ define "dict.pretty" }}{{ coll.Dict "testkey" "testval" | data.ToJSONPretty " "}}{{ end }}
+{{ define "slice" }}{{ coll.Slice "testkey" "testval" | coll.Append "appended" | data.ToJSON}}{{ end }}
+{{ define "tmpl" }}{{ coll.Slice "testkey" (tmpl.Exec "slice" . | data.JSON) | coll.Append (tmpl.Inline "{{print .Receiver}}" .) | data.ToJSON}}{{ end }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: []TestTemplatesResult{{
+				Name:  "dict",
+				Text:  `{"testkey":"testval"}`,
+				Scope: rootScope,
+			}, {
+				Name:  "dict.pretty",
+				Text:  "{\n \"testkey\": \"testval\"\n}",
+				Scope: rootScope,
+			}, {
+				Name:  "now",
+				Text:  fmt.Sprint(time.Now().Year()),
+				Scope: rootScope,
+			}, {
+				Name:  "slice",
+				Text:  `["testkey","testval","appended"]`,
+				Scope: rootScope,
+			}, {
+				Name:  "tmpl",
+				Text:  `["testkey",["testkey","testval","appended"],"TestReceiver"]`,
+				Scope: rootScope,
+			}},
+			Errors: nil,
+		},
+	}, {
+		name: "gomplate data.JSON eJSON not supported",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "ejson",
+			Template: `{{ define "ejson" }}{{ coll.Dict "_public_key" "someval" "otherkey" "otherval" | data.ToJSON }}{{ end }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: []TestTemplatesResult{{
+				Name: "ejson",
+				// Defense against unintentionally adding eJSON support by importing gomplate data.JSON.
+				// Gomplate extracts the _public_key field and attempts to access the ENV.
+				Text:  `{"_public_key":"someval","otherkey":"otherval"}`,
+				Scope: rootScope,
+			}},
+			Errors: nil,
+		},
+	}, {
+		name: "gomplate env.Getenv not available",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}{{ env.Getenv "HOME" }}{{ end }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: nil,
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  InvalidTemplate,
+				Error: `template: slack.title:1: function "env" not defined`,
+			}},
+		},
+	}, {
+		name: "gomplate env.ExpandEnv not available",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}{{ env.ExpandEnv "Your path is set to $PATH" }}{{ end }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: nil,
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  InvalidTemplate,
+				Error: `template: slack.title:1: function "env" not defined`,
 			}},
 		},
 	},
