@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
@@ -96,10 +97,20 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		return false, fmt.Errorf("Failed to parse QoS: %s", err.Error())
 	}
 
+	topic := n.settings.Topic
+	if n.settings.AddGroupKeyToTopic {
+		groupKey, err := notify.ExtractGroupKey(ctx)
+		if err != nil {
+			n.log.Error("Failed to extract group key", "error", err.Error())
+			return false, fmt.Errorf("Failed to extract group key: %s", err.Error())
+		}
+		topic = path.Join(n.settings.Topic, string(groupKey))
+	}
+
 	err = n.client.Publish(
 		ctx,
 		message{
-			topic:   n.settings.Topic,
+			topic:   topic,
 			payload: []byte(msg),
 			retain:  n.settings.Retain,
 			qos:     int(qos),
