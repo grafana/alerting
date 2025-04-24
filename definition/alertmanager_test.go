@@ -1454,9 +1454,7 @@ func TestInhibitRule_Marshal_JSON(t *testing.T) {
 }
 
 // This test asserts that the correct deserialization is applied when decoding
-// a YAML configuration containing inhibition rules with equals labels. It
-// checks that label equals are decoded into both EqualStr and Equal
-// (prometheus/alertmanager#4177).
+// a YAML configuration containing inhibition rules with equals labels.
 func TestInhibitRule_Unmarshal_YAML(t *testing.T) {
 	s := `
  route:
