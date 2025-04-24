@@ -1434,6 +1434,25 @@ func TestInhibitRule_UTF8_In_Equals_Unmarshal_JSON(t *testing.T) {
 	require.Equal(t, []string{"qux", "corge🙂"}, r.Equal)
 }
 
+func TestInhibitRule_Marshal_JSON(t *testing.T) {
+	r := config.InhibitRule{
+		SourceMatchers: config.Matchers{{
+			Name:  "foo",
+			Type:  labels.MatchEqual,
+			Value: "bar",
+		}},
+		TargetMatchers: config.Matchers{{
+			Name:  "bar",
+			Type:  labels.MatchEqual,
+			Value: "baz",
+		}},
+		Equal: []string{"qux", "corge🙂"},
+	}
+	b, err := json.Marshal(r)
+	require.NoError(t, err)
+	require.Equal(t, `{"source_matchers":["foo=\"bar\""],"target_matchers":["bar=\"baz\""],"equal":["qux","corge🙂"]}`, string(b))
+}
+
 // This test asserts that the correct deserialization is applied when decoding
 // a YAML configuration containing inhibition rules with equals labels. It
 // checks that label equals are decoded into both EqualStr and Equal
@@ -1513,4 +1532,30 @@ func TestInhibitRule_UTF8_In_Equals_Unmarshal_YAML(t *testing.T) {
 		Value: "baz",
 	}}, r.TargetMatchers)
 	require.Equal(t, []string{"qux", "corge🙂"}, r.Equal)
+}
+
+func TestInhibitRule_Marshal_YAML(t *testing.T) {
+	r := config.InhibitRule{
+		SourceMatchers: config.Matchers{{
+			Name:  "foo",
+			Type:  labels.MatchEqual,
+			Value: "bar",
+		}},
+		TargetMatchers: config.Matchers{{
+			Name:  "bar",
+			Type:  labels.MatchEqual,
+			Value: "baz",
+		}},
+		Equal: []string{"qux", "corge🙂"},
+	}
+	b, err := yaml.Marshal(r)
+	require.NoError(t, err)
+	require.Equal(t, `source_matchers:
+    - foo="bar"
+target_matchers:
+    - bar="baz"
+equal:
+    - qux
+    - "corge\U0001F642"
+`, string(b))
 }
