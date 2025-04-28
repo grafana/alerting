@@ -6,11 +6,14 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
 	"github.com/prometheus/alertmanager/config"
+	"github.com/prometheus/alertmanager/featurecontrol"
+	"github.com/prometheus/alertmanager/matchers/compat"
 	"github.com/prometheus/alertmanager/pkg/labels"
 )
 
@@ -1356,4 +1359,201 @@ func TestDecryptSecureSettings(t *testing.T) {
 			require.Equal(t, test.expSecureSettings, res)
 		})
 	}
+}
+
+func TestInhibitRule_Unmarshal_JSON(t *testing.T) {
+	s := `{
+ 	"route": {
+ 		"receiver": "test"
+ 	},
+ 	"inhibit_rules": [{
+ 			"source_matchers": ["foo=bar"],
+ 			"target_matchers": ["bar=baz"],
+ 			"equal": ["qux", "corge"]
+ 	}]
+ }`
+	var c Config
+	require.NoError(t, json.Unmarshal([]byte(s), &c))
+	require.Len(t, c.InhibitRules, 1)
+	r := c.InhibitRules[0]
+	require.Equal(t, config.Matchers{{
+		Name:  "foo",
+		Type:  labels.MatchEqual,
+		Value: "bar",
+	}}, r.SourceMatchers)
+	require.Equal(t, config.Matchers{{
+		Name:  "bar",
+		Type:  labels.MatchEqual,
+		Value: "baz",
+	}}, r.TargetMatchers)
+	require.Equal(t, []string{"qux", "corge"}, r.Equal)
+}
+
+// This test asserts the same as [TestInhibitRule_Unmarshal_JSON],
+// however it also checks that UTF-8 characters are allowed in the
+// Equal field of an inhibition rule when UTF-8 strict mode is
+// enabled.
+func TestInhibitRule_UTF8_In_Equals_Unmarshal_JSON(t *testing.T) {
+	s := `{
+ 	"route": {
+ 		"receiver": "test"
+ 	},
+ 	"inhibit_rules": [{
+ 			"source_matchers": ["foo=bar"],
+ 			"target_matchers": ["bar=baz"],
+ 			"equal": ["qux", "corge🙂"]
+ 	}]
+ }`
+	var c Config
+	// Should return an error as UTF-8 mode is not enabled.
+	require.EqualError(t, json.Unmarshal([]byte(s), &c), "invalid label name \"corge🙂\" in equal list")
+
+	// Change the mode to UTF-8 mode.
+	ff, err := featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureUTF8StrictMode)
+	require.NoError(t, err)
+	compat.InitFromFlags(log.NewNopLogger(), ff)
+
+	// Restore the mode to classic at the end of the test.
+	ff, err = featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureClassicMode)
+	require.NoError(t, err)
+	defer compat.InitFromFlags(log.NewNopLogger(), ff)
+
+	require.NoError(t, json.Unmarshal([]byte(s), &c))
+	require.Len(t, c.InhibitRules, 1)
+	r := c.InhibitRules[0]
+	require.Equal(t, config.Matchers{{
+		Name:  "foo",
+		Type:  labels.MatchEqual,
+		Value: "bar",
+	}}, r.SourceMatchers)
+	require.Equal(t, config.Matchers{{
+		Name:  "bar",
+		Type:  labels.MatchEqual,
+		Value: "baz",
+	}}, r.TargetMatchers)
+	require.Equal(t, []string{"qux", "corge🙂"}, r.Equal)
+}
+
+func TestInhibitRule_Marshal_JSON(t *testing.T) {
+	r := config.InhibitRule{
+		SourceMatchers: config.Matchers{{
+			Name:  "foo",
+			Type:  labels.MatchEqual,
+			Value: "bar",
+		}},
+		TargetMatchers: config.Matchers{{
+			Name:  "bar",
+			Type:  labels.MatchEqual,
+			Value: "baz",
+		}},
+		Equal: []string{"qux", "corge🙂"},
+	}
+	b, err := json.Marshal(r)
+	require.NoError(t, err)
+	require.Equal(t, `{"source_matchers":["foo=\"bar\""],"target_matchers":["bar=\"baz\""],"equal":["qux","corge🙂"]}`, string(b))
+}
+
+// This test asserts that the correct deserialization is applied when decoding
+// a YAML configuration containing inhibition rules with equals labels.
+func TestInhibitRule_Unmarshal_YAML(t *testing.T) {
+	s := `
+ route:
+   receiver: test
+ inhibit_rules:
+ - source_matchers:
+     - foo=bar
+   target_matchers:
+     - bar=baz
+   equal:
+     - qux
+     - corge
+ `
+	var c Config
+	require.NoError(t, yaml.Unmarshal([]byte(s), &c))
+	require.Len(t, c.InhibitRules, 1)
+	r := c.InhibitRules[0]
+	t.Log(r)
+	require.Equal(t, config.Matchers{{
+		Name:  "foo",
+		Type:  labels.MatchEqual,
+		Value: "bar",
+	}}, r.SourceMatchers)
+	require.Equal(t, config.Matchers{{
+		Name:  "bar",
+		Type:  labels.MatchEqual,
+		Value: "baz",
+	}}, r.TargetMatchers)
+	require.Equal(t, []string{"qux", "corge"}, r.Equal)
+}
+
+// This test asserts the same as [TestInhibitRule_Unmarshal_YAML],
+// however it also checks that UTF-8 characters are allowed in the
+// Equal field of an inhibition rule when UTF-8 strict mode is
+// enabled.
+func TestInhibitRule_UTF8_In_Equals_Unmarshal_YAML(t *testing.T) {
+	s := `
+ route:
+   receiver: test
+ inhibit_rules:
+ - source_matchers:
+     - foo=bar
+   target_matchers:
+     - bar=baz
+   equal:
+     - qux
+     - corge🙂
+ `
+	var c Config
+	require.EqualError(t, yaml.Unmarshal([]byte(s), &c), "invalid label name \"corge🙂\" in equal list")
+
+	// Change the mode to UTF-8 mode.
+	ff, err := featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureUTF8StrictMode)
+	require.NoError(t, err)
+	compat.InitFromFlags(log.NewNopLogger(), ff)
+
+	// Restore the mode to classic at the end of the test.
+	ff, err = featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureClassicMode)
+	require.NoError(t, err)
+	defer compat.InitFromFlags(log.NewNopLogger(), ff)
+
+	require.NoError(t, yaml.Unmarshal([]byte(s), &c))
+	require.Len(t, c.InhibitRules, 1)
+	r := c.InhibitRules[0]
+	require.Equal(t, config.Matchers{{
+		Name:  "foo",
+		Type:  labels.MatchEqual,
+		Value: "bar",
+	}}, r.SourceMatchers)
+	require.Equal(t, config.Matchers{{
+		Name:  "bar",
+		Type:  labels.MatchEqual,
+		Value: "baz",
+	}}, r.TargetMatchers)
+	require.Equal(t, []string{"qux", "corge🙂"}, r.Equal)
+}
+
+func TestInhibitRule_Marshal_YAML(t *testing.T) {
+	r := config.InhibitRule{
+		SourceMatchers: config.Matchers{{
+			Name:  "foo",
+			Type:  labels.MatchEqual,
+			Value: "bar",
+		}},
+		TargetMatchers: config.Matchers{{
+			Name:  "bar",
+			Type:  labels.MatchEqual,
+			Value: "baz",
+		}},
+		Equal: []string{"qux", "corge🙂"},
+	}
+	b, err := yaml.Marshal(r)
+	require.NoError(t, err)
+	require.Equal(t, `source_matchers:
+    - foo="bar"
+target_matchers:
+    - bar="baz"
+equal:
+    - qux
+    - "corge\U0001F642"
+`, string(b))
 }
