@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -14,6 +17,7 @@ import (
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/prometheus/alertmanager/notify"
 )
 
 func TestBuildReceiverIntegrations(t *testing.T) {
@@ -61,7 +65,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return n
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, http.DefaultClientConfiguration, em, notifyWrapper, orgID, version)
+		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, nil, em, notifyWrapper, orgID, version)
 
 		require.NoError(t, err)
 		require.Len(t, integrations, qty)
@@ -72,6 +76,56 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 		t.Run("should call notify wrapper for each config", func(t *testing.T) {
 			require.Equal(t, qty, wrapped)
 		})
+		t.Run("should use custom dial context", func(t *testing.T) {
+			customDialError := fmt.Errorf("custom dial function error")
+			clientOpts := []http.ClientOption{
+				http.WithUserAgent("Grafana-test"),
+				http.WithDialer(net.Dialer{
+					// Also override the Resolver so that configuration that doesn't use real hostnamesalso return
+					// "custom dial function error" instead of "no such dns".
+					Resolver: &net.Resolver{
+						Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+							return nil, customDialError
+						},
+					},
+					Control: func(network, address string, c syscall.RawConn) error {
+						return customDialError
+					},
+				}),
+			}
+
+			integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, clientOpts, em, notifyWrapper, orgID, version)
+			require.NoError(t, err)
+			require.Len(t, integrations, qty)
+			for _, integration := range integrations {
+				if integration.Name() == "email" {
+					continue // skip email integration, it is not using webhook sender.
+				}
+				t.Run(integration.Name(), func(t *testing.T) {
+					if integration.Name() == "mqtt" {
+						t.Skip() // TODO: mqtt integration does not support custom dialer yet.
+					}
+					if integration.Name() == "sns" {
+						t.Skip() // TODO: sns integration does not support custom dialer yet.
+					}
+					if integration.Name() == "slack" {
+						t.Skip() // TODO: slack integration does not support custom dialer yet.
+					}
+					if integration.Name() == "prometheus-alertmanager" {
+						t.Skip() // TODO: prometheus-alertmanager integration does not support custom dialer yet.
+					}
+					alert := newTestAlert(TestReceiversConfigBodyParams{}, time.Now(), time.Now())
+
+					ctx := context.Background()
+					ctx = notify.WithGroupKey(ctx, fmt.Sprintf("%s-%s-%d", integration.Name(), alert.Labels.Fingerprint(), time.Now().Unix()))
+					ctx = notify.WithGroupLabels(ctx, alert.Labels)
+					ctx = notify.WithReceiverName(ctx, integration.String())
+					_, err := integration.Notify(ctx, &alert)
+					require.Error(t, err)
+					require.ErrorContains(t, err, customDialError.Error())
+				})
+			}
+		})
 	})
 	t.Run("should return errors if email factory fails", func(t *testing.T) {
 		fullCfg, _ := getFullConfig(t)
@@ -81,7 +135,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return nil, errors.New("bad-test")
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, http.DefaultClientConfiguration, failingFactory, noopWrapper, orgID, version)
+		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, nil, failingFactory, noopWrapper, orgID, version)
 
 		require.Empty(t, integrations)
 		require.NotNil(t, err)
@@ -91,7 +145,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should not produce any integration if config is empty", func(t *testing.T) {
 		cfg := GrafanaReceiverConfig{Name: "test"}
 
-		integrations, err := BuildReceiverIntegrations(cfg, tmpl, imageProvider, loggerFactory, http.DefaultClientConfiguration, emailFactory, noopWrapper, orgID, version)
+		integrations, err := BuildReceiverIntegrations(cfg, tmpl, imageProvider, loggerFactory, nil, emailFactory, noopWrapper, orgID, version)
 
 		require.NoError(t, err)
 		require.Empty(t, integrations)
