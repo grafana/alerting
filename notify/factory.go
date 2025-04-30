@@ -73,7 +73,7 @@ func BuildReceiverIntegrations(
 	)
 	// Range through each notification channel in the receiver and create an integration for it.
 	for i, cfg := range receiver.AlertmanagerConfigs {
-		ci(i, cfg.Metadata, alertmanager.New(cfg.Settings, cfg.Metadata, img, nl(cfg.Metadata)))
+		ci(i, cfg.Metadata, alertmanager.New(cfg.Settings, cfg.Metadata, nw(cfg.Metadata), img, nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.DingdingConfigs {
 		ci(i, cfg.Metadata, dinding.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), nl(cfg.Metadata)))

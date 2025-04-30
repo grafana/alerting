@@ -111,9 +111,6 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 					if integration.Name() == "slack" {
 						t.Skip() // TODO: slack integration does not support custom dialer yet.
 					}
-					if integration.Name() == "prometheus-alertmanager" {
-						t.Skip() // TODO: prometheus-alertmanager integration does not support custom dialer yet.
-					}
 					alert := newTestAlert(TestReceiversConfigBodyParams{}, time.Now(), time.Now())
 
 					ctx := context.Background()
