@@ -2,6 +2,7 @@ package notify
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
@@ -66,8 +67,8 @@ func BuildReceiverIntegrations(
 			i := NewIntegration(notify, n, cfg.Type, idx, cfg.Name)
 			integrations = append(integrations, i)
 		}
-		nw = func(cfg receivers.Metadata) *http.Client {
-			return http.NewClient(logger("ngalert.notifier."+cfg.Type+".client", "notifierUID", cfg.UID), httpClientOptions...)
+		nw = func(cfg receivers.Metadata, opts ...http.ClientOption) *http.Client {
+			return http.NewClient(logger("ngalert.notifier."+cfg.Type+".client", "notifierUID", cfg.UID), slices.Concat(opts, httpClientOptions)...)
 		}
 	)
 	// Range through each notification channel in the receiver and create an integration for it.
@@ -92,7 +93,7 @@ func BuildReceiverIntegrations(
 		ci(i, cfg.Metadata, googlechat.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), version))
 	}
 	for i, cfg := range receiver.JiraConfigs {
-		ci(i, cfg.Metadata, jira.New(cfg.Settings, cfg.Metadata, tmpl, http.NewForkedSender(nw(cfg.Metadata)), nl(cfg.Metadata)))
+		ci(i, cfg.Metadata, jira.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata, http.AllowGetRequests()), nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.KafkaConfigs {
 		ci(i, cfg.Metadata, kafka.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))

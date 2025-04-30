@@ -18,11 +18,12 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-var ErrInvalidMethod = errors.New("webhook only supports HTTP methods PUT or POST")
+var ErrInvalidMethod = errors.New("unsupported HTTP method")
 
 type clientConfiguration struct {
-	userAgent string
-	dialer    net.Dialer // We use Dialer here instead of DialContext as our mqtt client doesn't support DialContext.
+	userAgent      string
+	dialer         net.Dialer // We use Dialer here instead of DialContext as our mqtt client doesn't support DialContext.
+	allowedMethods map[string]struct{}
 }
 
 type Client struct {
@@ -33,6 +34,10 @@ type Client struct {
 func NewClient(log logging.Logger, opts ...ClientOption) *Client {
 	cfg := clientConfiguration{
 		userAgent: "Grafana",
+		allowedMethods: map[string]struct{}{
+			http.MethodPost: {},
+			http.MethodPut:  {},
+		},
 		dialer: (net.Dialer{
 			Timeout: 30 * time.Second,
 		}),
@@ -51,6 +56,12 @@ func (ns *Client) Dialer() *net.Dialer {
 }
 
 type ClientOption func(*clientConfiguration)
+
+func AllowGetRequests() ClientOption {
+	return func(c *clientConfiguration) {
+		c.allowedMethods[http.MethodGet] = struct{}{}
+	}
+}
 
 func WithUserAgent(userAgent string) ClientOption {
 	return func(c *clientConfiguration) {
@@ -71,11 +82,15 @@ func (ns *Client) SendWebhook(ctx context.Context, webhook *receivers.SendWebhoo
 	}
 	ns.log.Debug("Sending webhook", "url", webhook.URL, "http method", webhook.HTTPMethod)
 
-	if webhook.HTTPMethod != http.MethodPost && webhook.HTTPMethod != http.MethodPut {
-		return ErrInvalidMethod
+	if _, ok := ns.cfg.allowedMethods[webhook.HTTPMethod]; !ok {
+		return fmt.Errorf("%w %q", ErrInvalidMethod, webhook.HTTPMethod)
 	}
 
-	request, err := http.NewRequestWithContext(ctx, webhook.HTTPMethod, webhook.URL, bytes.NewReader([]byte(webhook.Body)))
+	reqBody := bytes.NewReader([]byte(webhook.Body))
+	if webhook.HTTPMethod == http.MethodGet {
+		reqBody = nil
+	}
+	request, err := http.NewRequestWithContext(ctx, webhook.HTTPMethod, webhook.URL, reqBody)
 	if err != nil {
 		return err
 	}
@@ -85,11 +100,14 @@ func (ns *Client) SendWebhook(ctx context.Context, webhook *receivers.SendWebhoo
 		return err
 	}
 
-	if webhook.ContentType == "" {
+	// Sane content type default for POST/PUT requests.
+	if webhook.ContentType == "" && (webhook.HTTPMethod == http.MethodPost || webhook.HTTPMethod == http.MethodPut) {
 		webhook.ContentType = "application/json"
 	}
 
-	request.Header.Set("Content-Type", webhook.ContentType)
+	if webhook.ContentType != "" {
+		request.Header.Set("Content-Type", webhook.ContentType)
+	}
 	request.Header.Set("User-Agent", ns.cfg.userAgent)
 
 	if webhook.User != "" && webhook.Password != "" {
@@ -135,7 +153,9 @@ func (ns *Client) SendWebhook(ctx context.Context, webhook *receivers.SendWebhoo
 	if webhook.Validation != nil {
 		err := webhook.Validation(body, resp.StatusCode)
 		if err != nil {
-			ns.log.Debug("Webhook failed validation", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body), "error", err)
+			if webhook.HTTPMethod != http.MethodGet { // Avoid the risk of logging GET response body.
+				ns.log.Debug("Webhook failed validation", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body), "error", err)
+			}
 			return fmt.Errorf("webhook failed validation: %w", err)
 		}
 	}
