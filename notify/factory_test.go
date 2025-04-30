@@ -84,11 +84,11 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 					// Also override the Resolver so that configuration that doesn't use real hostnamesalso return
 					// "custom dial function error" instead of "no such dns".
 					Resolver: &net.Resolver{
-						Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+						Dial: func(_ context.Context, _, _ string) (net.Conn, error) {
 							return nil, customDialError
 						},
 					},
-					Control: func(network, address string, c syscall.RawConn) error {
+					Control: func(_, _ string, _ syscall.RawConn) error {
 						return customDialError
 					},
 				}),
