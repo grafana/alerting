@@ -23,7 +23,7 @@ func TestSendWebhook(t *testing.T) {
 		got = r
 		w.WriteHeader(http.StatusOK)
 	}))
-	s := NewClient(logging.FakeLogger{}, ClientConfiguration{UserAgent: "TEST"})
+	s := NewClient(logging.FakeLogger{}, WithUserAgent("TEST"))
 
 	// The method should be either POST or PUT.
 	cmd := receivers.SendWebhookSettings{
@@ -107,7 +107,7 @@ func TestSendWebhookHMAC(t *testing.T) {
 		server := initServer(httptest.NewServer)
 		defer server.Close()
 
-		client := NewClient(logging.FakeLogger{}, DefaultClientConfiguration)
+		client := NewClient(logging.FakeLogger{})
 		webhook := &receivers.SendWebhookSettings{
 			URL:        server.URL,
 			Body:       "test-body",
@@ -138,7 +138,7 @@ func TestSendWebhookHMAC(t *testing.T) {
 		cfg, err := tlsConfig.ToCryptoTLSConfig()
 		require.NoError(t, err)
 
-		client := NewClient(logging.FakeLogger{}, DefaultClientConfiguration)
+		client := NewClient(logging.FakeLogger{})
 		webhook := &receivers.SendWebhookSettings{
 			URL:        server.URL,
 			Body:       "test-body",

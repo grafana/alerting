@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	alertingHttp "github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/receivers"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
@@ -76,7 +77,7 @@ func TestNewConfig(t *testing.T) {
 			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				URL:                      "http://localhost",
-				HTTPMethod:               "test-httpMethod",
+				HTTPMethod:               "PUT",
 				MaxAlerts:                2,
 				AuthorizationScheme:      "basic",
 				AuthorizationCredentials: "",
@@ -86,9 +87,9 @@ func TestNewConfig(t *testing.T) {
 				Message:                  "test-message",
 				TLSConfig: &receivers.TLSConfig{
 					InsecureSkipVerify: false,
-					ClientCertificate:  "test-client-certificate",
-					ClientKey:          "test-client-key",
-					CACertificate:      "test-ca-certificate",
+					ClientCertificate:  alertingHttp.TestCertPem,
+					ClientKey:          alertingHttp.TestKeyPem,
+					CACertificate:      alertingHttp.TestCACert,
 				},
 				HMACConfig: &receivers.HMACConfig{
 					Secret:          "test-hmac-secret",
@@ -103,7 +104,7 @@ func TestNewConfig(t *testing.T) {
 			secretSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
 				URL:                      "http://localhost",
-				HTTPMethod:               "test-httpMethod",
+				HTTPMethod:               "PUT",
 				MaxAlerts:                2,
 				AuthorizationScheme:      "basic",
 				AuthorizationCredentials: "",
@@ -113,9 +114,9 @@ func TestNewConfig(t *testing.T) {
 				Message:                  "test-message",
 				TLSConfig: &receivers.TLSConfig{
 					InsecureSkipVerify: false,
-					ClientCertificate:  "test-override-client-certificate",
-					ClientKey:          "test-override-client-key",
-					CACertificate:      "test-override-ca-certificate",
+					ClientCertificate:  alertingHttp.TestCertPem,
+					ClientKey:          alertingHttp.TestKeyPem,
+					CACertificate:      alertingHttp.TestCACert,
 				},
 				HMACConfig: &receivers.HMACConfig{
 					Secret:          "test-override-hmac-secret",
