@@ -4,6 +4,23 @@ import (
 	"context"
 )
 
+type WebhookSenderRecorder struct {
+	WebhookCalls []SendWebhookSettings
+	Webhook      SendWebhookSettings
+	wrapped      WebhookSender
+}
+
+func (ns *WebhookSenderRecorder) SendWebhook(ctx context.Context, cmd *SendWebhookSettings) error {
+	ns.WebhookCalls = append(ns.WebhookCalls, *cmd)
+	ns.Webhook = *cmd
+
+	return ns.wrapped.SendWebhook(ctx, cmd)
+}
+
+func NewWebhookSenderRecorder(client WebhookSender) *WebhookSenderRecorder {
+	return &WebhookSenderRecorder{wrapped: client}
+}
+
 type NotificationServiceMock struct {
 	WebhookCalls []SendWebhookSettings
 	Webhook      SendWebhookSettings

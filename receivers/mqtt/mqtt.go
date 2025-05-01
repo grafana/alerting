@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
@@ -36,17 +37,13 @@ type Notifier struct {
 	client   client
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, logger logging.Logger, cli client) *Notifier {
-	if cli == nil {
-		cli = &mqttClient{}
-	}
-
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, logger logging.Logger, dialer *net.Dialer) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		log:      logger,
 		tmpl:     template,
 		settings: cfg,
-		client:   cli,
+		client:   &mqttClient{dialer: dialer},
 	}
 }
 

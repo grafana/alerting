@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -13,12 +14,13 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-func New(cfg Config, meta receivers.Metadata, images images.Provider, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, sender receivers.WebhookSender, images images.Provider, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		images:   images,
 		settings: cfg,
 		logger:   logger,
+		ns:       sender,
 	}
 }
 
@@ -28,6 +30,7 @@ type Notifier struct {
 	images   images.Provider
 	settings Config
 	logger   logging.Logger
+	ns       receivers.WebhookSender
 }
 
 // Notify sends alert notifications to Alertmanager.
@@ -57,12 +60,14 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		numErrs int
 	)
 	for _, u := range n.settings.URLs {
-		if _, err := receivers.SendHTTPRequest(ctx, u, receivers.HTTPCfg{
-			User:     n.settings.User,
-			Password: n.settings.Password,
-			Body:     body,
-		}, n.logger); err != nil {
-			n.logger.Warn("failed to send to Alertmanager", "error", err, "alertmanager", n.Name, "url", u.String())
+		if err := n.ns.SendWebhook(ctx, &receivers.SendWebhookSettings{
+			URL:        u.String(),
+			User:       n.settings.User,
+			Password:   n.settings.Password,
+			Body:       string(body), // TODO: Interface could be improved.
+			HTTPMethod: http.MethodPost,
+		}); err != nil {
+			n.logger.Warn("failed to send to Alertmanager", "error", err, "alertmanager", n.Name, "url", u.Redacted())
 			lastErr = err
 			numErrs++
 		}

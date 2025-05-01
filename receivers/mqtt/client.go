@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	mqttLib "github.com/at-wat/mqtt-go"
@@ -20,6 +21,7 @@ const (
 // mqttClient is a wrapper around the mqtt-go client,
 // implements MQTT v3.1.1 protocol: http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html
 type mqttClient struct {
+	dialer *net.Dialer
 	client mqttLib.Client
 }
 
@@ -27,13 +29,18 @@ func (c *mqttClient) Connect(ctx context.Context, brokerURL, clientID, username,
 	ctx, cancel := context.WithTimeout(ctx, connectTimeout*time.Second)
 	defer cancel()
 
-	dialer := &mqttLib.URLDialer{
-		URL: brokerURL,
-		Options: []mqttLib.DialOption{
-			mqttLib.WithTLSConfig(tlsCfg),
-		},
+	opts := []mqttLib.DialOption{
+		mqttLib.WithTLSConfig(tlsCfg),
 	}
-	cli, err := dialer.DialContext(ctx)
+	if c.dialer != nil {
+		opts = append(opts, mqttLib.WithDialer(c.dialer))
+	}
+
+	urlDialer := &mqttLib.URLDialer{
+		URL:     brokerURL,
+		Options: opts,
+	}
+	cli, err := urlDialer.DialContext(ctx)
 	if err != nil {
 		return err
 	}

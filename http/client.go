@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -18,11 +19,12 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-var ErrInvalidMethod = errors.New("webhook only supports HTTP methods PUT or POST")
+var ErrInvalidMethod = errors.New("unsupported HTTP method")
 
 type clientConfiguration struct {
-	userAgent string
-	dialer    net.Dialer // We use Dialer here instead of DialContext as our mqtt client doesn't support DialContext.
+	userAgent      string
+	dialer         net.Dialer // We use Dialer here instead of DialContext as our mqtt client doesn't support DialContext.
+	allowedMethods map[string]struct{}
 }
 
 type Client struct {
@@ -33,6 +35,10 @@ type Client struct {
 func NewClient(log logging.Logger, opts ...ClientOption) *Client {
 	cfg := clientConfiguration{
 		userAgent: "Grafana",
+		allowedMethods: map[string]struct{}{
+			http.MethodPost: {},
+			http.MethodPut:  {},
+		},
 		dialer: (net.Dialer{
 			Timeout: 30 * time.Second,
 		}),
@@ -51,6 +57,12 @@ func (ns *Client) Dialer() *net.Dialer {
 }
 
 type ClientOption func(*clientConfiguration)
+
+func AllowGetRequests() ClientOption {
+	return func(c *clientConfiguration) {
+		c.allowedMethods[http.MethodGet] = struct{}{}
+	}
+}
 
 func WithUserAgent(userAgent string) ClientOption {
 	return func(c *clientConfiguration) {
@@ -71,11 +83,15 @@ func (ns *Client) SendWebhook(ctx context.Context, webhook *receivers.SendWebhoo
 	}
 	ns.log.Debug("Sending webhook", "url", webhook.URL, "http method", webhook.HTTPMethod)
 
-	if webhook.HTTPMethod != http.MethodPost && webhook.HTTPMethod != http.MethodPut {
-		return ErrInvalidMethod
+	if _, ok := ns.cfg.allowedMethods[webhook.HTTPMethod]; !ok {
+		return fmt.Errorf("%w %q", ErrInvalidMethod, webhook.HTTPMethod)
 	}
 
-	request, err := http.NewRequestWithContext(ctx, webhook.HTTPMethod, webhook.URL, bytes.NewReader([]byte(webhook.Body)))
+	reqBody := bytes.NewReader([]byte(webhook.Body))
+	if webhook.HTTPMethod == http.MethodGet {
+		reqBody = nil
+	}
+	request, err := http.NewRequestWithContext(ctx, webhook.HTTPMethod, webhook.URL, reqBody)
 	if err != nil {
 		return err
 	}
@@ -85,11 +101,14 @@ func (ns *Client) SendWebhook(ctx context.Context, webhook *receivers.SendWebhoo
 		return err
 	}
 
-	if webhook.ContentType == "" {
+	// Sane content type default for POST/PUT requests.
+	if webhook.ContentType == "" && (webhook.HTTPMethod == http.MethodPost || webhook.HTTPMethod == http.MethodPut) {
 		webhook.ContentType = "application/json"
 	}
 
-	request.Header.Set("Content-Type", webhook.ContentType)
+	if webhook.ContentType != "" {
+		request.Header.Set("Content-Type", webhook.ContentType)
+	}
 	request.Header.Set("User-Agent", ns.cfg.userAgent)
 
 	if webhook.User != "" && webhook.Password != "" {
@@ -100,21 +119,9 @@ func (ns *Client) SendWebhook(ctx context.Context, webhook *receivers.SendWebhoo
 		request.Header.Set(k, v)
 	}
 
-	client := NewTLSClient(webhook.TLSConfig, ns.cfg.dialer.DialContext)
-
-	if webhook.HMACConfig != nil {
-		ns.log.Debug("Adding HMAC roundtripper to client")
-		client.Transport, err = NewHMACRoundTripper(
-			client.Transport,
-			clock.New(),
-			webhook.HMACConfig.Secret,
-			webhook.HMACConfig.Header,
-			webhook.HMACConfig.TimestampHeader,
-		)
-		if err != nil {
-			ns.log.Error("Failed to add HMAC roundtripper to client", "error", err)
-			return err
-		}
+	client, err := ns.NewHTTPClient(webhook.TLSConfig, webhook.HMACConfig)
+	if err != nil {
+		return err
 	}
 
 	resp, err := client.Do(request)
@@ -135,7 +142,9 @@ func (ns *Client) SendWebhook(ctx context.Context, webhook *receivers.SendWebhoo
 	if webhook.Validation != nil {
 		err := webhook.Validation(body, resp.StatusCode)
 		if err != nil {
-			ns.log.Debug("Webhook failed validation", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body), "error", err)
+			if webhook.HTTPMethod != http.MethodGet { // Avoid the risk of logging GET response body.
+				ns.log.Debug("Webhook failed validation", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body), "error", err)
+			}
 			return fmt.Errorf("webhook failed validation: %w", err)
 		}
 	}
@@ -161,4 +170,30 @@ func redactURL(err error) error {
 func GetBasicAuthHeader(user string, password string) string {
 	var userAndPass = user + ":" + password
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(userAndPass))
+}
+
+func (ns *Client) NewDefaultHTTPClient() *http.Client {
+	return NewTLSClient(nil, ns.cfg.dialer.DialContext)
+}
+
+func (ns *Client) NewHTTPClient(tlsConfig *tls.Config, hmacConfig *receivers.HMACConfig) (*http.Client, error) {
+	client := NewTLSClient(tlsConfig, ns.cfg.dialer.DialContext)
+
+	if hmacConfig != nil {
+		ns.log.Debug("Adding HMAC roundtripper to client")
+		var err error
+		client.Transport, err = NewHMACRoundTripper(
+			client.Transport,
+			clock.New(),
+			hmacConfig.Secret,
+			hmacConfig.Header,
+			hmacConfig.TimestampHeader,
+		)
+		if err != nil {
+			ns.log.Error("Failed to add HMAC roundtripper to client", "error", err)
+			return nil, err
+		}
+	}
+
+	return client, nil
 }

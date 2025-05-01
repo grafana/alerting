@@ -7,12 +7,13 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/types"
-	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/alertmanager/types"
+	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
@@ -432,8 +433,9 @@ func TestNew(t *testing.T) {
 				receivers.Metadata{},
 				tmpl,
 				logger,
-				mockClient,
+				nil,
 			)
+			n.client = mockClient
 
 			require.NotNil(t, n)
 			require.NotNil(t, n.Base)

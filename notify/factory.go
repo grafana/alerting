@@ -2,6 +2,7 @@ package notify
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
@@ -66,13 +67,13 @@ func BuildReceiverIntegrations(
 			i := NewIntegration(notify, n, cfg.Type, idx, cfg.Name)
 			integrations = append(integrations, i)
 		}
-		nw = func(cfg receivers.Metadata) *http.Client {
-			return http.NewClient(logger("ngalert.notifier."+cfg.Type+".client", "notifierUID", cfg.UID), httpClientOptions...)
+		nw = func(cfg receivers.Metadata, opts ...http.ClientOption) *http.Client {
+			return http.NewClient(logger("ngalert.notifier."+cfg.Type+".client", "notifierUID", cfg.UID), slices.Concat(opts, httpClientOptions)...)
 		}
 	)
 	// Range through each notification channel in the receiver and create an integration for it.
 	for i, cfg := range receiver.AlertmanagerConfigs {
-		ci(i, cfg.Metadata, alertmanager.New(cfg.Settings, cfg.Metadata, img, nl(cfg.Metadata)))
+		ci(i, cfg.Metadata, alertmanager.New(cfg.Settings, cfg.Metadata, nw(cfg.Metadata), img, nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.DingdingConfigs {
 		ci(i, cfg.Metadata, dinding.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), nl(cfg.Metadata)))
@@ -92,7 +93,7 @@ func BuildReceiverIntegrations(
 		ci(i, cfg.Metadata, googlechat.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), version))
 	}
 	for i, cfg := range receiver.JiraConfigs {
-		ci(i, cfg.Metadata, jira.New(cfg.Settings, cfg.Metadata, tmpl, http.NewForkedSender(nw(cfg.Metadata)), nl(cfg.Metadata)))
+		ci(i, cfg.Metadata, jira.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata, http.AllowGetRequests()), nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.KafkaConfigs {
 		ci(i, cfg.Metadata, kafka.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))
@@ -101,7 +102,7 @@ func BuildReceiverIntegrations(
 		ci(i, cfg.Metadata, line.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.MqttConfigs {
-		ci(i, cfg.Metadata, mqtt.New(cfg.Settings, cfg.Metadata, tmpl, nl(cfg.Metadata), nil))
+		ci(i, cfg.Metadata, mqtt.New(cfg.Settings, cfg.Metadata, tmpl, nl(cfg.Metadata), nw(cfg.Metadata).Dialer()))
 	}
 	for i, cfg := range receiver.OnCallConfigs {
 		ci(i, cfg.Metadata, oncall.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), orgID))
@@ -119,10 +120,10 @@ func BuildReceiverIntegrations(
 		ci(i, cfg.Metadata, sensugo.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.SNSConfigs {
-		ci(i, cfg.Metadata, sns.New(cfg.Settings, cfg.Metadata, tmpl, nl(cfg.Metadata)))
+		ci(i, cfg.Metadata, sns.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata).NewDefaultHTTPClient(), nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.SlackConfigs {
-		ci(i, cfg.Metadata, slack.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), version))
+		ci(i, cfg.Metadata, slack.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata).NewDefaultHTTPClient(), img, nl(cfg.Metadata), version))
 	}
 	for i, cfg := range receiver.TeamsConfigs {
 		ci(i, cfg.Metadata, teams.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))

@@ -102,18 +102,6 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 					continue // skip email integration, it is not using webhook sender.
 				}
 				t.Run(integration.Name(), func(t *testing.T) {
-					if integration.Name() == "mqtt" {
-						t.Skip() // TODO: mqtt integration does not support custom dialer yet.
-					}
-					if integration.Name() == "sns" {
-						t.Skip() // TODO: sns integration does not support custom dialer yet.
-					}
-					if integration.Name() == "slack" {
-						t.Skip() // TODO: slack integration does not support custom dialer yet.
-					}
-					if integration.Name() == "prometheus-alertmanager" {
-						t.Skip() // TODO: prometheus-alertmanager integration does not support custom dialer yet.
-					}
 					alert := newTestAlert(TestReceiversConfigBodyParams{}, time.Now(), time.Now())
 
 					ctx := context.Background()
