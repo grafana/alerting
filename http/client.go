@@ -20,17 +20,6 @@ import (
 
 var ErrInvalidMethod = errors.New("webhook only supports HTTP methods PUT or POST")
 
-var (
-	defaultClientConfiguration = func() clientConfiguration {
-		return clientConfiguration{
-			userAgent: "Grafana",
-			dialer: (net.Dialer{
-				Timeout: 30 * time.Second,
-			}),
-		}
-	}
-)
-
 type clientConfiguration struct {
 	userAgent string
 	dialer    net.Dialer // We use Dialer here instead of DialContext as our mqtt client doesn't support DialContext.
@@ -42,7 +31,12 @@ type Client struct {
 }
 
 func NewClient(log logging.Logger, opts ...ClientOption) *Client {
-	cfg := defaultClientConfiguration()
+	cfg := clientConfiguration{
+		userAgent: "Grafana",
+		dialer: (net.Dialer{
+			Timeout: 30 * time.Second,
+		}),
+	}
 	for _, opt := range opts {
 		opt(&cfg)
 	}
