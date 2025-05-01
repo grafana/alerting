@@ -86,7 +86,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, clie
 		tmpl:       template,
 		appVersion: appVersion,
 
-		client: &slackHttpClient{
+		client: &slackHTTPClient{
 			client: client,
 		},
 	}
@@ -524,13 +524,13 @@ func errorForStatusCode(logger logging.Logger, statusCode int) error {
 	return nil
 }
 
-type slackHttpClient struct {
+type slackHTTPClient struct {
 	client *http.Client
 }
 
 // sendSlackMessage sends a request to the Slack API.
 // Stubbable by tests.
-func (c *slackHttpClient) sendSlackMessage(_ context.Context, req *http.Request, logger logging.Logger) (slackMessageResponse, error) {
+func (c *slackHTTPClient) sendSlackMessage(_ context.Context, req *http.Request, logger logging.Logger) (slackMessageResponse, error) {
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return slackMessageResponse{}, fmt.Errorf("failed to send request: %w", err)
@@ -629,7 +629,7 @@ func handleSlackMessageJSONResponse(resp *http.Response, logger logging.Logger) 
 	return result.slackMessageResponse, nil
 }
 
-func (c *slackHttpClient) initFileUpload(_ context.Context, req *http.Request, logger logging.Logger) (*FileUploadURLResponse, error) {
+func (c *slackHTTPClient) initFileUpload(_ context.Context, req *http.Request, logger logging.Logger) (*FileUploadURLResponse, error) {
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
@@ -680,7 +680,7 @@ func (c *slackHttpClient) initFileUpload(_ context.Context, req *http.Request, l
 	return nil, fmt.Errorf("unexpected content type: %s", content)
 }
 
-func (c *slackHttpClient) uploadFile(_ context.Context, req *http.Request, logger logging.Logger) error {
+func (c *slackHTTPClient) uploadFile(_ context.Context, req *http.Request, logger logging.Logger) error {
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
@@ -689,7 +689,7 @@ func (c *slackHttpClient) uploadFile(_ context.Context, req *http.Request, logge
 	return errorForStatusCode(logger, resp.StatusCode)
 }
 
-func (c *slackHttpClient) completeFileUpload(_ context.Context, req *http.Request, logger logging.Logger) error {
+func (c *slackHTTPClient) completeFileUpload(_ context.Context, req *http.Request, logger logging.Logger) error {
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)

@@ -119,7 +119,7 @@ func (ns *Client) SendWebhook(ctx context.Context, webhook *receivers.SendWebhoo
 		request.Header.Set(k, v)
 	}
 
-	client, err := ns.NewHttpClient(webhook.TLSConfig, webhook.HMACConfig)
+	client, err := ns.NewHTTPClient(webhook.TLSConfig, webhook.HMACConfig)
 	if err != nil {
 		return err
 	}
@@ -172,11 +172,11 @@ func GetBasicAuthHeader(user string, password string) string {
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(userAndPass))
 }
 
-func (ns *Client) NewDefaultHttpClient() *http.Client {
+func (ns *Client) NewDefaultHTTPClient() *http.Client {
 	return NewTLSClient(nil, ns.cfg.dialer.DialContext)
 }
 
-func (ns *Client) NewHttpClient(tlsConfig *tls.Config, hmacConfig *receivers.HMACConfig) (*http.Client, error) {
+func (ns *Client) NewHTTPClient(tlsConfig *tls.Config, hmacConfig *receivers.HMACConfig) (*http.Client, error) {
 	client := NewTLSClient(tlsConfig, ns.cfg.dialer.DialContext)
 
 	if hmacConfig != nil {

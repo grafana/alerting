@@ -804,7 +804,7 @@ func setupSlackForTests(t *testing.T, settings Config, client slackClient) (*Not
 			DisableResolveMessage: false,
 		},
 		tmpl,
-		alertingHttp.NewClient(&logging.FakeLogger{}).NewDefaultHttpClient(),
+		alertingHttp.NewClient(&logging.FakeLogger{}).NewDefaultHTTPClient(),
 		images,
 		&logging.FakeLogger{},
 		appVersion,
