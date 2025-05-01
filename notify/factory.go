@@ -102,7 +102,7 @@ func BuildReceiverIntegrations(
 		ci(i, cfg.Metadata, line.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.MqttConfigs {
-		ci(i, cfg.Metadata, mqtt.New(cfg.Settings, cfg.Metadata, tmpl, nl(cfg.Metadata), nil))
+		ci(i, cfg.Metadata, mqtt.New(cfg.Settings, cfg.Metadata, tmpl, nl(cfg.Metadata), nw(cfg.Metadata).Dialer()))
 	}
 	for i, cfg := range receiver.OnCallConfigs {
 		ci(i, cfg.Metadata, oncall.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), orgID))

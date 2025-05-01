@@ -102,9 +102,6 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 					continue // skip email integration, it is not using webhook sender.
 				}
 				t.Run(integration.Name(), func(t *testing.T) {
-					if integration.Name() == "mqtt" {
-						t.Skip() // TODO: mqtt integration does not support custom dialer yet.
-					}
 					if integration.Name() == "slack" {
 						t.Skip() // TODO: slack integration does not support custom dialer yet.
 					}

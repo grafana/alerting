@@ -1,7 +1,13 @@
 package mqtt
 
+import (
+	"fmt"
+
+	"github.com/grafana/alerting/http"
+)
+
 // FullValidConfigForTesting is a string representation of a JSON object that contains all fields supported by the notifier Config. It can be used without secrets.
-const FullValidConfigForTesting = `{
+var FullValidConfigForTesting = fmt.Sprintf(`{
 	"brokerUrl": "tcp://localhost:1883",
 	"topic": "grafana/alerts",
 	"messageFormat": "json",
@@ -12,11 +18,11 @@ const FullValidConfigForTesting = `{
 	"password": "test-password",
 	"tlsConfig": {
 		"insecureSkipVerify": false,
-		"caCertificate": "test-tls-ca-certificate",
-		"clientCertificate": "test-tls-client-certificate",
-		"clientKey": "test-tls-client-key"
+		"clientCertificate": %q,
+		"clientKey": %q,
+		"caCertificate": %q
 	}
-}`
+}`, http.TestCertPem, http.TestKeyPem, http.TestCACert)
 
 // FullValidSecretsForTesting is a string representation of JSON object that contains all fields that can be overridden from secrets
 const FullValidSecretsForTesting = `{
