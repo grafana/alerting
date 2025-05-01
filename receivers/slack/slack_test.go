@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	alertingHttp "github.com/grafana/alerting/http"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -159,7 +160,8 @@ func TestNotify_IncomingWebhook(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			notifier, recorder, err := setupSlackForTests(t, test.settings)
+			recorder := &slackRequestRecorder{}
+			notifier, err := setupSlackForTests(t, test.settings, recorder)
 			require.NoError(t, err)
 
 			ctx := context.Background()
@@ -550,7 +552,8 @@ func TestNotify_PostMessage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			notifier, recorder, err := setupSlackForTests(t, test.settings)
+			recorder := &slackRequestRecorder{}
+			notifier, err := setupSlackForTests(t, test.settings, recorder)
 			require.NoError(t, err)
 
 			ctx := context.Background()
@@ -653,7 +656,8 @@ func TestNotify_PostMessageWithImage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			notifier, recorder, err := setupSlackForTests(t, test.settings)
+			recorder := &slackRequestRecorder{}
+			notifier, err := setupSlackForTests(t, test.settings, recorder)
 			require.NoError(t, err)
 
 			ctx := context.Background()
@@ -739,13 +743,15 @@ type slackRequestRecorder struct {
 	completeFileUploads    []*http.Request
 }
 
-func (s *slackRequestRecorder) recordMessageRequest(_ context.Context, r *http.Request, _ logging.Logger) (slackMessageResponse, error) {
+var _ slackClient = (*slackRequestRecorder)(nil)
+
+func (s *slackRequestRecorder) sendSlackMessage(_ context.Context, r *http.Request, _ logging.Logger) (slackMessageResponse, error) {
 	s.requestCount++
 	s.messageRequest = r
 	return slackMessageResponse{Ts: "1503435956.000247", Channel: "C123ABC456"}, nil
 }
 
-func (s *slackRequestRecorder) recordInitFileUploadRequest(_ context.Context, r *http.Request, _ logging.Logger) (*FileUploadURLResponse, error) {
+func (s *slackRequestRecorder) initFileUpload(_ context.Context, r *http.Request, _ logging.Logger) (*FileUploadURLResponse, error) {
 	s.requestCount++
 	s.initFileUploadRequests = append(s.initFileUploadRequests, r)
 	return &FileUploadURLResponse{
@@ -754,19 +760,19 @@ func (s *slackRequestRecorder) recordInitFileUploadRequest(_ context.Context, r 
 	}, nil
 }
 
-func (s *slackRequestRecorder) recordFileUploadRequest(_ context.Context, r *http.Request, _ logging.Logger) error {
+func (s *slackRequestRecorder) uploadFile(_ context.Context, r *http.Request, _ logging.Logger) error {
 	s.requestCount++
 	s.fileUploadRequests = append(s.fileUploadRequests, r)
 	return nil
 }
 
-func (s *slackRequestRecorder) recordCompleteFileUpload(_ context.Context, r *http.Request, _ logging.Logger) error {
+func (s *slackRequestRecorder) completeFileUpload(_ context.Context, r *http.Request, _ logging.Logger) error {
 	s.requestCount++
 	s.completeFileUploads = append(s.completeFileUploads, r)
 	return nil
 }
 
-func setupSlackForTests(t *testing.T, settings Config) (*Notifier, *slackRequestRecorder, error) {
+func setupSlackForTests(t *testing.T, settings Config, client slackClient) (*Notifier, error) {
 	tmpl := templates.ForTests(t)
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -789,30 +795,25 @@ func setupSlackForTests(t *testing.T, settings Config) (*Notifier, *slackRequest
 		},
 	},
 	), &logging.FakeLogger{})
-	notificationService := receivers.MockNotificationService()
 
-	sn := &Notifier{
-		Base: &receivers.Base{
+	sn := New(settings,
+		receivers.Metadata{
 			Name:                  "",
 			Type:                  "",
 			UID:                   "",
 			DisableResolveMessage: false,
 		},
-		log:           &logging.FakeLogger{},
-		webhookSender: notificationService,
-		tmpl:          tmpl,
-		settings:      settings,
-		images:        images,
-		appVersion:    appVersion,
+		tmpl,
+		alertingHttp.NewClient(&logging.FakeLogger{}).NewDefaultHttpClient(),
+		images,
+		&logging.FakeLogger{},
+		appVersion,
+	)
+	if client != nil {
+		sn.client = client
 	}
 
-	sr := &slackRequestRecorder{}
-	sn.sendMessageFn = sr.recordMessageRequest
-	sn.initFileUploadFn = sr.recordInitFileUploadRequest
-	sn.uploadFileFn = sr.recordFileUploadRequest
-	sn.completeFileUploadFn = sr.recordCompleteFileUpload
-
-	return sn, sr, nil
+	return sn, nil
 }
 
 func TestSendSlackRequest(t *testing.T) {
@@ -928,7 +929,9 @@ func TestSendSlackRequest(t *testing.T) {
 			req, err := http.NewRequest(http.MethodGet, server.URL, nil)
 			require.NoError(tt, err)
 
-			_, err = sendSlackMessage(context.Background(), req, &logging.FakeLogger{})
+			notifier, err := setupSlackForTests(t, Config{}, nil)
+			require.NoError(t, err)
+			_, err = notifier.client.sendSlackMessage(context.Background(), req, &logging.FakeLogger{})
 			if !test.expectError {
 				require.NoError(tt, err)
 			} else {

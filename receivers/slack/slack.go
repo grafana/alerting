@@ -3,13 +3,11 @@ package slack
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
-	"net"
 	"net/http"
 	"net/url"
 	"path"
@@ -40,29 +38,12 @@ const (
 // APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
 var APIURL = "https://slack.com/api/chat.postMessage"
 
-var (
-	slackClient = &http.Client{
-		Timeout: time.Second * 30,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				Renegotiation: tls.RenegotiateFreelyAsClient,
-			},
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				Timeout: 30 * time.Second,
-			}).DialContext,
-			TLSHandshakeTimeout: 5 * time.Second,
-		},
-	}
-)
-
-type sendMessageFunc func(ctx context.Context, req *http.Request, logger logging.Logger) (slackMessageResponse, error)
-
-type initFileUploadFunc func(ctx context.Context, req *http.Request, logger logging.Logger) (*FileUploadURLResponse, error)
-
-type uploadFileFunc func(ctx context.Context, req *http.Request, logger logging.Logger) error
-
-type completeFileUploadFunc func(ctx context.Context, req *http.Request, logger logging.Logger) error
+type slackClient interface {
+	sendSlackMessage(_ context.Context, req *http.Request, logger logging.Logger) (slackMessageResponse, error)
+	initFileUpload(_ context.Context, req *http.Request, logger logging.Logger) (*FileUploadURLResponse, error)
+	uploadFile(_ context.Context, req *http.Request, logger logging.Logger) error
+	completeFileUpload(_ context.Context, req *http.Request, logger logging.Logger) error
+}
 
 // https://api.slack.com/reference/messaging/attachments#legacy_fields - 1024, no units given, assuming runes or characters.
 const slackMaxTitleLenRunes = 1024
@@ -71,16 +52,13 @@ const slackMaxTitleLenRunes = 1024
 // alert notification to Slack.
 type Notifier struct {
 	*receivers.Base
-	log                  logging.Logger
-	tmpl                 *templates.Template
-	images               images.Provider
-	webhookSender        receivers.WebhookSender
-	sendMessageFn        sendMessageFunc
-	initFileUploadFn     initFileUploadFunc
-	uploadFileFn         uploadFileFunc
-	completeFileUploadFn completeFileUploadFunc
-	settings             Config
-	appVersion           string
+	log        logging.Logger
+	tmpl       *templates.Template
+	images     images.Provider
+	settings   Config
+	appVersion string
+
+	client slackClient
 }
 
 // isIncomingWebhook returns true if the settings are for an incoming webhook.
@@ -99,19 +77,18 @@ func endpointURL(s Config, apiMethod string) (string, error) {
 	return u.String(), nil
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger logging.Logger, appVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, client *http.Client, images images.Provider, logger logging.Logger, appVersion string) *Notifier {
 	return &Notifier{
-		Base:                 receivers.NewBase(meta),
-		settings:             cfg,
-		images:               images,
-		webhookSender:        sender,
-		sendMessageFn:        sendSlackMessage,
-		initFileUploadFn:     initFileUpload,
-		uploadFileFn:         uploadFile,
-		completeFileUploadFn: completeFileUpload,
-		log:                  logger,
-		tmpl:                 template,
-		appVersion:           appVersion,
+		Base:       receivers.NewBase(meta),
+		settings:   cfg,
+		images:     images,
+		log:        logger,
+		tmpl:       template,
+		appVersion: appVersion,
+
+		client: &slackHttpClient{
+			client: client,
+		},
 	}
 }
 
@@ -355,7 +332,7 @@ func (sn *Notifier) sendSlackMessage(ctx context.Context, m *slackMessage) (slac
 		request.Header.Set("Authorization", "Bearer "+sn.settings.Token)
 	}
 
-	slackResp, err := sn.sendMessageFn(ctx, request, sn.log)
+	slackResp, err := sn.client.sendSlackMessage(ctx, request, sn.log)
 	if err != nil {
 		return slackMessageResponse{}, err
 	}
@@ -406,7 +383,7 @@ func (sn *Notifier) sendMultipart(ctx context.Context, uploadURL string, headers
 	}
 	req.Header.Set("Authorization", "Bearer "+sn.settings.Token)
 
-	return sn.uploadFileFn(ctx, req, sn.log)
+	return sn.client.uploadFile(ctx, req, sn.log)
 }
 
 // uploadImage shares the image to the channel names or IDs. It returns an error if the file
@@ -464,7 +441,7 @@ func (sn *Notifier) getUploadURL(ctx context.Context, filename string, imageSize
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
 	req.Header.Set("Authorization", "Bearer "+sn.settings.Token)
-	return sn.initFileUploadFn(ctx, req, sn.log)
+	return sn.client.initFileUpload(ctx, req, sn.log)
 }
 
 func (sn *Notifier) finalizeUpload(ctx context.Context, fileID, channelID, threadTs, comment string) error {
@@ -493,7 +470,7 @@ func (sn *Notifier) finalizeUpload(ctx context.Context, fileID, channelID, threa
 	}
 	completeUploadReq.Header.Set("Content-Type", "application/json; charset=utf-8")
 	completeUploadReq.Header.Set("Authorization", "Bearer "+sn.settings.Token)
-	return sn.completeFileUploadFn(ctx, completeUploadReq, sn.log)
+	return sn.client.completeFileUpload(ctx, completeUploadReq, sn.log)
 }
 
 func (sn *Notifier) SendResolved() bool {
@@ -547,10 +524,14 @@ func errorForStatusCode(logger logging.Logger, statusCode int) error {
 	return nil
 }
 
+type slackHttpClient struct {
+	client *http.Client
+}
+
 // sendSlackMessage sends a request to the Slack API.
 // Stubbable by tests.
-func sendSlackMessage(_ context.Context, req *http.Request, logger logging.Logger) (slackMessageResponse, error) {
-	resp, err := slackClient.Do(req)
+func (c *slackHttpClient) sendSlackMessage(_ context.Context, req *http.Request, logger logging.Logger) (slackMessageResponse, error) {
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return slackMessageResponse{}, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -648,8 +629,8 @@ func handleSlackMessageJSONResponse(resp *http.Response, logger logging.Logger) 
 	return result.slackMessageResponse, nil
 }
 
-func initFileUpload(_ context.Context, req *http.Request, logger logging.Logger) (*FileUploadURLResponse, error) {
-	resp, err := slackClient.Do(req)
+func (c *slackHttpClient) initFileUpload(_ context.Context, req *http.Request, logger logging.Logger) (*FileUploadURLResponse, error) {
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
@@ -699,8 +680,8 @@ func initFileUpload(_ context.Context, req *http.Request, logger logging.Logger)
 	return nil, fmt.Errorf("unexpected content type: %s", content)
 }
 
-func uploadFile(_ context.Context, req *http.Request, logger logging.Logger) error {
-	resp, err := slackClient.Do(req)
+func (c *slackHttpClient) uploadFile(_ context.Context, req *http.Request, logger logging.Logger) error {
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
@@ -708,8 +689,8 @@ func uploadFile(_ context.Context, req *http.Request, logger logging.Logger) err
 	return errorForStatusCode(logger, resp.StatusCode)
 }
 
-func completeFileUpload(_ context.Context, req *http.Request, logger logging.Logger) error {
-	resp, err := slackClient.Do(req)
+func (c *slackHttpClient) completeFileUpload(_ context.Context, req *http.Request, logger logging.Logger) error {
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}
