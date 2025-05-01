@@ -3,6 +3,7 @@ package sns
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"unicode/utf8"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
+
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 
@@ -28,14 +30,16 @@ type Notifier struct {
 	log      logging.Logger
 	tmpl     *templates.Template
 	settings Config
+	client   *http.Client
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, client *http.Client, logger logging.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta),
 		log:      logger,
 		tmpl:     template,
 		settings: cfg,
+		client:   client,
 	}
 }
 
@@ -92,8 +96,9 @@ func (s *Notifier) createSNSClient(tmpl func(string) string) (*sns.SNS, error) {
 	}
 	sess, err := session.NewSessionWithOptions(session.Options{
 		Config: aws.Config{
-			Region:   aws.String(s.settings.Sigv4.Region),
-			Endpoint: aws.String(tmpl(s.settings.APIUrl)),
+			Region:     aws.String(s.settings.Sigv4.Region),
+			Endpoint:   aws.String(tmpl(s.settings.APIUrl)),
+			HTTPClient: s.client,
 		},
 		Profile: s.settings.Sigv4.Profile,
 	})
@@ -111,6 +116,7 @@ func (s *Notifier) createSNSClient(tmpl func(string) string) (*sns.SNS, error) {
 				Config: aws.Config{
 					Region:      aws.String(s.settings.Sigv4.Region),
 					Credentials: creds,
+					HTTPClient:  s.client,
 				},
 				Profile: s.settings.Sigv4.Profile,
 			})
@@ -121,7 +127,7 @@ func (s *Notifier) createSNSClient(tmpl func(string) string) (*sns.SNS, error) {
 		creds = stscreds.NewCredentials(stsSess, s.settings.Sigv4.RoleARN)
 	}
 	// Use our generated session with credentials to create the SNS Client.
-	client := sns.New(sess, aws.NewConfig().WithCredentials(creds).WithEndpoint(*aws.String(s.settings.APIUrl)))
+	client := sns.New(sess, aws.NewConfig().WithCredentials(creds).WithEndpoint(*aws.String(s.settings.APIUrl)).WithHTTPClient(s.client))
 	// We will always need a region to be set by either the local config or the environment.
 	if aws.StringValue(sess.Config.Region) == "" {
 		return nil, fmt.Errorf("region not configured in sns.sigv4.region or in default credentials chain")

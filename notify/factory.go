@@ -120,7 +120,7 @@ func BuildReceiverIntegrations(
 		ci(i, cfg.Metadata, sensugo.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.SNSConfigs {
-		ci(i, cfg.Metadata, sns.New(cfg.Settings, cfg.Metadata, tmpl, nl(cfg.Metadata)))
+		ci(i, cfg.Metadata, sns.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata).NewDefaultHttpClient(), nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.SlackConfigs {
 		ci(i, cfg.Metadata, slack.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), version))

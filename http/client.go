@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -118,21 +119,9 @@ func (ns *Client) SendWebhook(ctx context.Context, webhook *receivers.SendWebhoo
 		request.Header.Set(k, v)
 	}
 
-	client := NewTLSClient(webhook.TLSConfig, ns.cfg.dialer.DialContext)
-
-	if webhook.HMACConfig != nil {
-		ns.log.Debug("Adding HMAC roundtripper to client")
-		client.Transport, err = NewHMACRoundTripper(
-			client.Transport,
-			clock.New(),
-			webhook.HMACConfig.Secret,
-			webhook.HMACConfig.Header,
-			webhook.HMACConfig.TimestampHeader,
-		)
-		if err != nil {
-			ns.log.Error("Failed to add HMAC roundtripper to client", "error", err)
-			return err
-		}
+	client, err := ns.NewHttpClient(webhook.TLSConfig, webhook.HMACConfig)
+	if err != nil {
+		return err
 	}
 
 	resp, err := client.Do(request)
@@ -181,4 +170,30 @@ func redactURL(err error) error {
 func GetBasicAuthHeader(user string, password string) string {
 	var userAndPass = user + ":" + password
 	return "Basic " + base64.StdEncoding.EncodeToString([]byte(userAndPass))
+}
+
+func (ns *Client) NewDefaultHttpClient() *http.Client {
+	return NewTLSClient(nil, ns.cfg.dialer.DialContext)
+}
+
+func (ns *Client) NewHttpClient(tlsConfig *tls.Config, hmacConfig *receivers.HMACConfig) (*http.Client, error) {
+	client := NewTLSClient(tlsConfig, ns.cfg.dialer.DialContext)
+
+	if hmacConfig != nil {
+		ns.log.Debug("Adding HMAC roundtripper to client")
+		var err error
+		client.Transport, err = NewHMACRoundTripper(
+			client.Transport,
+			clock.New(),
+			hmacConfig.Secret,
+			hmacConfig.Header,
+			hmacConfig.TimestampHeader,
+		)
+		if err != nil {
+			ns.log.Error("Failed to add HMAC roundtripper to client", "error", err)
+			return nil, err
+		}
+	}
+
+	return client, nil
 }
