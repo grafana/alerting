@@ -152,7 +152,7 @@ func TestSenderDisablesKeepAlives(t *testing.T) {
 	counter := &connCounter{Listener: l}
 
 	// Create test server with our counting listener
-	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	srv.Listener = counter

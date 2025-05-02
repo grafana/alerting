@@ -20,11 +20,11 @@ import (
 )
 
 type mockSender struct {
-	sendHttpReqFunc func(context.Context, *url.URL, receivers.HTTPCfg) ([]byte, error)
+	sendHTTPReqFunc func(context.Context, *url.URL, receivers.HTTPCfg) ([]byte, error)
 }
 
 func (m *mockSender) SendHTTPRequest(ctx context.Context, url *url.URL, cfg receivers.HTTPCfg) ([]byte, error) {
-	return m.sendHttpReqFunc(ctx, url, cfg)
+	return m.sendHTTPReqFunc(ctx, url, cfg)
 }
 
 func TestNotify(t *testing.T) {
@@ -95,7 +95,7 @@ func TestNotify(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			mock := &mockSender{
-				sendHttpReqFunc: func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg) ([]byte, error) {
+				sendHTTPReqFunc: func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg) ([]byte, error) {
 					expBody, err := json.Marshal(c.alerts)
 					require.NoError(t, err)
 					require.JSONEq(t, string(expBody), string(cfg.Body))
