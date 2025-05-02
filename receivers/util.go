@@ -191,6 +191,8 @@ func (s *defaultSender) SendHTTPRequest(ctx context.Context, url *url.URL, cfg H
 			Timeout: 30 * time.Second,
 		}).DialContext,
 		TLSHandshakeTimeout: 5 * time.Second,
+		// Disable keep alive since this is a short lived client
+		DisableKeepAlives: true,
 	}
 	netClient := &http.Client{
 		Timeout:   time.Second * 30,
