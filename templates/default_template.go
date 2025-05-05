@@ -35,9 +35,8 @@ Labels:
 {{ define "default.title" }}{{ template "__subject" . }}{{ end }}
 
 {{ define "default.message" }}{{ if gt (len .Alerts.Firing) 0 }}**Firing**
-{{ template "__text_alert_list" .Alerts.Firing }}{{ if gt (len .Alerts.Resolved) 0 }}
-
-{{ end }}{{ end }}{{ if gt (len .Alerts.Resolved) 0 }}**Resolved**
+{{ template "__text_alert_list" .Alerts.Firing }}
+{{ end }}{{ if gt (len .Alerts.Resolved) 0 }}**Resolved**
 {{ template "__text_alert_list" .Alerts.Resolved }}{{ end }}{{ end }}
 
 
