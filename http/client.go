@@ -33,12 +33,14 @@ type Client struct {
 func NewClient(log logging.Logger, opts ...ClientOption) *Client {
 	cfg := clientConfiguration{
 		userAgent: "Grafana",
-		dialer: (net.Dialer{
+		dialer: net.Dialer{
 			Timeout: 30 * time.Second,
-		}),
+		},
 	}
 	for _, opt := range opts {
-		opt(&cfg)
+		if opt != nil {
+			opt(&cfg)
+		}
 	}
 	return &Client{
 		log: log,
@@ -46,8 +48,8 @@ func NewClient(log logging.Logger, opts ...ClientOption) *Client {
 	}
 }
 
-func (ns *Client) Dialer() *net.Dialer {
-	return &ns.cfg.dialer
+func (ns *Client) Dialer() net.Dialer {
+	return ns.cfg.dialer
 }
 
 type ClientOption func(*clientConfiguration)
