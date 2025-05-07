@@ -118,6 +118,30 @@ func AsGrafanaRoute(r *config.Route) *Route {
 	return gRoute
 }
 
+// AllMatchers returns concatenated Match, MatchRE, Matchers and ObjectMatchers in a format of config.Matchers.
+func (r *Route) AllMatchers() (config.Matchers, error) {
+	matchers := make(config.Matchers, 0, len(r.Matchers)+len(r.ObjectMatchers)+len(r.Match)+len(r.MatchRE))
+
+	for ln, lv := range r.Match {
+		matcher, err := labels.NewMatcher(labels.MatchEqual, ln, lv)
+		if err != nil {
+			return nil, err
+		}
+		matchers = append(matchers, matcher)
+	}
+
+	for ln, lv := range r.MatchRE {
+		matcher, err := labels.NewMatcher(labels.MatchRegexp, ln, lv.String())
+		if err != nil {
+			return nil, err
+		}
+		matchers = append(matchers, matcher)
+	}
+
+	matchers = append(matchers, append(r.Matchers, r.ObjectMatchers...)...)
+	return matchers, nil
+}
+
 func (r *Route) ResourceType() string {
 	return "route"
 }
