@@ -3,15 +3,45 @@ package http
 import (
 	"context"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 )
+
+func TestClient(t *testing.T) {
+	t.Run("NewClient", func(t *testing.T) {
+		client := NewClient(logging.FakeLogger{})
+		require.NotNil(t, client)
+	})
+
+	t.Run("WithUserAgent", func(t *testing.T) {
+		client := NewClient(logging.FakeLogger{}, WithUserAgent("TEST"))
+		require.Equal(t, "TEST", client.cfg.userAgent)
+	})
+
+	t.Run("WithDialer with timeout", func(t *testing.T) {
+		dialer := net.Dialer{Timeout: 5 * time.Second}
+		client := NewClient(logging.FakeLogger{}, WithDialer(dialer))
+		require.Equal(t, dialer, client.cfg.dialer)
+	})
+
+	t.Run("WithDialer missing timeout should use default", func(t *testing.T) {
+		// Mostly defensive to ensure that some timeout is set.
+		dialer := net.Dialer{LocalAddr: &net.TCPAddr{IP: net.ParseIP("::")}}
+		client := NewClient(logging.FakeLogger{}, WithDialer(dialer))
+
+		expectedDialer := dialer
+		expectedDialer.Timeout = defaultDialTimeout
+		require.Equal(t, expectedDialer, client.cfg.dialer)
+	})
+}
 
 func TestSendWebhook(t *testing.T) {
 	var got *http.Request

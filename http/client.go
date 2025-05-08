@@ -25,6 +25,9 @@ type clientConfiguration struct {
 	dialer    net.Dialer // We use Dialer here instead of DialContext as our mqtt client doesn't support DialContext.
 }
 
+// defaultDialTimeout is the default timeout for the dialer, 30 seconds to match http.DefaultTransport.
+const defaultDialTimeout = 30 * time.Second
+
 type Client struct {
 	log logging.Logger
 	cfg clientConfiguration
@@ -33,14 +36,16 @@ type Client struct {
 func NewClient(log logging.Logger, opts ...ClientOption) *Client {
 	cfg := clientConfiguration{
 		userAgent: "Grafana",
-		dialer: net.Dialer{
-			Timeout: 30 * time.Second,
-		},
+		dialer:    net.Dialer{},
 	}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(&cfg)
 		}
+	}
+	if cfg.dialer.Timeout == 0 {
+		// Mostly defensive to ensure that timeout semantics don't change when given a custom dialer without a timeout.
+		cfg.dialer.Timeout = defaultDialTimeout
 	}
 	return &Client{
 		log: log,
