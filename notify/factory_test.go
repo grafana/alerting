@@ -81,8 +81,8 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			clientOpts := []http.ClientOption{
 				http.WithUserAgent("Grafana-test"),
 				http.WithDialer(net.Dialer{
-					// Also override the Resolver so that configuration that doesn't use real hostnamesalso return
-					// "custom dial function error" instead of "no such dns".
+					// Override the Resolver so that configurations with invalid hostnames also return
+					// "custom dial function error" instead of "no such host".
 					Resolver: &net.Resolver{
 						Dial: func(_ context.Context, _, _ string) (net.Conn, error) {
 							return nil, customDialError
