@@ -45,11 +45,11 @@ func BuildReceiverIntegrations(
 	tmpl *templates.Template,
 	img images.Provider,
 	logger logging.LoggerFactory,
-	httpClientOptions []http.ClientOption,
 	newEmailSender func(n receivers.Metadata) (receivers.EmailSender, error),
 	wrapNotifier WrapNotifierFunc,
 	orgID int64,
 	version string,
+	httpClientOptions ...http.ClientOption,
 ) ([]*Integration, error) {
 	type notificationChannel interface {
 		notify.Notifier

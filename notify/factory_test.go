@@ -65,7 +65,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return n
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, nil, em, notifyWrapper, orgID, version)
+		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, em, notifyWrapper, orgID, version)
 
 		require.NoError(t, err)
 		require.Len(t, integrations, qty)
@@ -94,7 +94,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 				}),
 			}
 
-			integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, clientOpts, em, notifyWrapper, orgID, version)
+			integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, em, notifyWrapper, orgID, version, clientOpts...)
 			require.NoError(t, err)
 			require.Len(t, integrations, qty)
 			for _, integration := range integrations {
@@ -135,7 +135,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return nil, errors.New("bad-test")
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, nil, failingFactory, noopWrapper, orgID, version)
+		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, failingFactory, noopWrapper, orgID, version)
 
 		require.Empty(t, integrations)
 		require.NotNil(t, err)
@@ -145,7 +145,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should not produce any integration if config is empty", func(t *testing.T) {
 		cfg := GrafanaReceiverConfig{Name: "test"}
 
-		integrations, err := BuildReceiverIntegrations(cfg, tmpl, imageProvider, loggerFactory, nil, emailFactory, noopWrapper, orgID, version)
+		integrations, err := BuildReceiverIntegrations(cfg, tmpl, imageProvider, loggerFactory, emailFactory, noopWrapper, orgID, version)
 
 		require.NoError(t, err)
 		require.Empty(t, integrations)
