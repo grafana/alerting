@@ -48,10 +48,6 @@ func NewClient(log logging.Logger, opts ...ClientOption) *Client {
 	}
 }
 
-func (ns *Client) Dialer() net.Dialer {
-	return ns.cfg.dialer
-}
-
 type ClientOption func(*clientConfiguration)
 
 func WithUserAgent(userAgent string) ClientOption {
