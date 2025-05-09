@@ -116,8 +116,8 @@ func DefaultTemplate(options ...template.Option) (TemplateDefinition, error) {
 		newTextTmpl = text
 	}
 
-	// Call FromContent without any user-provided templates to get the combined default template.
-	_, err := FromContent(nil, append(options, captureTemplate)...)
+	// Call fromContent without any user-provided templates to get the combined default template.
+	_, err := fromContent(nil, append(options, captureTemplate)...)
 	if err != nil {
 		return TemplateDefinition{}, err
 	}
@@ -158,8 +158,8 @@ func addFuncs(text *tmpltext.Template, html *tmplhtml.Template) {
 	html.Funcs(funcs)
 }
 
-// FromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
-func FromContent(tmpls []string, options ...template.Option) (*Template, error) {
+// fromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
+func fromContent(tmpls []string, options ...template.Option) (*Template, error) {
 	t, err := template.New(append(defaultOptionsPerKind[GrafanaTemplateKind], options...)...)
 	if err != nil {
 		return nil, err

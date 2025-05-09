@@ -129,7 +129,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	alert1Dashboard := fmt.Sprintf("http://localhost/grafana/d/dbuid123?from=%d&orgId=1&to=%d", alerts[0].StartsAt.Add(-time.Hour).UnixMilli(), constNow.UnixMilli())         // Firing.
 	alert4Dashboard := fmt.Sprintf("http://localhost/grafana/d/dbuid456?from=%d&orgId=1&to=%d", alerts[3].StartsAt.Add(-time.Hour).UnixMilli(), alerts[3].EndsAt.UnixMilli()) // Resolved.
 
-	tmpl, err := FromContent(nil)
+	tmpl, err := fromContent(nil)
 	require.NoError(t, err)
 
 	externalURL, err := url.Parse("http://localhost/grafana")
@@ -335,7 +335,7 @@ Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&mat
 
 	for _, c := range cases {
 		t.Run(c.templateString, func(t *testing.T) {
-			t.Run("FromContent", func(t *testing.T) {
+			t.Run("fromContent", func(t *testing.T) {
 				act := expand(c.templateString)
 				require.NoError(t, tmplErr)
 				require.Equal(t, c.expected, act)
