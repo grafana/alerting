@@ -3,13 +3,13 @@ package notify
 import (
 	"bytes"
 	"context"
-	"net/url"
 	tmpltext "text/template"
 
 	"github.com/go-kit/log/level"
 
-	"github.com/grafana/alerting/templates"
 	"github.com/prometheus/alertmanager/template"
+
+	"github.com/grafana/alerting/templates"
 )
 
 type TestTemplatesConfigBodyParams struct {
@@ -115,45 +115,11 @@ func (am *GrafanaAlertmanager) GetTemplate() (*template.Template, error) {
 
 	am.reloadConfigMtx.RUnlock()
 
-	tmpl, err := templateFromContent(tmpls, am.ExternalURL())
+	tmpl, err := templates.TemplateFromContent(tmpls, am.ExternalURL())
 	if err != nil {
 		return nil, err
 	}
 
-	return tmpl, nil
-}
-
-// parseTestTemplate parses the test template and returns the top-level definitions that should be interpolated as results.
-func parseTestTemplate(name string, text string) ([]string, error) {
-	tmpl, err := templates.NewRawTemplate()
-	if err != nil {
-		return nil, err
-	}
-
-	tmpl, err = tmpl.New(name).Parse(text)
-	if err != nil {
-		return nil, err
-	}
-
-	topLevel, err := templates.TopTemplates(tmpl)
-	if err != nil {
-		return nil, err
-	}
-
-	return topLevel, nil
-}
-
-// TemplateFromContent returns a *Template based on defaults and the provided template contents.
-func templateFromContent(tmpls []string, externalURL string, options ...template.Option) (*templates.Template, error) {
-	tmpl, err := templates.FromContent(tmpls, options...)
-	if err != nil {
-		return nil, err
-	}
-	extURL, err := url.Parse(externalURL)
-	if err != nil {
-		return nil, err
-	}
-	tmpl.ExternalURL = extURL
 	return tmpl, nil
 }
 

@@ -446,7 +446,7 @@ func TestReceivers(
 	now := time.Now() // The start time of the test
 	testAlert := newTestAlert(c, now, now)
 
-	tmpl, err := templateFromContent(tmpls, externalURL)
+	tmpl, err := templates.TemplateFromContent(tmpls, externalURL)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get template: %w", err)
 	}
@@ -540,7 +540,7 @@ func TestReceivers(
 }
 
 func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []templates.TemplateDefinition, externalURL string, logger log.Logger) (*TestTemplatesResults, error) {
-	definitions, err := parseTestTemplate(c.Name, c.Template)
+	definitions, err := templates.ParseTestTemplate(c.Name, c.Template)
 	if err != nil {
 		return &TestTemplatesResults{
 			Errors: []TestTemplatesErrorResult{{
@@ -573,7 +573,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 	var captureTemplate template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
 		newTextTmpl = text
 	}
-	newTmpl, err := templateFromContent(templateContents, externalURL, captureTemplate)
+	newTmpl, err := templates.TemplateFromContent(templateContents, externalURL, captureTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -659,7 +659,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 		seen[tc.Name] = struct{}{}
 	}
 
-	tmpl, err := templateFromContent(tmpls, am.ExternalURL())
+	tmpl, err := templates.TemplateFromContent(tmpls, am.ExternalURL())
 	if err != nil {
 		return err
 	}
