@@ -158,19 +158,6 @@ func addFuncs(text *tmpltext.Template, html *tmplhtml.Template) {
 	html.Funcs(funcs)
 }
 
-func newRawTemplate(options ...template.Option) (*tmpltext.Template, error) {
-	var tmpl *tmpltext.Template
-	var capture template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
-		tmpl = text
-	}
-
-	_, err := template.New(append(defaultOptionsPerKind[GrafanaTemplateKind], append(options, capture)...)...)
-	if err != nil {
-		return nil, err
-	}
-	return tmpl, nil
-}
-
 // FromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
 func FromContent(tmpls []string, options ...template.Option) (*Template, error) {
 	t, err := template.New(append(defaultOptionsPerKind[GrafanaTemplateKind], options...)...)

@@ -2,6 +2,7 @@ package templates
 
 import (
 	"fmt"
+	tmplhtml "html/template"
 	"net/url"
 	"sort"
 	tmpltext "text/template"
@@ -112,7 +113,12 @@ func checkNode(node parse.Node, executedTmpls map[string]struct{}) {
 
 // ParseTestTemplate parses the test template and returns the top-level definitions that should be interpolated as results.
 func ParseTestTemplate(name string, text string) ([]string, error) {
-	tmpl, err := newRawTemplate()
+	var tmpl *tmpltext.Template
+	var capture template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
+		tmpl = text
+	}
+
+	_, err := template.New(append(defaultOptionsPerKind[GrafanaTemplateKind], capture)...)
 	if err != nil {
 		return nil, err
 	}
