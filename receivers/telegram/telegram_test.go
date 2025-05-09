@@ -17,7 +17,7 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
-	images2 "github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
@@ -25,7 +25,7 @@ import (
 
 func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
-	images := images2.NewFakeProviderWithFile(t, 2)
+	provider := images.NewFakeProviderWithFile(t, 2)
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
@@ -77,7 +77,7 @@ func TestNotify(t *testing.T) {
 			}},
 			expMsgError: nil,
 		}, {
-			name: "Multiple alerts with custom template",
+			name: "Multiple alerts with same name and custom template",
 			settings: Config{
 				BotToken:  "abcdefgh0123456789",
 				ChatID:    "someid",
@@ -94,7 +94,7 @@ func TestNotify(t *testing.T) {
 				}, {
 					Alert: model.Alert{
 						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
-						Annotations: model.LabelSet{"ann1": "annv2", "__alertImageToken__": "test-image-2"},
+						Annotations: model.LabelSet{"ann1": "annv2", "__alertImageToken__": "test-image-1"},
 					},
 				},
 			},
@@ -102,6 +102,59 @@ func TestNotify(t *testing.T) {
 				"chat_id":    "someid",
 				"parse_mode": "HTML",
 				"text":       "__Custom Firing__\n2 Firing\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+			}, {
+				"chat_id": "someid",
+				"photo":   image1Name,
+			}, {
+				"chat_id": "someid",
+				"photo":   image1Name,
+			}},
+			expMsgError: nil,
+			expImages:   2,
+		}, {
+			name: "Multiple alerts with different name",
+			settings: Config{
+				BotToken:  "abcdefgh0123456789",
+				ChatID:    "someid",
+				Message:   templates.DefaultMessageEmbed,
+				ParseMode: DefaultTelegramParseMode,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1", "__alertImageToken__": "test-image-1"},
+						GeneratorURL: "a URL",
+					},
+				}, {
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+						Annotations: model.LabelSet{"ann1": "annv2", "__alertImageToken__": "test-image-2"},
+					},
+				},
+			},
+			expMsg: []map[string]string{{
+				"chat_id":    "someid",
+				"parse_mode": "HTML",
+				"text": `**Firing**
+
+Value: [no value]
+Labels:
+ - alertname = alert1
+ - lbl1 = val1
+Annotations:
+ - ann1 = annv1
+Source: a URL
+Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1
+
+Value: [no value]
+Labels:
+ - alertname = alert2
+ - lbl1 = val2
+Annotations:
+ - ann1 = annv2
+Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert2&matcher=lbl1%3Dval2
+`,
 			}, {
 				"chat_id": "someid",
 				"photo":   image1Name,
@@ -150,7 +203,7 @@ func TestNotify(t *testing.T) {
 				ns:       notificationService,
 				tmpl:     tmpl,
 				settings: c.settings,
-				images:   images,
+				images:   provider,
 			}
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
