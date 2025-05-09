@@ -32,6 +32,10 @@ func NewFakeProviderWithFile(t *testing.T, n int) Provider {
 	return NewTokenProvider(NewFakeTokenStoreWithFile(t, n), &logging.FakeLogger{})
 }
 
+func NewFakeProviderWithStore(s TokenStore) Provider {
+	return NewTokenProvider(s, &logging.FakeLogger{})
+}
+
 func NewFakeTokenStoreFromImages(images map[string]*Image) *FakeTokenStore {
 	return &FakeTokenStore{Images: images}
 }
