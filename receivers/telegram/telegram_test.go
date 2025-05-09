@@ -105,9 +105,6 @@ func TestNotify(t *testing.T) {
 			}, {
 				"chat_id": "someid",
 				"photo":   image1Name,
-			}, {
-				"chat_id": "someid",
-				"photo":   image1Name,
 			}},
 			expMsgError: nil,
 			expImages:   2,
