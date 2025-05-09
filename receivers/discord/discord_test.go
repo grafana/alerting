@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -493,6 +494,151 @@ func TestNotify_WithImages(t *testing.T) {
 							"url": "attachment://" + imageWithoutURLContent.Name,
 						},
 						"title": "alert1",
+						"color": 1.4037554e+07,
+					}},
+				"username": "Grafana",
+			},
+			expMsgError: nil,
+			expBytes:    imageWithoutURLContent.Content,
+		},
+		{
+			name: "Default config with two alerts with same name, and image without URL",
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            templates.DefaultMessageEmbed,
+				AvatarURL:          "",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{models.ImageTokenAnnotation: model.LabelValue("test-token-no-url")},
+						EndsAt:      time.Now().Add(-1 * time.Second),
+					},
+				},
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2"},
+						Annotations: model.LabelSet{models.ImageTokenAnnotation: model.LabelValue("test-token-no-url")},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"content": `**Firing**
+
+Value: [no value]
+Labels:
+ - alertname = alert1
+ - lbl1 = val2
+Annotations:
+Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2
+
+
+**Resolved**
+
+Value: [no value]
+Labels:
+ - alertname = alert1
+ - lbl1 = val1
+Annotations:
+Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1
+`,
+				"embeds": []interface{}{
+					map[string]interface{}{
+						"color": 1.4037554e+07,
+						"footer": map[string]interface{}{
+							"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+							"text":     "Grafana v" + appVersion,
+						},
+						"title": "[FIRING:1]  ",
+						"url":   "http://localhost/alerting/list",
+						"type":  "rich",
+					},
+					map[string]interface{}{
+						"image": map[string]interface{}{
+							"url": "attachment://" + imageWithoutURLContent.Name,
+						},
+						"title": "alert1",
+						"color": 1.4037554e+07,
+					},
+					map[string]interface{}{
+						"image": map[string]interface{}{
+							"url": "attachment://" + imageWithoutURLContent.Name,
+						},
+						"title": "alert1",
+						"color": 1.4037554e+07,
+					}},
+				"username": "Grafana",
+			},
+			expMsgError: nil,
+			expBytes:    imageWithoutURLContent.Content,
+		},
+		{
+			name: "Default config with two alerts with different name, and same image without URL",
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            templates.DefaultMessageEmbed,
+				AvatarURL:          "",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "val22", models.ImageTokenAnnotation: model.LabelValue("test-token-no-url")},
+					},
+				},
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+						Annotations: model.LabelSet{models.ImageTokenAnnotation: model.LabelValue("test-token-no-url")},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"content": `**Firing**
+
+Value: [no value]
+Labels:
+ - alertname = alert1
+ - lbl1 = val1
+Annotations:
+ - ann1 = val22
+Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1
+
+Value: [no value]
+Labels:
+ - alertname = alert2
+ - lbl1 = val2
+Annotations:
+Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert2&matcher=lbl1%3Dval2
+`,
+				"embeds": []interface{}{
+					map[string]interface{}{
+						"color": 1.4037554e+07,
+						"footer": map[string]interface{}{
+							"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+							"text":     "Grafana v" + appVersion,
+						},
+						"title": "[FIRING:2]  ",
+						"url":   "http://localhost/alerting/list",
+						"type":  "rich",
+					},
+					map[string]interface{}{
+						"image": map[string]interface{}{
+							"url": "attachment://" + imageWithoutURLContent.Name,
+						},
+						"title": "alert1",
+						"color": 1.4037554e+07,
+					},
+					map[string]interface{}{
+						"image": map[string]interface{}{
+							"url": "attachment://" + imageWithoutURLContent.Name,
+						},
+						"title": "alert2",
 						"color": 1.4037554e+07,
 					}},
 				"username": "Grafana",
