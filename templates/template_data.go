@@ -33,7 +33,25 @@ type Data = template.Data
 
 var (
 	// Provides current time. Can be overwritten in tests.
-	timeNow = time.Now
+	timeNow               = time.Now
+	defaultOptionsPerKind = map[Kind][]template.Option{
+		GrafanaTemplateKind: {
+			addFuncs,
+		},
+	}
+	defaultTemplatesPerKind = map[Kind][]string{
+		GrafanaTemplateKind: {
+			DefaultTemplateString,
+		},
+	}
+)
+
+// Kind represents the type or category of a template. It is used to differentiate between various template kinds.
+type Kind string
+
+const (
+	GrafanaTemplateKind    Kind = "grafana"
+	PrometheusTemplateKind Kind = "prometheus"
 )
 
 type TemplateDefinition struct {
@@ -141,7 +159,7 @@ func addFuncs(text *tmpltext.Template, html *tmplhtml.Template) {
 }
 
 func newTemplate(options ...template.Option) (*Template, error) {
-	return template.New(append([]template.Option{addFuncs}, options...)...)
+	return template.New(append(defaultOptionsPerKind[GrafanaTemplateKind], options...)...)
 }
 
 func newRawTemplate(options ...template.Option) (*tmpltext.Template, error) {
@@ -178,14 +196,8 @@ func FromContent(tmpls []string, options ...template.Option) (*Template, error) 
 		f.Close()
 	}
 
-	// Parse default template string.
-	err = t.Parse(strings.NewReader(DefaultTemplateString))
-	if err != nil {
-		return nil, err
-	}
-
 	// Parse all provided templates.
-	for _, tc := range tmpls {
+	for _, tc := range append(defaultTemplatesPerKind[GrafanaTemplateKind], tmpls...) {
 		err := t.Parse(strings.NewReader(tc))
 		if err != nil {
 			return nil, err
