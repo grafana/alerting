@@ -562,13 +562,6 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 						},
 						"title": "alert1",
 						"color": 1.4037554e+07,
-					},
-					map[string]interface{}{
-						"image": map[string]interface{}{
-							"url": "attachment://" + imageWithoutURLContent.Name,
-						},
-						"title": "alert1",
-						"color": 1.4037554e+07,
 					}},
 				"username": "Grafana",
 			},
