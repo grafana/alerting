@@ -72,7 +72,6 @@ func NewFakeTokenStoreWithFile(t *testing.T, n int) *FakeTokenStore {
 	for i := 1; i <= n; i++ {
 		token := fmt.Sprintf("test-image-%d", i)
 		p.Images[token] = &Image{
-			URL: fmt.Sprintf("https://www.example.com/test-image-%d", i),
 			ID: token,
 			RawData: func(_ context.Context) (ImageContent, error) {
 				return ImageContent{
