@@ -112,7 +112,7 @@ func checkNode(node parse.Node, executedTmpls map[string]struct{}) {
 
 // ParseTestTemplate parses the test template and returns the top-level definitions that should be interpolated as results.
 func ParseTestTemplate(name string, text string) ([]string, error) {
-	tmpl, err := NewRawTemplate()
+	tmpl, err := newRawTemplate()
 	if err != nil {
 		return nil, err
 	}
