@@ -59,6 +59,8 @@ type TemplateDefinition struct {
 	Name string
 	// Template string that contains the template text.
 	Template string
+	// Kind of the template. Determines which base templates and functions are available.
+	Kind Kind
 }
 
 type ExtendedAlert struct {
@@ -145,6 +147,7 @@ func DefaultTemplate(options ...template.Option) (TemplateDefinition, error) {
 	return TemplateDefinition{
 		Name:     DefaultTemplateName,
 		Template: combinedTemplate.String(),
+		Kind:     GrafanaTemplateKind,
 	}, nil
 }
 
