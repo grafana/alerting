@@ -68,6 +68,10 @@ type ClusterPeer interface {
 	WaitReady(context.Context) error
 }
 
+type TemplatesProvider interface {
+	GetTemplate(kind templates.Kind) (*templates.Template, error)
+}
+
 type GrafanaAlertmanager struct {
 	opts   GrafanaAlertmanagerOpts
 	logger log.Logger
@@ -469,17 +473,11 @@ func newTestReceiversResult(alert types.Alert, results []result, receivers []*AP
 func TestReceivers(
 	ctx context.Context,
 	c TestReceiversConfigBodyParams,
-	tmpls []templates.TemplateDefinition,
-	buildIntegrationsFunc func(*APIReceiver, *template.Template) ([]*nfstatus.Integration, error),
-	externalURL string, logger log.Logger) (*TestReceiversResult, int, error) {
+	buildIntegrationsFunc func(*APIReceiver, TemplatesProvider) ([]*nfstatus.Integration, error),
+	tmplProvider TemplatesProvider) (*TestReceiversResult, int, error) {
 
 	now := time.Now() // The start time of the test
 	testAlert := newTestAlert(c, now, now)
-
-	tmpl, err := templates.TemplateFromTemplateDefinitions(tmpls, logger, externalURL)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get template: %w", err)
-	}
 
 	// All invalid receiver configurations
 	invalid := make([]result, 0, len(c.Receivers))
@@ -495,7 +493,7 @@ func TestReceivers(
 					Integrations: []*GrafanaIntegrationConfig{intg},
 				},
 			}
-			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmpl)
+			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmplProvider)
 			if err != nil || len(integrations) == 0 {
 				invalid = append(invalid, result{
 					Config:       intg,
@@ -553,7 +551,7 @@ func TestReceivers(
 		})
 	}
 
-	err = g.Wait()
+	err := g.Wait()
 	close(resultCh)
 
 	if err != nil {
@@ -685,7 +683,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 	am.templates = make([]templates.TemplateDefinition, len(cfg.Templates))
 	copy(am.templates, cfg.Templates)
 
-	tmpl, err := templates.TemplateFromTemplateDefinitions(am.templates, am.logger, am.ExternalURL())
+	cache, err := templates.NewCachedFactory(am.templates, am.logger, am.ExternalURL())
 	if err != nil {
 		return err
 	}
@@ -705,7 +703,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 	}
 	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
 	for name, apiReceiver := range nameToReceiver {
-		integrations, err := am.buildReceiverIntegrations(apiReceiver, tmpl)
+		integrations, err := am.buildReceiverIntegrations(apiReceiver, cache)
 		if err != nil {
 			return err
 		}
@@ -942,10 +940,14 @@ func (am *GrafanaAlertmanager) tenantString() string {
 	return fmt.Sprintf("%d", am.opts.TenantID)
 }
 
-func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpl *templates.Template) ([]*Integration, error) {
+func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpls TemplatesProvider) ([]*Integration, error) {
 	receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, am.opts.Decrypter)
 	if err != nil {
 		return nil, err
+	}
+	tmpl, err := tmpls.GetTemplate(templates.GrafanaKind)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Grafana template: %w", err)
 	}
 	integrations := BuildReceiverIntegrations(
 		receiverCfg,
