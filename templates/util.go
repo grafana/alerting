@@ -111,18 +111,24 @@ func checkNode(node parse.Node, executedTmpls map[string]struct{}) {
 }
 
 // ParseTestTemplate parses the test template and returns the top-level definitions that should be interpolated as results.
-func ParseTestTemplate(name string, text string) ([]string, error) {
+// If TemplateDefinition.Kind is not known, GrafanaKind is assumed
+func ParseTestTemplate(def TemplateDefinition) ([]string, error) {
 	var tmpl *tmpltext.Template
 	var capture template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
 		tmpl = text
 	}
 
-	_, err := template.New(append(defaultOptionsPerKind(GrafanaKind), capture)...)
+	kind := def.Kind
+	if !IsKnownKind(kind) {
+		kind = GrafanaKind
+	}
+
+	_, err := template.New(append(defaultOptionsPerKind(kind), capture)...)
 	if err != nil {
 		return nil, err
 	}
 
-	tmpl, err = tmpl.New(name).Parse(text)
+	tmpl, err = tmpl.New(def.Name).Parse(def.Template)
 	if err != nil {
 		return nil, err
 	}
