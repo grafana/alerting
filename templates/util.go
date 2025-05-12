@@ -11,7 +11,7 @@ import (
 	"github.com/prometheus/alertmanager/template"
 )
 
-// TopTemplates returns the name of all templates in tmpl that are not
+// topTemplates returns the name of all templates in tmpl that are not
 // executed from a {{ template "name" }} block.
 //
 // All templates in text/template have a name and some text. In most cases,
@@ -19,10 +19,10 @@ import (
 // the text is parsed when calling tmpl.Parse(text). This text can include
 // actions for the template called "name", but also define other named templates
 // using either {{ block "name" pipeline }}{{ end }} or {{ define "name" }}{{ end }}.
-// TopTemplates returns the names of all such templates, including the template
+// topTemplates returns the names of all such templates, including the template
 // "name", that are not executed from a {{ template "name" }} block and
 // "name" if name contains text other than just template definitions.
-func TopTemplates(tmpl *tmpltext.Template) ([]string, error) {
+func topTemplates(tmpl *tmpltext.Template) ([]string, error) {
 	// definedTmpls is the list of all named templates in tmpl, including tmpl.
 	definedTmpls := tmpl.Templates()
 
@@ -128,7 +128,7 @@ func ParseTestTemplate(name string, text string) ([]string, error) {
 		return nil, err
 	}
 
-	topLevel, err := TopTemplates(tmpl)
+	topLevel, err := topTemplates(tmpl)
 	if err != nil {
 		return nil, err
 	}
