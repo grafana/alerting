@@ -564,7 +564,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 	var found bool
 	templateContents := make([]templates.TemplateDefinition, 0, len(tmpls)+1)
 	for _, td := range tmpls {
-		if td.Name == c.Name {
+		if td.Name == tc.Name && td.Kind == tc.Kind {
 			// Template already exists, test with the new definition replacing the old one.
 			templateContents = append(templateContents, tc)
 			found = true
@@ -583,10 +583,11 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 	var captureTemplate template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
 		newTextTmpl = text
 	}
-	newTmpl, err := templates.TemplateFromTemplateDefinitions(templateContents, log.NewNopLogger(), externalURL, captureTemplate)
+	factory, err := templates.NewFactory(templateContents, log.NewNopLogger(), externalURL)
 	if err != nil {
 		return nil, err
 	}
+	newTmpl, err := factory.NewTemplate(tc.Kind, captureTemplate)
 
 	// Prepare the context.
 	alerts := OpenAPIAlertsToAlerts(c.Alerts)
