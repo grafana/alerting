@@ -97,18 +97,17 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 	return TestTemplate(ctx, c, tmpls, am.ExternalURL(), am.logger)
 }
 
-func (am *GrafanaAlertmanager) GetTemplate() (*template.Template, error) {
+func (am *GrafanaAlertmanager) GetTemplate(kind templates.Kind) (*template.Template, error) {
 	am.reloadConfigMtx.RLock()
 	tmpls := make([]templates.TemplateDefinition, len(am.templates))
 	copy(tmpls, am.templates)
 	am.reloadConfigMtx.RUnlock()
 
-	tmpl, err := templates.TemplateFromTemplateDefinitions(tmpls, am.logger, am.ExternalURL())
+	tmpl, err := templates.NewFactory(tmpls, am.logger, am.ExternalURL())
 	if err != nil {
 		return nil, err
 	}
-
-	return tmpl, nil
+	return tmpl.NewTemplate(kind)
 }
 
 // testTemplateScopes tests the given template with the root scope. If the root scope fails, it tries
