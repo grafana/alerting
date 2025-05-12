@@ -150,7 +150,7 @@ func TemplateFromTemplateDefinitions(templates []TemplateDefinition, logger log.
 		tmpls = append(tmpls, tc.Template)
 		seen[tc.Name] = struct{}{}
 	}
-	
+
 	tmpl, err := fromContent(append(defaultTemplatesPerKind[GrafanaTemplateKind], tmpls...), append(defaultOptionsPerKind[GrafanaTemplateKind], options...)...)
 	if err != nil {
 		return nil, err
