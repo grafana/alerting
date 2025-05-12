@@ -544,11 +544,13 @@ func TestReceivers(
 }
 
 func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []templates.TemplateDefinition, externalURL string, logger log.Logger) (*TestTemplatesResults, error) {
-
 	tc := templates.TemplateDefinition{
 		Name:     c.Name,
 		Template: c.Template,
-		Kind:     templates.GrafanaTemplateKind,
+		Kind:     c.Kind,
+	}
+	if tc.Kind == "" {
+		tc.Kind = templates.GrafanaTemplateKind
 	}
 
 	definitions, err := templates.ParseTestTemplate(tc)
