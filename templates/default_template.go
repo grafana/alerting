@@ -200,7 +200,7 @@ Labels:
 `
 
 func ForTests(t *testing.T) *Template {
-	tmpl, err := fromContent([]string{TemplateForTestsString})
+	tmpl, err := fromContent(append(defaultTemplatesPerKind[GrafanaTemplateKind], TemplateForTestsString), defaultOptionsPerKind[GrafanaTemplateKind]...)
 	require.NoError(t, err)
 	externalURL, err := url.Parse("http://test.com")
 	require.NoError(t, err)

@@ -138,7 +138,7 @@ func ParseTestTemplate(name string, text string) ([]string, error) {
 
 // TemplateFromContent returns a *Template based on defaults and the provided template contents.
 func TemplateFromContent(tmpls []string, externalURL string, options ...template.Option) (*Template, error) {
-	tmpl, err := fromContent(tmpls, options...)
+	tmpl, err := fromContent(append(defaultTemplatesPerKind[GrafanaTemplateKind], tmpls...), append(defaultOptionsPerKind[GrafanaTemplateKind], options...)...)
 	if err != nil {
 		return nil, err
 	}

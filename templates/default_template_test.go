@@ -8,11 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/alertmanager/template"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/alerting/models"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/models"
 
 	"github.com/grafana/alerting/logging"
 )
@@ -129,7 +131,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	alert1Dashboard := fmt.Sprintf("http://localhost/grafana/d/dbuid123?from=%d&orgId=1&to=%d", alerts[0].StartsAt.Add(-time.Hour).UnixMilli(), constNow.UnixMilli())         // Firing.
 	alert4Dashboard := fmt.Sprintf("http://localhost/grafana/d/dbuid456?from=%d&orgId=1&to=%d", alerts[3].StartsAt.Add(-time.Hour).UnixMilli(), alerts[3].EndsAt.UnixMilli()) // Resolved.
 
-	tmpl, err := fromContent(nil)
+	tmpl, err := fromContent(defaultTemplatesPerKind[GrafanaTemplateKind], defaultOptionsPerKind[GrafanaTemplateKind]...)
 	require.NoError(t, err)
 
 	externalURL, err := url.Parse("http://localhost/grafana")
