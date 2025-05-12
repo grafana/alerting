@@ -568,11 +568,13 @@ func TestReceivers(
 }
 
 func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []templates.TemplateDefinition, externalURL string, logger log.Logger) (*TestTemplatesResults, error) {
-
 	tc := templates.TemplateDefinition{
 		Name:     c.Name,
 		Template: c.Template,
-		Kind:     templates.GrafanaKind,
+		Kind:     c.Kind,
+	}
+	if !templates.IsKnownKind(tc.Kind) {
+		tc.Kind = templates.GrafanaKind
 	}
 
 	definitions, err := templates.ParseTemplateDefinition(tc)
