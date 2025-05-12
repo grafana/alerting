@@ -583,6 +583,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 	tc := templates.TemplateDefinition{
 		Name:     c.Name,
 		Template: c.Template,
+		Kind:     templates.GrafanaKind,
 	}
 
 	// Recreate the current template replacing the definition blocks that are being tested. This is so that any blocks that were removed don't get defined.

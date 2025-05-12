@@ -374,6 +374,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.default.title" . }}{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: nil,
 		expected: TestTemplatesResults{
@@ -390,10 +391,12 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "existing" . }}{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "existing",
 			Template: `{{ define "existing" }}Some existing template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
@@ -409,10 +412,12 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}New template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
@@ -428,10 +433,12 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.alternate_title" . }}{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: nil,
@@ -447,10 +454,12 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.alternate_title" . }}{{ end }}{{ define "slack.alternate_title" }}Some new alternate template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
