@@ -591,6 +591,9 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 		return nil, err
 	}
 	newTmpl, err := factory.NewTemplate(tc.Kind, captureTemplate)
+	if err != nil {
+		return nil, err
+	}
 
 	// Prepare the context.
 	alerts := OpenAPIAlertsToAlerts(c.Alerts)
