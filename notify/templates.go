@@ -19,6 +19,9 @@ type TestTemplatesConfigBodyParams struct {
 
 	// Name of the template.
 	Name string
+
+	// Kind of template to test. Default is Grafana
+	Kind templates.Kind
 }
 
 type TestTemplatesResults struct {
