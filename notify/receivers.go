@@ -39,6 +39,7 @@ import (
 	"github.com/grafana/alerting/receivers/webex"
 	"github.com/grafana/alerting/receivers/webhook"
 	"github.com/grafana/alerting/receivers/wecom"
+	"github.com/grafana/alerting/templates"
 )
 
 const (
@@ -109,10 +110,8 @@ func (e IntegrationTimeoutError) Error() string {
 func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiversConfigBodyParams) (*TestReceiversResult, int, error) {
 	am.reloadConfigMtx.RLock()
 
-	tmpls := make([]string, 0, len(am.templates))
-	for _, tc := range am.templates {
-		tmpls = append(tmpls, tc.Template)
-	}
+	tmpls := make([]templates.TemplateDefinition, 0, len(am.templates))
+	copy(tmpls, am.templates)
 
 	am.reloadConfigMtx.RUnlock()
 

@@ -8,6 +8,8 @@ import (
 	tmpltext "text/template"
 	"text/template/parse"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/alertmanager/template"
 )
 
@@ -136,8 +138,19 @@ func ParseTestTemplate(name string, text string) ([]string, error) {
 	return topLevel, nil
 }
 
-// TemplateFromContent returns a *Template based on defaults and the provided template contents.
-func TemplateFromContent(tmpls []string, externalURL string, options ...template.Option) (*Template, error) {
+// TemplateFromTemplateDefinitions returns a *Template based on defaults and the provided template contents.
+func TemplateFromTemplateDefinitions(templates []TemplateDefinition, logger log.Logger, externalURL string, options ...template.Option) (*Template, error) {
+	seen := make(map[string]struct{})
+	tmpls := make([]string, 0, len(templates))
+	for _, tc := range templates {
+		if _, ok := seen[tc.Name]; ok {
+			level.Warn(logger).Log("msg", "template with same name is defined multiple times, skipping...", "template_name", tc.Name)
+			continue
+		}
+		tmpls = append(tmpls, tc.Template)
+		seen[tc.Name] = struct{}{}
+	}
+	
 	tmpl, err := fromContent(append(defaultTemplatesPerKind[GrafanaTemplateKind], tmpls...), append(defaultOptionsPerKind[GrafanaTemplateKind], options...)...)
 	if err != nil {
 		return nil, err
