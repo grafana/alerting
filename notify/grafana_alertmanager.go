@@ -103,7 +103,7 @@ type GrafanaAlertmanager struct {
 	receivers       []*nfstatus.Receiver
 
 	// buildReceiverIntegrationsFunc builds the integrations for a receiver based on its APIReceiver configuration and the current parsed template.
-	buildReceiverIntegrationsFunc func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
+	buildReceiverIntegrationsFunc func(next *APIReceiver, tmpl TemplateProvider) ([]*Integration, error)
 	externalURL                   string
 
 	// templates contains the template name -> template contents for each user-defined template.
@@ -142,6 +142,10 @@ type Notifier = notify.Notifier
 //nolint:revive
 type NotifyReceiver = nfstatus.Receiver
 
+type TemplateProvider interface {
+	NewTemplate(kind templates.Kind, options ...template.Option) (*templates.Template, error)
+}
+
 // Configuration is an interface for accessing Alertmanager configuration.
 type Configuration interface {
 	DispatcherLimits() DispatcherLimits
@@ -150,7 +154,7 @@ type Configuration interface {
 	// Deprecated: MuteTimeIntervals are deprecated in Alertmanager and will be removed in future versions.
 	MuteTimeIntervals() []MuteTimeInterval
 	Receivers() []*APIReceiver
-	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
+	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl TemplateProvider) ([]*Integration, error)
 
 	RoutingTree() *Route
 	Templates() []templates.TemplateDefinition
@@ -440,13 +444,13 @@ func TestReceivers(
 	ctx context.Context,
 	c TestReceiversConfigBodyParams,
 	tmpls []templates.TemplateDefinition,
-	buildIntegrationsFunc func(*APIReceiver, *template.Template) ([]*nfstatus.Integration, error),
+	buildIntegrationsFunc func(*APIReceiver, TemplateProvider) ([]*nfstatus.Integration, error),
 	externalURL string) (*TestReceiversResult, int, error) {
 
 	now := time.Now() // The start time of the test
 	testAlert := newTestAlert(c, now, now)
 
-	tmpl, err := templates.TemplateFromTemplateDefinitions(tmpls, log.NewNopLogger(), externalURL)
+	tmplFactory, err := templates.NewFactory(tmpls, log.NewNopLogger(), externalURL)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get template: %w", err)
 	}
@@ -465,7 +469,7 @@ func TestReceivers(
 					Integrations: []*GrafanaIntegrationConfig{intg},
 				},
 			}
-			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmpl)
+			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmplFactory)
 			if err != nil || len(integrations) == 0 {
 				invalid = append(invalid, result{
 					Config:       intg,
@@ -654,7 +658,7 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	am.templates = cfg.Templates()
 
-	tmpl, err := templates.TemplateFromTemplateDefinitions(am.templates, am.logger, am.ExternalURL())
+	tmplFactory, err := templates.NewFactory(am.templates, am.logger, am.ExternalURL())
 	if err != nil {
 		return err
 	}
@@ -674,7 +678,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	}
 	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
 	for name, apiReceiver := range nameToReceiver {
-		integrations, err := cfg.BuildReceiverIntegrationsFunc()(apiReceiver, tmpl)
+		integrations, err := cfg.BuildReceiverIntegrationsFunc()(apiReceiver, tmplFactory)
 		if err != nil {
 			return err
 		}
