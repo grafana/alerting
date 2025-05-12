@@ -568,7 +568,14 @@ func TestReceivers(
 }
 
 func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []templates.TemplateDefinition, externalURL string, logger log.Logger) (*TestTemplatesResults, error) {
-	definitions, err := templates.ParseTestTemplate(c.Name, c.Template)
+
+	tc := templates.TemplateDefinition{
+		Name:     c.Name,
+		Template: c.Template,
+		Kind:     templates.GrafanaKind,
+	}
+
+	definitions, err := templates.ParseTemplateDefinition(tc)
 	if err != nil {
 		return &TestTemplatesResults{
 			Errors: []TestTemplatesErrorResult{{
@@ -576,12 +583,6 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 				Error: err.Error(),
 			}},
 		}, nil
-	}
-
-	tc := templates.TemplateDefinition{
-		Name:     c.Name,
-		Template: c.Template,
-		Kind:     templates.GrafanaKind,
 	}
 
 	// Recreate the current template replacing the definition blocks that are being tested. This is so that any blocks that were removed don't get defined.
@@ -612,6 +613,9 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 		return nil, err
 	}
 	newTmpl, err := factory.NewTemplate(tc.Kind, captureTemplate)
+	if err != nil {
+		return nil, err
+	}
 
 	// Prepare the context.
 	alerts := OpenAPIAlertsToAlerts(c.Alerts)
