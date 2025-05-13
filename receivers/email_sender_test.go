@@ -3,8 +3,11 @@ package receivers
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
+
+	gomail "gopkg.in/mail.v2"
 
 	"github.com/stretchr/testify/require"
 )
@@ -231,4 +234,95 @@ func TestBuildEmail(t *testing.T) {
 	str := buf.String()
 	require.Contains(t, str, mCfg.Body["text/plain"])
 	require.Contains(t, str, mCfg.Body["text/html"])
+}
+
+type mockSender struct {
+	sentTo [][]string
+	err    error
+}
+
+func (m *mockSender) Send(_ string, to []string, _ io.WriterTo) error {
+	m.sentTo = append(m.sentTo, to)
+	return m.err
+}
+func (m *mockSender) Close() error { return nil }
+
+func TestSend(t *testing.T) {
+	tests := []struct {
+		name         string
+		message      *Message
+		expectedSent [][]string
+		senderError  error
+		expectedErr  bool
+	}{
+		{
+			name:    "SingleEmail=true",
+			message: makeMsg(true, "a@b.com", "c@d.com"),
+			expectedSent: [][]string{
+				{"a@b.com", "c@d.com"},
+			},
+			expectedErr: false,
+		},
+		{
+			name:    "SingleEmail=false",
+			message: makeMsg(false, "a@b.com", "c@d.com", "e@f.com"),
+			expectedSent: [][]string{
+				{"a@b.com"},
+				{"c@d.com"},
+				{"e@f.com"},
+			},
+			expectedErr: false,
+		},
+		{
+			name:         "Send error with SingleEmail=true",
+			message:      makeMsg(true, "a@b.com", "c@d.com"),
+			senderError:  fmt.Errorf("send error"),
+			expectedSent: [][]string{{"a@b.com", "c@d.com"}},
+			expectedErr:  true,
+		},
+		{
+			name:         "Send error with SingleEmail=false",
+			message:      makeMsg(false, "a@b.com", "c@d.com"),
+			senderError:  fmt.Errorf("send error"),
+			expectedSent: [][]string{{"a@b.com"}, {"c@d.com"}},
+			expectedErr:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ms := &mockSender{err: tc.senderError}
+
+			ds := &defaultEmailSender{
+				cfg:  EmailSenderConfig{},
+				tmpl: nil,
+				dialFn: func(_ *defaultEmailSender) (gomail.SendCloser, error) {
+					return ms, nil
+				},
+			}
+
+			sentCount, err := ds.Send(tc.message)
+
+			if tc.senderError != nil {
+				require.Equal(t, 0, sentCount)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), strings.Join(tc.message.To, ";"))
+			} else {
+				require.Equal(t, len(tc.expectedSent), sentCount)
+				require.NoError(t, err)
+			}
+
+			require.ElementsMatch(t, tc.expectedSent, ms.sentTo)
+		})
+	}
+}
+
+func makeMsg(single bool, addrs ...string) *Message {
+	return &Message{
+		SingleEmail: single,
+		To:          addrs,
+		From:        "noreply@grafana.com",
+		Subject:     "Subject",
+		Body:        map[string]string{"text/plain": "body"},
+	}
 }
