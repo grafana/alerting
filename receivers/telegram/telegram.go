@@ -74,7 +74,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	// Create the cmd to upload each image
 	uploadedImages := make(map[string]struct{})
 	_ = images.WithStoredImages(ctx, tn.log, tn.images, func(_ int, image images.Image) error {
-		if _, ok := uploadedImages[image.ID]; ok {
+		if _, ok := uploadedImages[image.ID]; ok && image.ID != "" { // Do not deduplicate if ID is not specified.
 			return nil
 		}
 		cmd, err = tn.newWebhookSyncCmd("sendPhoto", func(w *multipart.Writer) error {

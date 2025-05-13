@@ -62,7 +62,7 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 			if image.HasURL() {
 				data.Alerts[index].ImageURL = image.URL
 			} else {
-				if name, ok := seenContent[image.ID]; ok {
+				if name, ok := seenContent[image.ID]; ok && image.ID != "" { // If ID is not specified, do not deduplicate.
 					data.Alerts[index].EmbeddedImage = name
 					// Don't add the same image twice.
 					return nil
