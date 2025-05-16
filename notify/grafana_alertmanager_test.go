@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/prometheus/common/model"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/images"
@@ -621,6 +622,43 @@ func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
         	            	grafana_alerting_alertmanager_receivers{org="1",state="active"} 2
         	            	grafana_alerting_alertmanager_receivers{org="1",state="inactive"} 2
 `), "grafana_alerting_alertmanager_receivers", "grafana_alerting_alertmanager_integrations"))
+}
+
+func TestNewGrafanaAlertmanager(t *testing.T) {
+	reg := prometheus.NewPedanticRegistry()
+
+	opts := GrafanaAlertmanagerOpts{
+		Silences: newFakeMaintanenceOptions(t),
+		Nflog:    newFakeMaintanenceOptions(t),
+
+		TenantKey:     "org",
+		TenantID:      1,
+		Peer:          &NilPeer{},
+		Logger:        log.NewNopLogger(),
+		Metrics:       NewGrafanaAlertmanagerMetrics(reg, log.NewNopLogger()),
+		EmailSender:   receivers.MockNotificationService(),
+		ImageProvider: images.NewFakeProvider(1),
+		Decrtypter:    NoopDecrypt,
+		LoggerFactory: func(_ string, _ ...interface{}) logging.Logger {
+			return logging.FakeLogger{}
+		},
+	}
+
+	require.NoError(t, opts.Validate())
+
+	am, err := NewGrafanaAlertmanager(opts)
+	require.NoError(t, err)
+
+	assert.Equal(t, opts.TenantID, am.tenantID)
+	assert.Equal(t, opts.Peer, am.peer)
+	assert.Equal(t, opts.Metrics, am.Metrics)
+	assert.Equal(t, opts.EmailSender, am.emailSender)
+	assert.Equal(t, opts.ImageProvider, am.imageProvider)
+	assert.NotNil(t, opts.Decrtypter)
+	assert.NotNil(t, opts.LoggerFactory)
+	assert.NotNil(t, am.silences)
+	assert.NotNil(t, am.notificationLog)
+	assert.NotNil(t, am.alerts)
 }
 
 // Tests cleanup of expired Silences. We rely on prometheus/alertmanager for

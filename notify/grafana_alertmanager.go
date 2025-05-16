@@ -257,6 +257,8 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		loggerFactory:     opts.LoggerFactory,
 		decrtypter:        opts.Decrtypter,
 		version:           opts.Version,
+		emailSender:       opts.EmailSender,
+		imageProvider:     opts.ImageProvider,
 	}
 
 	var err error
