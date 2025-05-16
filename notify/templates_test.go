@@ -394,6 +394,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "existing",
 			Template: `{{ define "existing" }}Some existing template{{ end }}`,
+			Kind:     templates.GrafanaTemplateKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
@@ -413,6 +414,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}`,
+			Kind:     templates.GrafanaTemplateKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
@@ -432,6 +434,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+			Kind:     templates.GrafanaTemplateKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: nil,
@@ -451,6 +454,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+			Kind:     templates.GrafanaTemplateKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{

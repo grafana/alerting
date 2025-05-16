@@ -59,6 +59,24 @@ type TemplateDefinition struct {
 	Name string
 	// Template string that contains the template text.
 	Template string
+	// Kind of the template. Determines which base templates and functions are available.
+	Kind Kind
+}
+
+func (t TemplateDefinition) Validate() error {
+	if t.Kind == "" {
+		return fmt.Errorf("template kind is required")
+	}
+	// Validate template contents. We try to stick as close to what will actually happen when the templates are parsed
+	// by the alertmanager as possible.
+	tmpl, err := template.New(defaultOptionsPerKind[t.Kind]...)
+	if err != nil {
+		return fmt.Errorf("failed to create template: %w", err)
+	}
+	if err := tmpl.Parse(strings.NewReader(t.Template)); err != nil {
+		return fmt.Errorf("invalid template: %w", err)
+	}
+	return nil
 }
 
 type ExtendedAlert struct {
@@ -145,6 +163,7 @@ func DefaultTemplate(options ...template.Option) (TemplateDefinition, error) {
 	return TemplateDefinition{
 		Name:     DefaultTemplateName,
 		Template: combinedTemplate.String(),
+		Kind:     GrafanaTemplateKind,
 	}, nil
 }
 

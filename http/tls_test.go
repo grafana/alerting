@@ -27,7 +27,7 @@ func Test_NewTLSClient(t *testing.T) {
 
 	for _, tt := range tc {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewTLSClient(tt.cfg)
+			c := NewTLSClient(tt.cfg, nil)
 			require.Equal(t, tt.expCfg, c.Transport.(*http.Transport).TLSClientConfig)
 		})
 	}

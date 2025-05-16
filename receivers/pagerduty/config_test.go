@@ -140,8 +140,8 @@ func TestNewConfig(t *testing.T) {
 				Summary:   "test-summary",
 				Source:    "test-source",
 				Client:    "test-client",
-				ClientURL: "test-client-url",
-				URL:       "test-api-url",
+				ClientURL: "http://localhost/test-client-url",
+				URL:       "http://localhost/test-api-url",
 			},
 		},
 		{
@@ -158,8 +158,8 @@ func TestNewConfig(t *testing.T) {
 				Summary:   "test-summary",
 				Source:    "test-source",
 				Client:    "test-client",
-				ClientURL: "test-client-url",
-				URL:       "test-api-url",
+				ClientURL: "http://localhost/test-client-url",
+				URL:       "http://localhost/test-api-url",
 			},
 		},
 		{
