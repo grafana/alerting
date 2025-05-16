@@ -35,8 +35,11 @@ import (
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/cluster"
+	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/notify/stages"
+	"github.com/grafana/alerting/receivers"
 
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/templates"
@@ -102,12 +105,17 @@ type GrafanaAlertmanager struct {
 	config          []byte
 	receivers       []*nfstatus.Receiver
 
-	// buildReceiverIntegrationsFunc builds the integrations for a receiver based on its APIReceiver configuration and the current parsed template.
-	buildReceiverIntegrationsFunc func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
-	externalURL                   string
+	externalURL string
 
 	// templates contains the template name -> template contents for each user-defined template.
 	templates []templates.TemplateDefinition
+
+	emailSender   receivers.EmailSender
+	imageProvider images.Provider
+	decrtypter    GetDecryptedValueFn
+	loggerFactory logging.LoggerFactory
+
+	version string
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -142,21 +150,18 @@ type Notifier = notify.Notifier
 //nolint:revive
 type NotifyReceiver = nfstatus.Receiver
 
-// Configuration is an interface for accessing Alertmanager configuration.
-type Configuration interface {
-	DispatcherLimits() DispatcherLimits
-	InhibitRules() []InhibitRule
-	TimeIntervals() []TimeInterval
-	// Deprecated: MuteTimeIntervals are deprecated in Alertmanager and will be removed in future versions.
-	MuteTimeIntervals() []MuteTimeInterval
-	Receivers() []*APIReceiver
-	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
+type NotificationsConfiguration struct {
+	RoutingTree       *Route
+	InhibitRules      []InhibitRule
+	MuteTimeIntervals []MuteTimeInterval
+	TimeIntervals     []TimeInterval
+	Templates         []templates.TemplateDefinition
+	Receivers         []*APIReceiver
 
-	RoutingTree() *Route
-	Templates() []templates.TemplateDefinition
+	DispatcherLimits DispatcherLimits
 
-	Hash() [16]byte
-	Raw() []byte
+	Raw  []byte
+	Hash [16]byte
 }
 
 type Limits struct {
@@ -173,6 +178,13 @@ type GrafanaAlertmanagerConfig struct {
 	Nflog    MaintenanceOptions
 
 	Limits Limits
+
+	EmailSender   receivers.EmailSender
+	ImageProvider images.Provider
+	Decrtypter    GetDecryptedValueFn
+	LoggerFactory logging.LoggerFactory
+
+	Version string
 }
 
 func (c *GrafanaAlertmanagerConfig) Validate() error {
@@ -184,12 +196,27 @@ func (c *GrafanaAlertmanagerConfig) Validate() error {
 		return errors.New("notification log maintenance options must be present")
 	}
 
+	if c.EmailSender == nil {
+		return errors.New("email sender must be present")
+	}
+
+	if c.ImageProvider == nil {
+		return errors.New("image provider must be present")
+	}
+
+	if c.Decrtypter == nil {
+		return errors.New("decrtypter must be present")
+	}
+
+	if c.LoggerFactory == nil {
+		return errors.New("logger factory must be present")
+	}
+
 	return nil
 }
 
 // NewGrafanaAlertmanager creates a new Grafana-specific Alertmanager.
 func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAlertmanagerConfig, peer ClusterPeer, logger log.Logger, m *GrafanaAlertmanagerMetrics) (*GrafanaAlertmanager, error) {
-	// TODO: Remove the context.
 	am := &GrafanaAlertmanager{
 		stopc:             make(chan struct{}),
 		logger:            log.With(logger, "component", "alertmanager", tenantKey, tenantID),
@@ -645,8 +672,9 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 
 // ApplyConfig applies a new configuration by re-initializing all components using the configuration provided.
 // It is not safe to call concurrently.
-func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
-	am.templates = cfg.Templates()
+func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err error) {
+	am.templates = make([]templates.TemplateDefinition, len(cfg.Templates))
+	copy(am.templates, cfg.Templates)
 
 	seen := make(map[string]struct{})
 	tmpls := make([]string, 0, len(am.templates))
@@ -665,7 +693,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	}
 
 	// Finally, build the integrations map using the receiver configuration and templates.
-	apiReceivers := cfg.Receivers()
+	apiReceivers := cfg.Receivers
 	nameToReceiver := make(map[string]*APIReceiver, len(apiReceivers))
 	for _, receiver := range apiReceivers {
 		if existing, ok := nameToReceiver[receiver.Name]; ok {
@@ -679,7 +707,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	}
 	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
 	for name, apiReceiver := range nameToReceiver {
-		integrations, err := cfg.BuildReceiverIntegrationsFunc()(apiReceiver, tmpl)
+		integrations, err := am.buildReceiverIntegrations(apiReceiver, tmpl)
 		if err != nil {
 			return err
 		}
@@ -696,8 +724,8 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 		am.dispatcher.Stop()
 	}
 
-	am.inhibitor = inhibit.NewInhibitor(am.alerts, cfg.InhibitRules(), am.marker, am.logger)
-	am.timeIntervals = am.buildTimeIntervals(cfg.TimeIntervals(), cfg.MuteTimeIntervals())
+	am.inhibitor = inhibit.NewInhibitor(am.alerts, cfg.InhibitRules, am.marker, am.logger)
+	am.timeIntervals = am.buildTimeIntervals(cfg.TimeIntervals, cfg.MuteTimeIntervals)
 	am.silencer = silence.NewSilencer(am.silences, am.marker, am.logger)
 
 	meshStage := notify.NewGossipSettleStage(am.peer)
@@ -707,8 +735,8 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	timeMuteStage := notify.NewTimeMuteStage(ti, am.stageMetrics)
 	silencingStage := notify.NewMuteStage(am.silencer, am.stageMetrics)
 
-	am.route = dispatch.NewRoute(cfg.RoutingTree(), nil)
-	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.DispatcherLimits(), am.logger, am.dispatcherMetrics)
+	am.route = dispatch.NewRoute(cfg.RoutingTree, nil)
+	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.DispatcherLimits, am.logger, am.dispatcherMetrics)
 
 	// TODO: This has not been upstreamed yet. Should be aligned when https://github.com/prometheus/alertmanager/pull/3016 is merged.
 	var receivers []*nfstatus.Receiver
@@ -722,10 +750,9 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	}
 
 	am.setReceiverMetrics(receivers, len(activeReceivers))
-	am.setInhibitionRulesMetrics(cfg.InhibitRules())
+	am.setInhibitionRulesMetrics(cfg.InhibitRules)
 
 	am.receivers = receivers
-	am.buildReceiverIntegrationsFunc = cfg.BuildReceiverIntegrationsFunc()
 
 	am.wg.Add(1)
 	go func() {
@@ -739,8 +766,8 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 		am.inhibitor.Run()
 	}()
 
-	am.configHash = cfg.Hash()
-	am.config = cfg.Raw()
+	am.configHash = cfg.Hash
+	am.config = cfg.Raw
 
 	return nil
 }
@@ -915,4 +942,30 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 
 func (am *GrafanaAlertmanager) tenantString() string {
 	return fmt.Sprintf("%d", am.tenantID)
+}
+
+func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpl *templates.Template) ([]*Integration, error) {
+	receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, am.decrtypter)
+	if err != nil {
+		return nil, err
+	}
+	integrations, err := BuildReceiverIntegrations(
+		receiverCfg,
+		tmpl,
+		am.imageProvider,
+		// TODO change it to use AM's logger with and add type as label
+		am.loggerFactory,
+		func(n receivers.Metadata) (receivers.EmailSender, error) {
+			return am.emailSender, nil
+		},
+		func(_ string, n Notifier) Notifier {
+			return n
+		},
+		am.tenantID,
+		am.version,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return integrations, nil
 }
