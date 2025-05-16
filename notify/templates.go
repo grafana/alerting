@@ -99,7 +99,7 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 
 func (am *GrafanaAlertmanager) GetTemplate() (*template.Template, error) {
 	am.reloadConfigMtx.RLock()
-	tmpls := make([]templates.TemplateDefinition, 0, len(am.templates))
+	tmpls := make([]templates.TemplateDefinition, len(am.templates))
 	copy(tmpls, am.templates)
 	am.reloadConfigMtx.RUnlock()
 
