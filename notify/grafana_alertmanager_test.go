@@ -21,19 +21,37 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/notify/nfstatus"
+	"github.com/grafana/alerting/receivers"
 )
 
 func setupAMTest(t *testing.T) (*GrafanaAlertmanager, *prometheus.Registry) {
-	reg := prometheus.NewPedanticRegistry()
-	m := NewGrafanaAlertmanagerMetrics(reg, log.NewNopLogger())
+	t.Helper()
 
-	grafanaConfig := &GrafanaAlertmanagerConfig{
+	reg := prometheus.NewPedanticRegistry()
+
+	opts := GrafanaAlertmanagerOpts{
 		Silences: newFakeMaintanenceOptions(t),
 		Nflog:    newFakeMaintanenceOptions(t),
+
+		TenantKey:     "org",
+		TenantID:      1,
+		Peer:          &NilPeer{},
+		Logger:        log.NewNopLogger(),
+		Metrics:       NewGrafanaAlertmanagerMetrics(reg, log.NewNopLogger()),
+		EmailSender:   receivers.MockNotificationService(),
+		ImageProvider: images.NewFakeProvider(1),
+		Decrtypter:    NoopDecrypt,
+		LoggerFactory: func(loggerName string, ctx ...interface{}) logging.Logger {
+			return logging.FakeLogger{}
+		},
 	}
 
-	am, err := NewGrafanaAlertmanager("org", 1, grafanaConfig, &NilPeer{}, log.NewNopLogger(), m)
+	require.NoError(t, opts.Validate())
+
+	am, err := NewGrafanaAlertmanager(opts)
 	require.NoError(t, err)
 	return am, reg
 }

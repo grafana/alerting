@@ -169,7 +169,7 @@ type Limits struct {
 	MaxSilenceSizeBytes int
 }
 
-type GrafanaAlertmanagerConfig struct {
+type GrafanaAlertmanagerOpts struct {
 	ExternalURL        string
 	AlertStoreCallback mem.AlertStoreCallback
 	PeerTimeout        time.Duration
@@ -184,10 +184,16 @@ type GrafanaAlertmanagerConfig struct {
 	Decrtypter    GetDecryptedValueFn
 	LoggerFactory logging.LoggerFactory
 
-	Version string
+	Version   string
+	TenantKey string
+	TenantID  int64
+
+	Peer    ClusterPeer
+	Logger  log.Logger
+	Metrics *GrafanaAlertmanagerMetrics
 }
 
-func (c *GrafanaAlertmanagerConfig) Validate() error {
+func (c *GrafanaAlertmanagerOpts) Validate() error {
 	if c.Silences == nil {
 		return errors.New("silence maintenance options must be present")
 	}
@@ -212,38 +218,57 @@ func (c *GrafanaAlertmanagerConfig) Validate() error {
 		return errors.New("logger factory must be present")
 	}
 
+	if c.TenantKey == "" {
+		return errors.New("tenant key must be present")
+	}
+
+	if c.Peer == nil {
+		return errors.New("peer must be present")
+	}
+
+	if c.Logger == nil {
+		return errors.New("logger must be present")
+	}
+
+	if c.Metrics == nil {
+		return errors.New("metrics must be present")
+	}
+
 	return nil
 }
 
 // NewGrafanaAlertmanager creates a new Grafana-specific Alertmanager.
-func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAlertmanagerConfig, peer ClusterPeer, logger log.Logger, m *GrafanaAlertmanagerMetrics) (*GrafanaAlertmanager, error) {
-	am := &GrafanaAlertmanager{
-		stopc:             make(chan struct{}),
-		logger:            log.With(logger, "component", "alertmanager", tenantKey, tenantID),
-		marker:            types.NewMarker(m.Registerer),
-		stageMetrics:      notify.NewMetrics(m.Registerer, featurecontrol.NoopFlags{}),
-		dispatcherMetrics: dispatch.NewDispatcherMetrics(false, m.Registerer),
-		peer:              peer,
-		peerTimeout:       config.PeerTimeout,
-		Metrics:           m,
-		tenantID:          tenantID,
-		externalURL:       config.ExternalURL,
+func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager, error) {
+	if err := opts.Validate(); err != nil {
+		return nil, err
 	}
 
-	if err := config.Validate(); err != nil {
-		return nil, err
+	am := &GrafanaAlertmanager{
+		stopc:             make(chan struct{}),
+		logger:            log.With(opts.Logger, "component", "alertmanager", opts.TenantKey, opts.TenantID),
+		marker:            types.NewMarker(opts.Metrics.Registerer),
+		stageMetrics:      notify.NewMetrics(opts.Metrics.Registerer, featurecontrol.NoopFlags{}),
+		dispatcherMetrics: dispatch.NewDispatcherMetrics(false, opts.Metrics.Registerer),
+		peer:              opts.Peer,
+		peerTimeout:       opts.PeerTimeout,
+		Metrics:           opts.Metrics,
+		tenantID:          opts.TenantID,
+		externalURL:       opts.ExternalURL,
+		loggerFactory:     opts.LoggerFactory,
+		decrtypter:        opts.Decrtypter,
+		version:           opts.Version,
 	}
 
 	var err error
 
 	// Initialize silences
 	am.silences, err = silence.New(silence.Options{
-		Metrics:        m.Registerer,
-		SnapshotReader: strings.NewReader(config.Silences.InitialState()),
-		Retention:      config.Silences.Retention(),
+		Metrics:        opts.Metrics.Registerer,
+		SnapshotReader: strings.NewReader(opts.Silences.InitialState()),
+		Retention:      opts.Silences.Retention(),
 		Limits: silence.Limits{
-			MaxSilences:         func() int { return config.Limits.MaxSilences },
-			MaxSilenceSizeBytes: func() int { return config.Limits.MaxSilenceSizeBytes },
+			MaxSilences:         func() int { return opts.Limits.MaxSilences },
+			MaxSilenceSizeBytes: func() int { return opts.Limits.MaxSilenceSizeBytes },
 		},
 	})
 	if err != nil {
@@ -252,36 +277,36 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 
 	// Initialize the notification log
 	am.notificationLog, err = nflog.New(nflog.Options{
-		SnapshotReader: strings.NewReader(config.Nflog.InitialState()),
-		Retention:      config.Nflog.Retention(),
-		Logger:         logger,
-		Metrics:        m.Registerer,
+		SnapshotReader: strings.NewReader(opts.Nflog.InitialState()),
+		Retention:      opts.Nflog.Retention(),
+		Logger:         opts.Logger,
+		Metrics:        opts.Metrics.Registerer,
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the notification log component of alerting: %w", err)
 	}
-	c := am.peer.AddState(fmt.Sprintf("notificationlog:%d", am.tenantID), am.notificationLog, m.Registerer)
+	c := am.peer.AddState(fmt.Sprintf("notificationlog:%d", am.tenantID), am.notificationLog, opts.Metrics.Registerer)
 	am.notificationLog.SetBroadcast(c.Broadcast)
 
-	c = am.peer.AddState(fmt.Sprintf("silences:%d", am.tenantID), am.silences, m.Registerer)
+	c = am.peer.AddState(fmt.Sprintf("silences:%d", am.tenantID), am.silences, opts.Metrics.Registerer)
 	am.silences.SetBroadcast(c.Broadcast)
 
 	am.wg.Add(1)
 	go func() {
-		am.notificationLog.Maintenance(config.Nflog.MaintenanceFrequency(), snapshotPlaceholder, am.stopc, func() (int64, error) {
+		am.notificationLog.Maintenance(opts.Nflog.MaintenanceFrequency(), snapshotPlaceholder, am.stopc, func() (int64, error) {
 			if _, err := am.notificationLog.GC(); err != nil {
 				level.Error(am.logger).Log("notification log garbage collection", "err", err)
 			}
 
-			return config.Nflog.MaintenanceFunc(am.notificationLog)
+			return opts.Nflog.MaintenanceFunc(am.notificationLog)
 		})
 		am.wg.Done()
 	}()
 
 	am.wg.Add(1)
 	go func() {
-		am.silences.Maintenance(config.Silences.MaintenanceFrequency(), snapshotPlaceholder, am.stopc, func() (int64, error) {
+		am.silences.Maintenance(opts.Silences.MaintenanceFrequency(), snapshotPlaceholder, am.stopc, func() (int64, error) {
 			// Delete silences older than the retention period.
 			if _, err := am.silences.GC(); err != nil {
 				level.Error(am.logger).Log("silence garbage collection", "err", err)
@@ -289,13 +314,13 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 			}
 
 			// Snapshot our silences to the Grafana KV store
-			return config.Silences.MaintenanceFunc(am.silences)
+			return opts.Silences.MaintenanceFunc(am.silences)
 		})
 		am.wg.Done()
 	}()
 
 	// Initialize in-memory alerts
-	am.alerts, err = mem.NewAlerts(context.Background(), am.marker, memoryAlertsGCInterval, config.AlertStoreCallback, am.logger, m.Registerer)
+	am.alerts, err = mem.NewAlerts(context.Background(), am.marker, memoryAlertsGCInterval, opts.AlertStoreCallback, am.logger, opts.Metrics.Registerer)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
 	}
