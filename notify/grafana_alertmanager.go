@@ -328,6 +328,10 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 	return am, nil
 }
 
+func (am *GrafanaAlertmanager) TenantID() int64 {
+	return am.tenantID
+}
+
 func (am *GrafanaAlertmanager) Ready() bool {
 	// We consider AM as ready only when the config has been
 	// applied at least once successfully. Until then, some objects
