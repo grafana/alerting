@@ -984,7 +984,7 @@ func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, 
 		am.imageProvider,
 		// TODO change it to use AM's logger with and add type as label
 		am.loggerFactory,
-		func(n receivers.Metadata) (receivers.EmailSender, error) {
+		func(_ receivers.Metadata) (receivers.EmailSender, error) {
 			return am.emailSender, nil
 		},
 		func(_ string, n Notifier) Notifier {

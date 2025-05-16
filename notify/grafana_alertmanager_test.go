@@ -44,7 +44,7 @@ func setupAMTest(t *testing.T) (*GrafanaAlertmanager, *prometheus.Registry) {
 		EmailSender:   receivers.MockNotificationService(),
 		ImageProvider: images.NewFakeProvider(1),
 		Decrtypter:    NoopDecrypt,
-		LoggerFactory: func(loggerName string, ctx ...interface{}) logging.Logger {
+		LoggerFactory: func(_ string, _ ...interface{}) logging.Logger {
 			return logging.FakeLogger{}
 		},
 	}
