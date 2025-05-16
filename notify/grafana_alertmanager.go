@@ -35,8 +35,11 @@ import (
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/cluster"
+	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/notify/stages"
+	"github.com/grafana/alerting/receivers"
 
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/templates"
@@ -102,12 +105,17 @@ type GrafanaAlertmanager struct {
 	config          []byte
 	receivers       []*nfstatus.Receiver
 
-	// buildReceiverIntegrationsFunc builds the integrations for a receiver based on its APIReceiver configuration and the current parsed template.
-	buildReceiverIntegrationsFunc func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
-	externalURL                   string
+	externalURL string
 
 	// templates contains the template name -> template contents for each user-defined template.
 	templates []templates.TemplateDefinition
+
+	emailSender   receivers.EmailSender
+	imageProvider images.Provider
+	decrtypter    GetDecryptedValueFn
+	loggerFactory logging.LoggerFactory
+
+	version string
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -142,21 +150,18 @@ type Notifier = notify.Notifier
 //nolint:revive
 type NotifyReceiver = nfstatus.Receiver
 
-// Configuration is an interface for accessing Alertmanager configuration.
-type Configuration interface {
-	DispatcherLimits() DispatcherLimits
-	InhibitRules() []InhibitRule
-	TimeIntervals() []TimeInterval
-	// Deprecated: MuteTimeIntervals are deprecated in Alertmanager and will be removed in future versions.
-	MuteTimeIntervals() []MuteTimeInterval
-	Receivers() []*APIReceiver
-	BuildReceiverIntegrationsFunc() func(next *APIReceiver, tmpl *templates.Template) ([]*Integration, error)
+type NotificationsConfiguration struct {
+	RoutingTree       *Route
+	InhibitRules      []InhibitRule
+	MuteTimeIntervals []MuteTimeInterval
+	TimeIntervals     []TimeInterval
+	Templates         []templates.TemplateDefinition
+	Receivers         []*APIReceiver
 
-	RoutingTree() *Route
-	Templates() []templates.TemplateDefinition
+	DispatcherLimits DispatcherLimits
 
-	Hash() [16]byte
-	Raw() []byte
+	Raw  []byte
+	Hash [16]byte
 }
 
 type Limits struct {
@@ -164,7 +169,7 @@ type Limits struct {
 	MaxSilenceSizeBytes int
 }
 
-type GrafanaAlertmanagerConfig struct {
+type GrafanaAlertmanagerOpts struct {
 	ExternalURL        string
 	AlertStoreCallback mem.AlertStoreCallback
 	PeerTimeout        time.Duration
@@ -173,9 +178,22 @@ type GrafanaAlertmanagerConfig struct {
 	Nflog    MaintenanceOptions
 
 	Limits Limits
+
+	EmailSender   receivers.EmailSender
+	ImageProvider images.Provider
+	Decrtypter    GetDecryptedValueFn
+	LoggerFactory logging.LoggerFactory
+
+	Version   string
+	TenantKey string
+	TenantID  int64
+
+	Peer    ClusterPeer
+	Logger  log.Logger
+	Metrics *GrafanaAlertmanagerMetrics
 }
 
-func (c *GrafanaAlertmanagerConfig) Validate() error {
+func (c *GrafanaAlertmanagerOpts) Validate() error {
 	if c.Silences == nil {
 		return errors.New("silence maintenance options must be present")
 	}
@@ -184,39 +202,75 @@ func (c *GrafanaAlertmanagerConfig) Validate() error {
 		return errors.New("notification log maintenance options must be present")
 	}
 
+	if c.EmailSender == nil {
+		return errors.New("email sender must be present")
+	}
+
+	if c.ImageProvider == nil {
+		return errors.New("image provider must be present")
+	}
+
+	if c.Decrtypter == nil {
+		return errors.New("decrtypter must be present")
+	}
+
+	if c.LoggerFactory == nil {
+		return errors.New("logger factory must be present")
+	}
+
+	if c.TenantKey == "" {
+		return errors.New("tenant key must be present")
+	}
+
+	if c.Peer == nil {
+		return errors.New("peer must be present")
+	}
+
+	if c.Logger == nil {
+		return errors.New("logger must be present")
+	}
+
+	if c.Metrics == nil {
+		return errors.New("metrics must be present")
+	}
+
 	return nil
 }
 
 // NewGrafanaAlertmanager creates a new Grafana-specific Alertmanager.
-func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAlertmanagerConfig, peer ClusterPeer, logger log.Logger, m *GrafanaAlertmanagerMetrics) (*GrafanaAlertmanager, error) {
-	// TODO: Remove the context.
-	am := &GrafanaAlertmanager{
-		stopc:             make(chan struct{}),
-		logger:            log.With(logger, "component", "alertmanager", tenantKey, tenantID),
-		marker:            types.NewMarker(m.Registerer),
-		stageMetrics:      notify.NewMetrics(m.Registerer, featurecontrol.NoopFlags{}),
-		dispatcherMetrics: dispatch.NewDispatcherMetrics(false, m.Registerer),
-		peer:              peer,
-		peerTimeout:       config.PeerTimeout,
-		Metrics:           m,
-		tenantID:          tenantID,
-		externalURL:       config.ExternalURL,
+func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager, error) {
+	if err := opts.Validate(); err != nil {
+		return nil, err
 	}
 
-	if err := config.Validate(); err != nil {
-		return nil, err
+	am := &GrafanaAlertmanager{
+		stopc:             make(chan struct{}),
+		logger:            log.With(opts.Logger, "component", "alertmanager", opts.TenantKey, opts.TenantID),
+		marker:            types.NewMarker(opts.Metrics.Registerer),
+		stageMetrics:      notify.NewMetrics(opts.Metrics.Registerer, featurecontrol.NoopFlags{}),
+		dispatcherMetrics: dispatch.NewDispatcherMetrics(false, opts.Metrics.Registerer),
+		peer:              opts.Peer,
+		peerTimeout:       opts.PeerTimeout,
+		Metrics:           opts.Metrics,
+		tenantID:          opts.TenantID,
+		externalURL:       opts.ExternalURL,
+		loggerFactory:     opts.LoggerFactory,
+		decrtypter:        opts.Decrtypter,
+		version:           opts.Version,
+		emailSender:       opts.EmailSender,
+		imageProvider:     opts.ImageProvider,
 	}
 
 	var err error
 
 	// Initialize silences
 	am.silences, err = silence.New(silence.Options{
-		Metrics:        m.Registerer,
-		SnapshotReader: strings.NewReader(config.Silences.InitialState()),
-		Retention:      config.Silences.Retention(),
+		Metrics:        opts.Metrics.Registerer,
+		SnapshotReader: strings.NewReader(opts.Silences.InitialState()),
+		Retention:      opts.Silences.Retention(),
 		Limits: silence.Limits{
-			MaxSilences:         func() int { return config.Limits.MaxSilences },
-			MaxSilenceSizeBytes: func() int { return config.Limits.MaxSilenceSizeBytes },
+			MaxSilences:         func() int { return opts.Limits.MaxSilences },
+			MaxSilenceSizeBytes: func() int { return opts.Limits.MaxSilenceSizeBytes },
 		},
 	})
 	if err != nil {
@@ -225,36 +279,36 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 
 	// Initialize the notification log
 	am.notificationLog, err = nflog.New(nflog.Options{
-		SnapshotReader: strings.NewReader(config.Nflog.InitialState()),
-		Retention:      config.Nflog.Retention(),
-		Logger:         logger,
-		Metrics:        m.Registerer,
+		SnapshotReader: strings.NewReader(opts.Nflog.InitialState()),
+		Retention:      opts.Nflog.Retention(),
+		Logger:         opts.Logger,
+		Metrics:        opts.Metrics.Registerer,
 	})
 
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the notification log component of alerting: %w", err)
 	}
-	c := am.peer.AddState(fmt.Sprintf("notificationlog:%d", am.tenantID), am.notificationLog, m.Registerer)
+	c := am.peer.AddState(fmt.Sprintf("notificationlog:%d", am.tenantID), am.notificationLog, opts.Metrics.Registerer)
 	am.notificationLog.SetBroadcast(c.Broadcast)
 
-	c = am.peer.AddState(fmt.Sprintf("silences:%d", am.tenantID), am.silences, m.Registerer)
+	c = am.peer.AddState(fmt.Sprintf("silences:%d", am.tenantID), am.silences, opts.Metrics.Registerer)
 	am.silences.SetBroadcast(c.Broadcast)
 
 	am.wg.Add(1)
 	go func() {
-		am.notificationLog.Maintenance(config.Nflog.MaintenanceFrequency(), snapshotPlaceholder, am.stopc, func() (int64, error) {
+		am.notificationLog.Maintenance(opts.Nflog.MaintenanceFrequency(), snapshotPlaceholder, am.stopc, func() (int64, error) {
 			if _, err := am.notificationLog.GC(); err != nil {
 				level.Error(am.logger).Log("notification log garbage collection", "err", err)
 			}
 
-			return config.Nflog.MaintenanceFunc(am.notificationLog)
+			return opts.Nflog.MaintenanceFunc(am.notificationLog)
 		})
 		am.wg.Done()
 	}()
 
 	am.wg.Add(1)
 	go func() {
-		am.silences.Maintenance(config.Silences.MaintenanceFrequency(), snapshotPlaceholder, am.stopc, func() (int64, error) {
+		am.silences.Maintenance(opts.Silences.MaintenanceFrequency(), snapshotPlaceholder, am.stopc, func() (int64, error) {
 			// Delete silences older than the retention period.
 			if _, err := am.silences.GC(); err != nil {
 				level.Error(am.logger).Log("silence garbage collection", "err", err)
@@ -262,18 +316,22 @@ func NewGrafanaAlertmanager(tenantKey string, tenantID int64, config *GrafanaAle
 			}
 
 			// Snapshot our silences to the Grafana KV store
-			return config.Silences.MaintenanceFunc(am.silences)
+			return opts.Silences.MaintenanceFunc(am.silences)
 		})
 		am.wg.Done()
 	}()
 
 	// Initialize in-memory alerts
-	am.alerts, err = mem.NewAlerts(context.Background(), am.marker, memoryAlertsGCInterval, config.AlertStoreCallback, am.logger, m.Registerer)
+	am.alerts, err = mem.NewAlerts(context.Background(), am.marker, memoryAlertsGCInterval, opts.AlertStoreCallback, am.logger, opts.Metrics.Registerer)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
 	}
 
 	return am, nil
+}
+
+func (am *GrafanaAlertmanager) TenantID() int64 {
+	return am.tenantID
 }
 
 func (am *GrafanaAlertmanager) Ready() bool {
@@ -645,8 +703,9 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 
 // ApplyConfig applies a new configuration by re-initializing all components using the configuration provided.
 // It is not safe to call concurrently.
-func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
-	am.templates = cfg.Templates()
+func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err error) {
+	am.templates = make([]templates.TemplateDefinition, len(cfg.Templates))
+	copy(am.templates, cfg.Templates)
 
 	seen := make(map[string]struct{})
 	tmpls := make([]string, 0, len(am.templates))
@@ -665,7 +724,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	}
 
 	// Finally, build the integrations map using the receiver configuration and templates.
-	apiReceivers := cfg.Receivers()
+	apiReceivers := cfg.Receivers
 	nameToReceiver := make(map[string]*APIReceiver, len(apiReceivers))
 	for _, receiver := range apiReceivers {
 		if existing, ok := nameToReceiver[receiver.Name]; ok {
@@ -679,7 +738,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	}
 	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
 	for name, apiReceiver := range nameToReceiver {
-		integrations, err := cfg.BuildReceiverIntegrationsFunc()(apiReceiver, tmpl)
+		integrations, err := am.buildReceiverIntegrations(apiReceiver, tmpl)
 		if err != nil {
 			return err
 		}
@@ -696,8 +755,8 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 		am.dispatcher.Stop()
 	}
 
-	am.inhibitor = inhibit.NewInhibitor(am.alerts, cfg.InhibitRules(), am.marker, am.logger)
-	am.timeIntervals = am.buildTimeIntervals(cfg.TimeIntervals(), cfg.MuteTimeIntervals())
+	am.inhibitor = inhibit.NewInhibitor(am.alerts, cfg.InhibitRules, am.marker, am.logger)
+	am.timeIntervals = am.buildTimeIntervals(cfg.TimeIntervals, cfg.MuteTimeIntervals)
 	am.silencer = silence.NewSilencer(am.silences, am.marker, am.logger)
 
 	meshStage := notify.NewGossipSettleStage(am.peer)
@@ -707,8 +766,8 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	timeMuteStage := notify.NewTimeMuteStage(ti, am.stageMetrics)
 	silencingStage := notify.NewMuteStage(am.silencer, am.stageMetrics)
 
-	am.route = dispatch.NewRoute(cfg.RoutingTree(), nil)
-	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.DispatcherLimits(), am.logger, am.dispatcherMetrics)
+	am.route = dispatch.NewRoute(cfg.RoutingTree, nil)
+	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.DispatcherLimits, am.logger, am.dispatcherMetrics)
 
 	// TODO: This has not been upstreamed yet. Should be aligned when https://github.com/prometheus/alertmanager/pull/3016 is merged.
 	var receivers []*nfstatus.Receiver
@@ -722,10 +781,9 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 	}
 
 	am.setReceiverMetrics(receivers, len(activeReceivers))
-	am.setInhibitionRulesMetrics(cfg.InhibitRules())
+	am.setInhibitionRulesMetrics(cfg.InhibitRules)
 
 	am.receivers = receivers
-	am.buildReceiverIntegrationsFunc = cfg.BuildReceiverIntegrationsFunc()
 
 	am.wg.Add(1)
 	go func() {
@@ -739,8 +797,8 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg Configuration) (err error) {
 		am.inhibitor.Run()
 	}()
 
-	am.configHash = cfg.Hash()
-	am.config = cfg.Raw()
+	am.configHash = cfg.Hash
+	am.config = cfg.Raw
 
 	return nil
 }
@@ -915,4 +973,30 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 
 func (am *GrafanaAlertmanager) tenantString() string {
 	return fmt.Sprintf("%d", am.tenantID)
+}
+
+func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpl *templates.Template) ([]*Integration, error) {
+	receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, am.decrtypter)
+	if err != nil {
+		return nil, err
+	}
+	integrations, err := BuildReceiverIntegrations(
+		receiverCfg,
+		tmpl,
+		am.imageProvider,
+		// TODO change it to use AM's logger with and add type as label
+		am.loggerFactory,
+		func(_ receivers.Metadata) (receivers.EmailSender, error) {
+			return am.emailSender, nil
+		},
+		func(_ string, n Notifier) Notifier {
+			return n
+		},
+		am.tenantID,
+		am.version,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return integrations, nil
 }
