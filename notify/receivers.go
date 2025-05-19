@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+	"golang.org/x/time/rate"
 
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/alertmanager"
@@ -67,6 +68,11 @@ type TestIntegrationConfigResult struct {
 	Error  string `json:"error"`
 }
 
+type RateLimits struct {
+	RateLimit rate.Limit
+	Burst     int
+}
+
 type GrafanaIntegrationConfig struct {
 	UID                   string            `json:"uid" yaml:"uid"`
 	Name                  string            `json:"name" yaml:"name"`
@@ -74,6 +80,7 @@ type GrafanaIntegrationConfig struct {
 	DisableResolveMessage bool              `json:"disableResolveMessage" yaml:"disableResolveMessage"`
 	Settings              json.RawMessage   `json:"settings" yaml:"settings"`
 	SecureSettings        map[string]string `json:"secureSettings" yaml:"secureSettings"`
+	RateLimits            *RateLimits       `json:"rateLimits,omitempty" yaml:"rateLimits,omitempty"`
 }
 
 type ConfigReceiver = config.Receiver
@@ -209,9 +216,14 @@ type GrafanaReceiverConfig struct {
 	WebexConfigs        []*NotifierConfig[webex.Config]
 }
 
+type NotifierConfigBase struct {
+	receivers.Metadata
+	RateLimits *RateLimits
+}
+
 // NotifierConfig represents parsed GrafanaIntegrationConfig.
 type NotifierConfig[T interface{}] struct {
-	receivers.Metadata
+	NotifierConfigBase
 	Settings T
 }
 
@@ -445,11 +457,14 @@ func GetActiveReceiversMap(r *dispatch.Route) map[string]struct{} {
 
 func newNotifierConfig[T interface{}](receiver *GrafanaIntegrationConfig, settings T) *NotifierConfig[T] {
 	return &NotifierConfig[T]{
-		Metadata: receivers.Metadata{
-			UID:                   receiver.UID,
-			Name:                  receiver.Name,
-			Type:                  receiver.Type,
-			DisableResolveMessage: receiver.DisableResolveMessage,
+		NotifierConfigBase: NotifierConfigBase{
+			Metadata: receivers.Metadata{
+				UID:                   receiver.UID,
+				Name:                  receiver.Name,
+				Type:                  receiver.Type,
+				DisableResolveMessage: receiver.DisableResolveMessage,
+			},
+			RateLimits: receiver.RateLimits,
 		},
 		Settings: settings,
 	}

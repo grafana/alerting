@@ -19,7 +19,9 @@ require (
 	github.com/prometheus/client_golang v1.19.0
 	github.com/prometheus/common v0.48.0
 	github.com/stretchr/testify v1.9.0
+	go.uber.org/atomic v1.11.0
 	golang.org/x/sync v0.8.0
+	golang.org/x/time v0.0.0-20191024005414-555d28b269f0
 	gopkg.in/mail.v2 v2.3.1
 	gopkg.in/yaml.v3 v3.0.1
 )
