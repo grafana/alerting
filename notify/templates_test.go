@@ -477,7 +477,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 
 func TestTemplateAlertData(t *testing.T) {
 	am, _ := setupAMTest(t)
-	am.externalURL = "http://localhost:9093"
+	am.opts.ExternalURL = "http://localhost:9093"
 
 	tests := []struct {
 		name     string
