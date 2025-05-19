@@ -70,16 +70,12 @@ type ClusterPeer interface {
 }
 
 type GrafanaAlertmanager struct {
-	logger  log.Logger
-	Metrics *GrafanaAlertmanagerMetrics
+	opts   GrafanaAlertmanagerOpts
+	logger log.Logger
 
-	tenantID int64
-
-	marker      types.Marker
-	alerts      *mem.Alerts
-	route       *dispatch.Route
-	peer        ClusterPeer
-	peerTimeout time.Duration
+	marker types.Marker
+	alerts *mem.Alerts
+	route  *dispatch.Route
 
 	// wg is for dispatcher, inhibitor, silences and notifications
 	// Across configuration changes dispatcher and inhibitor are completely replaced, however, silences, notification log and alerts remain the same.
@@ -105,17 +101,8 @@ type GrafanaAlertmanager struct {
 	config          []byte
 	receivers       []*nfstatus.Receiver
 
-	externalURL string
-
 	// templates contains the template name -> template contents for each user-defined template.
 	templates []templates.TemplateDefinition
-
-	emailSender   receivers.EmailSender
-	imageProvider images.Provider
-	decrypter     GetDecryptedValueFn
-	loggerFactory logging.LoggerFactory
-
-	version string
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -181,7 +168,7 @@ type GrafanaAlertmanagerOpts struct {
 
 	EmailSender   receivers.EmailSender
 	ImageProvider images.Provider
-	Decrtypter    GetDecryptedValueFn
+	Decrypter     GetDecryptedValueFn
 	LoggerFactory logging.LoggerFactory
 
 	Version   string
@@ -210,7 +197,7 @@ func (c *GrafanaAlertmanagerOpts) Validate() error {
 		return errors.New("image provider must be present")
 	}
 
-	if c.Decrtypter == nil {
+	if c.Decrypter == nil {
 		return errors.New("decrypter must be present")
 	}
 
@@ -244,21 +231,12 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 	}
 
 	am := &GrafanaAlertmanager{
+		opts:              opts,
 		stopc:             make(chan struct{}),
 		logger:            log.With(opts.Logger, "component", "alertmanager", opts.TenantKey, opts.TenantID),
 		marker:            types.NewMarker(opts.Metrics.Registerer),
 		stageMetrics:      notify.NewMetrics(opts.Metrics.Registerer, featurecontrol.NoopFlags{}),
 		dispatcherMetrics: dispatch.NewDispatcherMetrics(false, opts.Metrics.Registerer),
-		peer:              opts.Peer,
-		peerTimeout:       opts.PeerTimeout,
-		Metrics:           opts.Metrics,
-		tenantID:          opts.TenantID,
-		externalURL:       opts.ExternalURL,
-		loggerFactory:     opts.LoggerFactory,
-		decrypter:         opts.Decrtypter,
-		version:           opts.Version,
-		emailSender:       opts.EmailSender,
-		imageProvider:     opts.ImageProvider,
 	}
 
 	var err error
@@ -288,10 +266,10 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the notification log component of alerting: %w", err)
 	}
-	c := am.peer.AddState(fmt.Sprintf("notificationlog:%d", am.tenantID), am.notificationLog, opts.Metrics.Registerer)
+	c := opts.Peer.AddState(fmt.Sprintf("notificationlog:%d", opts.TenantID), am.notificationLog, opts.Metrics.Registerer)
 	am.notificationLog.SetBroadcast(c.Broadcast)
 
-	c = am.peer.AddState(fmt.Sprintf("silences:%d", am.tenantID), am.silences, opts.Metrics.Registerer)
+	c = opts.Peer.AddState(fmt.Sprintf("silences:%d", opts.TenantID), am.silences, opts.Metrics.Registerer)
 	am.silences.SetBroadcast(c.Broadcast)
 
 	am.wg.Add(1)
@@ -331,7 +309,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 }
 
 func (am *GrafanaAlertmanager) TenantID() int64 {
-	return am.tenantID
+	return am.opts.TenantID
 }
 
 func (am *GrafanaAlertmanager) Ready() bool {
@@ -669,7 +647,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 }
 
 func (am *GrafanaAlertmanager) ExternalURL() string {
-	return am.externalURL
+	return am.opts.ExternalURL
 }
 
 // ConfigHash returns the hash of the current running configuration.
@@ -759,7 +737,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 	am.timeIntervals = am.buildTimeIntervals(cfg.TimeIntervals, cfg.MuteTimeIntervals)
 	am.silencer = silence.NewSilencer(am.silences, am.marker, am.logger)
 
-	meshStage := notify.NewGossipSettleStage(am.peer)
+	meshStage := notify.NewGossipSettleStage(am.opts.Peer)
 	inhibitionStage := notify.NewMuteStage(am.inhibitor, am.stageMetrics)
 	ti := timeinterval.NewIntervener(am.timeIntervals)
 	activeTimeStage := notify.NewTimeActiveStage(ti, am.stageMetrics)
@@ -804,12 +782,12 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 }
 
 func (am *GrafanaAlertmanager) setInhibitionRulesMetrics(r []InhibitRule) {
-	am.Metrics.configuredInhibitionRules.WithLabelValues(am.tenantString()).Set(float64(len(r)))
+	am.opts.Metrics.configuredInhibitionRules.WithLabelValues(am.tenantString()).Set(float64(len(r)))
 }
 
 func (am *GrafanaAlertmanager) setReceiverMetrics(receivers []*nfstatus.Receiver, countActiveReceivers int) {
-	am.Metrics.configuredReceivers.WithLabelValues(am.tenantString(), ActiveStateLabelValue).Set(float64(countActiveReceivers))
-	am.Metrics.configuredReceivers.WithLabelValues(am.tenantString(), InactiveStateLabelValue).Set(float64(len(receivers) - countActiveReceivers))
+	am.opts.Metrics.configuredReceivers.WithLabelValues(am.tenantString(), ActiveStateLabelValue).Set(float64(countActiveReceivers))
+	am.opts.Metrics.configuredReceivers.WithLabelValues(am.tenantString(), InactiveStateLabelValue).Set(float64(len(receivers) - countActiveReceivers))
 
 	integrationsByType := make(map[string]int, len(receivers))
 	for _, r := range receivers {
@@ -819,7 +797,7 @@ func (am *GrafanaAlertmanager) setReceiverMetrics(receivers []*nfstatus.Receiver
 	}
 
 	for t, count := range integrationsByType {
-		am.Metrics.configuredIntegrations.WithLabelValues(am.tenantString(), t).Set(float64(count))
+		am.opts.Metrics.configuredIntegrations.WithLabelValues(am.tenantString(), t).Set(float64(count))
 	}
 }
 
@@ -831,9 +809,9 @@ func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) err
 	// Register metrics.
 	for _, a := range alerts {
 		if a.EndsAt.After(now) {
-			am.Metrics.Firing().Inc()
+			am.opts.Metrics.Firing().Inc()
 		} else {
-			am.Metrics.Resolved().Inc()
+			am.opts.Metrics.Resolved().Inc()
 		}
 
 		level.Debug(am.logger).Log("msg",
@@ -851,7 +829,7 @@ func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) err
 		return err
 	}
 	if validationErr != nil {
-		am.Metrics.Invalid().Add(float64(len(validationErr.Alerts)))
+		am.opts.Metrics.Invalid().Add(float64(len(validationErr.Alerts)))
 		// Even if validationErr is nil, the require.NoError fails on it.
 		return validationErr
 	}
@@ -948,7 +926,7 @@ func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*
 			Idx:         uint32(integrations[i].Index()),
 		}
 		var s notify.MultiStage
-		s = append(s, stages.NewWaitStage(am.peer, am.peerTimeout))
+		s = append(s, stages.NewWaitStage(am.opts.Peer, am.opts.PeerTimeout))
 		s = append(s, notify.NewDedupStage(integrations[i], notificationLog, recv))
 		s = append(s, notify.NewRetryStage(integrations[i], name, am.stageMetrics))
 		s = append(s, notify.NewSetNotifiesStage(notificationLog, recv))
@@ -959,7 +937,7 @@ func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*
 }
 
 func (am *GrafanaAlertmanager) waitFunc() time.Duration {
-	return time.Duration(am.peer.Position()) * am.peerTimeout
+	return time.Duration(am.opts.Peer.Position()) * am.opts.PeerTimeout
 }
 
 func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
@@ -972,28 +950,28 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 }
 
 func (am *GrafanaAlertmanager) tenantString() string {
-	return fmt.Sprintf("%d", am.tenantID)
+	return fmt.Sprintf("%d", am.opts.TenantID)
 }
 
 func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpl *templates.Template) ([]*Integration, error) {
-	receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, am.decrypter)
+	receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, am.opts.Decrypter)
 	if err != nil {
 		return nil, err
 	}
 	integrations, err := BuildReceiverIntegrations(
 		receiverCfg,
 		tmpl,
-		am.imageProvider,
+		am.opts.ImageProvider,
 		// TODO change it to use AM's logger with and add type as label
-		am.loggerFactory,
+		am.opts.LoggerFactory,
 		func(_ receivers.Metadata) (receivers.EmailSender, error) {
-			return am.emailSender, nil
+			return am.opts.EmailSender, nil
 		},
 		func(_ string, n Notifier) Notifier {
 			return n
 		},
-		am.tenantID,
-		am.version,
+		am.opts.TenantID,
+		am.opts.Version,
 	)
 	if err != nil {
 		return nil, err
