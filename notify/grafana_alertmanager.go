@@ -112,7 +112,7 @@ type GrafanaAlertmanager struct {
 
 	emailSender   receivers.EmailSender
 	imageProvider images.Provider
-	decrtypter    GetDecryptedValueFn
+	decrypter     GetDecryptedValueFn
 	loggerFactory logging.LoggerFactory
 
 	version string
@@ -211,7 +211,7 @@ func (c *GrafanaAlertmanagerOpts) Validate() error {
 	}
 
 	if c.Decrtypter == nil {
-		return errors.New("decrtypter must be present")
+		return errors.New("decrypter must be present")
 	}
 
 	if c.LoggerFactory == nil {
@@ -255,7 +255,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		tenantID:          opts.TenantID,
 		externalURL:       opts.ExternalURL,
 		loggerFactory:     opts.LoggerFactory,
-		decrtypter:        opts.Decrtypter,
+		decrypter:         opts.Decrtypter,
 		version:           opts.Version,
 		emailSender:       opts.EmailSender,
 		imageProvider:     opts.ImageProvider,
@@ -976,7 +976,7 @@ func (am *GrafanaAlertmanager) tenantString() string {
 }
 
 func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpl *templates.Template) ([]*Integration, error) {
-	receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, am.decrtypter)
+	receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, am.decrypter)
 	if err != nil {
 		return nil, err
 	}
