@@ -47,7 +47,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 // Notify send an alert notification to Google Chat.
 func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := gcn.GetLogger()
-	level.Debug(l).Log("msg", "executing Google Chat notification")
+	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, gcn.tmpl, as, l, &tmplErr)
@@ -137,7 +137,7 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	}
 
 	if err := gcn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "failed to send Google Hangouts Chat alert", "err", err, "webhook", gcn.Name)
+		level.Error(l).Log("msg", "failed to send Google Hangouts Chat alert", "err", err)
 		return false, err
 	}
 

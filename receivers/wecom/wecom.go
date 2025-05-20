@@ -39,7 +39,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 // Notify send an alert notification to WeCom.
 func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := w.GetLogger()
-	level.Warn(l).Log("msg", "executing WeCom notification", "notification", w.Name)
+	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, w.tmpl, as, l, &tmplErr)

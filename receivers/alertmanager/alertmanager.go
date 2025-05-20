@@ -32,7 +32,7 @@ type Notifier struct {
 // Notify sends alert notifications to Alertmanager.
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := n.GetLogger()
-	level.Debug(l).Log("msg", "sending Alertmanager alert", "alertmanager", n.Name)
+	level.Debug(l).Log("msg", "sending notification")
 	if len(as) == 0 {
 		return true, nil
 	}
@@ -62,7 +62,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 			Password: n.settings.Password,
 			Body:     body,
 		}, l); err != nil {
-			level.Warn(l).Log("msg", "failed to send to Alertmanager", "err", err, "alertmanager", n.Name, "url", u.String())
+			level.Warn(l).Log("msg", "failed to send to Alertmanager", "err", err, "url", u.String())
 			lastErr = err
 			numErrs++
 		}
@@ -70,7 +70,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	if numErrs == len(n.settings.URLs) {
 		// All attempts to send alerts have failed
-		level.Warn(l).Log("msg", "all attempts to send to Alertmanager failed", "alertmanager", n.Name)
+		level.Warn(l).Log("msg", "all attempts to send to Alertmanager failed")
 		return false, fmt.Errorf("failed to send alert to Alertmanager: %w", lastErr)
 	}
 

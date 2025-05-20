@@ -55,7 +55,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 // Notify sends notification to Victorops via POST to URL endpoint
 func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := vn.GetLogger()
-	level.Debug(l).Log("msg", "sending notification", "notification", vn.Name)
+	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, vn.tmpl, as, l, &tmplErr)
@@ -69,7 +69,7 @@ func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 
 	stateMessage, truncated := receivers.TruncateInRunes(tmpl(vn.settings.Description), victorOpsMaxMessageLenRunes)
 	if truncated {
-		level.Warn(l).Log("msg", "Truncated stateMessage", "incident", groupKey, "max_runes", victorOpsMaxMessageLenRunes)
+		level.Warn(l).Log("msg", "truncated stateMessage", "incident", groupKey, "max_runes", victorOpsMaxMessageLenRunes)
 	}
 
 	bodyJSON := map[string]interface{}{
@@ -114,7 +114,7 @@ func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	if err := vn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "failed to send notification", "err", err, "webhook", vn.Name)
+		level.Error(l).Log("msg", "failed to send notification", "err", err)
 		return false, err
 	}
 

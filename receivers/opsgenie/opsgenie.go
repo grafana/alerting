@@ -58,7 +58,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 // Notify sends an alert notification to Opsgenie
 func (on *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := on.GetLogger()
-	level.Debug(l).Log("msg", "executing Opsgenie notification", "notification", on.Name)
+	level.Debug(l).Log("msg", "sending notification")
 
 	alerts := types.Alerts(as...)
 	if alerts.Status() == model.AlertResolved && !on.SendResolved() {
@@ -68,7 +68,7 @@ func (on *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 
 	body, url, err := on.buildOpsgenieMessage(ctx, alerts, as, l)
 	if err != nil {
-		return false, fmt.Errorf("build Opsgenie message: %w", err)
+		return false, fmt.Errorf("build message: %w", err)
 	}
 
 	if url == "" {
@@ -121,7 +121,7 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 
 	message, truncated := receivers.TruncateInRunes(tmpl(on.settings.Message), opsGenieMaxMessageLenRunes)
 	if truncated {
-		level.Warn(l).Log("msg", "Truncated message", "alert", key, "max_runes", opsGenieMaxMessageLenRunes)
+		level.Warn(l).Log("msg", "truncated message", "alert", key, "max_runes", opsGenieMaxMessageLenRunes)
 	}
 
 	description := tmpl(on.settings.Description)
