@@ -29,7 +29,7 @@ func getImage(ctx context.Context, l log.Logger, imageProvider Provider, alert t
 	if errors.Is(err, ErrImageNotFound) || errors.Is(err, ErrImagesUnavailable) {
 		return nil, nil
 	} else if err != nil {
-		level.Warn(l).Log("msg", "failed to get image", "error", err)
+		level.Warn(l).Log("msg", "failed to get image", "err", err)
 		return nil, err
 	} else {
 		return img, nil
@@ -57,7 +57,7 @@ func WithStoredImages(ctx context.Context, l log.Logger, imageProvider Provider,
 				if errors.Is(err, ErrImagesDone) {
 					return nil
 				}
-				level.Error(logger).Log("msg", "Failed to attach image to notification", "error", err)
+				level.Error(logger).Log("msg", "Failed to attach image to notification", "err", err)
 				return err
 			}
 		}

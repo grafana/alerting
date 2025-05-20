@@ -114,7 +114,7 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 			webhook.HMACConfig.TimestampHeader,
 		)
 		if err != nil {
-			level.Error(l).Log("msg", "Failed to add HMAC roundtripper to client", "error", err)
+			level.Error(l).Log("msg", "Failed to add HMAC roundtripper to client", "err", err)
 			return err
 		}
 	}
@@ -137,7 +137,7 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 	if webhook.Validation != nil {
 		err := webhook.Validation(body, resp.StatusCode)
 		if err != nil {
-			level.Debug(l).Log("msg", "Webhook failed validation", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body), "error", err)
+			level.Debug(l).Log("msg", "Webhook failed validation", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body), "err", err)
 			return fmt.Errorf("webhook failed validation: %w", err)
 		}
 	}

@@ -109,7 +109,7 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert,
 	var tmplErr error
 	defer func() {
 		if tmplErr != nil {
-			level.Warn(l).Log("msg", "failed to template Telegram message", "error", tmplErr)
+			level.Warn(l).Log("msg", "failed to template Telegram message", "err", tmplErr)
 		}
 	}()
 

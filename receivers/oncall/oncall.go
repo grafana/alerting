@@ -104,7 +104,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	}
 
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template oncall message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template oncall message", "err", tmplErr.Error())
 		tmplErr = nil
 	}
 

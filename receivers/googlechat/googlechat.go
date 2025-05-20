@@ -61,7 +61,7 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	}
 
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Google Chat message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template Google Chat message", "err", tmplErr.Error())
 		tmplErr = nil
 	}
 
@@ -112,13 +112,13 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	}
 
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template GoogleChat message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template GoogleChat message", "err", tmplErr.Error())
 		tmplErr = nil
 	}
 
 	u := tmpl(gcn.settings.URL)
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template GoogleChat URL", "error", tmplErr.Error(), "fallback", gcn.settings.URL)
+		level.Warn(l).Log("msg", "failed to template GoogleChat URL", "err", tmplErr.Error(), "fallback", gcn.settings.URL)
 		u = gcn.settings.URL
 	}
 
@@ -137,7 +137,7 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	}
 
 	if err := gcn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "failed to send Google Hangouts Chat alert", "error", err, "webhook", gcn.Name)
+		level.Error(l).Log("msg", "failed to send Google Hangouts Chat alert", "err", err, "webhook", gcn.Name)
 		return false, err
 	}
 

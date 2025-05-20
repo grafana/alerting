@@ -148,7 +148,7 @@ var SendHTTPRequest = func(ctx context.Context, url *url.URL, cfg HTTPCfg, logge
 func JoinURLPath(base, additionalPath string, logger log.Logger) string {
 	u, err := url.Parse(base)
 	if err != nil {
-		level.Debug(logger).Log("msg", "failed to parse URL while joining URL", "url", base, "error", err.Error())
+		level.Debug(logger).Log("msg", "failed to parse URL while joining URL", "url", base, "err", err.Error())
 		return base
 	}
 

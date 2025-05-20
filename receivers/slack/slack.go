@@ -253,7 +253,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 		level.Warn(l).Log("msg", "Truncated title", "key", key, "max_runes", slackMaxTitleLenRunes)
 	}
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Slack title", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template Slack title", "err", tmplErr.Error())
 		// Reset the error as we have logged it.
 		// This is more important than it looks, as otherwise the subsequent calls to tmpl(sn.settings.Text) would
 		// return emptry, thus not setting important settings for delivery, such as Channel.
@@ -294,7 +294,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 	}
 
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Slack message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template Slack message", "err", tmplErr.Error())
 	}
 
 	mentionsBuilder := strings.Builder{}

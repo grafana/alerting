@@ -66,7 +66,7 @@ func (ln *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	if err := ln.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "failed to send notification to LINE", "error", err, "body", body)
+		level.Error(l).Log("msg", "failed to send notification to LINE", "err", err, "body", body)
 		return false, err
 	}
 
@@ -87,7 +87,7 @@ func (ln *Notifier) buildLineMessage(ctx context.Context, l log.Logger, as ...*t
 		tmpl(ln.settings.Description),
 	)
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Line message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template Line message", "err", tmplErr.Error())
 	}
 
 	message, truncated := receivers.TruncateInRunes(body, lineMaxMessageLenRunes)

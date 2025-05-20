@@ -107,16 +107,16 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logge
 			return result
 		}
 		if fallback == "" || fallback == template {
-			level.Error(logger).Log("msg", "failed to render template", "error", tmplErr, "configField", fieldName, "template", template)
+			level.Error(logger).Log("msg", "failed to render template", "err", tmplErr, "configField", fieldName, "template", template)
 			return ""
 		}
-		level.Error(logger).Log("msg", "failed to render template, use default template", "error", tmplErr, "configField", fieldName, "template", template)
+		level.Error(logger).Log("msg", "failed to render template, use default template", "err", tmplErr, "configField", fieldName, "template", template)
 		tmplErr = nil
 		result = tmpl(fallback)
 		if tmplErr == nil {
 			return result
 		}
-		level.Error(logger).Log("msg", "failed to render default template", "error", tmplErr, "configField", fieldName, "template", fallback)
+		level.Error(logger).Log("msg", "failed to render default template", "err", tmplErr, "configField", fieldName, "template", fallback)
 		return ""
 	}
 
@@ -182,7 +182,7 @@ func (n *Notifier) prepareDescription(desc string, logger log.Logger) any {
 			if err == nil {
 				return issueDescription
 			}
-			level.Warn(logger).Log("msg", "Failed to parse description as JSON. Fallback to string mode", "error", err)
+			level.Warn(logger).Log("msg", "Failed to parse description as JSON. Fallback to string mode", "err", err)
 		}
 
 		// if it's just text, create a document.

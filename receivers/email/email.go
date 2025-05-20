@@ -52,7 +52,7 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 		u.RawQuery = "alertState=firing&view=state"
 		alertPageURL = u.String()
 	} else {
-		level.Debug(l).Log("msg", "failed to parse external URL", "url", en.tmpl.ExternalURL.String(), "error", err.Error())
+		level.Debug(l).Log("msg", "failed to parse external URL", "url", en.tmpl.ExternalURL.String(), "err", err.Error())
 	}
 
 	seenContent := make(map[string]string)
@@ -76,13 +76,13 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 					})
 					seenContent[image.ID] = contents.Name
 				} else {
-					level.Warn(l).Log("msg", "failed to get image file for email attachment", "alert", alerts[index].String(), "error", err)
+					level.Warn(l).Log("msg", "failed to get image file for email attachment", "alert", alerts[index].String(), "err", err)
 				}
 			}
 			return nil
 		}, alerts...)
 	if err != nil {
-		level.Warn(l).Log("msg", "failed to get all images for email", "error", err)
+		level.Warn(l).Log("msg", "failed to get all images for email", "err", err)
 	}
 
 	cmd := &receivers.SendEmailSettings{
@@ -106,7 +106,7 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 	}
 
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template email message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template email message", "err", tmplErr.Error())
 	}
 
 	if err := en.ns.SendEmail(ctx, cmd); err != nil {

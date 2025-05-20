@@ -59,12 +59,12 @@ func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	// check template error after we use them
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template message", "err", tmplErr.Error())
 	}
 
 	publishOutput, err := snsClient.Publish(publishInput)
 	if err != nil {
-		level.Error(l).Log("msg", "Failed to publish to Amazon SNS. ", "error", err)
+		level.Error(l).Log("msg", "Failed to publish to Amazon SNS. ", "err", err)
 		return true, err
 	}
 

@@ -297,13 +297,13 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 
 	// This check for tmplErr must happen before templating the URL
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Teams message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template Teams message", "err", tmplErr.Error())
 		tmplErr = nil
 	}
 
 	u := tmpl(tn.settings.URL)
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Teams URL", "error", tmplErr.Error(), "fallback", tn.settings.URL)
+		level.Warn(l).Log("msg", "failed to template Teams URL", "err", tmplErr.Error(), "fallback", tn.settings.URL)
 		u = tn.settings.URL
 	}
 

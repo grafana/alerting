@@ -63,7 +63,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		},
 	}
 	if err := tn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "Failed to send threema notification", "error", err, "webhook", tn.Name)
+		level.Error(l).Log("msg", "Failed to send threema notification", "err", err)
 		return false, err
 	}
 
@@ -86,7 +86,7 @@ func (tn *Notifier) buildMessage(ctx context.Context, l log.Logger, as ...*types
 	)
 
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Threema message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template Threema message", "err", tmplErr.Error())
 	}
 
 	_ = images.WithStoredImages(ctx, l, tn.images,

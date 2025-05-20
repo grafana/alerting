@@ -82,7 +82,7 @@ func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bo
 
 	topicURL := kn.settings.Endpoint + "/topics/" + tmpl(kn.settings.Topic)
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Kafka url", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template Kafka url", "err", tmplErr.Error())
 	}
 
 	body, err := kn.buildBody(ctx, l, tmpl, as...)
@@ -90,7 +90,7 @@ func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bo
 		return false, err
 	}
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Kafka message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template Kafka message", "err", tmplErr.Error())
 	}
 
 	cmd := &receivers.SendWebhookSettings{
@@ -106,7 +106,7 @@ func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bo
 	}
 
 	if err := kn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "Failed to send notification to Kafka", "error", err, "body", body)
+		level.Error(l).Log("msg", "Failed to send notification to Kafka", "err", err, "body", body)
 		return false, err
 	}
 	return true, nil
@@ -122,7 +122,7 @@ func (kn *Notifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bo
 	// <Endpoint>/v3/clusters/<KafkaClusterID>/topics/<Topic>/records
 	topicURL := kn.settings.Endpoint + "/v3/clusters/" + tmpl(kn.settings.KafkaClusterID) + "/topics/" + tmpl(kn.settings.Topic) + "/records"
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Kafka url", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template Kafka url", "err", tmplErr.Error())
 	}
 
 	body, err := kn.buildV3Body(ctx, l, tmpl, as...)
@@ -130,7 +130,7 @@ func (kn *Notifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bo
 		return false, err
 	}
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Kafka message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template Kafka message", "err", tmplErr.Error())
 	}
 
 	cmd := &receivers.SendWebhookSettings{
@@ -151,7 +151,7 @@ func (kn *Notifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bo
 	// by setting “Transfer-Encoding: chunked” header.
 	// For as long as the connection is kept open, the server will keep accepting records.
 	if err := kn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "Failed to send notification to Kafka", "error", err, "body", body)
+		level.Error(l).Log("msg", "Failed to send notification to Kafka", "err", err, "body", body)
 		return false, err
 	}
 	return true, nil

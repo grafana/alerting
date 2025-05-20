@@ -106,12 +106,12 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		// Otherwise, if Title fails Message will not be templated either.
 		title := tmpl(wn.settings.Title)
 		if tmplErr != nil {
-			level.Warn(l).Log("msg", "failed to template webhook title", "error", tmplErr.Error())
+			level.Warn(l).Log("msg", "failed to template webhook title", "err", tmplErr.Error())
 			tmplErr = nil // Reset the error for the next template.
 		}
 		message := tmpl(wn.settings.Message)
 		if tmplErr != nil {
-			level.Warn(l).Log("msg", "failed to template webhook message", "error", tmplErr.Error())
+			level.Warn(l).Log("msg", "failed to template webhook message", "err", tmplErr.Error())
 			tmplErr = nil // Reset the error for the next template.
 		}
 		payload, err := json.Marshal(webhookMessage{

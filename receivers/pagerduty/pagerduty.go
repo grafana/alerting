@@ -176,7 +176,7 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 	msg.Payload.Summary = summary
 
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template PagerDuty message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template PagerDuty message", "err", tmplErr.Error())
 	}
 
 	return msg, eventType, nil

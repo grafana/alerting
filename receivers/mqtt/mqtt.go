@@ -66,7 +66,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	msg, err := n.buildMessage(ctx, l, as...)
 	if err != nil {
-		level.Error(l).Log("msg", "Failed to build MQTT message", "error", err.Error())
+		level.Error(l).Log("msg", "Failed to build MQTT message", "err", err.Error())
 		return false, err
 	}
 
@@ -75,25 +75,25 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		tlsCfg, err = n.settings.TLSConfig.ToCryptoTLSConfig()
 	}
 	if err != nil {
-		level.Error(l).Log("msg", "Failed to build TLS config", "error", err.Error())
+		level.Error(l).Log("msg", "Failed to build TLS config", "err", err.Error())
 		return false, fmt.Errorf("failed to build TLS config: %s", err.Error())
 	}
 
 	err = n.client.Connect(ctx, n.settings.BrokerURL, n.settings.ClientID, n.settings.Username, n.settings.Password, tlsCfg)
 	if err != nil {
-		level.Error(l).Log("msg", "Failed to connect to MQTT broker", "error", err.Error())
+		level.Error(l).Log("msg", "Failed to connect to MQTT broker", "err", err.Error())
 		return false, fmt.Errorf("Failed to connect to MQTT broker: %s", err.Error())
 	}
 	defer func() {
 		err := n.client.Disconnect(ctx)
 		if err != nil {
-			level.Error(l).Log("msg", "Failed to disconnect from MQTT broker", "error", err.Error())
+			level.Error(l).Log("msg", "Failed to disconnect from MQTT broker", "err", err.Error())
 		}
 	}()
 
 	qos, err := n.settings.QoS.Int64()
 	if err != nil {
-		level.Error(l).Log("msg", "Failed to parse QoS", "error", err.Error())
+		level.Error(l).Log("msg", "Failed to parse QoS", "err", err.Error())
 		return false, fmt.Errorf("Failed to parse QoS: %s", err.Error())
 	}
 
@@ -108,7 +108,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	)
 
 	if err != nil {
-		level.Error(l).Log("msg", "Failed to publish MQTT message", "error", err.Error())
+		level.Error(l).Log("msg", "Failed to publish MQTT message", "err", err.Error())
 		return false, fmt.Errorf("Failed to publish MQTT message: %s", err.Error())
 	}
 
@@ -125,7 +125,7 @@ func (n *Notifier) buildMessage(ctx context.Context, l log.Logger, as ...*types.
 	tmpl, data := templates.TmplText(ctx, n.tmpl, as, l, &tmplErr)
 	messageText := tmpl(n.settings.Message)
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "Failed to template MQTT message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "Failed to template MQTT message", "err", tmplErr.Error())
 	}
 
 	switch n.settings.MessageFormat {

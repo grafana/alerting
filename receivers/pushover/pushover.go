@@ -62,7 +62,7 @@ func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	l := pn.GetLogger()
 	headers, uploadBody, err := pn.genPushoverBody(ctx, l, as...)
 	if err != nil {
-		level.Error(l).Log("msg", "Failed to generate body for pushover", "error", err)
+		level.Error(l).Log("msg", "Failed to generate body for pushover", "err", err)
 		return false, err
 	}
 
@@ -74,7 +74,7 @@ func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	if err := pn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "failed to send pushover notification", "error", err, "webhook", pn.Name)
+		level.Error(l).Log("msg", "failed to send pushover notification", "err", err, "webhook", pn.Name)
 		return false, err
 	}
 
@@ -201,7 +201,7 @@ func (pn *Notifier) genPushoverBody(ctx context.Context, l log.Logger, as ...*ty
 	}
 
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template pushover message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template pushover message", "err", tmplErr.Error())
 	}
 
 	headers := map[string]string{
@@ -236,6 +236,6 @@ func (pn *Notifier) writeImageParts(ctx context.Context, l log.Logger, w *multip
 		return images.ErrImagesDone
 	}, as...)
 	if err != nil {
-		level.Error(l).Log("msg", "failed to fetch image for the notification", "error", err)
+		level.Error(l).Log("msg", "failed to fetch image for the notification", "err", err)
 	}
 }

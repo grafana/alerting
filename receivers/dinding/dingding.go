@@ -52,13 +52,13 @@ func (dd *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template DingDing message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template DingDing message", "err", tmplErr.Error())
 		tmplErr = nil
 	}
 
 	u := tmpl(dd.settings.URL)
 	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template DingDing URL", "error", tmplErr.Error(), "fallback", dd.settings.URL)
+		level.Warn(l).Log("msg", "failed to template DingDing URL", "err", tmplErr.Error(), "fallback", dd.settings.URL)
 		u = dd.settings.URL
 	}
 
