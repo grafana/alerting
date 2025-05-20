@@ -958,23 +958,18 @@ func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, 
 	if err != nil {
 		return nil, err
 	}
-	integrations, err := BuildReceiverIntegrations(
+	integrations := BuildReceiverIntegrations(
 		receiverCfg,
 		tmpl,
 		am.opts.ImageProvider,
 		// TODO change it to use AM's logger with and add type as label
 		am.opts.LoggerFactory,
-		func(_ receivers.Metadata) (receivers.EmailSender, error) {
-			return am.opts.EmailSender, nil
-		},
+		am.opts.EmailSender,
 		func(_ string, n Notifier) Notifier {
 			return n
 		},
 		am.opts.TenantID,
 		am.opts.Version,
 	)
-	if err != nil {
-		return nil, err
-	}
 	return integrations, nil
 }
