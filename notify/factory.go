@@ -1,10 +1,7 @@
 package notify
 
 import (
-	"fmt"
-
 	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
@@ -45,19 +42,18 @@ func BuildReceiverIntegrations(
 	tmpl *templates.Template,
 	img images.Provider,
 	logger logging.LoggerFactory,
-	newEmailSender func(n receivers.Metadata) (receivers.EmailSender, error),
+	emailSender receivers.EmailSender,
 	wrapNotifier WrapNotifierFunc,
 	orgID int64,
 	version string,
 	httpClientOptions ...http.ClientOption,
-) ([]*Integration, error) {
+) []*Integration {
 	type notificationChannel interface {
 		notify.Notifier
 		notify.ResolvedSender
 	}
 	var (
 		integrations []*Integration
-		errors       types.MultiError
 		nl           = func(meta receivers.Metadata) logging.Logger {
 			return logger("ngalert.notifier."+meta.Type, "notifierUID", meta.UID)
 		}
@@ -81,12 +77,7 @@ func BuildReceiverIntegrations(
 		ci(i, cfg.Metadata, discord.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), version))
 	}
 	for i, cfg := range receiver.EmailConfigs {
-		mailCli, e := newEmailSender(cfg.Metadata)
-		if e != nil {
-			errors.Add(fmt.Errorf("unable to build email client for %s notifier %s (UID: %s): %w ", cfg.Type, cfg.Name, cfg.UID, e))
-			continue
-		}
-		ci(i, cfg.Metadata, email.New(cfg.Settings, cfg.Metadata, tmpl, mailCli, img, nl(cfg.Metadata)))
+		ci(i, cfg.Metadata, email.New(cfg.Settings, cfg.Metadata, tmpl, emailSender, img, nl(cfg.Metadata)))
 	}
 	for i, cfg := range receiver.GooglechatConfigs {
 		ci(i, cfg.Metadata, googlechat.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), version))
@@ -145,8 +136,5 @@ func BuildReceiverIntegrations(
 	for i, cfg := range receiver.WebexConfigs {
 		ci(i, cfg.Metadata, webex.New(cfg.Settings, cfg.Metadata, tmpl, nw(cfg.Metadata), img, nl(cfg.Metadata), orgID))
 	}
-	if errors.Len() > 0 {
-		return nil, &errors
-	}
-	return integrations, nil
+	return integrations
 }
