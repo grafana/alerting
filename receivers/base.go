@@ -16,7 +16,7 @@ func (n *Base) GetDisableResolveMessage() bool {
 }
 
 func (n *Base) GetLogger() log.Logger {
-	return log.With(n.logger, "integrationType", n.Type, "integrationUID", n.UID)
+	return log.With(n.logger, "receiver", n.Name, "integration", n.Type, "integrationUID", n.UID)
 }
 
 // Metadata contains the metadata of the notifier.
