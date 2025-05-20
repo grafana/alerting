@@ -44,7 +44,7 @@ type defaultEmailSender struct {
 	dialFn func(*defaultEmailSender) (gomail.SendCloser, error)
 }
 
-// NewEmailSender takes a configuration and returns a new EmailSender factory function.
+// NewEmailSender takes a configuration and returns a new EmailSender.
 func NewEmailSender(cfg EmailSenderConfig) (EmailSender, error) {
 	tmpl, err := template.New("templates").
 		Funcs(template.FuncMap{
