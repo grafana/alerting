@@ -15,7 +15,7 @@ type NotificationServiceMock struct {
 	StatusCode   int
 }
 
-func (ns *NotificationServiceMock) SendWebhook(_ context.Context, l log.Logger, cmd *SendWebhookSettings) error {
+func (ns *NotificationServiceMock) SendWebhook(_ context.Context, _ log.Logger, cmd *SendWebhookSettings) error {
 	ns.WebhookCalls = append(ns.WebhookCalls, *cmd)
 	ns.Webhook = *cmd
 

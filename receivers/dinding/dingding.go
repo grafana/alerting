@@ -75,10 +75,10 @@ func (dd *Notifier) SendResolved() bool {
 	return !dd.GetDisableResolveMessage()
 }
 
-func buildDingDingURL(externalUrl *url.URL, l log.Logger) string {
+func buildDingDingURL(externalURL *url.URL, l log.Logger) string {
 	q := url.Values{
 		"pc_slide": {"false"},
-		"url":      {receivers.JoinURLPath(externalUrl.String(), "/alerting/list", l)},
+		"url":      {receivers.JoinURLPath(externalURL.String(), "/alerting/list", l)},
 	}
 
 	// Use special link to auto open the message url outside Dingding
