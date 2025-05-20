@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -69,11 +69,10 @@ func TestPrepareDescription(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup
 			conf := Config{URL: &url.URL{Path: tt.apiPath}}
-			logger := logging.FakeLogger{}
 			notifier := &Notifier{conf: conf}
 
 			// Execute
-			desc := notifier.prepareDescription(tt.description, logger)
+			desc := notifier.prepareDescription(tt.description, log.NewNopLogger())
 			assert.EqualValues(t, tt.expected, desc)
 		})
 	}
@@ -290,9 +289,9 @@ func TestPrepareIssueRequestBody(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			n := New(tt.conf, receivers.Metadata{}, tmpl, nil, logging.FakeLogger{})
+			n := New(tt.conf, receivers.Metadata{}, tmpl, nil, log.NewNopLogger())
 
-			issue := n.prepareIssueRequestBody(context.Background(), logging.FakeLogger{}, "test_group", alerts...)
+			issue := n.prepareIssueRequestBody(context.Background(), log.NewNopLogger(), "test_group", alerts...)
 
 			d, err := json.MarshalIndent(issue, "", "  ")
 			require.NoError(t, err)
@@ -437,23 +436,23 @@ func TestNotify(t *testing.T) {
 				}
 			}
 
-			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
 			retry, err := n.Notify(ctx, alert)
 			require.NoError(t, err)
 			require.False(t, retry)
 			require.Len(t, mock.Calls, 2)
 
-			searchRequest := mock.Calls[0].Args[1].(*receivers.SendWebhookSettings)
+			searchRequest := mock.Calls[0].Args[2].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, searchRequest.User)
 			assert.Equal(t, cfg.Password, searchRequest.Password)
 			assert.JSONEq(t, string(mustMarshal(getSearchJql(cfg, groupKey.Hash(), true))), searchRequest.Body)
 			assert.Equal(t, baseURL+"/search", searchRequest.URL)
 			assert.Equal(t, "POST", searchRequest.HTTPMethod)
 
-			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+			submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, submitRequest.User)
 			assert.Equal(t, cfg.Password, submitRequest.Password)
-			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, log.NewNopLogger(), groupKey.Hash(), alert))), submitRequest.Body)
 			assert.Equal(t, baseURL+"/issue", submitRequest.URL)
 			assert.Equal(t, "POST", submitRequest.HTTPMethod)
 		})
@@ -488,16 +487,16 @@ func TestNotify(t *testing.T) {
 				}
 			}
 
-			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
 			retry, err := n.Notify(ctx, alert)
 			require.NoError(t, err)
 			require.False(t, retry)
 			assert.Len(t, mock.Calls, 2)
 
-			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+			submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, submitRequest.User)
 			assert.Equal(t, cfg.Password, submitRequest.Password)
-			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, log.NewNopLogger(), groupKey.Hash(), alert))), submitRequest.Body)
 			assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 		})
@@ -552,26 +551,26 @@ func TestNotify(t *testing.T) {
 				}
 			}
 
-			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
 			retry, err := n.Notify(ctx, alert)
 			require.NoError(t, err)
 			require.False(t, retry)
 			assert.Len(t, mock.Calls, 4)
 
-			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+			submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, submitRequest.User)
 			assert.Equal(t, cfg.Password, submitRequest.Password)
-			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, log.NewNopLogger(), groupKey.Hash(), alert))), submitRequest.Body)
 			assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 
-			transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
+			transitionsSearchRequest := mock.Calls[2].Args[2].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, transitionsSearchRequest.User)
 			assert.Equal(t, cfg.Password, transitionsSearchRequest.Password)
 			assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
 			assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
 
-			transitionRequest := mock.Calls[3].Args[1].(*receivers.SendWebhookSettings)
+			transitionRequest := mock.Calls[3].Args[2].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, transitionRequest.User)
 			assert.Equal(t, cfg.Password, transitionRequest.Password)
 			assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionRequest.URL)
@@ -586,13 +585,13 @@ func TestNotify(t *testing.T) {
 				mock.Calls = nil
 				cfg.ReopenTransition = ""
 
-				n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+				n := New(cfg, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
 				retry, err := n.Notify(ctx, alert)
 				require.NoError(t, err)
 				require.False(t, retry)
 				assert.Len(t, mock.Calls, 2)
 
-				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+				submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
 				assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 			})
@@ -601,18 +600,18 @@ func TestNotify(t *testing.T) {
 				mock.Calls = nil
 				cfg.ReopenTransition = "something-else"
 
-				n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+				n := New(cfg, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
 				retry, err := n.Notify(ctx, alert)
 				require.Error(t, err)
 				require.False(t, retry)
 
 				assert.Len(t, mock.Calls, 3)
 
-				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+				submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
 				assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 
-				transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
+				transitionsSearchRequest := mock.Calls[2].Args[2].(*receivers.SendWebhookSettings)
 				assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
 				assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
 			})
@@ -656,7 +655,7 @@ func TestNotify(t *testing.T) {
 				}
 			}
 
-			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
 			retry, err := n.Notify(ctx, alert)
 			require.NoError(t, err)
 			require.False(t, retry)
@@ -695,16 +694,16 @@ func TestNotify(t *testing.T) {
 				}
 			}
 
-			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
 			retry, err := n.Notify(ctx, alert)
 			require.NoError(t, err)
 			require.False(t, retry)
 			require.Len(t, mock.Calls, 2)
 
-			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+			submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, submitRequest.User)
 			assert.Equal(t, cfg.Password, submitRequest.Password)
-			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, log.NewNopLogger(), groupKey.Hash(), alert))), submitRequest.Body)
 			assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 		})
@@ -757,26 +756,26 @@ func TestNotify(t *testing.T) {
 				}
 			}
 
-			n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+			n := New(cfg, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
 			retry, err := n.Notify(ctx, alert)
 			require.NoError(t, err)
 			require.False(t, retry)
 			require.Len(t, mock.Calls, 4)
 
-			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+			submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, submitRequest.User)
 			assert.Equal(t, cfg.Password, submitRequest.Password)
-			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, logging.FakeLogger{}, groupKey.Hash(), alert))), submitRequest.Body)
+			assert.JSONEq(t, string(mustMarshal(n.prepareIssueRequestBody(ctx, log.NewNopLogger(), groupKey.Hash(), alert))), submitRequest.Body)
 			assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 
-			transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
+			transitionsSearchRequest := mock.Calls[2].Args[2].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, transitionsSearchRequest.User)
 			assert.Equal(t, cfg.Password, transitionsSearchRequest.Password)
 			assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
 			assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
 
-			transitionRequest := mock.Calls[3].Args[1].(*receivers.SendWebhookSettings)
+			transitionRequest := mock.Calls[3].Args[2].(*receivers.SendWebhookSettings)
 			assert.Equal(t, cfg.User, transitionRequest.User)
 			assert.Equal(t, cfg.Password, transitionRequest.Password)
 			assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionRequest.URL)
@@ -791,13 +790,13 @@ func TestNotify(t *testing.T) {
 				mock.Calls = nil
 				cfg.ResolveTransition = ""
 
-				n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+				n := New(cfg, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
 				retry, err := n.Notify(ctx, alert)
 				require.NoError(t, err)
 				require.False(t, retry)
 				assert.Len(t, mock.Calls, 2)
 
-				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+				submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
 				assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 			})
@@ -806,18 +805,18 @@ func TestNotify(t *testing.T) {
 				mock.Calls = nil
 				cfg.ResolveTransition = "something-else"
 
-				n := New(cfg, receivers.Metadata{}, tmpl, mock, logging.FakeLogger{})
+				n := New(cfg, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
 				retry, err := n.Notify(ctx, alert)
 				assert.Error(t, err)
 				assert.False(t, retry)
 
 				assert.Len(t, mock.Calls, 3)
 
-				submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
+				submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
 				assert.Equal(t, baseURL+"/issue/"+issueKey, submitRequest.URL)
 				assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 
-				transitionsSearchRequest := mock.Calls[2].Args[1].(*receivers.SendWebhookSettings)
+				transitionsSearchRequest := mock.Calls[2].Args[2].(*receivers.SendWebhookSettings)
 				assert.Equal(t, baseURL+fmt.Sprintf("/issue/%s/transitions", issueKey), transitionsSearchRequest.URL)
 				assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
 			})

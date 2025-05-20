@@ -36,7 +36,6 @@ import (
 
 	"github.com/grafana/alerting/cluster"
 	"github.com/grafana/alerting/images"
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/notify/stages"
 	"github.com/grafana/alerting/receivers"
@@ -169,7 +168,6 @@ type GrafanaAlertmanagerOpts struct {
 	EmailSender   receivers.EmailSender
 	ImageProvider images.Provider
 	Decrypter     GetDecryptedValueFn
-	LoggerFactory logging.LoggerFactory
 
 	Version   string
 	TenantKey string
@@ -199,10 +197,6 @@ func (c *GrafanaAlertmanagerOpts) Validate() error {
 
 	if c.Decrypter == nil {
 		return errors.New("decrypter must be present")
-	}
-
-	if c.LoggerFactory == nil {
-		return errors.New("logger factory must be present")
 	}
 
 	if c.TenantKey == "" {
@@ -963,7 +957,7 @@ func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, 
 		tmpl,
 		am.opts.ImageProvider,
 		// TODO change it to use AM's logger with and add type as label
-		am.opts.LoggerFactory,
+		am.logger,
 		am.opts.EmailSender,
 		func(_ string, n Notifier) Notifier {
 			return n

@@ -9,13 +9,13 @@ import (
 	"testing"
 
 	"github.com/benbjohnson/clock"
+	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/images"
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -503,13 +503,7 @@ func TestNotify(t *testing.T) {
 			webhookSender := receivers.MockNotificationService()
 
 			pn := &Notifier{
-				Base: &receivers.Base{
-					Name:                  "",
-					Type:                  "",
-					UID:                   "",
-					DisableResolveMessage: false,
-				},
-				log:      &logging.FakeLogger{},
+				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				ns:       webhookSender,
 				tmpl:     tmpl,
 				settings: c.settings,
