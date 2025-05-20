@@ -55,7 +55,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		// This should not happen, but it's better to avoid panics.
 		return false, fmt.Errorf("missing JIRA URL")
 	}
-	l := n.GetLogger()
+	l := n.GetLogger(ctx)
 
 	alerts := types.Alerts(as...)
 	key, err := notify.ExtractGroupKey(ctx)

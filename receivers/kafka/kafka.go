@@ -76,7 +76,7 @@ func (kn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 
 // Use the v2 API to send the alert notification.
 func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := kn.GetLogger()
+	l := kn.GetLogger(ctx)
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, kn.tmpl, as, l, &tmplErr)
 
@@ -114,7 +114,7 @@ func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bo
 
 // Use the v3 API to send the alert notification.
 func (kn *Notifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := kn.GetLogger()
+	l := kn.GetLogger(ctx)
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, kn.tmpl, as, l, &tmplErr)
 

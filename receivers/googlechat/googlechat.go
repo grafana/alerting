@@ -46,7 +46,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify send an alert notification to Google Chat.
 func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := gcn.GetLogger()
+	l := gcn.GetLogger(ctx)
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error

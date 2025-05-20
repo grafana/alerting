@@ -61,7 +61,7 @@ type mqttMessage struct {
 }
 
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := n.GetLogger()
+	l := n.GetLogger(ctx)
 	level.Debug(l).Log("msg", "Sending an MQTT message", "topic", n.settings.Topic, "qos", n.settings.QoS, "retain", n.settings.Retain)
 
 	msg, err := n.buildMessage(ctx, l, as...)

@@ -172,7 +172,7 @@ type CompleteFileUploadRequest struct {
 
 // Notify sends an alert notification to Slack.
 func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
-	l := sn.GetLogger()
+	l := sn.GetLogger(ctx)
 	level.Debug(l).Log("msg", "Creating slack message", "alerts", len(alerts))
 
 	m, data, err := sn.createSlackMessage(ctx, alerts, l)

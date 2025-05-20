@@ -31,7 +31,7 @@ type Notifier struct {
 
 // Notify sends alert notifications to Alertmanager.
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := n.GetLogger()
+	l := n.GetLogger(ctx)
 	level.Debug(l).Log("msg", "sending notification")
 	if len(as) == 0 {
 		return true, nil

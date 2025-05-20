@@ -61,7 +61,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify sends an alert notification to PagerDuty
 func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := pn.GetLogger()
+	l := pn.GetLogger(ctx)
 	alerts := types.Alerts(as...)
 	if alerts.Status() == model.AlertResolved && !pn.SendResolved() {
 		level.Debug(l).Log("msg", "not sending a trigger to Pagerduty", "status", alerts.Status(), "auto resolve", pn.SendResolved())

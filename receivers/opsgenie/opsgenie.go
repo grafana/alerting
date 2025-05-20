@@ -57,7 +57,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify sends an alert notification to Opsgenie
 func (on *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := on.GetLogger()
+	l := on.GetLogger(ctx)
 	level.Debug(l).Log("msg", "sending notification")
 
 	alerts := types.Alerts(as...)

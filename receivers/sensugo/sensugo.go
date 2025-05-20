@@ -44,7 +44,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify sends an alert notification to Sensu Go
 func (sn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := sn.GetLogger()
+	l := sn.GetLogger(ctx)
 	level.Debug(l).Log("msg", "sending Sensu Go result")
 
 	var tmplErr error

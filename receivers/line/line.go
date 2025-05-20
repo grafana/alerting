@@ -44,7 +44,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify send an alert notification to LINE
 func (ln *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := ln.GetLogger()
+	l := ln.GetLogger(ctx)
 	level.Debug(l).Log("msg", "executing notification")
 	body, err := ln.buildLineMessage(ctx, l, as...)
 	if err != nil {

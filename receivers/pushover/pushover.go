@@ -59,7 +59,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify sends an alert notification to Slack.
 func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := pn.GetLogger()
+	l := pn.GetLogger(ctx)
 	headers, uploadBody, err := pn.genPushoverBody(ctx, l, as...)
 	if err != nil {
 		level.Error(l).Log("msg", "Failed to generate body for pushover", "err", err)

@@ -62,7 +62,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		return false, err
 	}
 
-	l := n.GetLogger()
+	l := n.GetLogger(ctx)
 
 	var numFiring, numResolved uint64
 	for _, a := range as {

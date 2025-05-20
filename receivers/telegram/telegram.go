@@ -51,7 +51,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify send an alert notification to Telegram.
 func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := tn.GetLogger()
+	l := tn.GetLogger(ctx)
 	// Create the cmd for sendMessage
 	cmd, err := tn.newWebhookSyncCmd("sendMessage", func(w *multipart.Writer) error {
 		msg, err := tn.buildTelegramMessage(ctx, as, l)

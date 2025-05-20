@@ -1,9 +1,11 @@
 package receivers
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/go-kit/log"
+	"github.com/prometheus/alertmanager/notify"
 )
 
 // Base is the base implementation of a notifier. It contains the common fields across all notifier types.
@@ -20,8 +22,9 @@ func (n *Base) GetDisableResolveMessage() bool {
 	return n.DisableResolveMessage
 }
 
-func (n *Base) GetLogger() log.Logger {
-	return log.With(n.logger, "receiver", n.Name, "integration", fmt.Sprintf("%s[%d]", n.Type, n.Index))
+func (n *Base) GetLogger(ctx context.Context) log.Logger {
+	gkey, _ := notify.GroupKey(ctx)
+	return log.With(n.logger, "receiver", n.Name, "integration", fmt.Sprintf("%s[%d]", n.Type, n.Index), "aggrGroup", gkey)
 }
 
 // Metadata contains the metadata of the notifier.

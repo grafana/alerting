@@ -46,7 +46,7 @@ type webexMessage struct {
 
 // Notify implements the Notifier interface.
 func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := wn.GetLogger()
+	l := wn.GetLogger(ctx)
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, l, &tmplErr)
 

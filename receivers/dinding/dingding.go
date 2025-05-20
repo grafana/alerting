@@ -34,7 +34,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify sends the alert notification to dingding.
 func (dd *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := dd.GetLogger()
+	l := dd.GetLogger(ctx)
 	level.Info(l).Log("msg", "sending dingding")
 
 	dingDingURL := buildDingDingURL(dd.tmpl.ExternalURL, l)

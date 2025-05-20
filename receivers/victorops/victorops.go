@@ -54,7 +54,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify sends notification to Victorops via POST to URL endpoint
 func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := vn.GetLogger()
+	l := vn.GetLogger(ctx)
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error

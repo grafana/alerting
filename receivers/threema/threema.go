@@ -44,7 +44,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify send an alert notification to Threema
 func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := tn.GetLogger()
+	l := tn.GetLogger(ctx)
 	level.Debug(l).Log("msg", "sending threema alert notification", "from", tn.settings.GatewayID, "to", tn.settings.RecipientID)
 
 	// Set up basic API request data

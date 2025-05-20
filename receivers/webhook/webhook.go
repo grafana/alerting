@@ -58,7 +58,7 @@ type webhookMessage struct {
 
 // Notify implements the Notifier interface.
 func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := wn.GetLogger()
+	l := wn.GetLogger(ctx)
 	groupKey, err := notify.ExtractGroupKey(ctx)
 	if err != nil {
 		return false, err

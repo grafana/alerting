@@ -41,7 +41,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, logg
 
 // Notify sends the alert notification to sns.
 func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := s.GetLogger()
+	l := s.GetLogger(ctx)
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, s.tmpl, as, l, &tmplErr)
 

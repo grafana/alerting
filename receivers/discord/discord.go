@@ -98,7 +98,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 }
 
 func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	l := d.GetLogger()
+	l := d.GetLogger(ctx)
 	alerts := types.Alerts(as...)
 
 	var msg discordMessage
