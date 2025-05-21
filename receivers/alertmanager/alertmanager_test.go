@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -14,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/images"
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 )
@@ -87,15 +87,9 @@ func TestNotify(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			sn := &Notifier{
-				Base: &receivers.Base{
-					Name:                  "",
-					Type:                  "",
-					UID:                   "",
-					DisableResolveMessage: false,
-				},
+				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				images:   imageProvider,
 				settings: c.settings,
-				logger:   &logging.FakeLogger{},
 			}
 
 			var body []byte
@@ -103,7 +97,7 @@ func TestNotify(t *testing.T) {
 			t.Cleanup(func() {
 				receivers.SendHTTPRequest = origSendHTTPRequest
 			})
-			receivers.SendHTTPRequest = func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg, _ logging.Logger) ([]byte, error) {
+			receivers.SendHTTPRequest = func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg, _ log.Logger) ([]byte, error) {
 				body = cfg.Body
 				assert.Equal(t, c.settings.User, cfg.User)
 				assert.Equal(t, c.settings.Password, cfg.Password)

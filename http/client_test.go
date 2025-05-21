@@ -9,33 +9,33 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 )
 
 func TestClient(t *testing.T) {
 	t.Run("NewClient", func(t *testing.T) {
-		client := NewClient(logging.FakeLogger{})
+		client := NewClient()
 		require.NotNil(t, client)
 	})
 
 	t.Run("WithUserAgent", func(t *testing.T) {
-		client := NewClient(logging.FakeLogger{}, WithUserAgent("TEST"))
+		client := NewClient(WithUserAgent("TEST"))
 		require.Equal(t, "TEST", client.cfg.userAgent)
 	})
 
 	t.Run("WithDialer with timeout", func(t *testing.T) {
 		dialer := net.Dialer{Timeout: 5 * time.Second}
-		client := NewClient(logging.FakeLogger{}, WithDialer(dialer))
+		client := NewClient(WithDialer(dialer))
 		require.Equal(t, dialer, client.cfg.dialer)
 	})
 
 	t.Run("WithDialer missing timeout should use default", func(t *testing.T) {
 		// Mostly defensive to ensure that some timeout is set.
 		dialer := net.Dialer{LocalAddr: &net.TCPAddr{IP: net.ParseIP("::")}}
-		client := NewClient(logging.FakeLogger{}, WithDialer(dialer))
+		client := NewClient(WithDialer(dialer))
 
 		expectedDialer := dialer
 		expectedDialer.Timeout = defaultDialTimeout
@@ -53,14 +53,14 @@ func TestSendWebhook(t *testing.T) {
 		got = r
 		w.WriteHeader(http.StatusOK)
 	}))
-	s := NewClient(logging.FakeLogger{}, WithUserAgent("TEST"))
+	s := NewClient(WithUserAgent("TEST"))
 
 	// The method should be either POST or PUT.
 	cmd := receivers.SendWebhookSettings{
 		HTTPMethod: http.MethodGet,
 		URL:        server.URL,
 	}
-	require.ErrorIs(t, s.SendWebhook(context.Background(), &cmd), ErrInvalidMethod)
+	require.ErrorIs(t, s.SendWebhook(context.Background(), log.NewNopLogger(), &cmd), ErrInvalidMethod)
 
 	// If the method is not specified, it should default to POST.
 	// Content type should default to application/json.
@@ -73,7 +73,7 @@ func TestSendWebhook(t *testing.T) {
 		URL:        server.URL,
 		HTTPHeader: testHeaders,
 	}
-	require.NoError(t, s.SendWebhook(context.Background(), &cmd))
+	require.NoError(t, s.SendWebhook(context.Background(), log.NewNopLogger(), &cmd))
 	require.Equal(t, http.MethodPost, got.Method)
 	require.Equal(t, "application/json", got.Header.Get("Content-Type"))
 
@@ -98,7 +98,7 @@ func TestSendWebhook(t *testing.T) {
 		Password: testPassword,
 	}
 
-	require.NoError(t, s.SendWebhook(context.Background(), &cmd))
+	require.NoError(t, s.SendWebhook(context.Background(), log.NewNopLogger(), &cmd))
 	user, password, ok := got.BasicAuth()
 	require.True(t, ok)
 	require.Equal(t, testUser, user)
@@ -111,13 +111,13 @@ func TestSendWebhook(t *testing.T) {
 		Validation: func([]byte, int) error { return testErr },
 	}
 
-	require.ErrorIs(t, s.SendWebhook(context.Background(), &cmd), testErr)
+	require.ErrorIs(t, s.SendWebhook(context.Background(), log.NewNopLogger(), &cmd), testErr)
 
 	// A non-200 status code should cause an error.
 	cmd = receivers.SendWebhookSettings{
 		URL: server.URL + "/error",
 	}
-	require.Error(t, s.SendWebhook(context.Background(), &cmd))
+	require.Error(t, s.SendWebhook(context.Background(), log.NewNopLogger(), &cmd))
 }
 
 func TestSendWebhookHMAC(t *testing.T) {
@@ -137,7 +137,7 @@ func TestSendWebhookHMAC(t *testing.T) {
 		server := initServer(httptest.NewServer)
 		defer server.Close()
 
-		client := NewClient(logging.FakeLogger{})
+		client := NewClient()
 		webhook := &receivers.SendWebhookSettings{
 			URL:        server.URL,
 			Body:       "test-body",
@@ -149,7 +149,7 @@ func TestSendWebhookHMAC(t *testing.T) {
 			},
 		}
 
-		err := client.SendWebhook(context.Background(), webhook)
+		err := client.SendWebhook(context.Background(), log.NewNopLogger(), webhook)
 		require.NoError(t, err)
 
 		require.NotNil(t, capturedRequest)
@@ -168,7 +168,7 @@ func TestSendWebhookHMAC(t *testing.T) {
 		cfg, err := tlsConfig.ToCryptoTLSConfig()
 		require.NoError(t, err)
 
-		client := NewClient(logging.FakeLogger{})
+		client := NewClient()
 		webhook := &receivers.SendWebhookSettings{
 			URL:        server.URL,
 			Body:       "test-body",
@@ -181,7 +181,7 @@ func TestSendWebhookHMAC(t *testing.T) {
 			},
 		}
 
-		err = client.SendWebhook(context.Background(), webhook)
+		err = client.SendWebhook(context.Background(), log.NewNopLogger(), webhook)
 		require.NoError(t, err)
 
 		require.NotNil(t, capturedRequest)

@@ -10,7 +10,8 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/alerting/logging"
+	"github.com/go-kit/log"
+
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -36,7 +37,6 @@ func TestCreatePublishInput(t *testing.T) {
 				UID:                   "",
 				DisableResolveMessage: false,
 			},
-			log:      &logging.FakeLogger{},
 			tmpl:     tmpl,
 			settings: settings,
 		}
@@ -49,7 +49,7 @@ func TestCreatePublishInput(t *testing.T) {
 			},
 		}
 		var tmplErr error
-		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, snsNotifier.log, &tmplErr)
+		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
@@ -68,13 +68,12 @@ func TestCreatePublishInput(t *testing.T) {
 			Message:     stringWithManyCharacters,
 		}
 		snsNotifier := &Notifier{
-			Base: &receivers.Base{
+			Base: receivers.NewBase(receivers.Metadata{
 				Name:                  "AWS SNS",
 				Type:                  "sns",
 				UID:                   "",
 				DisableResolveMessage: false,
-			},
-			log:      &logging.FakeLogger{},
+			}, log.NewNopLogger()),
 			tmpl:     tmpl,
 			settings: settings,
 		}
@@ -88,7 +87,7 @@ func TestCreatePublishInput(t *testing.T) {
 		}
 
 		var tmplErr error
-		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, snsNotifier.log, &tmplErr)
+		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
@@ -108,13 +107,12 @@ func TestCreatePublishInput(t *testing.T) {
 			Subject:     stringWithManyCharacters,
 		}
 		snsNotifier := &Notifier{
-			Base: &receivers.Base{
+			Base: receivers.NewBase(receivers.Metadata{
 				Name:                  "AWS SNS",
 				Type:                  "sns",
 				UID:                   "",
 				DisableResolveMessage: false,
-			},
-			log:      &logging.FakeLogger{},
+			}, log.NewNopLogger()),
 			tmpl:     tmpl,
 			settings: settings,
 		}
@@ -128,7 +126,7 @@ func TestCreatePublishInput(t *testing.T) {
 		}
 
 		var tmplErr error
-		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, snsNotifier.log, &tmplErr)
+		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)

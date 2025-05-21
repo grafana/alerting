@@ -22,7 +22,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/images"
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/receivers"
 )
@@ -44,9 +43,6 @@ func setupAMTest(t *testing.T) (*GrafanaAlertmanager, *prometheus.Registry) {
 		EmailSender:   receivers.MockNotificationService(),
 		ImageProvider: images.NewFakeProvider(1),
 		Decrypter:     NoopDecrypt,
-		LoggerFactory: func(_ string, _ ...interface{}) logging.Logger {
-			return logging.FakeLogger{}
-		},
 	}
 
 	require.NoError(t, opts.Validate())

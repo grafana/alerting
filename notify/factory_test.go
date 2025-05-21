@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/notify"
 
 	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -28,9 +28,6 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 
 	emailService := receivers.MockNotificationService()
 
-	loggerFactory := func(_ string, _ ...interface{}) logging.Logger {
-		return &logging.FakeLogger{}
-	}
 	noopWrapper := func(_ string, n Notifier) Notifier {
 		return n
 	}
@@ -48,17 +45,13 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should build all supported notifiers", func(t *testing.T) {
 		fullCfg, qty := getFullConfig(t)
 
-		logger := func(_ string, _ ...interface{}) logging.Logger {
-			return &logging.FakeLogger{}
-		}
-
 		wrapped := 0
 		notifyWrapper := func(_ string, n Notifier) Notifier {
 			wrapped++
 			return n
 		}
 
-		integrations := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, emailService, notifyWrapper, orgID, version)
+		integrations := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version)
 
 		require.Len(t, integrations, qty)
 
@@ -83,7 +76,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 				}),
 			}
 
-			integrations := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, emailService, notifyWrapper, orgID, version, clientOpts...)
+			integrations := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version, clientOpts...)
 
 			require.Len(t, integrations, qty)
 			for _, integration := range integrations {
@@ -119,7 +112,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should not produce any integration if config is empty", func(t *testing.T) {
 		cfg := GrafanaReceiverConfig{Name: "test"}
 
-		integrations := BuildReceiverIntegrations(cfg, tmpl, imageProvider, loggerFactory, emailService, noopWrapper, orgID, version)
+		integrations := BuildReceiverIntegrations(cfg, tmpl, imageProvider, log.NewNopLogger(), emailService, noopWrapper, orgID, version)
 		require.Empty(t, integrations)
 	})
 }

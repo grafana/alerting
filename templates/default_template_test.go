@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/alerting/models"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
-	"github.com/grafana/alerting/logging"
+	"github.com/grafana/alerting/models"
 )
 
 func TestDefaultTemplateString(t *testing.T) {
@@ -137,7 +137,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	tmpl.ExternalURL = externalURL
 
 	var tmplErr error
-	l := &logging.FakeLogger{}
+	l := log.NewNopLogger()
 	expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
 
 	tmplDef, err := DefaultTemplate()

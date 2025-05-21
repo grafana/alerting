@@ -20,8 +20,9 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
+	"github.com/go-kit/log"
+
 	"github.com/grafana/alerting/images"
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
@@ -354,8 +355,7 @@ func TestNotify(t *testing.T) {
 			webhookSender := receivers.MockNotificationService()
 			imageProvider := &images.UnavailableProvider{}
 			dn := &Notifier{
-				Base:       &receivers.Base{},
-				log:        &logging.FakeLogger{},
+				Base:       receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				ns:         webhookSender,
 				tmpl:       tmpl,
 				settings:   c.settings,
@@ -404,7 +404,7 @@ func TestNotify_WithImages(t *testing.T) {
 	imageProvider := images.NewTokenProvider(images.NewFakeTokenStoreFromImages(map[string]*images.Image{
 		"test-token-url":    &imageWithURL,
 		"test-token-no-url": &imageWithoutURL,
-	}), &logging.FakeLogger{})
+	}), log.NewNopLogger())
 	tmpl := templates.ForTests(t)
 
 	externalURL, err := url.Parse("http://localhost")
@@ -645,8 +645,7 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 		t.Run(c.name, func(tt *testing.T) {
 			webhookSender := receivers.MockNotificationService()
 			dn := &Notifier{
-				Base:       &receivers.Base{},
-				log:        &logging.FakeLogger{},
+				Base:       receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				ns:         webhookSender,
 				tmpl:       tmpl,
 				settings:   c.settings,
@@ -705,7 +704,7 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 		}
 
 		tokenStore := images.NewFakeTokenStore(15)
-		imageProvider := images.NewTokenProvider(tokenStore, &logging.FakeLogger{})
+		imageProvider := images.NewTokenProvider(tokenStore, log.NewNopLogger())
 
 		// Create 15 alerts with an image each, Discord's embed limit is 10, and we should be using a maximum of 9 for images.
 		var alerts []*types.Alert
@@ -750,8 +749,7 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 
 		webhookSender := receivers.MockNotificationService()
 		dn := &Notifier{
-			Base:       &receivers.Base{},
-			log:        &logging.FakeLogger{},
+			Base:       receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 			ns:         webhookSender,
 			tmpl:       tmpl,
 			settings:   config,

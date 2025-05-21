@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-
-	"github.com/grafana/alerting/logging"
 
 	"github.com/grafana/alerting/models"
 )
@@ -25,15 +24,15 @@ func (f FakeTokenStore) GetImage(_ context.Context, token string) (*Image, error
 }
 
 func NewFakeProvider(n int) Provider {
-	return NewTokenProvider(NewFakeTokenStore(n), &logging.FakeLogger{})
+	return NewTokenProvider(NewFakeTokenStore(n), log.NewNopLogger())
 }
 
 func NewFakeProviderWithFile(t *testing.T, n int) Provider {
-	return NewTokenProvider(NewFakeTokenStoreWithFile(t, n), &logging.FakeLogger{})
+	return NewTokenProvider(NewFakeTokenStoreWithFile(t, n), log.NewNopLogger())
 }
 
 func NewFakeProviderWithStore(s TokenStore) Provider {
-	return NewTokenProvider(s, &logging.FakeLogger{})
+	return NewTokenProvider(s, log.NewNopLogger())
 }
 
 func NewFakeTokenStoreFromImages(images map[string]*Image) *FakeTokenStore {
