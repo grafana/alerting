@@ -120,7 +120,7 @@ func ParseTestTemplate(name string, text string) ([]string, error) {
 		tmpl = text
 	}
 
-	_, err := template.New(append(defaultOptionsPerKind[GrafanaTemplateKind], capture)...)
+	_, err := template.New(append(defaultOptionsPerKind[GrafanaKind], capture)...)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func TemplateFromTemplateDefinitions(templates []TemplateDefinition, logger log.
 		seen[tc.Name] = struct{}{}
 	}
 
-	tmpl, err := fromContent(append(defaultTemplatesPerKind[GrafanaTemplateKind], tmpls...), append(defaultOptionsPerKind[GrafanaTemplateKind], options...)...)
+	tmpl, err := fromContent(append(defaultTemplatesPerKind[GrafanaKind], tmpls...), append(defaultOptionsPerKind[GrafanaKind], options...)...)
 	if err != nil {
 		return nil, err
 	}

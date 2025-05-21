@@ -35,23 +35,47 @@ var (
 	// Provides current time. Can be overwritten in tests.
 	timeNow               = time.Now
 	defaultOptionsPerKind = map[Kind][]template.Option{
-		GrafanaTemplateKind: {
+		GrafanaKind: {
 			addFuncs,
 		},
 	}
 	defaultTemplatesPerKind = map[Kind][]string{
-		GrafanaTemplateKind: {
+		GrafanaKind: {
 			DefaultTemplateString,
 		},
 	}
 )
 
 // Kind represents the type or category of a template. It is used to differentiate between various template kinds.
-type Kind string
+type Kind int
+
+func (k Kind) String() string {
+	switch k {
+	case GrafanaKind:
+		return "Grafana"
+	case PrometheusKind:
+		return "Prometheus"
+	default:
+		return "Unknown"
+	}
+}
+
+// validKinds is a set of all recognized template kinds
+var validKinds = map[Kind]struct{}{
+	GrafanaKind:    {},
+	PrometheusKind: {},
+}
+
+// IsKnownKind checks if the provided kind is a recognized template kind
+func IsKnownKind(kind Kind) bool {
+	_, exists := validKinds[kind]
+	return exists
+}
 
 const (
-	GrafanaTemplateKind    Kind = "grafana"
-	PrometheusTemplateKind Kind = "prometheus"
+	kindUnknown Kind = iota
+	GrafanaKind
+	PrometheusKind
 )
 
 type TemplateDefinition struct {
@@ -117,7 +141,7 @@ func DefaultTemplate(options ...template.Option) (TemplateDefinition, error) {
 	}
 
 	// Call fromContent without any user-provided templates to get the combined default template.
-	_, err := fromContent(defaultTemplatesPerKind[GrafanaTemplateKind], append(defaultOptionsPerKind[GrafanaTemplateKind], append(options, captureTemplate)...)...)
+	_, err := fromContent(defaultTemplatesPerKind[GrafanaKind], append(defaultOptionsPerKind[GrafanaKind], append(options, captureTemplate)...)...)
 	if err != nil {
 		return TemplateDefinition{}, err
 	}
