@@ -221,6 +221,8 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 				if image.URL == "" {
 					return nil
 				}
+				var tmplErr error
+				tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
 				imageMessage := &slackMessage{
 					Channel:   channelID,
 					Username:  m.Username,
@@ -229,7 +231,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 					ThreadTs:  slackResp.Ts,
 					Attachments: []attachment{
 						{
-							Color:      templates.DefaultMessageColor,
+							Color:      tmpl(templates.DefaultMessageColor),
 							Title:      title,
 							Fallback:   text,
 							Footer:     "Grafana v" + sn.appVersion,
@@ -240,6 +242,10 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 						},
 					},
 				}
+				if tmplErr != nil {
+					level.Warn(l).Log("msg", "failed to template Slack message color", "err", tmplErr.Error())
+				}
+
 				_, err := sn.sendSlackMessage(ctx, imageMessage, l)
 				if err != nil {
 					return fmt.Errorf("failed to send fallback image message: %w", err)
