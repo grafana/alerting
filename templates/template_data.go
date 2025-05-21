@@ -77,6 +77,22 @@ type TemplateDefinition struct {
 	Kind Kind
 }
 
+func (t TemplateDefinition) Validate() error {
+	if !IsKnownKind(t.Kind) {
+		return fmt.Errorf("template kind is unknown")
+	}
+	// Validate template contents. We try to stick as close to what will actually happen when the templates are parsed
+	// by the alertmanager as possible.
+	tmpl, err := template.New(defaultOptionsPerKind(t.Kind)...)
+	if err != nil {
+		return fmt.Errorf("failed to create template: %w", err)
+	}
+	if err := tmpl.Parse(strings.NewReader(t.Template)); err != nil {
+		return fmt.Errorf("invalid template: %w", err)
+	}
+	return nil
+}
+
 type ExtendedAlert struct {
 	Status        string             `json:"status"`
 	Labels        KV                 `json:"labels"`
