@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/models"
 )
 
@@ -39,7 +39,7 @@ func TestWithStoredImages(t *testing.T) {
 			},
 		},
 		),
-		logger: &logging.FakeLogger{},
+		logger: log.NewNopLogger(),
 	}
 
 	var (
@@ -48,7 +48,7 @@ func TestWithStoredImages(t *testing.T) {
 	)
 
 	// should iterate all images
-	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageProvider, func(_ int, _ Image) error {
+	err = WithStoredImages(ctx, log.NewNopLogger(), imageProvider, func(_ int, _ Image) error {
 		i++
 		return nil
 	}, alerts...)
@@ -57,7 +57,7 @@ func TestWithStoredImages(t *testing.T) {
 
 	// should iterate just the first image
 	i = 0
-	err = WithStoredImages(ctx, &logging.FakeLogger{}, imageProvider, func(_ int, _ Image) error {
+	err = WithStoredImages(ctx, log.NewNopLogger(), imageProvider, func(_ int, _ Image) error {
 		i++
 		return ErrImagesDone
 	}, alerts...)

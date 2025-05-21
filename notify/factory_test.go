@@ -2,7 +2,6 @@ package notify
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -10,14 +9,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
+
+	"github.com/prometheus/alertmanager/notify"
 
 	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
-	"github.com/prometheus/alertmanager/notify"
 )
 
 func TestBuildReceiverIntegrations(t *testing.T) {
@@ -26,12 +26,8 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	imageProvider := &images.URLProvider{}
 	tmpl := templates.ForTests(t)
 
-	emailFactory := func(_ receivers.Metadata) (receivers.EmailSender, error) {
-		return receivers.MockNotificationService(), nil
-	}
-	loggerFactory := func(_ string, _ ...interface{}) logging.Logger {
-		return &logging.FakeLogger{}
-	}
+	emailService := receivers.MockNotificationService()
+
 	noopWrapper := func(_ string, n Notifier) Notifier {
 		return n
 	}
@@ -49,30 +45,16 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should build all supported notifiers", func(t *testing.T) {
 		fullCfg, qty := getFullConfig(t)
 
-		logger := func(_ string, _ ...interface{}) logging.Logger {
-			return &logging.FakeLogger{}
-		}
-
-		emails := make(map[receivers.Metadata]struct{}, qty)
-		em := func(n receivers.Metadata) (receivers.EmailSender, error) {
-			emails[n] = struct{}{}
-			return emailFactory(n)
-		}
-
 		wrapped := 0
 		notifyWrapper := func(_ string, n Notifier) Notifier {
 			wrapped++
 			return n
 		}
 
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, em, notifyWrapper, orgID, version)
+		integrations := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version)
 
-		require.NoError(t, err)
 		require.Len(t, integrations, qty)
 
-		t.Run("should call email factory for each config that needs it", func(t *testing.T) {
-			require.Len(t, emails, 1) // we have only email notifier that needs sender
-		})
 		t.Run("should call notify wrapper for each config", func(t *testing.T) {
 			require.Equal(t, qty, wrapped)
 		})
@@ -94,8 +76,8 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 				}),
 			}
 
-			integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, logger, em, notifyWrapper, orgID, version, clientOpts...)
-			require.NoError(t, err)
+			integrations := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version, clientOpts...)
+
 			require.Len(t, integrations, qty)
 			for _, integration := range integrations {
 				if integration.Name() == "email" {
@@ -127,27 +109,10 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			}
 		})
 	})
-	t.Run("should return errors if email factory fails", func(t *testing.T) {
-		fullCfg, _ := getFullConfig(t)
-		calls := 0
-		failingFactory := func(_ receivers.Metadata) (receivers.EmailSender, error) {
-			calls++
-			return nil, errors.New("bad-test")
-		}
-
-		integrations, err := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, loggerFactory, failingFactory, noopWrapper, orgID, version)
-
-		require.Empty(t, integrations)
-		require.NotNil(t, err)
-		require.ErrorContains(t, err, "bad-test")
-		require.Greater(t, calls, 0)
-	})
 	t.Run("should not produce any integration if config is empty", func(t *testing.T) {
 		cfg := GrafanaReceiverConfig{Name: "test"}
 
-		integrations, err := BuildReceiverIntegrations(cfg, tmpl, imageProvider, loggerFactory, emailFactory, noopWrapper, orgID, version)
-
-		require.NoError(t, err)
+		integrations := BuildReceiverIntegrations(cfg, tmpl, imageProvider, log.NewNopLogger(), emailService, noopWrapper, orgID, version)
 		require.Empty(t, integrations)
 	})
 }

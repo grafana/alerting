@@ -9,8 +9,9 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	"github.com/go-kit/log"
+
 	"github.com/grafana/alerting/images"
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -34,7 +35,7 @@ func TestNotify(t *testing.T) {
 	t.Run("with the correct settings it should not fail and produce the expected command", func(t *testing.T) {
 		emailSender := receivers.MockNotificationService()
 		emailNotifier := &Notifier{
-			log:      &logging.FakeLogger{},
+			Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 			ns:       emailSender,
 			tmpl:     tmpl,
 			settings: settings,
@@ -92,7 +93,7 @@ func TestNotify(t *testing.T) {
 			emailSender := receivers.MockNotificationService()
 			provider := images.NewFakeProvider(1)
 			emailNotifier := &Notifier{
-				log:      &logging.FakeLogger{},
+				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				ns:       emailSender,
 				tmpl:     tmpl,
 				settings: settings,
@@ -161,7 +162,7 @@ func TestNotify(t *testing.T) {
 			imageStore := images.NewFakeTokenStoreWithFile(t, 1)
 			provider := images.NewFakeProviderWithStore(imageStore)
 			emailNotifier := &Notifier{
-				log:      &logging.FakeLogger{},
+				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				ns:       emailSender,
 				tmpl:     tmpl,
 				settings: settings,

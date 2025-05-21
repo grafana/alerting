@@ -15,7 +15,7 @@ import (
 func TestEmbedTemplate(t *testing.T) {
 	// Test the email templates are embedded and parsed correctly.
 	require.NotEmpty(t, defaultEmailTemplate)
-	s, err := NewEmailSenderFactory(EmailSenderConfig{})(Metadata{})
+	s, err := NewEmailSender(EmailSenderConfig{})
 	require.NoError(t, err)
 
 	ds, ok := s.(*defaultEmailSender)
@@ -95,11 +95,11 @@ func TestBuildEmailMessage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			s, err := NewEmailSenderFactory(EmailSenderConfig{
+			s, err := NewEmailSender(EmailSenderConfig{
 				ContentTypes: test.contentTypes,
 				ExternalURL:  externalURL,
 				SentBy:       sentBy,
-			})(Metadata{})
+			})
 			require.NoError(t, err)
 			ds, ok := s.(*defaultEmailSender)
 			require.True(t, ok)
@@ -178,7 +178,7 @@ func TestCreateDialer(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			s, err := NewEmailSenderFactory(test.cfg)(Metadata{})
+			s, err := NewEmailSender(test.cfg)
 			require.NoError(t, err)
 			ds, ok := s.(*defaultEmailSender)
 			require.True(t, ok)
@@ -206,7 +206,7 @@ func TestBuildEmail(t *testing.T) {
 		},
 	}
 
-	s, err := NewEmailSenderFactory(cfg)(Metadata{})
+	s, err := NewEmailSender(cfg)
 	require.NoError(t, err)
 	ds, ok := s.(*defaultEmailSender)
 	require.True(t, ok)

@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/grafana/alerting/logging"
 	"github.com/prometheus/alertmanager/types"
 )
 
@@ -111,7 +111,7 @@ func TestTokenProvider_GetImage(t *testing.T) {
 		t.Run(test.name, func(tt *testing.T) {
 			p := NewTokenProvider(FakeTokenStore{
 				Images: test.storedImages,
-			}, &logging.FakeLogger{})
+			}, log.NewNopLogger())
 			img, err := p.GetImage(context.Background(), test.alert)
 			assert.NoError(tt, err)
 			if test.expImage == nil {

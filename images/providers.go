@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/alertmanager/types"
 
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/models"
 )
 
@@ -58,12 +59,12 @@ type TokenStore interface {
 // Image data should be considered trusted as the stored image URL and content are not user-modifiable.
 type TokenProvider struct {
 	store  TokenStore
-	logger logging.Logger
+	logger log.Logger
 }
 
 var _ Provider = (*TokenProvider)(nil)
 
-func NewTokenProvider(store TokenStore, logger logging.Logger) Provider {
+func NewTokenProvider(store TokenStore, logger log.Logger) Provider {
 	return &TokenProvider{
 		store:  store,
 		logger: logger,
@@ -77,11 +78,11 @@ func (i TokenProvider) GetImage(ctx context.Context, alert types.Alert) (*Image,
 	}
 
 	// Assume the uri is a token because we used to store tokens as plain strings.
-	i.logger.Debug("Received an image token in annotations", "token", token)
+	level.Debug(i.logger).Log("msg", "received an image token in annotations", "token", token)
 	image, err := i.store.GetImage(ctx, token)
 	if err != nil {
 		if errors.Is(err, ErrImageNotFound) {
-			i.logger.Info("Image not found in database", "token", token)
+			level.Info(i.logger).Log("msg", "image not found in database", "token", token)
 			return nil, nil
 		}
 		return nil, err
