@@ -33,17 +33,7 @@ type Data = template.Data
 
 var (
 	// Provides current time. Can be overwritten in tests.
-	timeNow               = time.Now
-	defaultOptionsPerKind = map[Kind][]template.Option{
-		GrafanaKind: {
-			addFuncs,
-		},
-	}
-	defaultTemplatesPerKind = map[Kind][]string{
-		GrafanaKind: {
-			DefaultTemplateString,
-		},
-	}
+	timeNow = time.Now
 )
 
 // Kind represents the type or category of a template. It is used to differentiate between various template kinds.
@@ -141,7 +131,7 @@ func DefaultTemplate(options ...template.Option) (TemplateDefinition, error) {
 	}
 
 	// Call fromContent without any user-provided templates to get the combined default template.
-	_, err := fromContent(defaultTemplatesPerKind[GrafanaKind], append(defaultOptionsPerKind[GrafanaKind], append(options, captureTemplate)...)...)
+	_, err := fromContent(defaultTemplatesPerKind(GrafanaKind), append(defaultOptionsPerKind(GrafanaKind), append(options, captureTemplate)...)...)
 	if err != nil {
 		return TemplateDefinition{}, err
 	}
