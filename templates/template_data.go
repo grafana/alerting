@@ -43,8 +43,8 @@ func (k Kind) String() string {
 	switch k {
 	case GrafanaKind:
 		return "Grafana"
-	case PrometheusKind:
-		return "Prometheus"
+	case MimirKind:
+		return "Mimir"
 	default:
 		return "Unknown"
 	}
@@ -52,8 +52,8 @@ func (k Kind) String() string {
 
 // validKinds is a set of all recognized template kinds
 var validKinds = map[Kind]struct{}{
-	GrafanaKind:    {},
-	PrometheusKind: {},
+	GrafanaKind: {},
+	MimirKind:   {},
 }
 
 // IsKnownKind checks if the provided kind is a recognized template kind
@@ -65,7 +65,7 @@ func IsKnownKind(kind Kind) bool {
 const (
 	kindUnknown Kind = iota
 	GrafanaKind
-	PrometheusKind
+	MimirKind
 )
 
 type TemplateDefinition struct {
