@@ -83,6 +83,23 @@ type APIReceiver struct {
 	GrafanaIntegrations `yaml:",inline"`
 }
 
+func (r *APIReceiver) HasPrometheusReceivers() bool {
+	return len(r.DiscordConfigs) > 0 ||
+		len(r.EmailConfigs) > 0 ||
+		len(r.PagerdutyConfigs) > 0 ||
+		len(r.SlackConfigs) > 0 ||
+		len(r.WebhookConfigs) > 0 ||
+		len(r.OpsGenieConfigs) > 0 ||
+		len(r.WechatConfigs) > 0 ||
+		len(r.PushoverConfigs) > 0 ||
+		len(r.VictorOpsConfigs) > 0 ||
+		len(r.SNSConfigs) > 0 ||
+		len(r.TelegramConfigs) > 0 ||
+		len(r.WebexConfigs) > 0 ||
+		len(r.MSTeamsConfigs) > 0 ||
+		len(r.JiraConfigs) > 0
+}
+
 type GrafanaIntegrations struct {
 	Integrations []*GrafanaIntegrationConfig `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
 }
