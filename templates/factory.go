@@ -1,6 +1,7 @@
 package templates
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/go-kit/log"
@@ -16,8 +17,8 @@ type Factory struct {
 
 // NewTemplate creates a new template of the given kind. If Kind is not known, GrafanaKind automatically assumed
 func (tp *Factory) NewTemplate(kind Kind, options ...template.Option) (*Template, error) {
-	if !IsKnownKind(kind) {
-		kind = GrafanaKind
+	if err := ValidateKind(kind); err != nil {
+		return nil, err
 	}
 	definitions := tp.templates[kind]
 	content := defaultTemplatesPerKind(kind)
@@ -35,8 +36,41 @@ func (tp *Factory) NewTemplate(kind Kind, options ...template.Option) (*Template
 	return t, nil
 }
 
+// WithTemplate creates a new factory that has the provided TemplateDefinition. If definition with the same name already exists for this kind, it is replaced.
+// If TemplateDefinition.Kind is not known, GrafanaKind automatically assumed.
+func (tp *Factory) WithTemplate(def TemplateDefinition) (*Factory, error) {
+	if err := ValidateKind(def.Kind); err != nil {
+		return nil, err
+	}
+
+	added := false
+	templates := make(map[Kind][]TemplateDefinition, len(tp.templates))
+	for kind, definitions := range tp.templates {
+		if kind != def.Kind {
+			templates[kind] = definitions
+			continue
+		}
+		newDefinitions := make([]TemplateDefinition, 0, len(definitions)+1)
+		for _, d := range definitions {
+			if d.Name == def.Name {
+				newDefinitions = append(newDefinitions, def)
+				added = true
+			}
+		}
+		templates[kind] = newDefinitions
+	}
+	if !added {
+		templates[def.Kind] = append(templates[def.Kind], def)
+	}
+
+	return &Factory{
+		templates:   templates,
+		externalURL: tp.externalURL,
+	}, nil
+}
+
 // NewFactory creates a new template provider. Accepts list of user-defined templates that are added to the kind's default templates.
-// Returns error if externalURL is not a valid URL. If TemplateDefinition.Kind is not known, GrafanaKind automatically assumed
+// Returns error if externalURL is not a valid URL or if TemplateDefinition.Kind is not known.
 func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string) (*Factory, error) {
 	extURL, err := url.Parse(externalURL)
 	if err != nil {
@@ -50,9 +84,8 @@ func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string) (
 	byType := map[Kind][]TemplateDefinition{}
 
 	for _, def := range t {
-		if !IsKnownKind(def.Kind) {
-			level.Warn(logger).Log("msg", "template without kind is defined, assuming Grafana template", "template_name", def.Name)
-			def.Kind = GrafanaKind
+		if err := ValidateKind(def.Kind); err != nil {
+			return nil, fmt.Errorf("invalid template definition %s: %w", def.Name, err)
 		}
 		if _, ok := seen[seenKey{Name: def.Name, Type: def.Kind}]; ok {
 			level.Warn(logger).Log("msg", "template with same name is defined multiple times, skipping...", "template_name", def.Name, "template_type", def.Kind)

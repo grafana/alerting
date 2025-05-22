@@ -3,6 +3,7 @@ package templates
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	tmplhtml "html/template"
 	"net/url"
@@ -33,7 +34,8 @@ type Data = template.Data
 
 var (
 	// Provides current time. Can be overwritten in tests.
-	timeNow = time.Now
+	timeNow        = time.Now
+	ErrInvalidKind = errors.New("invalid template kind")
 )
 
 // Kind represents the type or category of a template. It is used to differentiate between various template kinds.
@@ -62,6 +64,15 @@ func IsKnownKind(kind Kind) bool {
 	return exists
 }
 
+// ValidateKind checks if the provided Kind is a valid and recognized template kind.
+// Returns an error if the kind is invalid or unrecognized.
+func ValidateKind(kind Kind) error {
+	if !IsKnownKind(kind) {
+		return fmt.Errorf("%w: %s(%d)", ErrInvalidKind, kind.String(), kind)
+	}
+	return nil
+}
+
 const (
 	kindUnknown Kind = iota
 	GrafanaKind
@@ -78,8 +89,8 @@ type TemplateDefinition struct {
 }
 
 func (t TemplateDefinition) Validate() error {
-	if !IsKnownKind(t.Kind) {
-		return fmt.Errorf("template kind is unknown")
+	if err := ValidateKind(t.Kind); err != nil {
+		return err
 	}
 	// Validate template contents. We try to stick as close to what will actually happen when the templates are parsed
 	// by the alertmanager as possible.
