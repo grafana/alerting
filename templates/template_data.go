@@ -23,9 +23,8 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
-	"github.com/grafana/alerting/templates/gomplate"
-
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/templates/gomplate"
 )
 
 type KV = template.KV
