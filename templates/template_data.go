@@ -23,9 +23,8 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
-	"github.com/grafana/alerting/templates/gomplate"
-
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/templates/gomplate"
 )
 
 type Template = template.Template
@@ -47,6 +46,8 @@ func (k Kind) String() string {
 		return "Grafana"
 	case PrometheusKind:
 		return "Prometheus"
+	case MimirKind:
+		return "MimirKind"
 	default:
 		return "Unknown"
 	}
@@ -56,6 +57,7 @@ func (k Kind) String() string {
 var validKinds = map[Kind]struct{}{
 	GrafanaKind:    {},
 	PrometheusKind: {},
+	MimirKind:      {},
 }
 
 // IsKnownKind checks if the provided kind is a recognized template kind
@@ -77,6 +79,7 @@ const (
 	kindUnknown Kind = iota
 	GrafanaKind
 	PrometheusKind
+	MimirKind
 )
 
 type TemplateDefinition struct {
