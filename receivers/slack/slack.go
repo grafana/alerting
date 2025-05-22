@@ -211,45 +211,46 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 				channelID = slackResp.Channel
 			}
 			err := sn.uploadImage(ctx, image, channelID, fmt.Sprintf("%s, %s", title, text), slackResp.Ts, l)
-			if err != nil {
-				// Failed to upload image. This could either be due to the raw image not being available or an error
-				// in the upload process. If the image provider doesn't support uploading we attempt to fallback to
-				// a normal reply with attached image URL.
-				if !errors.Is(err, images.ErrImageUploadNotSupported) {
-					return err
-				}
-				if image.URL == "" {
-					return nil
-				}
-				var tmplErr error
-				tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
-				imageMessage := &slackMessage{
-					Channel:   channelID,
-					Username:  m.Username,
-					IconEmoji: m.IconEmoji,
-					IconURL:   m.IconURL,
-					ThreadTs:  slackResp.Ts,
-					Attachments: []attachment{
-						{
-							Color:      tmpl(templates.DefaultMessageColor),
-							Title:      title,
-							Fallback:   text,
-							Footer:     "Grafana v" + sn.appVersion,
-							FooterIcon: footerIconURL,
-							Ts:         time.Now().Unix(),
-							ImageURL:   image.URL,
-							Text:       text,
-						},
-					},
-				}
-				if tmplErr != nil {
-					level.Warn(l).Log("msg", "failed to template Slack message color", "err", tmplErr.Error())
-				}
+			if err == nil {
+				return nil
+			}
 
-				_, err := sn.sendSlackMessage(ctx, imageMessage, l)
-				if err != nil {
-					return fmt.Errorf("failed to send fallback image message: %w", err)
-				}
+			// Failed to upload image. This could either be due to the raw image not being available or an error
+			// in the upload process. If the image provider doesn't support uploading we attempt to fallback to
+			// a normal reply with attached image URL.
+			if !errors.Is(err, images.ErrImageUploadNotSupported) {
+				return err
+			}
+			if image.URL == "" {
+				return nil
+			}
+			var tmplErr error
+			tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
+			imageMessage := &slackMessage{
+				Channel:   channelID,
+				Username:  m.Username,
+				IconEmoji: m.IconEmoji,
+				IconURL:   m.IconURL,
+				ThreadTs:  slackResp.Ts,
+				Attachments: []attachment{
+					{
+						Color:      tmpl(templates.DefaultMessageColor),
+						Title:      title,
+						Fallback:   text,
+						Footer:     "Grafana v" + sn.appVersion,
+						FooterIcon: footerIconURL,
+						Ts:         time.Now().Unix(),
+						ImageURL:   image.URL,
+						Text:       text,
+					},
+				},
+			}
+			if tmplErr != nil {
+				level.Warn(l).Log("msg", "failed to template Slack message color", "err", tmplErr.Error())
+			}
+
+			if _, err := sn.sendSlackMessage(ctx, imageMessage, l); err != nil {
+				return fmt.Errorf("failed to send fallback image message: %w", err)
 			}
 			return nil
 		}, alerts...); err != nil {
