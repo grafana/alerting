@@ -472,7 +472,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if len(test.existingTemplates) > 0 {
-				fact, err := templates.NewFactory(test.existingTemplates, log.NewNopLogger(), am.ExternalURL())
+				fact, err := templates.NewFactory(test.existingTemplates, log.NewNopLogger(), am.ExternalURL(), "grafana")
 				require.NoError(t, err)
 				am.templates = newTemplatesCache(fact)
 			}

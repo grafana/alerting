@@ -94,7 +94,7 @@ func (t TemplateDefinition) Validate() error {
 	}
 	// Validate template contents. We try to stick as close to what will actually happen when the templates are parsed
 	// by the alertmanager as possible.
-	tmpl, err := template.New(defaultOptionsPerKind(t.Kind)...)
+	tmpl, err := template.New(defaultOptionsPerKind(t.Kind, "grafana")...)
 	if err != nil {
 		return fmt.Errorf("failed to create template: %w", err)
 	}
@@ -160,7 +160,7 @@ func DefaultTemplate(options ...template.Option) (TemplateDefinition, error) {
 	}
 
 	// Call fromContent without any user-provided templates to get the combined default template.
-	_, err := fromContent(defaultTemplatesPerKind(GrafanaKind), append(defaultOptionsPerKind(GrafanaKind), append(options, captureTemplate)...)...)
+	_, err := fromContent(defaultTemplatesPerKind(GrafanaKind), append(defaultOptionsPerKind(GrafanaKind, "grafana"), append(options, captureTemplate)...)...)
 	if err != nil {
 		return TemplateDefinition{}, err
 	}
