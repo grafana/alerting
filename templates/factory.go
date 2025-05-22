@@ -10,7 +10,7 @@ import (
 
 // Factory is a factory that can be used to create templates of specific kind.
 type Factory struct {
-	templates   map[Kind][]string
+	templates   map[Kind][]TemplateDefinition
 	externalURL *url.URL
 }
 
@@ -19,8 +19,12 @@ func (tp *Factory) NewTemplate(kind Kind, options ...template.Option) (*Template
 	if !IsKnownKind(kind) {
 		kind = GrafanaKind
 	}
-	content := tp.templates[kind]
-	t, err := fromContent(append(defaultTemplatesPerKind(kind), content...), append(defaultOptionsPerKind(kind), options...)...)
+	definitions := tp.templates[kind]
+	content := defaultTemplatesPerKind(kind)
+	for _, def := range definitions { // TODO sort the list by name?
+		content = append(content, def.Template)
+	}
+	t, err := fromContent(content, append(defaultOptionsPerKind(kind), options...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +47,7 @@ func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string) (
 		Type Kind
 	}
 	seen := map[seenKey]struct{}{}
-	byType := map[Kind][]string{}
+	byType := map[Kind][]TemplateDefinition{}
 
 	for _, def := range t {
 		if !IsKnownKind(def.Kind) {
@@ -54,7 +58,7 @@ func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string) (
 			level.Warn(logger).Log("msg", "template with same name is defined multiple times, skipping...", "template_name", def.Name, "template_type", def.Kind)
 			continue
 		}
-		byType[def.Kind] = append(byType[def.Kind], def.Template)
+		byType[def.Kind] = append(byType[def.Kind], def)
 		seen[seenKey{Name: def.Name, Type: def.Kind}] = struct{}{}
 	}
 	provider := &Factory{
