@@ -85,7 +85,7 @@ func TestFindTemplates(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			tmpl, err := template.New(test.tmplName).Parse(test.tmplText)
 			require.NoError(t, err)
-			actual, err := TopTemplates(tmpl)
+			actual, err := topTemplates(tmpl)
 			require.NoError(t, err)
 			assert.Equal(t, test.expected, actual)
 		})
