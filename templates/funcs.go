@@ -19,7 +19,7 @@ func defaultTemplatesPerKind(kind Kind) []string {
 	}
 }
 
-func defaultOptionsPerKind(kind Kind) []template.Option {
+func defaultOptionsPerKind(kind Kind, orgID string) []template.Option {
 	switch kind {
 	case GrafanaKind:
 		return []template.Option{

@@ -122,7 +122,7 @@ func ParseTemplateDefinition(def TemplateDefinition) ([]string, error) {
 		tmpl = text
 	}
 
-	_, err := template.New(append(defaultOptionsPerKind(def.Kind), capture)...)
+	_, err := template.New(append(defaultOptionsPerKind(def.Kind, "grafana"), capture)...) // use static orgID because we don't need real one here
 	if err != nil {
 		return nil, err
 	}
