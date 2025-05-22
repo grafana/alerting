@@ -2,7 +2,7 @@ package notify
 
 import (
 	"bytes"
-	"context"
+	"sync"
 	tmpltext "text/template"
 
 	"github.com/prometheus/alertmanager/template"
@@ -89,28 +89,10 @@ func (s TemplateScope) Data(data *templates.ExtendedData) any {
 	return nil
 }
 
-// TestTemplate tests the given template string against the given alerts. Existing templates are used to provide context for the test.
-// If an existing template of the same filename as the one being tested is found, it will not be used as context.
-func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams) (*TestTemplatesResults, error) {
-	am.reloadConfigMtx.RLock()
-	tmpls := make([]templates.TemplateDefinition, len(am.templates))
-	copy(tmpls, am.templates)
-	am.reloadConfigMtx.RUnlock()
-
-	return TestTemplate(ctx, c, tmpls, am.ExternalURL(), am.logger)
-}
-
 func (am *GrafanaAlertmanager) GetTemplate(kind templates.Kind) (*template.Template, error) {
 	am.reloadConfigMtx.RLock()
-	tmpls := make([]templates.TemplateDefinition, len(am.templates))
-	copy(tmpls, am.templates)
-	am.reloadConfigMtx.RUnlock()
-
-	tmpl, err := templates.NewFactory(tmpls, am.logger, am.ExternalURL())
-	if err != nil {
-		return nil, err
-	}
-	return tmpl.NewTemplate(kind)
+	defer am.reloadConfigMtx.RUnlock()
+	return am.templates.Get(kind)
 }
 
 // testTemplateScopes tests the given template with the root scope. If the root scope fails, it tries
@@ -137,4 +119,35 @@ func testTemplateScopes(newTextTmpl *tmpltext.Template, def string, data *templa
 	}
 
 	return "", rootScope, defaultErr
+}
+
+func newTemplatesCache(f *templates.Factory) *templatesCache {
+	return &templatesCache{
+		factory: f,
+		m:       map[templates.Kind]*templates.Template{},
+	}
+}
+
+// templatesCache is responsible for managing template instances grouped by their kind.
+// It utilizes a Factory to create templates when requested.
+// Templates are cached in-memory to avoid redundant creation.
+// Access is synchronized using a mutex to ensure thread-safety.
+type templatesCache struct {
+	factory *templates.Factory
+	m       map[templates.Kind]*templates.Template
+	mtx     sync.Mutex
+}
+
+func (g *templatesCache) Get(kind templates.Kind) (*template.Template, error) {
+	g.mtx.Lock()
+	defer g.mtx.Unlock()
+	if t, ok := g.m[kind]; ok {
+		return t, nil
+	}
+	t, err := g.factory.NewTemplate(kind)
+	if err != nil {
+		return nil, err
+	}
+	g.m[kind] = t
+	return t, nil
 }

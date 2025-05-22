@@ -39,7 +39,6 @@ import (
 	"github.com/grafana/alerting/receivers/webex"
 	"github.com/grafana/alerting/receivers/webhook"
 	"github.com/grafana/alerting/receivers/wecom"
-	"github.com/grafana/alerting/templates"
 )
 
 const (
@@ -105,17 +104,6 @@ type IntegrationTimeoutError struct {
 
 func (e IntegrationTimeoutError) Error() string {
 	return fmt.Sprintf("the receiver timed out: %s", e.Err)
-}
-
-func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiversConfigBodyParams) (*TestReceiversResult, int, error) {
-	am.reloadConfigMtx.RLock()
-
-	tmpls := make([]templates.TemplateDefinition, len(am.templates))
-	copy(tmpls, am.templates)
-
-	am.reloadConfigMtx.RUnlock()
-
-	return TestReceivers(ctx, c, tmpls, am.buildReceiverIntegrations, am.ExternalURL())
 }
 
 func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time) types.Alert {
