@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/types"
@@ -40,7 +39,6 @@ import (
 	"github.com/grafana/alerting/receivers/webex"
 	"github.com/grafana/alerting/receivers/webhook"
 	"github.com/grafana/alerting/receivers/wecom"
-	"github.com/grafana/alerting/templates"
 )
 
 const (
@@ -110,13 +108,10 @@ func (e IntegrationTimeoutError) Error() string {
 
 func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiversConfigBodyParams) (*TestReceiversResult, int, error) {
 	am.reloadConfigMtx.RLock()
-
-	tmpls := make([]templates.TemplateDefinition, len(am.templates))
-	copy(tmpls, am.templates)
-
+	cache := am.templates
 	am.reloadConfigMtx.RUnlock()
 
-	return TestReceivers(ctx, c, tmpls, am.buildReceiverIntegrations, am.ExternalURL(), log.With(am.logger, "operation", "TestReceivers"))
+	return TestReceivers(ctx, c, am.buildReceiverIntegrations, cache)
 }
 
 func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time) types.Alert {

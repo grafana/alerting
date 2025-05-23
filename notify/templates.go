@@ -94,24 +94,16 @@ func (s TemplateScope) Data(data *templates.ExtendedData) any {
 // If an existing template of the same filename as the one being tested is found, it will not be used as context.
 func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams) (*TestTemplatesResults, error) {
 	am.reloadConfigMtx.RLock()
-	tmpls := make([]templates.TemplateDefinition, len(am.templates))
-	copy(tmpls, am.templates)
+	templateFactory := am.templates.Factory()
 	am.reloadConfigMtx.RUnlock()
 
-	return TestTemplate(ctx, c, tmpls, am.ExternalURL(), log.With(am.logger, "operation", "TestTemplate"))
+	return TestTemplate(ctx, c, templateFactory, log.With(am.logger, "operation", "TestTemplate"))
 }
 
 func (am *GrafanaAlertmanager) GetTemplate(kind templates.Kind) (*template.Template, error) {
 	am.reloadConfigMtx.RLock()
-	tmpls := make([]templates.TemplateDefinition, len(am.templates))
-	copy(tmpls, am.templates)
-	am.reloadConfigMtx.RUnlock()
-
-	tmpl, err := templates.NewFactory(tmpls, am.logger, am.ExternalURL())
-	if err != nil {
-		return nil, err
-	}
-	return tmpl.NewTemplate(kind)
+	defer am.reloadConfigMtx.RUnlock()
+	return am.templates.GetTemplate(kind)
 }
 
 // testTemplateScopes tests the given template with the root scope. If the root scope fails, it tries

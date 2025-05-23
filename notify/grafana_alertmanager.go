@@ -104,8 +104,8 @@ type GrafanaAlertmanager struct {
 	config          []byte
 	receivers       []*nfstatus.Receiver
 
-	// templates contains the template name -> template contents for each user-defined template.
-	templates []templates.TemplateDefinition
+	// templates contains the current templates
+	templates *templates.CachedFactory
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -301,6 +301,11 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 	am.alerts, err = mem.NewAlerts(context.Background(), am.marker, memoryAlertsGCInterval, opts.AlertStoreCallback, am.logger, opts.Metrics.Registerer)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
+	}
+
+	am.templates, err = templates.NewCachedFactory(nil, am.logger, am.ExternalURL())
+	if err != nil {
+		return nil, err
 	}
 
 	return am, nil
@@ -567,7 +572,7 @@ func TestReceivers(
 	return res, status, nil
 }
 
-func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []templates.TemplateDefinition, externalURL string, logger log.Logger) (*TestTemplatesResults, error) {
+func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFactory *templates.Factory, logger log.Logger) (*TestTemplatesResults, error) {
 	tc := templates.TemplateDefinition{
 		Name:     c.Name,
 		Template: c.Template,
@@ -575,6 +580,16 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 	}
 	if !templates.IsKnownKind(tc.Kind) {
 		tc.Kind = templates.GrafanaKind
+	}
+
+	factory, err := tmplsFactory.WithTemplate(tc)
+	if err != nil {
+		return &TestTemplatesResults{
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  InvalidTemplate,
+				Error: err.Error(),
+			}},
+		}, nil
 	}
 
 	definitions, err := templates.ParseTemplateDefinition(tc)
@@ -587,32 +602,10 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 		}, nil
 	}
 
-	// Recreate the current template replacing the definition blocks that are being tested. This is so that any blocks that were removed don't get defined.
-	var found bool
-	templateContents := make([]templates.TemplateDefinition, 0, len(tmpls)+1)
-	for _, td := range tmpls {
-		if td.Name == tc.Name && td.Kind == tc.Kind {
-			// Template already exists, test with the new definition replacing the old one.
-			templateContents = append(templateContents, tc)
-			found = true
-			continue
-		}
-		templateContents = append(templateContents, td)
-	}
-
-	if !found {
-		// Template is a new one, add it to the list.
-		templateContents = append(templateContents, tc)
-	}
-
 	// Capture the underlying text template so we can use ExecuteTemplate.
 	var newTextTmpl *tmpltext.Template
 	var captureTemplate template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
 		newTextTmpl = text
-	}
-	factory, err := templates.NewFactory(templateContents, logger, externalURL)
-	if err != nil {
-		return nil, err
 	}
 	newTmpl, err := factory.NewTemplate(tc.Kind, captureTemplate)
 	if err != nil {
@@ -687,13 +680,11 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 // ApplyConfig applies a new configuration by re-initializing all components using the configuration provided.
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err error) {
-	am.templates = make([]templates.TemplateDefinition, len(cfg.Templates))
-	copy(am.templates, cfg.Templates)
-
-	cache, err := templates.NewCachedFactory(am.templates, am.logger, am.ExternalURL())
+	cache, err := templates.NewCachedFactory(cfg.Templates, am.logger, am.ExternalURL())
 	if err != nil {
 		return err
 	}
+	am.templates = cache
 
 	// Finally, build the integrations map using the receiver configuration and templates.
 	apiReceivers := cfg.Receivers
@@ -954,7 +945,7 @@ func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, 
 	}
 	tmpl, err := tmpls.GetTemplate(templates.GrafanaKind)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Grafana template: %w", err)
+		return nil, err
 	}
 	integrations := BuildReceiverIntegrations(
 		receiverCfg,

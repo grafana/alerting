@@ -26,7 +26,9 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-func setupAMTest(t *testing.T) (*GrafanaAlertmanager, *prometheus.Registry) {
+type withOptsFn func(opts *GrafanaAlertmanagerOpts)
+
+func setupAMTest(t *testing.T, withOpts ...withOptsFn) (*GrafanaAlertmanager, *prometheus.Registry) {
 	t.Helper()
 
 	reg := prometheus.NewPedanticRegistry()
@@ -43,6 +45,9 @@ func setupAMTest(t *testing.T) (*GrafanaAlertmanager, *prometheus.Registry) {
 		EmailSender:   receivers.MockNotificationService(),
 		ImageProvider: images.NewFakeProvider(1),
 		Decrypter:     NoopDecrypt,
+	}
+	for _, fn := range withOpts {
+		fn(&opts)
 	}
 
 	require.NoError(t, opts.Validate())

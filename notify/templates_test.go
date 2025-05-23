@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/log"
+
 	"github.com/grafana/alerting/templates"
 
 	"github.com/go-openapi/strfmt"
@@ -475,7 +477,9 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if len(test.existingTemplates) > 0 {
-				am.templates = test.existingTemplates
+				var err error
+				am.templates, err = templates.NewCachedFactory(test.existingTemplates, log.NewNopLogger(), am.ExternalURL())
+				require.NoError(t, err)
 			}
 			res, err := am.TestTemplate(context.Background(), test.input)
 			require.NoError(t, err)
@@ -485,8 +489,9 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 }
 
 func TestTemplateAlertData(t *testing.T) {
-	am, _ := setupAMTest(t)
-	am.opts.ExternalURL = "http://localhost:9093"
+	am, _ := setupAMTest(t, func(opts *GrafanaAlertmanagerOpts) {
+		opts.ExternalURL = "http://localhost:9093"
+	})
 
 	tests := []struct {
 		name     string
