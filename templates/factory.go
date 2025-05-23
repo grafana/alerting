@@ -3,6 +3,7 @@ package templates
 import (
 	"fmt"
 	"net/url"
+	"sync"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -101,4 +102,43 @@ func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string) (
 		externalURL: extURL,
 	}
 	return provider, nil
+}
+
+func NewCachedFactory(t []TemplateDefinition, logger log.Logger, externalURL string) (*CachedFactory, error) {
+	factory, err := NewFactory(t, logger, externalURL)
+	if err != nil {
+		return nil, err
+	}
+	return &CachedFactory{
+		factory: factory,
+		m:       make(map[Kind]*Template, len(validKinds)),
+	}, nil
+}
+
+// CachedFactory is responsible for managing template instances grouped by their kind.
+// It utilizes a Factory to create templates when requested.
+// Templates are cached in-memory to avoid redundant creation.
+// Access is synchronized using a mutex to ensure thread-safety.
+type CachedFactory struct {
+	factory *Factory
+	m       map[Kind]*Template
+	mtx     sync.Mutex
+}
+
+func (cf *CachedFactory) Factory() *Factory {
+	return cf.factory
+}
+
+func (cf *CachedFactory) GetTemplate(kind Kind) (*Template, error) {
+	cf.mtx.Lock()
+	defer cf.mtx.Unlock()
+	if t, ok := cf.m[kind]; ok {
+		return t, nil
+	}
+	t, err := cf.factory.NewTemplate(kind)
+	if err != nil {
+		return nil, err
+	}
+	cf.m[kind] = t
+	return t, nil
 }
