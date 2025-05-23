@@ -5,6 +5,7 @@ import (
 	"context"
 	tmpltext "text/template"
 
+	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/template"
 
 	"github.com/grafana/alerting/templates"
@@ -94,7 +95,7 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 	copy(tmpls, am.templates)
 	am.reloadConfigMtx.RUnlock()
 
-	return TestTemplate(ctx, c, tmpls, am.ExternalURL(), am.logger)
+	return TestTemplate(ctx, c, tmpls, am.ExternalURL(), log.With(am.logger, "operation", "TestTemplate"))
 }
 
 func (am *GrafanaAlertmanager) GetTemplate() (*template.Template, error) {

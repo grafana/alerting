@@ -471,12 +471,12 @@ func TestReceivers(
 	c TestReceiversConfigBodyParams,
 	tmpls []templates.TemplateDefinition,
 	buildIntegrationsFunc func(*APIReceiver, *template.Template) ([]*nfstatus.Integration, error),
-	externalURL string) (*TestReceiversResult, int, error) {
+	externalURL string, logger log.Logger) (*TestReceiversResult, int, error) {
 
 	now := time.Now() // The start time of the test
 	testAlert := newTestAlert(c, now, now)
 
-	tmpl, err := templates.TemplateFromTemplateDefinitions(tmpls, log.NewNopLogger(), externalURL)
+	tmpl, err := templates.TemplateFromTemplateDefinitions(tmpls, logger, externalURL)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get template: %w", err)
 	}
@@ -608,7 +608,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 	var captureTemplate template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
 		newTextTmpl = text
 	}
-	newTmpl, err := templates.TemplateFromTemplateDefinitions(templateContents, log.NewNopLogger(), externalURL, captureTemplate)
+	newTmpl, err := templates.TemplateFromTemplateDefinitions(templateContents, logger, externalURL, captureTemplate)
 	if err != nil {
 		return nil, err
 	}

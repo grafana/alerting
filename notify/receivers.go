@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/types"
@@ -115,7 +116,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 
 	am.reloadConfigMtx.RUnlock()
 
-	return TestReceivers(ctx, c, tmpls, am.buildReceiverIntegrations, am.ExternalURL())
+	return TestReceivers(ctx, c, tmpls, am.buildReceiverIntegrations, am.ExternalURL(), log.With(am.logger, "operation", "TestReceivers"))
 }
 
 func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time) types.Alert {
