@@ -28,9 +28,13 @@ import (
 	"github.com/grafana/alerting/models"
 )
 
-type Template = template.Template
 type KV = template.KV
 type Data = template.Data
+
+type Template struct {
+	*template.Template
+	Text *tmpltext.Template
+}
 
 var (
 	// Provides current time. Can be overwritten in tests.
@@ -148,25 +152,21 @@ type ExtendedData struct {
 var DefaultTemplateName = "__default__"
 
 // DefaultTemplate returns a new Template with all default templates parsed.
-func DefaultTemplate(options ...template.Option) (TemplateDefinition, error) {
+func DefaultTemplate() (TemplateDefinition, error) {
 	// We cannot simply append the text of each default file together as there can be (and are) duplicate template
 	// names. Duplicate templates should override when parsed from separate files but will fail to parse if both are in
 	// the same file.
 	// So, instead we allow tmpltext to combine the templates and then convert it to a string afterwards.
 	// The underlying template is not accessible, so we capture it via template.Option.
-	var newTextTmpl *tmpltext.Template
-	var captureTemplate template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
-		newTextTmpl = text
-	}
 
 	// Call fromContent without any user-provided templates to get the combined default template.
-	_, err := fromContent(defaultTemplatesPerKind(GrafanaKind), append(defaultOptionsPerKind(GrafanaKind), append(options, captureTemplate)...)...)
+	tmpl, err := fromContent(defaultTemplatesPerKind(GrafanaKind), defaultOptionsPerKind(GrafanaKind)...)
 	if err != nil {
 		return TemplateDefinition{}, err
 	}
 
 	var combinedTemplate strings.Builder
-	tmpls := newTextTmpl.Templates()
+	tmpls := tmpl.Text.Templates()
 	// Sort for a consistent order.
 	slices.SortFunc(tmpls, func(a, b *tmpltext.Template) int {
 		return strings.Compare(a.Name(), b.Name())
@@ -204,7 +204,11 @@ func addFuncs(text *tmpltext.Template, html *tmplhtml.Template) {
 
 // fromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
 func fromContent(tmpls []string, options ...template.Option) (*Template, error) {
-	t, err := template.New(options...)
+	var newTextTmpl *tmpltext.Template
+	var captureTemplate template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
+		newTextTmpl = text
+	}
+	t, err := template.New(append(options, captureTemplate)...)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +234,10 @@ func fromContent(tmpls []string, options ...template.Option) (*Template, error) 
 			return nil, err
 		}
 	}
-	return t, nil
+	return &Template{
+		Template: t,
+		Text:     newTextTmpl,
+	}, nil
 }
 
 func removePrivateItems(kv template.KV) template.KV {
@@ -409,7 +416,7 @@ func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 }
 
 func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
-	promTmplData := notify.GetTemplateData(ctx, tmpl, alerts, l)
+	promTmplData := notify.GetTemplateData(ctx, tmpl.Template, alerts, l)
 	data := ExtendData(promTmplData, l)
 
 	if groupKey, err := notify.ExtractGroupKey(ctx); err == nil {

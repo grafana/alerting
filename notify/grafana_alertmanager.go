@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	tmplhtml "html/template"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
-	tmpltext "text/template"
 	"time"
 
 	"github.com/go-kit/log"
@@ -28,7 +26,6 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/provider/mem"
 	"github.com/prometheus/alertmanager/silence"
-	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/timeinterval"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -602,12 +599,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 		}, nil
 	}
 
-	// Capture the underlying text template so we can use ExecuteTemplate.
-	var newTextTmpl *tmpltext.Template
-	var captureTemplate template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
-		newTextTmpl = text
-	}
-	newTmpl, err := factory.NewTemplate(tc.Kind, captureTemplate)
+	newTmpl, err := factory.NewTemplate(tc.Kind)
 	if err != nil {
 		return nil, err
 	}
@@ -619,13 +611,13 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 	ctx = notify.WithReceiverName(ctx, DefaultReceiverName)
 	ctx = notify.WithGroupLabels(ctx, labels)
 
-	promTmplData := notify.GetTemplateData(ctx, newTmpl, alerts, logger)
+	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template, alerts, logger)
 	data := templates.ExtendData(promTmplData, logger)
 
 	// Iterate over each definition in the template and evaluate it.
 	var results TestTemplatesResults
 	for _, def := range definitions {
-		res, scope, err := testTemplateScopes(newTextTmpl, def, data)
+		res, scope, err := testTemplateScopes(newTmpl, def, data)
 		if err != nil {
 			results.Errors = append(results.Errors, TestTemplatesErrorResult{
 				Name:  def,
