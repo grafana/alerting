@@ -27,6 +27,22 @@ var FullValidConfigForTesting = fmt.Sprintf(`{
 		"secret": "test-hmac-secret",
 		"header": "X-Grafana-Alerting-Signature",
 		"timestampHeader": "X-Grafana-Alerting-Timestamp"
+	},
+    "oauth2Config": {
+		"client_id": "test-client-id",
+		"client_secret": "test-client-secret",
+		"token_url": "https://localhost/auth/token",
+		"scopes": ["scope1", "scope2"],
+		"endpoint_params": {
+			"param1": "value1",
+			"param2": "value2"
+		},
+		"tls_config": {
+			"insecureSkipVerify": false,
+			"clientCertificate": %[1]q,
+			"clientKey": %[2]q,
+			"caCertificate": %[3]q
+		}
 	}
 }`, http.TestCertPem, http.TestKeyPem, http.TestCACert)
 
@@ -37,5 +53,9 @@ var FullValidSecretsForTesting = fmt.Sprintf(`{
 	"tlsConfig.clientCertificate": %q,
 	"tlsConfig.clientKey": %q,
 	"tlsConfig.caCertificate": %q,
-	"hmacConfig.secret": "test-override-hmac-secret"
+	"hmacConfig.secret": "test-override-hmac-secret",
+	"oauth2Config.client_secret": "test-override-oauth2-secret",
+	"oauth2Config.tls_config.clientCertificate": %[1]q,
+	"oauth2Config.tls_config.clientKey": %[2]q,
+	"oauth2Config.tls_config.caCertificate": %[3]q
 }`, http.TestCertPem, http.TestKeyPem, http.TestCACert)

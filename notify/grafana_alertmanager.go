@@ -940,7 +940,7 @@ func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, 
 	if err != nil {
 		return nil, err
 	}
-	integrations := BuildReceiverIntegrations(
+	integrations, err := BuildReceiverIntegrations(
 		receiverCfg,
 		tmpl,
 		am.opts.ImageProvider,
@@ -953,5 +953,8 @@ func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, 
 		am.opts.TenantID,
 		am.opts.Version,
 	)
+	if err != nil {
+		return nil, err
+	}
 	return integrations, nil
 }

@@ -2,6 +2,7 @@ package notify
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -119,14 +120,17 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	})
 	t.Run("should support non-base64-encoded secrets", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
-		invalidBase64 := "test"
+		// We decode all the secureSettings from base64 and then build then receivers. The test is to ensure that
+		// BuildReceiverConfiguration can handle the already decoded secrets correctly.
 		for notifierType, cfg := range AllKnownConfigsForTesting {
 			notifierRaw := cfg.GetRawNotifierConfig(notifierType)
 			if len(notifierRaw.SecureSettings) == 0 {
 				continue
 			}
 			for key := range notifierRaw.SecureSettings {
-				notifierRaw.SecureSettings[key] = invalidBase64
+				decoded, err := base64.StdEncoding.DecodeString(notifierRaw.SecureSettings[key])
+				require.NoError(t, err)
+				notifierRaw.SecureSettings[key] = string(decoded)
 			}
 			recCfg.Integrations = append(recCfg.Integrations, notifierRaw)
 		}
@@ -134,7 +138,12 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, NoopDecode, NoopDecrypt)
 		require.NoError(t, err)
 		require.Equal(t, recCfg.Name, parsed.Name)
-		require.Equal(t, invalidBase64, parsed.AlertmanagerConfigs[0].Settings.Password)
+		for _, notifier := range recCfg.GrafanaIntegrations.Integrations {
+			if notifier.Type == "prometheus-alertmanager" {
+				require.Equal(t, notifier.SecureSettings["basicAuthPassword"], parsed.AlertmanagerConfigs[0].Settings.Password)
+			}
+		}
+
 	})
 	t.Run("should fail if notifier type is unknown", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
