@@ -23,9 +23,9 @@ import (
 var ErrInvalidMethod = errors.New("webhook only supports HTTP methods PUT or POST")
 
 type clientConfiguration struct {
-	userAgent    string
-	dialer       net.Dialer // We use Dialer here instead of DialContext as our mqtt client doesn't support DialContext.
-	ouath2Config *OAuth2Config
+	userAgent        string
+	dialer           net.Dialer // We use Dialer here instead of DialContext as our mqtt client doesn't support DialContext.
+	httpClientConfig HTTPClientConfig
 }
 
 // defaultDialTimeout is the default timeout for the dialer, 30 seconds to match http.DefaultTransport.
@@ -55,8 +55,8 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		cfg: cfg,
 	}
 
-	if cfg.ouath2Config != nil {
-		if err := ValidateOAuth2Config(*cfg.ouath2Config); err != nil {
+	if cfg.httpClientConfig.OAuth2 != nil {
+		if err := ValidateOAuth2Config(cfg.httpClientConfig.OAuth2); err != nil {
 			return nil, fmt.Errorf("invalid OAuth2 configuration: %w", err)
 		}
 		// If the user has provided an OAuth2 config, we need to prepare the OAuth2 token source. This needs to
@@ -85,9 +85,11 @@ func WithDialer(dialer net.Dialer) ClientOption {
 	}
 }
 
-func WithOAuth2(config *OAuth2Config) ClientOption {
+func WithHTTPClientConfig(config *HTTPClientConfig) ClientOption {
 	return func(c *clientConfiguration) {
-		c.ouath2Config = config
+		if config != nil {
+			c.httpClientConfig = *config
+		}
 	}
 }
 

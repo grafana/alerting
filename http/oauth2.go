@@ -34,9 +34,14 @@ type OAuth2Config struct {
 	Scopes         []string             `json:"scopes,omitempty" yaml:"scopes,omitempty"`
 	EndpointParams map[string]string    `json:"endpoint_params,omitempty" yaml:"endpoint_params,omitempty"`
 	TLSConfig      *receivers.TLSConfig `json:"tls_config,omitempty" yaml:"tls_config,omitempty"`
+	ProxyConfig    *ProxyConfig         `json:"proxy_config,omitempty" yaml:"proxy_config,omitempty"`
 }
 
-func ValidateOAuth2Config(config OAuth2Config) error {
+func ValidateOAuth2Config(config *OAuth2Config) error {
+	if config == nil {
+		// If no OAuth2 config is provided, we consider it valid.
+		return nil
+	}
 	if config.ClientID == "" {
 		return ErrOAuth2ClientIDRequired
 	}
@@ -50,6 +55,9 @@ func ValidateOAuth2Config(config OAuth2Config) error {
 		if _, err := config.TLSConfig.ToCryptoTLSConfig(); err != nil {
 			return fmt.Errorf("%w: %w", ErrOAuth2TLSConfigInvalid, err)
 		}
+	}
+	if err := ValidateProxyConfig(config.ProxyConfig); err != nil {
+		return fmt.Errorf("%w: %w", ErrInvalidProxyConfig, err)
 	}
 	return nil
 }
@@ -68,7 +76,7 @@ func NewOAuth2RoundTripper(tokenSource oauth2.TokenSource, next http.RoundTrippe
 }
 
 func NewOAuth2TokenSource(clientConfig clientConfiguration) (oauth2.TokenSource, error) {
-	config := clientConfig.ouath2Config
+	config := clientConfig.httpClientConfig.OAuth2
 	if config == nil {
 		// This should never happen, but we add this check defensively.
 		return nil, fmt.Errorf("OAuth2 configuration is required")
@@ -94,16 +102,23 @@ func NewOAuth2TokenSource(clientConfig clientConfiguration) (oauth2.TokenSource,
 		}
 	}
 
+	proxyFn, err := config.ProxyConfig.Proxy()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create proxy function: %w", err)
+	}
+
 	// From prometheus/common oauth2RoundTripper.
 	var rt http.RoundTripper = &http.Transport{
 		TLSClientConfig:       tlsConfig,
+		Proxy:                 proxyFn,
+		ProxyConnectHeader:    config.ProxyConfig.GetProxyConnectHeader(),
 		MaxIdleConns:          20,
 		MaxIdleConnsPerHost:   1, // see https://github.com/golang/go/issues/13801
 		IdleConnTimeout:       10 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 
-		// The following differs from upstream.
+		// The following differs from upstream, allowing proxy settings to be configured.
 		DialContext: clientConfig.dialer.DialContext,
 	}
 

@@ -35,33 +35,35 @@ type Config struct {
 	Password     string
 	ExtraHeaders map[string]string
 
-	Title        string
-	Message      string
-	TLSConfig    *receivers.TLSConfig
-	HMACConfig   *receivers.HMACConfig
-	OAuth2Config *alertingHttp.OAuth2Config
+	Title      string
+	Message    string
+	TLSConfig  *receivers.TLSConfig
+	HMACConfig *receivers.HMACConfig
 
 	Payload CustomPayload
+
+	HTTPConfig *alertingHttp.HTTPClientConfig
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
 	rawSettings := struct {
-		URL                      string                     `json:"url,omitempty" yaml:"url,omitempty"`
-		HTTPMethod               string                     `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
-		MaxAlerts                receivers.OptionalNumber   `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
-		AuthorizationScheme      string                     `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
-		AuthorizationCredentials string                     `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
-		User                     string                     `json:"username,omitempty" yaml:"username,omitempty"`
-		Password                 string                     `json:"password,omitempty" yaml:"password,omitempty"`
-		Title                    string                     `json:"title,omitempty" yaml:"title,omitempty"`
-		Message                  string                     `json:"message,omitempty" yaml:"message,omitempty"`
-		TLSConfig                *receivers.TLSConfig       `json:"tlsConfig,omitempty" yaml:"tlsConfig,omitempty"`
-		HMACConfig               *receivers.HMACConfig      `json:"hmacConfig,omitempty" yaml:"hmacConfig,omitempty"`
-		OAuth2Config             *alertingHttp.OAuth2Config `json:"oauth2Config,omitempty" yaml:"oauth2Config,omitempty"`
-		ExtraHeaders             map[string]string          `json:"headers,omitempty" yaml:"headers,omitempty"`
+		URL                      string                   `json:"url,omitempty" yaml:"url,omitempty"`
+		HTTPMethod               string                   `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
+		MaxAlerts                receivers.OptionalNumber `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
+		AuthorizationScheme      string                   `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
+		AuthorizationCredentials string                   `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
+		User                     string                   `json:"username,omitempty" yaml:"username,omitempty"`
+		Password                 string                   `json:"password,omitempty" yaml:"password,omitempty"`
+		Title                    string                   `json:"title,omitempty" yaml:"title,omitempty"`
+		Message                  string                   `json:"message,omitempty" yaml:"message,omitempty"`
+		TLSConfig                *receivers.TLSConfig     `json:"tlsConfig,omitempty" yaml:"tlsConfig,omitempty"`
+		HMACConfig               *receivers.HMACConfig    `json:"hmacConfig,omitempty" yaml:"hmacConfig,omitempty"`
+		ExtraHeaders             map[string]string        `json:"headers,omitempty" yaml:"headers,omitempty"`
 
 		Payload *CustomPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
+
+		HTTPConfig *alertingHttp.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 	}{}
 
 	err := json.Unmarshal(jsonData, &rawSettings)
@@ -124,26 +126,12 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		}
 	}
 
-	if oauth2Config := rawSettings.OAuth2Config; oauth2Config != nil {
-		settings.OAuth2Config = &alertingHttp.OAuth2Config{
-			ClientID:       oauth2Config.ClientID,
-			ClientSecret:   decryptFn("oauth2Config.client_secret", oauth2Config.ClientSecret),
-			TokenURL:       oauth2Config.TokenURL,
-			Scopes:         oauth2Config.Scopes,
-			EndpointParams: oauth2Config.EndpointParams,
+	if rawSettings.HTTPConfig != nil {
+		rawSettings.HTTPConfig.Decrypt(decryptFn)
+		if err := alertingHttp.ValidateHTTPClientConfig(rawSettings.HTTPConfig); err != nil {
+			return settings, fmt.Errorf("invalid HTTP client configuration: %w", err)
 		}
-
-		if oauth2TLSCOnfig := rawSettings.OAuth2Config.TLSConfig; oauth2TLSCOnfig != nil {
-			settings.OAuth2Config.TLSConfig = &receivers.TLSConfig{
-				InsecureSkipVerify: oauth2TLSCOnfig.InsecureSkipVerify,
-				CACertificate:      decryptFn("oauth2Config.tls_config.caCertificate", oauth2TLSCOnfig.CACertificate),
-				ClientCertificate:  decryptFn("oauth2Config.tls_config.clientCertificate", oauth2TLSCOnfig.ClientCertificate),
-				ClientKey:          decryptFn("oauth2Config.tls_config.clientKey", oauth2TLSCOnfig.ClientKey),
-			}
-		}
-		if err := alertingHttp.ValidateOAuth2Config(*settings.OAuth2Config); err != nil {
-			return settings, fmt.Errorf("invalid OAuth2 configuration: %w", err)
-		}
+		settings.HTTPConfig = rawSettings.HTTPConfig
 	}
 
 	if rawSettings.ExtraHeaders != nil {
