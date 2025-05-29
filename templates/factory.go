@@ -14,6 +14,7 @@ import (
 type Factory struct {
 	templates   map[Kind][]TemplateDefinition
 	externalURL *url.URL
+	orgID       string
 }
 
 // NewTemplate creates a new template of the given kind. If Kind is not known, GrafanaKind automatically assumed
@@ -26,7 +27,7 @@ func (tp *Factory) NewTemplate(kind Kind, options ...template.Option) (*Template
 	for _, def := range definitions { // TODO sort the list by name?
 		content = append(content, def.Template)
 	}
-	t, err := fromContent(content, append(defaultOptionsPerKind(kind), options...)...)
+	t, err := fromContent(content, append(defaultOptionsPerKind(kind, tp.orgID), options...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +75,7 @@ func (tp *Factory) WithTemplate(def TemplateDefinition) (*Factory, error) {
 
 // NewFactory creates a new template provider. Accepts list of user-defined templates that are added to the kind's default templates.
 // Returns error if externalURL is not a valid URL or if TemplateDefinition.Kind is not known.
-func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string) (*Factory, error) {
+func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string, orgID string) (*Factory, error) {
 	extURL, err := url.Parse(externalURL)
 	if err != nil {
 		return nil, err
@@ -100,12 +101,13 @@ func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string) (
 	provider := &Factory{
 		templates:   byType,
 		externalURL: extURL,
+		orgID:       orgID,
 	}
 	return provider, nil
 }
 
-func NewCachedFactory(t []TemplateDefinition, logger log.Logger, externalURL string) (*CachedFactory, error) {
-	factory, err := NewFactory(t, logger, externalURL)
+func NewCachedFactory(t []TemplateDefinition, logger log.Logger, externalURL string, orgID string) (*CachedFactory, error) {
+	factory, err := NewFactory(t, logger, externalURL, orgID)
 	if err != nil {
 		return nil, err
 	}
