@@ -58,10 +58,12 @@ func TestClient(t *testing.T) {
 			ClientSecret: "test-client-secret",
 			TokenURL:     "https://localhost:8080/oauth2/token",
 		}
-		client, err := NewClient(WithOAuth2(oauth2Config))
+		client, err := NewClient(WithHTTPClientConfig(&HTTPClientConfig{
+			OAuth2: oauth2Config,
+		}))
 		require.NoError(t, err)
 
-		require.Equal(t, oauth2Config, client.cfg.ouath2Config)
+		require.Equal(t, oauth2Config, client.cfg.httpClientConfig.OAuth2)
 	})
 
 	t.Run("WithOAuth2 invalid TLS", func(t *testing.T) {
@@ -73,7 +75,9 @@ func TestClient(t *testing.T) {
 				CACertificate: "invalid-ca-cert",
 			},
 		}
-		_, err := NewClient(WithOAuth2(oauth2Config))
+		_, err := NewClient(WithHTTPClientConfig(&HTTPClientConfig{
+			OAuth2: oauth2Config,
+		}))
 		require.ErrorIs(t, err, ErrOAuth2TLSConfigInvalid)
 	})
 }
@@ -246,6 +250,7 @@ func TestSendWebhookOAuth2(t *testing.T) {
 		expOAuth2RequestValues url.Values
 		expClientError         error
 		expOAuthError          error
+		expProxyRequests       bool
 	}{
 		{
 			name: "valid simple OAuth2 config",
@@ -409,11 +414,33 @@ func TestSendWebhookOAuth2(t *testing.T) {
 			},
 			expOAuthError: customDialError,
 		},
+		{
+			name: "proxy in OAuth2 config",
+			oauth2Config: OAuth2Config{
+				ClientID:     "test-client-id",
+				ClientSecret: "test-client-secret",
+				ProxyConfig: &ProxyConfig{
+					ProxyURL: "xxxx", // This will be replaced with the test server URL.
+				},
+			},
+			oauth2Response: oauth2Response{
+				AccessToken: "12345",
+				TokenType:   "Bearer",
+			},
+
+			expOAuth2RequestValues: url.Values{
+				"grant_type": []string{"client_credentials"},
+			},
+			expOAuth2AuthHeaders: http.Header{
+				"Authorization": []string{GetBasicAuthHeader("test-client-id", "test-client-secret")},
+			},
+			expProxyRequests: true,
+		},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			oathRequestCnt := 0
-			oauth2Server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			oauthHandler := func(w http.ResponseWriter, r *http.Request) {
 				oathRequestCnt++
 
 				for k := range tc.expOAuth2AuthHeaders {
@@ -428,8 +455,22 @@ func TestSendWebhookOAuth2(t *testing.T) {
 				res, _ := json.Marshal(tc.oauth2Response)
 				w.Header().Add("Content-Type", "application/json")
 				_, _ = w.Write(res)
-			}))
+			}
+
+			oauth2Server := httptest.NewServer(http.HandlerFunc(oauthHandler))
 			defer oauth2Server.Close()
+			tokenUrl := oauth2Server.URL + "/oauth2/token"
+
+			proxyRequestCnt := 0
+			proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				proxyRequestCnt++
+				// Verify this is a proxy request.
+				assert.Equal(t, tokenUrl, r.RequestURI, "expected request to be sent to oauth server")
+
+				// Simulate forwarding the request to the OAuth2 handler.
+				oauthHandler(w, r)
+			}))
+			defer proxyServer.Close()
 
 			webhookRequestCnt := 0
 			webhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -441,8 +482,19 @@ func TestSendWebhookOAuth2(t *testing.T) {
 			defer webhookServer.Close()
 
 			oauthConfig := tc.oauth2Config
-			oauthConfig.TokenURL = oauth2Server.URL
-			client, err := NewClient(append(tc.otherClientOpts, WithOAuth2(&oauthConfig))...)
+			oauthConfig.TokenURL = tokenUrl
+
+			if oauthConfig.ProxyConfig != nil && oauthConfig.ProxyConfig.ProxyURL != "" {
+				oauthConfig.ProxyConfig.ProxyURL = proxyServer.URL
+			}
+			expectedProxyRequestCnt := 0
+			if tc.expProxyRequests {
+				expectedProxyRequestCnt = 1
+			}
+
+			client, err := NewClient(append(tc.otherClientOpts, WithHTTPClientConfig(&HTTPClientConfig{
+				OAuth2: &oauthConfig,
+			}))...)
 			if tc.expClientError != nil {
 				assert.ErrorIs(t, err, tc.expClientError, "expected client creation error to match")
 				return
@@ -455,11 +507,13 @@ func TestSendWebhookOAuth2(t *testing.T) {
 				HTTPMethod: http.MethodPost,
 			})
 			if tc.expOAuthError != nil {
-				assert.Equal(t, 0, oathRequestCnt, "expected %d OAuth2 request to be sent, got: %d", 1, oathRequestCnt)
-				assert.Equal(t, 0, webhookRequestCnt, "expected %d webhook request to be sent, got: %d", 1, webhookRequestCnt)
+				assert.Equal(t, 0, proxyRequestCnt, "expected %d Proxy request to be sent, got: %d", 0, oathRequestCnt)
+				assert.Equal(t, 0, oathRequestCnt, "expected %d OAuth2 request to be sent, got: %d", 0, oathRequestCnt)
+				assert.Equal(t, 0, webhookRequestCnt, "expected %d webhook request to be sent, got: %d", 0, webhookRequestCnt)
 				assert.ErrorIs(t, err, tc.expOAuthError, "expected error to match")
 				return
 			}
+			assert.Equal(t, expectedProxyRequestCnt, proxyRequestCnt, "expected %d proxy request to be sent, got: %d", expectedProxyRequestCnt, proxyRequestCnt)
 			assert.Equal(t, 1, oathRequestCnt, "expected %d OAuth2 request to be sent, got: %d", 1, oathRequestCnt)
 			assert.Equal(t, 1, webhookRequestCnt, "expected %d webhook request to be sent, got: %d", 1, webhookRequestCnt)
 			assert.NoError(t, err, "expected no error")
@@ -470,6 +524,7 @@ func TestSendWebhookOAuth2(t *testing.T) {
 				Body:       "test-body",
 				HTTPMethod: http.MethodPost,
 			})
+			assert.Equal(t, expectedProxyRequestCnt, proxyRequestCnt, "expected %d proxy request to be sent, got: %d", expectedProxyRequestCnt, proxyRequestCnt)
 			assert.Equal(t, 1, oathRequestCnt, "expected %d OAuth2 request to be sent, got: %d", 1, oathRequestCnt)
 			assert.Equal(t, 2, webhookRequestCnt, "expected %d webhook request to be sent, got: %d", 2, webhookRequestCnt)
 		})

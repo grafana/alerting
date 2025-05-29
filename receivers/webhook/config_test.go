@@ -96,20 +96,30 @@ func TestNewConfig(t *testing.T) {
 					Header:          "X-Grafana-Alerting-Signature",
 					TimestampHeader: "X-Grafana-Alerting-Timestamp",
 				},
-				OAuth2Config: &alertingHttp.OAuth2Config{
-					ClientID:     "test-client-id",
-					ClientSecret: "test-client-secret",
-					TokenURL:     "https://localhost/auth/token",
-					Scopes:       []string{"scope1", "scope2"},
-					EndpointParams: map[string]string{
-						"param1": "value1",
-						"param2": "value2",
-					},
-					TLSConfig: &receivers.TLSConfig{
-						InsecureSkipVerify: false,
-						ClientCertificate:  alertingHttp.TestCertPem,
-						ClientKey:          alertingHttp.TestKeyPem,
-						CACertificate:      alertingHttp.TestCACert,
+				HTTPConfig: &alertingHttp.HTTPClientConfig{
+					OAuth2: &alertingHttp.OAuth2Config{
+						ClientID:     "test-client-id",
+						ClientSecret: "test-client-secret",
+						TokenURL:     "https://localhost/auth/token",
+						Scopes:       []string{"scope1", "scope2"},
+						EndpointParams: map[string]string{
+							"param1": "value1",
+							"param2": "value2",
+						},
+						TLSConfig: &receivers.TLSConfig{
+							InsecureSkipVerify: false,
+							ClientCertificate:  alertingHttp.TestCertPem,
+							ClientKey:          alertingHttp.TestKeyPem,
+							CACertificate:      alertingHttp.TestCACert,
+						},
+						ProxyConfig: &alertingHttp.ProxyConfig{
+							ProxyURL:             "http://localproxy:8080",
+							NoProxy:              "localhost",
+							ProxyFromEnvironment: false,
+							ProxyConnectHeader: map[string]string{
+								"X-Proxy-Header": "proxy-value",
+							},
+						},
 					},
 				},
 			},
@@ -139,20 +149,30 @@ func TestNewConfig(t *testing.T) {
 					Header:          "X-Grafana-Alerting-Signature",
 					TimestampHeader: "X-Grafana-Alerting-Timestamp",
 				},
-				OAuth2Config: &alertingHttp.OAuth2Config{
-					ClientID:     "test-client-id",
-					ClientSecret: "test-override-oauth2-secret",
-					TokenURL:     "https://localhost/auth/token",
-					Scopes:       []string{"scope1", "scope2"},
-					EndpointParams: map[string]string{
-						"param1": "value1",
-						"param2": "value2",
-					},
-					TLSConfig: &receivers.TLSConfig{
-						InsecureSkipVerify: false,
-						ClientCertificate:  alertingHttp.TestCertPem,
-						ClientKey:          alertingHttp.TestKeyPem,
-						CACertificate:      alertingHttp.TestCACert,
+				HTTPConfig: &alertingHttp.HTTPClientConfig{
+					OAuth2: &alertingHttp.OAuth2Config{
+						ClientID:     "test-client-id",
+						ClientSecret: "test-override-oauth2-secret",
+						TokenURL:     "https://localhost/auth/token",
+						Scopes:       []string{"scope1", "scope2"},
+						EndpointParams: map[string]string{
+							"param1": "value1",
+							"param2": "value2",
+						},
+						TLSConfig: &receivers.TLSConfig{
+							InsecureSkipVerify: false,
+							ClientCertificate:  alertingHttp.TestCertPem,
+							ClientKey:          alertingHttp.TestKeyPem,
+							CACertificate:      alertingHttp.TestCACert,
+						},
+						ProxyConfig: &alertingHttp.ProxyConfig{
+							ProxyURL:             "http://localproxy:8080",
+							NoProxy:              "localhost",
+							ProxyFromEnvironment: false,
+							ProxyConnectHeader: map[string]string{
+								"X-Proxy-Header": "proxy-value",
+							},
+						},
 					},
 				},
 			},

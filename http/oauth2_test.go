@@ -10,9 +10,9 @@ import (
 
 func TestValidateOAuth2Config(t *testing.T) {
 	tests := []struct {
-		name    string
-		config  OAuth2Config
-		wantErr bool
+		name     string
+		config   OAuth2Config
+		expError error
 	}{
 		{
 			name: "valid config",
@@ -21,7 +21,7 @@ func TestValidateOAuth2Config(t *testing.T) {
 				ClientSecret: "client-secret",
 				TokenURL:     "https://example.com/token",
 			},
-			wantErr: false,
+			expError: nil,
 		},
 		{
 			name: "missing client ID",
@@ -29,7 +29,7 @@ func TestValidateOAuth2Config(t *testing.T) {
 				ClientSecret: "client-secret",
 				TokenURL:     "https://example.com/token",
 			},
-			wantErr: true,
+			expError: ErrOAuth2ClientIDRequired,
 		},
 		{
 			name: "missing client secret",
@@ -37,7 +37,7 @@ func TestValidateOAuth2Config(t *testing.T) {
 				ClientID: "client-id",
 				TokenURL: "https://example.com/token",
 			},
-			wantErr: true,
+			expError: ErrOAuth2ClientSecretRequired,
 		},
 		{
 			name: "missing token URL",
@@ -45,7 +45,7 @@ func TestValidateOAuth2Config(t *testing.T) {
 				ClientID:     "client-id",
 				ClientSecret: "client-secret",
 			},
-			wantErr: true,
+			expError: ErrOAuth2TokenURLRequired,
 		},
 		{
 			name: "invalid TLS config",
@@ -57,15 +57,28 @@ func TestValidateOAuth2Config(t *testing.T) {
 					CACertificate: "invalid-cert",
 				},
 			},
-			wantErr: true,
+			expError: ErrOAuth2TLSConfigInvalid,
+		},
+		{
+			name: "invalid proxy config",
+			config: OAuth2Config{
+				ClientID:     "client-id",
+				ClientSecret: "client-secret",
+				TokenURL:     "https://example.com/token",
+				ProxyConfig: &ProxyConfig{
+					ProxyURL:             "http://invalid-proxy",
+					ProxyFromEnvironment: true,
+				},
+			},
+			expError: ErrInvalidProxyConfig,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateOAuth2Config(tt.config)
-			if tt.wantErr {
-				require.Errorf(t, err, "ValidateOAuth2Config() expected error, got nil")
+			err := ValidateOAuth2Config(&tt.config)
+			if tt.expError != nil {
+				require.ErrorIs(t, err, tt.expError, "ValidateOAuth2Config() expected error %v, got %v", tt.expError, err)
 				return
 			}
 			require.NoError(t, err, "ValidateOAuth2Config() expected nil error, got %v", err)

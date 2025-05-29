@@ -197,7 +197,7 @@ func BuildGrafanaReceiverIntegrations(
 	for i, cfg := range receiver.WebhookConfigs {
 		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
 			return webhook.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger, orgID)
-		}, http.WithOAuth2(cfg.Settings.OAuth2Config))
+		}, http.WithHTTPClientConfig(cfg.Settings.HTTPConfig))
 	}
 	for i, cfg := range receiver.WecomConfigs {
 		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
