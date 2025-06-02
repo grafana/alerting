@@ -3,7 +3,6 @@ package notify
 import (
 	"bytes"
 	"context"
-	tmpltext "text/template"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/template"
@@ -20,6 +19,9 @@ type TestTemplatesConfigBodyParams struct {
 
 	// Name of the template.
 	Name string
+
+	// Kind of template to test. Default is Grafana
+	Kind templates.Kind
 }
 
 type TestTemplatesResults struct {
@@ -91,33 +93,28 @@ func (s TemplateScope) Data(data *templates.ExtendedData) any {
 // If an existing template of the same filename as the one being tested is found, it will not be used as context.
 func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams) (*TestTemplatesResults, error) {
 	am.reloadConfigMtx.RLock()
-	tmpls := make([]templates.TemplateDefinition, len(am.templates))
-	copy(tmpls, am.templates)
+	templateFactory := am.templates
 	am.reloadConfigMtx.RUnlock()
 
-	return TestTemplate(ctx, c, tmpls, am.ExternalURL(), log.With(am.logger, "operation", "TestTemplate"))
+	return TestTemplate(ctx, c, templateFactory, log.With(am.logger, "operation", "TestTemplate"))
 }
 
-func (am *GrafanaAlertmanager) GetTemplate() (*template.Template, error) {
+func (am *GrafanaAlertmanager) GetTemplate(kind templates.Kind) (*template.Template, error) {
 	am.reloadConfigMtx.RLock()
-	tmpls := make([]templates.TemplateDefinition, len(am.templates))
-	copy(tmpls, am.templates)
-	am.reloadConfigMtx.RUnlock()
-
-	tmpl, err := templates.TemplateFromTemplateDefinitions(tmpls, am.logger, am.ExternalURL())
+	defer am.reloadConfigMtx.RUnlock()
+	t, err := am.templates.GetTemplate(kind)
 	if err != nil {
 		return nil, err
 	}
-
-	return tmpl, nil
+	return t.Template, nil
 }
 
 // testTemplateScopes tests the given template with the root scope. If the root scope fails, it tries
 // other more specific scopes, such as ".Alerts" or ".Alert".
 // If none of the more specific scopes work either, the original error is returned.
-func testTemplateScopes(newTextTmpl *tmpltext.Template, def string, data *templates.ExtendedData) (string, TemplateScope, error) {
+func testTemplateScopes(newTextTmpl *templates.Template, def string, data *templates.ExtendedData) (string, TemplateScope, error) {
 	var buf bytes.Buffer
-	defaultErr := newTextTmpl.ExecuteTemplate(&buf, def, data)
+	defaultErr := newTextTmpl.Text.ExecuteTemplate(&buf, def, data)
 	if defaultErr == nil {
 		return buf.String(), rootScope, nil
 	}
@@ -129,7 +126,7 @@ func testTemplateScopes(newTextTmpl *tmpltext.Template, def string, data *templa
 	// caller to provide the correct scope.
 	for _, scope := range []TemplateScope{alertsScope, alertScope} {
 		var buf bytes.Buffer
-		err := newTextTmpl.ExecuteTemplate(&buf, def, scope.Data(data))
+		err := newTextTmpl.Text.ExecuteTemplate(&buf, def, scope.Data(data))
 		if err == nil {
 			return buf.String(), scope, nil
 		}

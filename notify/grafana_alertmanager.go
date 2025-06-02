@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	tmplhtml "html/template"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
-	tmpltext "text/template"
 	"time"
 
 	"github.com/go-kit/log"
@@ -28,7 +26,6 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/provider/mem"
 	"github.com/prometheus/alertmanager/silence"
-	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/timeinterval"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -68,6 +65,10 @@ type ClusterPeer interface {
 	WaitReady(context.Context) error
 }
 
+type TemplatesProvider interface {
+	GetTemplate(kind templates.Kind) (*templates.Template, error)
+}
+
 type GrafanaAlertmanager struct {
 	opts   GrafanaAlertmanagerOpts
 	logger log.Logger
@@ -100,8 +101,8 @@ type GrafanaAlertmanager struct {
 	config          []byte
 	receivers       []*nfstatus.Receiver
 
-	// templates contains the template name -> template contents for each user-defined template.
-	templates []templates.TemplateDefinition
+	// templates contains the current templates
+	templates *templates.Factory // TODO use cached once we make sure templates are immutable
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -299,6 +300,11 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
 	}
 
+	am.templates, err = templates.NewFactory(nil, am.logger, am.ExternalURL())
+	if err != nil {
+		return nil, err
+	}
+
 	return am, nil
 }
 
@@ -469,17 +475,11 @@ func newTestReceiversResult(alert types.Alert, results []result, receivers []*AP
 func TestReceivers(
 	ctx context.Context,
 	c TestReceiversConfigBodyParams,
-	tmpls []templates.TemplateDefinition,
-	buildIntegrationsFunc func(*APIReceiver, *template.Template) ([]*nfstatus.Integration, error),
-	externalURL string, logger log.Logger) (*TestReceiversResult, int, error) {
+	buildIntegrationsFunc func(*APIReceiver, TemplatesProvider) ([]*nfstatus.Integration, error),
+	tmplProvider TemplatesProvider) (*TestReceiversResult, int, error) {
 
 	now := time.Now() // The start time of the test
 	testAlert := newTestAlert(c, now, now)
-
-	tmpl, err := templates.TemplateFromTemplateDefinitions(tmpls, logger, externalURL)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get template: %w", err)
-	}
 
 	// All invalid receiver configurations
 	invalid := make([]result, 0, len(c.Receivers))
@@ -495,7 +495,7 @@ func TestReceivers(
 					Integrations: []*GrafanaIntegrationConfig{intg},
 				},
 			}
-			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmpl)
+			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmplProvider)
 			if err != nil || len(integrations) == 0 {
 				invalid = append(invalid, result{
 					Config:       intg,
@@ -553,7 +553,7 @@ func TestReceivers(
 		})
 	}
 
-	err = g.Wait()
+	err := g.Wait()
 	close(resultCh)
 
 	if err != nil {
@@ -569,8 +569,17 @@ func TestReceivers(
 	return res, status, nil
 }
 
-func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []templates.TemplateDefinition, externalURL string, logger log.Logger) (*TestTemplatesResults, error) {
-	definitions, err := templates.ParseTestTemplate(c.Name, c.Template)
+func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFactory *templates.Factory, logger log.Logger) (*TestTemplatesResults, error) {
+	tc := templates.TemplateDefinition{
+		Name:     c.Name,
+		Template: c.Template,
+		Kind:     c.Kind,
+	}
+	if !templates.IsKnownKind(tc.Kind) {
+		tc.Kind = templates.GrafanaKind
+	}
+
+	factory, err := tmplsFactory.WithTemplate(tc)
 	if err != nil {
 		return &TestTemplatesResults{
 			Errors: []TestTemplatesErrorResult{{
@@ -580,35 +589,17 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 		}, nil
 	}
 
-	tc := templates.TemplateDefinition{
-		Name:     c.Name,
-		Template: c.Template,
+	definitions, err := templates.ParseTemplateDefinition(tc)
+	if err != nil {
+		return &TestTemplatesResults{
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  InvalidTemplate,
+				Error: err.Error(),
+			}},
+		}, nil
 	}
 
-	// Recreate the current template replacing the definition blocks that are being tested. This is so that any blocks that were removed don't get defined.
-	var found bool
-	templateContents := make([]templates.TemplateDefinition, 0, len(tmpls)+1)
-	for _, td := range tmpls {
-		if td.Name == c.Name {
-			// Template already exists, test with the new definition replacing the old one.
-			templateContents = append(templateContents, tc)
-			found = true
-			continue
-		}
-		templateContents = append(templateContents, td)
-	}
-
-	if !found {
-		// Template is a new one, add it to the list.
-		templateContents = append(templateContents, tc)
-	}
-
-	// Capture the underlying text template so we can use ExecuteTemplate.
-	var newTextTmpl *tmpltext.Template
-	var captureTemplate template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
-		newTextTmpl = text
-	}
-	newTmpl, err := templates.TemplateFromTemplateDefinitions(templateContents, logger, externalURL, captureTemplate)
+	newTmpl, err := factory.GetTemplate(tc.Kind)
 	if err != nil {
 		return nil, err
 	}
@@ -620,13 +611,13 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmpls []
 	ctx = notify.WithReceiverName(ctx, DefaultReceiverName)
 	ctx = notify.WithGroupLabels(ctx, labels)
 
-	promTmplData := notify.GetTemplateData(ctx, newTmpl, alerts, logger)
+	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template, alerts, logger)
 	data := templates.ExtendData(promTmplData, logger)
 
 	// Iterate over each definition in the template and evaluate it.
 	var results TestTemplatesResults
 	for _, def := range definitions {
-		res, scope, err := testTemplateScopes(newTextTmpl, def, data)
+		res, scope, err := testTemplateScopes(newTmpl, def, data)
 		if err != nil {
 			results.Errors = append(results.Errors, TestTemplatesErrorResult{
 				Name:  def,
@@ -681,13 +672,11 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 // ApplyConfig applies a new configuration by re-initializing all components using the configuration provided.
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err error) {
-	am.templates = make([]templates.TemplateDefinition, len(cfg.Templates))
-	copy(am.templates, cfg.Templates)
-
-	tmpl, err := templates.TemplateFromTemplateDefinitions(am.templates, am.logger, am.ExternalURL())
+	factory, err := templates.NewFactory(cfg.Templates, am.logger, am.ExternalURL())
 	if err != nil {
 		return err
 	}
+	am.templates = factory
 
 	// Finally, build the integrations map using the receiver configuration and templates.
 	apiReceivers := cfg.Receivers
@@ -703,8 +692,9 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		nameToReceiver[receiver.Name] = receiver
 	}
 	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
+	cached := templates.NewCachedFactory(factory)
 	for name, apiReceiver := range nameToReceiver {
-		integrations, err := am.buildReceiverIntegrations(apiReceiver, tmpl)
+		integrations, err := am.buildReceiverIntegrations(apiReceiver, cached)
 		if err != nil {
 			return err
 		}
@@ -941,8 +931,12 @@ func (am *GrafanaAlertmanager) tenantString() string {
 	return fmt.Sprintf("%d", am.opts.TenantID)
 }
 
-func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpl *templates.Template) ([]*Integration, error) {
+func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpls TemplatesProvider) ([]*Integration, error) {
 	receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, am.opts.Decrypter)
+	if err != nil {
+		return nil, err
+	}
+	tmpl, err := tmpls.GetTemplate(templates.GrafanaKind)
 	if err != nil {
 		return nil, err
 	}

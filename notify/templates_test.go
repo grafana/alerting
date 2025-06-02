@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/log"
+
 	"github.com/grafana/alerting/templates"
 
 	"github.com/go-openapi/strfmt"
@@ -374,6 +376,7 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.default.title" . }}{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: nil,
 		expected: TestTemplatesResults{
@@ -390,10 +393,12 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "existing" . }}{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "existing",
 			Template: `{{ define "existing" }}Some existing template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
@@ -409,10 +414,12 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}New template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
@@ -428,10 +435,12 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.alternate_title" . }}{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: nil,
@@ -447,10 +456,12 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.alternate_title" . }}{{ end }}{{ define "slack.alternate_title" }}Some new alternate template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
@@ -466,7 +477,9 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if len(test.existingTemplates) > 0 {
-				am.templates = test.existingTemplates
+				var err error
+				am.templates, err = templates.NewFactory(test.existingTemplates, log.NewNopLogger(), am.ExternalURL())
+				require.NoError(t, err)
 			}
 			res, err := am.TestTemplate(context.Background(), test.input)
 			require.NoError(t, err)
@@ -476,8 +489,9 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 }
 
 func TestTemplateAlertData(t *testing.T) {
-	am, _ := setupAMTest(t)
-	am.opts.ExternalURL = "http://localhost:9093"
+	am, _ := setupAMTest(t, func(opts *GrafanaAlertmanagerOpts) {
+		opts.ExternalURL = "http://localhost:9093"
+	})
 
 	tests := []struct {
 		name     string
