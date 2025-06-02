@@ -300,7 +300,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
 	}
 
-	am.templates, err = templates.NewFactory(nil, am.logger, am.ExternalURL())
+	am.templates, err = templates.NewFactory(nil, am.logger, am.ExternalURL(), fmt.Sprintf("%d", am.TenantID()))
 	if err != nil {
 		return nil, err
 	}
@@ -672,7 +672,7 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 // ApplyConfig applies a new configuration by re-initializing all components using the configuration provided.
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err error) {
-	factory, err := templates.NewFactory(cfg.Templates, am.logger, am.ExternalURL())
+	factory, err := templates.NewFactory(cfg.Templates, am.logger, am.ExternalURL(), fmt.Sprintf("%d", am.TenantID()))
 	if err != nil {
 		return err
 	}
@@ -932,26 +932,41 @@ func (am *GrafanaAlertmanager) tenantString() string {
 }
 
 func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpls TemplatesProvider) ([]*Integration, error) {
-	receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, am.opts.Decrypter)
-	if err != nil {
-		return nil, err
+	var integrations []*Integration
+	if len(receiver.Integrations) > 0 {
+		receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, am.opts.Decrypter)
+		if err != nil {
+			return nil, err
+		}
+		tmpl, err := tmpls.GetTemplate(templates.GrafanaKind)
+		if err != nil {
+			return nil, err
+		}
+		integrations = BuildReceiverIntegrations(
+			receiverCfg,
+			tmpl,
+			am.opts.ImageProvider,
+			// TODO change it to use AM's logger with and add type as label
+			am.logger,
+			am.opts.EmailSender,
+			func(_ string, n Notifier) Notifier {
+				return n
+			},
+			am.opts.TenantID,
+			am.opts.Version,
+		)
 	}
-	tmpl, err := tmpls.GetTemplate(templates.GrafanaKind)
-	if err != nil {
-		return nil, err
+	if receiver.HasPrometheusReceivers() {
+		tmpl, err := am.templates.GetTemplate(templates.GrafanaKind)
+		if err != nil {
+			return nil, err
+		}
+		// TODO add httpopts
+		mimir, err := BuildPromReceiverIntegrations(receiver.ConfigReceiver, tmpl.Template, nil, am.logger, nil)
+		if err != nil {
+			return nil, err
+		}
+		integrations = append(integrations, mimir...)
 	}
-	integrations := BuildReceiverIntegrations(
-		receiverCfg,
-		tmpl,
-		am.opts.ImageProvider,
-		// TODO change it to use AM's logger with and add type as label
-		am.logger,
-		am.opts.EmailSender,
-		func(_ string, n Notifier) Notifier {
-			return n
-		},
-		am.opts.TenantID,
-		am.opts.Version,
-	)
 	return integrations, nil
 }
