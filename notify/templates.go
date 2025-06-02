@@ -93,7 +93,7 @@ func (s TemplateScope) Data(data *templates.ExtendedData) any {
 // If an existing template of the same filename as the one being tested is found, it will not be used as context.
 func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams) (*TestTemplatesResults, error) {
 	am.reloadConfigMtx.RLock()
-	templateFactory := am.templates.Factory()
+	templateFactory := am.templates
 	am.reloadConfigMtx.RUnlock()
 
 	return TestTemplate(ctx, c, templateFactory, log.With(am.logger, "operation", "TestTemplate"))

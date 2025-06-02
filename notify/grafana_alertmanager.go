@@ -102,7 +102,7 @@ type GrafanaAlertmanager struct {
 	receivers       []*nfstatus.Receiver
 
 	// templates contains the current templates
-	templates *templates.CachedFactory
+	templates *templates.Factory // TODO use cached once we make sure templates are immutable
 }
 
 // State represents any of the two 'states' of the alertmanager. Notification log or Silences.
@@ -300,7 +300,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
 	}
 
-	am.templates, err = templates.NewCachedFactory(nil, am.logger, am.ExternalURL())
+	am.templates, err = templates.NewFactory(nil, am.logger, am.ExternalURL())
 	if err != nil {
 		return nil, err
 	}
@@ -672,11 +672,11 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 // ApplyConfig applies a new configuration by re-initializing all components using the configuration provided.
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err error) {
-	cache, err := templates.NewCachedFactory(cfg.Templates, am.logger, am.ExternalURL())
+	factory, err := templates.NewFactory(cfg.Templates, am.logger, am.ExternalURL())
 	if err != nil {
 		return err
 	}
-	am.templates = cache
+	am.templates = factory
 
 	// Finally, build the integrations map using the receiver configuration and templates.
 	apiReceivers := cfg.Receivers
@@ -692,8 +692,9 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		nameToReceiver[receiver.Name] = receiver
 	}
 	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
+	cached := templates.NewCachedFactory(factory)
 	for name, apiReceiver := range nameToReceiver {
-		integrations, err := am.buildReceiverIntegrations(apiReceiver, cache)
+		integrations, err := am.buildReceiverIntegrations(apiReceiver, cached)
 		if err != nil {
 			return err
 		}

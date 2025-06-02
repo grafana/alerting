@@ -102,15 +102,11 @@ func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string) (
 	return provider, nil
 }
 
-func NewCachedFactory(t []TemplateDefinition, logger log.Logger, externalURL string) (*CachedFactory, error) {
-	factory, err := NewFactory(t, logger, externalURL)
-	if err != nil {
-		return nil, err
-	}
+func NewCachedFactory(factory *Factory) *CachedFactory {
 	return &CachedFactory{
 		factory: factory,
 		m:       make(map[Kind]*Template, len(validKinds)),
-	}, nil
+	}
 }
 
 // CachedFactory is responsible for managing template instances grouped by their kind.
