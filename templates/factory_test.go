@@ -144,7 +144,7 @@ func TestFactoryNewTemplate(t *testing.T) {
 	maps.Copy(seen, validKinds)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			templ, err := f.NewTemplate(tc.kind)
+			templ, err := f.GetTemplate(tc.kind)
 			assert.NoError(t, err)
 			require.NotNil(t, templ)
 			var tmplErr error
@@ -163,7 +163,7 @@ func TestFactoryNewTemplate(t *testing.T) {
 
 	t.Run("should apply user-defined templates", func(t *testing.T) {
 		for kind := range validKinds {
-			templ, err := f.NewTemplate(kind)
+			templ, err := f.GetTemplate(kind)
 			require.NoError(t, err)
 			var tmplErr error
 			tmpl, _ := TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
@@ -182,14 +182,14 @@ func TestFactoryNewTemplate(t *testing.T) {
 			},
 		}, log.NewNopLogger(), "http://localhost")
 		require.NoError(t, err)
-		templ, err := f.NewTemplate(GrafanaKind)
+		templ, err := f.GetTemplate(GrafanaKind)
 		require.NoError(t, err)
 		var tmplErr error
 		tmpl, _ := TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
 		result := tmpl(`{{ template "factory_test" . }}`)
 		require.NoError(t, tmplErr)
 		require.Equal(t, `TEST Grafana KIND`, result)
-		templ, err = f.NewTemplate(MimirKind)
+		templ, err = f.GetTemplate(MimirKind)
 		require.NoError(t, err)
 		require.NotNil(t, templ)
 		tmpl, _ = TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
@@ -204,7 +204,7 @@ func TestFactoryWithTemplate(t *testing.T) {
 	initial := TemplateDefinition{Name: "test", Kind: kind, Template: `{{ define "factory_test" }}TEST{{ end }}`}
 	f, err := NewFactory([]TemplateDefinition{initial}, log.NewNopLogger(), "http://localhost")
 	require.NoError(t, err)
-	templ, err := f.NewTemplate(kind)
+	templ, err := f.GetTemplate(kind)
 	require.NoError(t, err)
 	var tmplErr error
 	tmpl, _ := TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
@@ -215,7 +215,7 @@ func TestFactoryWithTemplate(t *testing.T) {
 	t.Run("should add new template", func(t *testing.T) {
 		f2, err := f.WithTemplate(TemplateDefinition{Name: "test2", Kind: kind, Template: `{{ define "factory_test2" }}TEST2{{ end }}`})
 		require.NoError(t, err)
-		templ, err := f2.NewTemplate(kind)
+		templ, err := f2.GetTemplate(kind)
 		require.NoError(t, err)
 		var tmplErr error
 		tmpl, _ := TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
@@ -227,7 +227,7 @@ func TestFactoryWithTemplate(t *testing.T) {
 	t.Run("should replace existing template", func(t *testing.T) {
 		f2, err := f.WithTemplate(TemplateDefinition{Name: "test", Kind: kind, Template: `{{ define "factory_test" }}TEST2{{ end }}`})
 		require.NoError(t, err)
-		templ, err := f2.NewTemplate(kind)
+		templ, err := f2.GetTemplate(kind)
 		require.NoError(t, err)
 		var tmplErr error
 		tmpl, _ := TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)

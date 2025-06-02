@@ -599,7 +599,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 		}, nil
 	}
 
-	newTmpl, err := factory.NewTemplate(tc.Kind)
+	newTmpl, err := factory.GetTemplate(tc.Kind)
 	if err != nil {
 		return nil, err
 	}

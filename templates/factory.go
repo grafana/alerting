@@ -15,8 +15,8 @@ type Factory struct {
 	externalURL *url.URL
 }
 
-// NewTemplate creates a new template of the given kind. If Kind is not known, GrafanaKind automatically assumed
-func (tp *Factory) NewTemplate(kind Kind) (*Template, error) {
+// GetTemplate creates a new template of the given kind. If Kind is not known, GrafanaKind automatically assumed
+func (tp *Factory) GetTemplate(kind Kind) (*Template, error) {
 	if err := ValidateKind(kind); err != nil {
 		return nil, err
 	}
@@ -133,7 +133,7 @@ func (cf *CachedFactory) GetTemplate(kind Kind) (*Template, error) {
 	if t, ok := cf.m[kind]; ok {
 		return t, nil
 	}
-	t, err := cf.factory.NewTemplate(kind)
+	t, err := cf.factory.GetTemplate(kind)
 	if err != nil {
 		return nil, err
 	}
