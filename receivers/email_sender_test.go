@@ -3,8 +3,11 @@ package receivers
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
+
+	gomail "gopkg.in/mail.v2"
 
 	"github.com/stretchr/testify/require"
 )
@@ -12,7 +15,7 @@ import (
 func TestEmbedTemplate(t *testing.T) {
 	// Test the email templates are embedded and parsed correctly.
 	require.NotEmpty(t, defaultEmailTemplate)
-	s, err := NewEmailSenderFactory(EmailSenderConfig{})(Metadata{})
+	s, err := NewEmailSender(EmailSenderConfig{})
 	require.NoError(t, err)
 
 	ds, ok := s.(*defaultEmailSender)
@@ -27,19 +30,20 @@ func TestBuildEmailMessage(t *testing.T) {
 	testValue := "test-value"
 	testData := map[string]interface{}{"Value": testValue}
 	externalURL := "http://test.org"
-	buildVersion := "testVersion"
+	sentBy := "Grafana testVersion"
 
 	tests := []struct {
-		name          string
-		contentTypes  []string
-		data          map[string]interface{}
-		subject       string
-		template      string
-		templateName  string
-		embeddedFiles []string
-		expErr        string
-		expSubject    string
-		expBody       string
+		name             string
+		contentTypes     []string
+		data             map[string]interface{}
+		subject          string
+		template         string
+		templateName     string
+		embeddedFiles    []string
+		embeddedContents []EmbeddedContent
+		expErr           string
+		expSubject       string
+		expBody          string
 	}{
 		{
 			name:         "no subject",
@@ -51,30 +55,34 @@ func TestBuildEmailMessage(t *testing.T) {
 			name:          "subject in template, template data provided",
 			contentTypes:  []string{"text/plain"},
 			data:          testData,
-			template:      fmt.Sprintf("{{ define %q -}} {{ Subject .Subject .TemplateData %q }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template.txt", "{{ .Value }}"),
+			template:      fmt.Sprintf("{{ define %q -}} {{ Subject .Subject .TemplateData %q }} {{ .AppUrl }} {{ .SentBy }} {{- end }}", "test_template.txt", "{{ .Value }}"),
 			templateName:  "test_template",
 			embeddedFiles: []string{"embedded-1", "embedded-2"},
-			expSubject:    testValue,
-			expBody:       fmt.Sprintf("%s %s %s", testValue, externalURL, buildVersion),
+			embeddedContents: []EmbeddedContent{
+				{Name: "embedded-1", Content: []byte("embedded-1 data")},
+				{Name: "embedded-2", Content: []byte("embedded-2 data")},
+			},
+			expSubject: testValue,
+			expBody:    fmt.Sprintf("%s %s %s", testValue, externalURL, sentBy),
 		},
 		{
 			name:         "subject via config, template data provided",
 			contentTypes: []string{"text/html"},
 			data:         testData,
 			subject:      "test_subject",
-			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template.html"),
+			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .SentBy }} {{- end }}", "test_template.html"),
 			templateName: "test_template",
 			expSubject:   "test_subject",
-			expBody:      fmt.Sprintf("%s %s %s", testValue, externalURL, buildVersion),
+			expBody:      fmt.Sprintf("%s %s %s", testValue, externalURL, sentBy),
 		},
 		{
 			name:         "default data only",
 			contentTypes: []string{"text/plain"},
 			subject:      "test_subject",
-			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .BuildVersion }} {{- end }}", "test_template.txt"),
+			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .SentBy }} {{- end }}", "test_template.txt"),
 			templateName: "test_template",
 			expSubject:   "test_subject",
-			expBody:      fmt.Sprintf(" %s %s", externalURL, buildVersion),
+			expBody:      fmt.Sprintf(" %s %s", externalURL, sentBy),
 		},
 		{
 			name:         "attempting to execute an undefined template",
@@ -87,11 +95,11 @@ func TestBuildEmailMessage(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			s, err := NewEmailSenderFactory(EmailSenderConfig{
+			s, err := NewEmailSender(EmailSenderConfig{
 				ContentTypes: test.contentTypes,
 				ExternalURL:  externalURL,
-				Version:      buildVersion,
-			})(Metadata{})
+				SentBy:       sentBy,
+			})
 			require.NoError(t, err)
 			ds, ok := s.(*defaultEmailSender)
 			require.True(t, ok)
@@ -100,13 +108,14 @@ func TestBuildEmailMessage(t *testing.T) {
 			require.NoError(t, err)
 
 			cfg := SendEmailSettings{
-				To:            []string{"test@test.com"},
-				SingleEmail:   true,
-				Template:      test.templateName,
-				Data:          test.data,
-				ReplyTo:       []string{"test2@test.com"},
-				EmbeddedFiles: test.embeddedFiles,
-				Subject:       test.subject,
+				To:               []string{"test@test.com"},
+				SingleEmail:      true,
+				Template:         test.templateName,
+				Data:             test.data,
+				ReplyTo:          []string{"test2@test.com"},
+				EmbeddedFiles:    test.embeddedFiles,
+				EmbeddedContents: test.embeddedContents,
+				Subject:          test.subject,
 			}
 			m, err := ds.buildEmailMessage(&cfg)
 			if test.expErr != "" {
@@ -117,6 +126,7 @@ func TestBuildEmailMessage(t *testing.T) {
 				require.Equal(t, cfg.SingleEmail, m.SingleEmail)
 				require.Equal(t, cfg.ReplyTo, m.ReplyTo)
 				require.Equal(t, cfg.EmbeddedFiles, m.EmbeddedFiles)
+				require.Equal(t, cfg.EmbeddedContents, m.EmbeddedContents)
 				require.Equal(t, test.expSubject, m.Subject)
 
 				for _, ct := range test.contentTypes {
@@ -125,7 +135,6 @@ func TestBuildEmailMessage(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestCreateDialer(t *testing.T) {
@@ -169,7 +178,7 @@ func TestCreateDialer(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			s, err := NewEmailSenderFactory(test.cfg)(Metadata{})
+			s, err := NewEmailSender(test.cfg)
 			require.NoError(t, err)
 			ds, ok := s.(*defaultEmailSender)
 			require.True(t, ok)
@@ -197,7 +206,7 @@ func TestBuildEmail(t *testing.T) {
 		},
 	}
 
-	s, err := NewEmailSenderFactory(cfg)(Metadata{})
+	s, err := NewEmailSender(cfg)
 	require.NoError(t, err)
 	ds, ok := s.(*defaultEmailSender)
 	require.True(t, ok)
@@ -225,4 +234,95 @@ func TestBuildEmail(t *testing.T) {
 	str := buf.String()
 	require.Contains(t, str, mCfg.Body["text/plain"])
 	require.Contains(t, str, mCfg.Body["text/html"])
+}
+
+type mockSender struct {
+	sentTo [][]string
+	err    error
+}
+
+func (m *mockSender) Send(_ string, to []string, _ io.WriterTo) error {
+	m.sentTo = append(m.sentTo, to)
+	return m.err
+}
+func (m *mockSender) Close() error { return nil }
+
+func TestSend(t *testing.T) {
+	tests := []struct {
+		name         string
+		message      *Message
+		expectedSent [][]string
+		senderError  error
+		expectedErr  bool
+	}{
+		{
+			name:    "SingleEmail=true",
+			message: makeMsg(true, "a@b.com", "c@d.com"),
+			expectedSent: [][]string{
+				{"a@b.com", "c@d.com"},
+			},
+			expectedErr: false,
+		},
+		{
+			name:    "SingleEmail=false",
+			message: makeMsg(false, "a@b.com", "c@d.com", "e@f.com"),
+			expectedSent: [][]string{
+				{"a@b.com"},
+				{"c@d.com"},
+				{"e@f.com"},
+			},
+			expectedErr: false,
+		},
+		{
+			name:         "Send error with SingleEmail=true",
+			message:      makeMsg(true, "a@b.com", "c@d.com"),
+			senderError:  fmt.Errorf("send error"),
+			expectedSent: [][]string{{"a@b.com", "c@d.com"}},
+			expectedErr:  true,
+		},
+		{
+			name:         "Send error with SingleEmail=false",
+			message:      makeMsg(false, "a@b.com", "c@d.com"),
+			senderError:  fmt.Errorf("send error"),
+			expectedSent: [][]string{{"a@b.com"}, {"c@d.com"}},
+			expectedErr:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ms := &mockSender{err: tc.senderError}
+
+			ds := &defaultEmailSender{
+				cfg:  EmailSenderConfig{},
+				tmpl: nil,
+				dialFn: func(_ *defaultEmailSender) (gomail.SendCloser, error) {
+					return ms, nil
+				},
+			}
+
+			sentCount, err := ds.Send(tc.message)
+
+			if tc.senderError != nil {
+				require.Equal(t, 0, sentCount)
+				require.Error(t, err)
+				require.Contains(t, err.Error(), strings.Join(tc.message.To, ";"))
+			} else {
+				require.Equal(t, len(tc.expectedSent), sentCount)
+				require.NoError(t, err)
+			}
+
+			require.ElementsMatch(t, tc.expectedSent, ms.sentTo)
+		})
+	}
+}
+
+func makeMsg(single bool, addrs ...string) *Message {
+	return &Message{
+		SingleEmail: single,
+		To:          addrs,
+		From:        "noreply@grafana.com",
+		Subject:     "Subject",
+		Body:        map[string]string{"text/plain": "body"},
+	}
 }

@@ -6,12 +6,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/alerting/logging"
+	"github.com/go-kit/log"
+
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -37,7 +37,6 @@ func TestCreatePublishInput(t *testing.T) {
 				UID:                   "",
 				DisableResolveMessage: false,
 			},
-			log:      &logging.FakeLogger{},
 			tmpl:     tmpl,
 			settings: settings,
 		}
@@ -50,8 +49,7 @@ func TestCreatePublishInput(t *testing.T) {
 			},
 		}
 		var tmplErr error
-		data := notify.GetTemplateData(context.Background(), tmpl, alerts, snsNotifier.log)
-		tmplFn := notify.TmplText(tmpl, data, &tmplErr)
+		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
@@ -70,13 +68,12 @@ func TestCreatePublishInput(t *testing.T) {
 			Message:     stringWithManyCharacters,
 		}
 		snsNotifier := &Notifier{
-			Base: &receivers.Base{
+			Base: receivers.NewBase(receivers.Metadata{
 				Name:                  "AWS SNS",
 				Type:                  "sns",
 				UID:                   "",
 				DisableResolveMessage: false,
-			},
-			log:      &logging.FakeLogger{},
+			}, log.NewNopLogger()),
 			tmpl:     tmpl,
 			settings: settings,
 		}
@@ -90,8 +87,7 @@ func TestCreatePublishInput(t *testing.T) {
 		}
 
 		var tmplErr error
-		data := notify.GetTemplateData(context.Background(), tmpl, alerts, snsNotifier.log)
-		tmplFn := notify.TmplText(tmpl, data, &tmplErr)
+		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
@@ -101,5 +97,45 @@ func TestCreatePublishInput(t *testing.T) {
 		require.Equal(t, "sns", snsNotifier.Type)
 		require.Equal(t, stringWithManyCharacters[:1600], *snsInput.Message)
 		require.Equal(t, "true", *snsInput.MessageAttributes["truncated"].StringValue)
+	})
+
+	t.Run("with truncated subject", func(t *testing.T) {
+		stringWithManyCharacters := strings.Repeat("abcd", 500)
+		settings := Config{
+			PhoneNumber: "123-456-7890",
+			Message:     "abcd",
+			Subject:     stringWithManyCharacters,
+		}
+		snsNotifier := &Notifier{
+			Base: receivers.NewBase(receivers.Metadata{
+				Name:                  "AWS SNS",
+				Type:                  "sns",
+				UID:                   "",
+				DisableResolveMessage: false,
+			}, log.NewNopLogger()),
+			tmpl:     tmpl,
+			settings: settings,
+		}
+		alerts := []*types.Alert{
+			{
+				Alert: model.Alert{
+					Labels:      model.LabelSet{"alertname": "AlwaysFiring", "severity": "warning"},
+					Annotations: model.LabelSet{"runbook_url": "http://fix.me", "__dashboardUid__": "abc", "__panelId__": "5"},
+				},
+			},
+		}
+
+		var tmplErr error
+		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
+
+		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
+		require.NoError(t, err)
+		require.NoError(t, tmplErr)
+
+		require.Equal(t, "AWS SNS", snsNotifier.Name)
+		require.Equal(t, "sns", snsNotifier.Type)
+		require.Equal(t, "abcd", *snsInput.Message)
+		require.Equal(t, stringWithManyCharacters[:100], *snsInput.Subject)
+		require.Equal(t, "true", *snsInput.MessageAttributes["subject_truncated"].StringValue)
 	})
 }

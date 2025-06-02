@@ -3,10 +3,13 @@ package webhook
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	alertingHttp "github.com/grafana/alerting/http"
+	"github.com/grafana/alerting/receivers"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
@@ -74,7 +77,7 @@ func TestNewConfig(t *testing.T) {
 			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				URL:                      "http://localhost",
-				HTTPMethod:               "test-httpMethod",
+				HTTPMethod:               "PUT",
 				MaxAlerts:                2,
 				AuthorizationScheme:      "basic",
 				AuthorizationCredentials: "",
@@ -82,6 +85,17 @@ func TestNewConfig(t *testing.T) {
 				Password:                 "test-pass",
 				Title:                    "test-title",
 				Message:                  "test-message",
+				TLSConfig: &receivers.TLSConfig{
+					InsecureSkipVerify: false,
+					ClientCertificate:  alertingHttp.TestCertPem,
+					ClientKey:          alertingHttp.TestKeyPem,
+					CACertificate:      alertingHttp.TestCACert,
+				},
+				HMACConfig: &receivers.HMACConfig{
+					Secret:          "test-hmac-secret",
+					Header:          "X-Grafana-Alerting-Signature",
+					TimestampHeader: "X-Grafana-Alerting-Timestamp",
+				},
 			},
 		},
 		{
@@ -90,7 +104,7 @@ func TestNewConfig(t *testing.T) {
 			secretSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
 				URL:                      "http://localhost",
-				HTTPMethod:               "test-httpMethod",
+				HTTPMethod:               "PUT",
 				MaxAlerts:                2,
 				AuthorizationScheme:      "basic",
 				AuthorizationCredentials: "",
@@ -98,6 +112,17 @@ func TestNewConfig(t *testing.T) {
 				Password:                 "test-secret-pass",
 				Title:                    "test-title",
 				Message:                  "test-message",
+				TLSConfig: &receivers.TLSConfig{
+					InsecureSkipVerify: false,
+					ClientCertificate:  alertingHttp.TestCertPem,
+					ClientKey:          alertingHttp.TestKeyPem,
+					CACertificate:      alertingHttp.TestCACert,
+				},
+				HMACConfig: &receivers.HMACConfig{
+					Secret:          "test-override-hmac-secret",
+					Header:          "X-Grafana-Alerting-Signature",
+					TimestampHeader: "X-Grafana-Alerting-Timestamp",
+				},
 			},
 		},
 		{
@@ -238,6 +263,31 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
+			name: "with HMAC config",
+			settings: `{
+				"url": "http://localhost/test1",
+				"hmacConfig": {
+					"header": "X-Test-Hash",
+					"timestampHeader": "X-Test-Timestamp"
+				}
+			}`,
+			secretSettings: map[string][]byte{
+				"hmacConfig.secret": []byte("test-secret-from-secrets"),
+			},
+			expectedConfig: Config{
+				URL:        "http://localhost/test1",
+				HTTPMethod: http.MethodPost,
+				MaxAlerts:  0,
+				Title:      templates.DefaultMessageTitleEmbed,
+				Message:    templates.DefaultMessageEmbed,
+				HMACConfig: &receivers.HMACConfig{
+					Secret:          "test-secret-from-secrets",
+					Header:          "X-Test-Hash",
+					TimestampHeader: "X-Test-Timestamp",
+				},
+			},
+		},
+		{
 			name: "error if both credentials are specified",
 			settings: `{
 				"url": "http://localhost",
@@ -247,6 +297,73 @@ func TestNewConfig(t *testing.T) {
 				"password": "test-pass"
 			}`,
 			expectedInitError: "both HTTP Basic Authentication and Authorization Header are set, only 1 is permitted",
+		},
+		{
+			name: "with custom payload and variables",
+			settings: `{
+				"url": "http://localhost/test1",
+				"payload": {
+					"template": "{{ define \"test\" }}{{ .Receiver }}{{ .Vars.var1 }}{{ end }}",
+					"vars": {
+						"var1": "variablevalue"
+					}
+				}
+			}`,
+			expectedConfig: Config{
+				URL:        "http://localhost/test1",
+				HTTPMethod: http.MethodPost,
+				MaxAlerts:  0,
+				Title:      templates.DefaultMessageTitleEmbed,
+				Message:    templates.DefaultMessageEmbed,
+				Payload: CustomPayload{
+					Template: `{{ define "test" }}{{ .Receiver }}{{ .Vars.var1 }}{{ end }}`,
+					Vars: map[string]string{
+						"var1": "variablevalue",
+					},
+				},
+			},
+		},
+		{
+			name: "with custom headers",
+			settings: `{
+				"url": "http://localhost/test1",
+				"headers": {
+					"X-Test-Header": "test-header-value",
+					"Content-Type": "test-content-type"
+				}
+			}`,
+			expectedConfig: Config{
+				URL:        "http://localhost/test1",
+				HTTPMethod: http.MethodPost,
+				MaxAlerts:  0,
+				Title:      templates.DefaultMessageTitleEmbed,
+				Message:    templates.DefaultMessageEmbed,
+				ExtraHeaders: map[string]string{
+					"X-Test-Header": "test-header-value",
+					"Content-Type":  "test-content-type",
+				},
+			},
+		},
+		{
+			name: "with restricted custom headers",
+			settings: func() string {
+				headers := map[string]string{
+					"X-Test-Header": "test-header-value",
+					"Content-Type":  "test-content-type",
+				}
+				for k := range restrictedHeaders {
+					headers[strings.ToLower(k)] = k // Also make sure it handled non-canonical headers.
+				}
+				data, _ := json.Marshal(struct {
+					URL     string            `json:"url"`
+					Headers map[string]string `json:"headers"`
+				}{
+					URL:     "http://localhost/test1",
+					Headers: headers,
+				})
+				return string(data)
+			}(),
+			expectedInitError: "custom headers [\"accept-charset\" \"accept-encoding\" \"authorization\" \"connection\" \"content-encoding\" \"content-length\" \"cookie\" \"date\" \"expect\" \"forwarded\" \"host\" \"keep-alive\" \"max-forwards\" \"origin\" \"proxy-authenticate\" \"proxy-authorization\" \"referer\" \"set-cookie\" \"te\" \"trailer\" \"transfer-encoding\" \"upgrade\" \"user-agent\" \"via\" \"x-forwarded-for\" \"x-real-ip\"] are not allowed",
 		},
 	}
 

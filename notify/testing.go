@@ -15,6 +15,7 @@ import (
 	"github.com/grafana/alerting/receivers/discord"
 	"github.com/grafana/alerting/receivers/email"
 	"github.com/grafana/alerting/receivers/googlechat"
+	"github.com/grafana/alerting/receivers/jira"
 	"github.com/grafana/alerting/receivers/kafka"
 	"github.com/grafana/alerting/receivers/line"
 	"github.com/grafana/alerting/receivers/mqtt"
@@ -136,7 +137,12 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 		Config: email.FullValidConfigForTesting,
 	},
 	"googlechat": {NotifierType: "googlechat",
-		Config: googlechat.FullValidConfigForTesting,
+		Config:  googlechat.FullValidConfigForTesting,
+		Secrets: googlechat.FullValidSecretsForTesting,
+	},
+	"jira": {NotifierType: "jira",
+		Config:  jira.FullValidConfigForTesting,
+		Secrets: jira.FullValidSecretsForTesting,
 	},
 	"kafka": {NotifierType: "kafka",
 		Config:  kafka.FullValidConfigForTesting,
@@ -185,7 +191,8 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 		Secrets: threema.FullValidSecretsForTesting,
 	},
 	"victorops": {NotifierType: "victorops",
-		Config: victorops.FullValidConfigForTesting,
+		Config:  victorops.FullValidConfigForTesting,
+		Secrets: victorops.FullValidSecretsForTesting,
 	},
 	"webhook": {NotifierType: "webhook",
 		Config:  webhook.FullValidConfigForTesting,

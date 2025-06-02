@@ -188,7 +188,7 @@ func TestNewConfig(t *testing.T) {
 			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				Channel:     DefaultChannelType,
-				EndpointURL: "test-endpointUrl",
+				EndpointURL: "http://localhost/test-endpointUrl",
 				URL:         "test-url",
 				AgentID:     "test-agent_id",
 				CorpID:      "test-corp_id",
@@ -205,8 +205,8 @@ func TestNewConfig(t *testing.T) {
 			settings:       FullValidConfigForTesting,
 			expectedConfig: Config{
 				Channel:     DefaultChannelType,
-				EndpointURL: "test-endpointUrl",
-				URL:         "test-url-secret",
+				EndpointURL: "http://localhost/test-endpointUrl",
+				URL:         "http://localhost/test-url-secret",
 				AgentID:     "test-agent_id",
 				CorpID:      "test-corp_id",
 				Secret:      "test-secret",

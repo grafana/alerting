@@ -12,15 +12,16 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	"github.com/go-kit/log"
+
 	images2 "github.com/grafana/alerting/images"
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
 
 func TestNotify(t *testing.T) {
 	tmpl := templates.ForTests(t)
-	images := images2.NewFakeProviderWithFile(t, 2)
+	images := images2.NewFakeProvider(2)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
@@ -53,7 +54,7 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expHeaders:  map[string]string{"Authorization": "Bearer abcdefgh0123456789"},
-			expMsg:      `{"roomId":"someid","markdown":"**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n","files":["https://www.example.com/test-image-1"]}`,
+			expMsg:      `{"roomId":"someid","markdown":"**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n","files":["https://www.example.com/test-image-1.jpg"]}`,
 			expMsgError: nil,
 		},
 		{
@@ -79,7 +80,7 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expHeaders:  map[string]string{"Authorization": "Bearer abcdefgh0123456789"},
-			expMsg:      `{"roomId":"someid","markdown":"__Custom Firing__\n2 Firing\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval2\n","files":["https://www.example.com/test-image-1"]}`,
+			expMsg:      `{"roomId":"someid","markdown":"__Custom Firing__\n2 Firing\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana\u0026matcher=alertname%3Dalert1\u0026matcher=lbl1%3Dval2\n","files":["https://www.example.com/test-image-1.jpg"]}`,
 			expMsgError: nil,
 		},
 		{
@@ -108,13 +109,7 @@ func TestNotify(t *testing.T) {
 			notificationService := receivers.MockNotificationService()
 
 			n := &Notifier{
-				Base: &receivers.Base{
-					Name:                  "",
-					Type:                  "",
-					UID:                   "",
-					DisableResolveMessage: false,
-				},
-				log:      &logging.FakeLogger{},
+				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				ns:       notificationService,
 				tmpl:     tmpl,
 				settings: c.settings,

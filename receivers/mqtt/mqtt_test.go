@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -14,7 +15,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -352,13 +352,7 @@ func TestNotify(t *testing.T) {
 			mockMQTTClient.On("Publish", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 			n := &Notifier{
-				Base: &receivers.Base{
-					Name:                  "",
-					Type:                  "",
-					UID:                   "",
-					DisableResolveMessage: false,
-				},
-				log:      &logging.FakeLogger{},
+				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				tmpl:     tmpl,
 				settings: c.settings,
 				client:   mockMQTTClient,
@@ -444,19 +438,17 @@ func TestNew(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			mockClient := new(mockMQTTClient)
-			logger := &logging.FakeLogger{}
 
 			n := New(
 				tc.cfg,
 				receivers.Metadata{},
 				tmpl,
-				logger,
+				log.NewNopLogger(),
 				mockClient,
 			)
 
 			require.NotNil(t, n)
 			require.NotNil(t, n.Base)
-			require.Equal(t, n.log, logger)
 			require.Equal(t, n.settings, tc.cfg)
 			require.Equal(t, n.client, mockClient)
 			require.Equal(t, tmpl, n.tmpl)

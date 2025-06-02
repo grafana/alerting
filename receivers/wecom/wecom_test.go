@@ -17,7 +17,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/alerting/logging"
+	"github.com/go-kit/log"
+
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -203,13 +204,7 @@ func TestNotify_GroupRobot(t *testing.T) {
 			webhookSender := receivers.MockNotificationService()
 
 			pn := &Notifier{
-				Base: &receivers.Base{
-					Name:                  "",
-					Type:                  "",
-					UID:                   "",
-					DisableResolveMessage: false,
-				},
-				log:      &logging.FakeLogger{},
+				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				ns:       webhookSender,
 				tmpl:     tmpl,
 				settings: c.settings,
@@ -369,7 +364,7 @@ func TestNotify_ApiApp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 				accessToken := r.URL.Query().Get("access_token")
 				if accessToken != tt.accessToken {
 					t.Errorf("Expected access_token=%s got %s", tt.accessToken, accessToken)
@@ -388,13 +383,7 @@ func TestNotify_ApiApp(t *testing.T) {
 			webhookSender := receivers.MockNotificationService()
 
 			pn := &Notifier{
-				Base: &receivers.Base{
-					Name:                  "",
-					Type:                  "",
-					UID:                   "",
-					DisableResolveMessage: false,
-				},
-				log:      &logging.FakeLogger{},
+				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				ns:       webhookSender,
 				tmpl:     tmpl,
 				settings: tt.settings,
@@ -502,6 +491,7 @@ func TestGetAccessToken(t *testing.T) {
 			defer server.Close()
 
 			w := &Notifier{
+				Base: receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				settings: Config{
 					EndpointURL: server.URL,
 					CorpID:      tt.fields.corpid,

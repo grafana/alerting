@@ -11,14 +11,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/types"
-	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/alertmanager/types"
+	"github.com/prometheus/common/model"
+
+	"github.com/go-kit/log"
+
 	images2 "github.com/grafana/alerting/images"
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -71,7 +73,7 @@ func TestNotify(t *testing.T) {
 				"title":      "[FIRING:1]  (val1)",
 				"url":        "http://localhost/alerting/list",
 				"url_title":  "Show alert rule",
-				"message":    "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh",
+				"message":    "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Drule+uid&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh",
 				"attachment": "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\b\x04\x00\x00\x00\xb5\x1c\f\x02\x00\x00\x00\vIDATx\xdacd`\x00\x00\x00\x06\x00\x020\x81\xd0/\x00\x00\x00\x00IEND\xaeB`\x82",
 				"html":       "1",
 			},
@@ -109,7 +111,7 @@ func TestNotify(t *testing.T) {
 				"title":     "[FIRING:1]  (val1)",
 				"url":       "http://localhost/alerting/list",
 				"url_title": "Show alert rule",
-				"message":   "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh",
+				"message":   "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Drule+uid&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh",
 				"html":      "1",
 			},
 			expMsgError: nil,
@@ -146,7 +148,7 @@ func TestNotify(t *testing.T) {
 				"title":      "Alerts firing: 1",
 				"url":        "http://localhost/alerting/list",
 				"url_title":  "Show alert rule",
-				"message":    "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh",
+				"message":    "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Drule+uid&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh",
 				"attachment": "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\b\x04\x00\x00\x00\xb5\x1c\f\x02\x00\x00\x00\vIDATx\xdacd`\x00\x00\x00\x06\x00\x020\x81\xd0/\x00\x00\x00\x00IEND\xaeB`\x82",
 				"html":       "1",
 			},
@@ -160,7 +162,7 @@ func TestNotify(t *testing.T) {
 				AlertingPriority: 2,
 				OkPriority:       0,
 				Retry:            30,
-				Expire:           10800,
+				Expire:           86400,
 				Device:           "device",
 				AlertingSound:    "echo",
 				OkSound:          "magic",
@@ -193,7 +195,7 @@ func TestNotify(t *testing.T) {
 				"attachment": "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\b\x04\x00\x00\x00\xb5\x1c\f\x02\x00\x00\x00\vIDATx\xdacd`\x00\x00\x00\x06\x00\x020\x81\xd0/\x00\x00\x00\x00IEND\xaeB`\x82",
 				"html":       "1",
 				"retry":      "30",
-				"expire":     "10800",
+				"expire":     "86400",
 				"device":     "device",
 			},
 			expMsgError: nil,
@@ -214,13 +216,7 @@ func TestNotify(t *testing.T) {
 			webhookSender := receivers.MockNotificationService()
 
 			pn := &Notifier{
-				Base: &receivers.Base{
-					Name:                  "",
-					Type:                  "",
-					UID:                   "",
-					DisableResolveMessage: false,
-				},
-				log:      &logging.FakeLogger{},
+				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				ns:       webhookSender,
 				tmpl:     tmpl,
 				settings: c.settings,

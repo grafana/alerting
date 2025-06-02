@@ -11,27 +11,29 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 
-	"github.com/grafana/alerting/logging"
+	"github.com/go-kit/log"
+
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
+
+const subjectSizeLimit = 100
 
 // Notifier is responsible for sending
 // alert notifications to Amazon SNS.
 type Notifier struct {
 	*receivers.Base
-	log      logging.Logger
 	tmpl     *templates.Template
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, logger log.Logger) *Notifier {
 	return &Notifier{
-		Base:     receivers.NewBase(meta),
-		log:      logger,
+		Base:     receivers.NewBase(meta, logger),
 		tmpl:     template,
 		settings: cfg,
 	}
@@ -39,12 +41,11 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, logg
 
 // Notify sends the alert notification to sns.
 func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
-	var (
-		tmplErr error
-		data    = notify.GetTemplateData(ctx, s.tmpl, as, s.log)
-		tmpl    = notify.TmplText(s.tmpl, data, &tmplErr)
-	)
-	s.log.Info("Sending notification")
+	l := s.GetLogger(ctx)
+	var tmplErr error
+	tmpl, _ := templates.TmplText(ctx, s.tmpl, as, l, &tmplErr)
+
+	level.Info(l).Log("msg", "Sending notification")
 
 	publishInput, err := s.createPublishInput(ctx, tmpl)
 	if err != nil {
@@ -58,16 +59,16 @@ func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	// check template error after we use them
 	if tmplErr != nil {
-		s.log.Warn("failed to template message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template message", "err", tmplErr.Error())
 	}
 
 	publishOutput, err := snsClient.Publish(publishInput)
 	if err != nil {
-		s.log.Error("Failed to publish to Amazon SNS. ", "error", err)
+		level.Error(l).Log("msg", "Failed to publish to Amazon SNS. ", "err", err)
 		return true, err
 	}
 
-	s.log.Debug("Message successfully published", "messageId", publishOutput.MessageId, "sequenceNumber", publishOutput.SequenceNumber)
+	level.Debug(l).Log("msg", "Message successfully published", "messageId", publishOutput.MessageId, "sequenceNumber", publishOutput.SequenceNumber)
 	return true, nil
 }
 
@@ -158,34 +159,41 @@ func (s *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 		publishInput.SetTargetArn(tmpl(s.settings.TargetARN))
 	}
 
-	messageToSend, isTrunc, err := validateAndTruncateMessage(tmpl(s.settings.Message), messageSizeLimit)
+	messageToSend, isTrunc, err := validateAndTruncateString(tmpl(s.settings.Message), messageSizeLimit)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("message validation failed: %v", err)
 	}
 	if isTrunc {
 		// If we truncated the message we need to add a message attribute showing that it was truncated.
 		messageAttributes["truncated"] = &sns.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String("true")}
 	}
 
-	publishInput.SetMessage(messageToSend)
-	publishInput.SetMessageAttributes(messageAttributes)
-
-	subject := tmpl(s.settings.Subject)
+	subject, subjIsTrunc, err := validateAndTruncateString(tmpl(s.settings.Subject), subjectSizeLimit)
+	if err != nil {
+		return nil, fmt.Errorf("subject validation failed: %v", err)
+	}
+	if subjIsTrunc {
+		// If we truncated the subject we need to add a message attribute showing that it was truncated.
+		messageAttributes["subject_truncated"] = &sns.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String("true")}
+	}
 	if subject != "" {
 		publishInput.SetSubject(subject)
 	}
 
+	publishInput.SetMessage(messageToSend)
+	publishInput.SetMessageAttributes(messageAttributes)
+
 	return publishInput, nil
 }
 
-func validateAndTruncateMessage(message string, maxMessageSizeInBytes int) (string, bool, error) {
+func validateAndTruncateString(message string, maxMessageSizeInBytes int) (string, bool, error) {
 	if !utf8.ValidString(message) {
-		return "", false, fmt.Errorf("non utf8 encoded message string")
+		return "", false, fmt.Errorf("non utf8 encoded string")
 	}
 	if len(message) <= maxMessageSizeInBytes {
 		return message, false, nil
 	}
-	// If the message is larger than our specified size we have to truncate.
+	// If the given string is larger than our specified size we have to truncate.
 	truncated := make([]byte, maxMessageSizeInBytes)
 	copy(truncated, message)
 	return string(truncated), true, nil

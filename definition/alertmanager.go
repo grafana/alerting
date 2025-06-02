@@ -1,6 +1,7 @@
 package definition
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -115,6 +116,30 @@ func AsGrafanaRoute(r *config.Route) *Route {
 	}
 
 	return gRoute
+}
+
+// AllMatchers returns concatenated Match, MatchRE, Matchers and ObjectMatchers in a format of config.Matchers.
+func (r *Route) AllMatchers() (config.Matchers, error) {
+	matchers := make(config.Matchers, 0, len(r.Matchers)+len(r.ObjectMatchers)+len(r.Match)+len(r.MatchRE))
+
+	for ln, lv := range r.Match {
+		matcher, err := labels.NewMatcher(labels.MatchEqual, ln, lv)
+		if err != nil {
+			return nil, err
+		}
+		matchers = append(matchers, matcher)
+	}
+
+	for ln, lv := range r.MatchRE {
+		matcher, err := labels.NewMatcher(labels.MatchRegexp, ln, lv.String())
+		if err != nil {
+			return nil, err
+		}
+		matchers = append(matchers, matcher)
+	}
+
+	matchers = append(matchers, append(r.Matchers, r.ObjectMatchers...)...)
+	return matchers, nil
 }
 
 func (r *Route) ResourceType() string {
@@ -256,21 +281,8 @@ func (c *PostableApiAlertingConfig) UnmarshalYAML(unmarshal func(interface{}) er
 func (c *PostableApiAlertingConfig) Validate() error {
 	receivers := make(map[string]struct{}, len(c.Receivers))
 
-	var hasGrafReceivers, hasAMReceivers bool
 	for _, r := range c.Receivers {
 		receivers[r.Name] = struct{}{}
-		switch r.Type() {
-		case GrafanaReceiverType:
-			hasGrafReceivers = true
-		case AlertmanagerReceiverType:
-			hasAMReceivers = true
-		default:
-			continue
-		}
-	}
-
-	if hasGrafReceivers && hasAMReceivers {
-		return fmt.Errorf("cannot mix Alertmanager & Grafana receiver types")
 	}
 
 	// Taken from https://github.com/prometheus/alertmanager/blob/14cbe6301c732658d6fe877ec55ad5b738abcf06/config/config.go#L171-L192
@@ -605,4 +617,23 @@ func (r *PostableApiReceiver) GetName() string {
 
 type PostableGrafanaReceivers struct {
 	GrafanaManagedReceivers []*PostableGrafanaReceiver `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
+}
+
+// DecryptSecureSettings returns a map containing the decoded and decrypted secure settings.
+func (pgr *PostableGrafanaReceiver) DecryptSecureSettings(decryptFn func(payload []byte) ([]byte, error)) (map[string]string, error) {
+	decrypted := make(map[string]string, len(pgr.SecureSettings))
+	for k, v := range pgr.SecureSettings {
+		decoded, err := base64.StdEncoding.DecodeString(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode value for key '%s': %w", k, err)
+		}
+
+		b, err := decryptFn(decoded)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt value for key '%s': %w", k, err)
+		}
+
+		decrypted[k] = string(b)
+	}
+	return decrypted, nil
 }

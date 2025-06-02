@@ -3,14 +3,14 @@ package email
 import (
 	"context"
 	"net/url"
-	"os"
 	"path"
-	"path/filepath"
 
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/alertmanager/types"
 
+	"github.com/go-kit/log"
+
 	"github.com/grafana/alerting/images"
-	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -19,17 +19,15 @@ import (
 // alert notifications over email.
 type Notifier struct {
 	*receivers.Base
-	log      logging.Logger
 	ns       receivers.EmailSender
 	images   images.Provider
 	tmpl     *templates.Template
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.EmailSender, images images.Provider, logger logging.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.EmailSender, images images.Provider, logger log.Logger) *Notifier {
 	return &Notifier{
-		Base:     receivers.NewBase(meta),
-		log:      logger,
+		Base:     receivers.NewBase(meta, logger),
 		ns:       sender,
 		images:   images,
 		tmpl:     template,
@@ -39,8 +37,9 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // Notify sends the alert notification.
 func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
+	l := en.GetLogger(ctx)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, en.tmpl, alerts, en.log, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, en.tmpl, alerts, l, &tmplErr)
 
 	subject := tmpl(en.settings.Subject)
 	alertPageURL := en.tmpl.ExternalURL.String()
@@ -53,26 +52,38 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 		u.RawQuery = "alertState=firing&view=state"
 		alertPageURL = u.String()
 	} else {
-		en.log.Debug("failed to parse external URL", "url", en.tmpl.ExternalURL.String(), "error", err.Error())
+		level.Debug(l).Log("msg", "failed to parse external URL", "url", en.tmpl.ExternalURL.String(), "err", err.Error())
 	}
 
+	seenContent := make(map[string]string)
 	// Extend alerts data with images, if available.
-	var embeddedFiles []string
-	_ = images.WithStoredImages(ctx, en.log, en.images,
+	embeddedContents := make([]receivers.EmbeddedContent, 0)
+	err = images.WithStoredImages(ctx, l, en.images,
 		func(index int, image images.Image) error {
-			if len(image.URL) != 0 {
+			if image.HasURL() {
 				data.Alerts[index].ImageURL = image.URL
-			} else if len(image.Path) != 0 {
-				_, err := os.Stat(image.Path)
-				if err == nil {
-					data.Alerts[index].EmbeddedImage = filepath.Base(image.Path)
-					embeddedFiles = append(embeddedFiles, image.Path)
+			} else {
+				if name, ok := seenContent[image.ID]; ok && image.ID != "" { // If ID is not specified, do not deduplicate.
+					data.Alerts[index].EmbeddedImage = name
+					// Don't add the same image twice.
+					return nil
+				}
+				if contents, err := image.RawData(ctx); err == nil {
+					data.Alerts[index].EmbeddedImage = contents.Name
+					embeddedContents = append(embeddedContents, receivers.EmbeddedContent{
+						Name:    contents.Name,
+						Content: contents.Content,
+					})
+					seenContent[image.ID] = contents.Name
 				} else {
-					en.log.Warn("failed to get image file for email attachment", "file", image.Path, "error", err)
+					level.Warn(l).Log("msg", "failed to get image file for email attachment", "alert", alerts[index].String(), "err", err)
 				}
 			}
 			return nil
 		}, alerts...)
+	if err != nil {
+		level.Warn(l).Log("msg", "failed to get all images for email", "err", err)
+	}
 
 	cmd := &receivers.SendEmailSettings{
 		Subject: subject,
@@ -88,14 +99,14 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 			"RuleUrl":           ruleURL,
 			"AlertPageUrl":      alertPageURL,
 		},
-		EmbeddedFiles: embeddedFiles,
-		To:            en.settings.Addresses,
-		SingleEmail:   en.settings.SingleEmail,
-		Template:      "ng_alert_notification",
+		EmbeddedContents: embeddedContents,
+		To:               en.settings.Addresses,
+		SingleEmail:      en.settings.SingleEmail,
+		Template:         "ng_alert_notification",
 	}
 
 	if tmplErr != nil {
-		en.log.Warn("failed to template email message", "error", tmplErr.Error())
+		level.Warn(l).Log("msg", "failed to template email message", "err", tmplErr.Error())
 	}
 
 	if err := en.ns.SendEmail(ctx, cmd); err != nil {
