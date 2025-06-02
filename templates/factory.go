@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/prometheus/alertmanager/template"
 )
 
 // Factory is a factory that can be used to create templates of specific kind.
@@ -17,7 +16,7 @@ type Factory struct {
 }
 
 // NewTemplate creates a new template of the given kind. If Kind is not known, GrafanaKind automatically assumed
-func (tp *Factory) NewTemplate(kind Kind, options ...template.Option) (*Template, error) {
+func (tp *Factory) NewTemplate(kind Kind) (*Template, error) {
 	if err := ValidateKind(kind); err != nil {
 		return nil, err
 	}
@@ -26,7 +25,7 @@ func (tp *Factory) NewTemplate(kind Kind, options ...template.Option) (*Template
 	for _, def := range definitions { // TODO sort the list by name?
 		content = append(content, def.Template)
 	}
-	t, err := fromContent(content, append(defaultOptionsPerKind(kind), options...)...)
+	t, err := fromContent(content, append(defaultOptionsPerKind(kind))...)
 	if err != nil {
 		return nil, err
 	}
