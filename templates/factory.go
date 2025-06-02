@@ -38,7 +38,6 @@ func (tp *Factory) NewTemplate(kind Kind, options ...template.Option) (*Template
 }
 
 // WithTemplate creates a new factory that has the provided TemplateDefinition. If definition with the same name already exists for this kind, it is replaced.
-// If TemplateDefinition.Kind is not known, GrafanaKind automatically assumed.
 func (tp *Factory) WithTemplate(def TemplateDefinition) (*Factory, error) {
 	if err := ValidateKind(def.Kind); err != nil {
 		return nil, err
