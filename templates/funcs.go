@@ -26,6 +26,7 @@ func defaultOptionsPerKind(kind Kind, orgID string) []template.Option {
 	case GrafanaKind:
 		return []template.Option{
 			addFuncs,
+			mimir.WithCustomFunctions(orgID),
 		}
 	case MimirKind:
 		return []template.Option{
