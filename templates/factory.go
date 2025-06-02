@@ -25,7 +25,7 @@ func (tp *Factory) GetTemplate(kind Kind) (*Template, error) {
 	for _, def := range definitions { // TODO sort the list by name?
 		content = append(content, def.Template)
 	}
-	t, err := fromContent(content, append(defaultOptionsPerKind(kind))...)
+	t, err := fromContent(content, defaultOptionsPerKind(kind)...)
 	if err != nil {
 		return nil, err
 	}
