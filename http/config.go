@@ -19,6 +19,8 @@ var (
 )
 
 // HTTPClientConfig holds common configuration for notifier HTTP clients.
+//
+//nolint:revive
 type HTTPClientConfig struct {
 	// The OAuth2 client credentials used to fetch a token for the targets.
 	OAuth2 *OAuth2Config `yaml:"oauth2,omitempty" json:"oauth2,omitempty"`
@@ -68,16 +70,16 @@ func (cfg *ProxyConfig) Proxy() (fn func(*http.Request) (*url.URL, error), err e
 		}, nil
 	}
 	if cfg.ProxyURL != "" {
-		proxyUrl, err := url.Parse(cfg.ProxyURL)
+		proxyURL, err := url.Parse(cfg.ProxyURL)
 		if err != nil {
 			return nil, fmt.Errorf("invalid proxy URL %q: %w", cfg.ProxyURL, err)
 		}
 		if cfg.NoProxy == "" {
-			return http.ProxyURL(proxyUrl), nil
+			return http.ProxyURL(proxyURL), nil
 		}
 		proxy := &httpproxy.Config{
-			HTTPProxy:  proxyUrl.String(),
-			HTTPSProxy: proxyUrl.String(),
+			HTTPProxy:  proxyURL.String(),
+			HTTPSProxy: proxyURL.String(),
 			NoProxy:    cfg.NoProxy,
 		}
 		proxyFn := proxy.ProxyFunc()

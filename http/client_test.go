@@ -459,13 +459,13 @@ func TestSendWebhookOAuth2(t *testing.T) {
 
 			oauth2Server := httptest.NewServer(http.HandlerFunc(oauthHandler))
 			defer oauth2Server.Close()
-			tokenUrl := oauth2Server.URL + "/oauth2/token"
+			tokenURL := oauth2Server.URL + "/oauth2/token"
 
 			proxyRequestCnt := 0
 			proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				proxyRequestCnt++
 				// Verify this is a proxy request.
-				assert.Equal(t, tokenUrl, r.RequestURI, "expected request to be sent to oauth server")
+				assert.Equal(t, tokenURL, r.RequestURI, "expected request to be sent to oauth server")
 
 				// Simulate forwarding the request to the OAuth2 handler.
 				oauthHandler(w, r)
@@ -482,7 +482,7 @@ func TestSendWebhookOAuth2(t *testing.T) {
 			defer webhookServer.Close()
 
 			oauthConfig := tc.oauth2Config
-			oauthConfig.TokenURL = tokenUrl
+			oauthConfig.TokenURL = tokenURL
 
 			if oauthConfig.ProxyConfig != nil && oauthConfig.ProxyConfig.ProxyURL != "" {
 				oauthConfig.ProxyConfig.ProxyURL = proxyServer.URL

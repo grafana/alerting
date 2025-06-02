@@ -112,7 +112,7 @@ func BuildGrafanaReceiverIntegrations(
 		})
 	}
 	for i, cfg := range receiver.EmailConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(_ *http.Client) notificationChannel {
 			return email.New(cfg.Settings, cfg.Metadata, tmpl, emailSender, img, logger)
 		})
 	}
@@ -137,7 +137,7 @@ func BuildGrafanaReceiverIntegrations(
 		})
 	}
 	for i, cfg := range receiver.MqttConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(_ *http.Client) notificationChannel {
 			return mqtt.New(cfg.Settings, cfg.Metadata, tmpl, logger, nil)
 		})
 	}
@@ -167,7 +167,9 @@ func BuildGrafanaReceiverIntegrations(
 		})
 	}
 	for i, cfg := range receiver.SNSConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel { return sns.New(cfg.Settings, cfg.Metadata, tmpl, logger) })
+		ci(i, cfg.Metadata, func(_ *http.Client) notificationChannel {
+			return sns.New(cfg.Settings, cfg.Metadata, tmpl, logger)
+		})
 	}
 	for i, cfg := range receiver.SlackConfigs {
 		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
