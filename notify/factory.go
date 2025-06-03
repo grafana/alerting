@@ -6,9 +6,11 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/prometheus/alertmanager/notify"
-
 	"github.com/prometheus/alertmanager/config"
+	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/alertmanager/types"
+	commoncfg "github.com/prometheus/common/config"
+
 	promDiscord "github.com/prometheus/alertmanager/notify/discord"
 	promEmail "github.com/prometheus/alertmanager/notify/email"
 	promMsteams "github.com/prometheus/alertmanager/notify/msteams"
@@ -23,8 +25,6 @@ import (
 	promWebhook "github.com/prometheus/alertmanager/notify/webhook"
 	promWechat "github.com/prometheus/alertmanager/notify/wechat"
 	"github.com/prometheus/alertmanager/template"
-	"github.com/prometheus/alertmanager/types"
-	commoncfg "github.com/prometheus/common/config"
 
 	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
@@ -164,7 +164,7 @@ func BuildPrometheusReceiverIntegrations(
 	tmpl *template.Template,
 	httpOps []commoncfg.HTTPClientOption,
 	logger log.Logger,
-	wrapper func(string, notify.Notifier) notify.Notifier,
+	wrapper WrapNotifierFunc,
 ) ([]*nfstatus.Integration, error) {
 	var (
 		errs         types.MultiError
@@ -238,6 +238,8 @@ func BuildReceiversIntegrations(
 	images images.Provider,
 	decryptFn GetDecryptedValueFn,
 	emailSender receivers.EmailSender,
+	httpClientOptions []http.ClientOption,
+	notifierFunc WrapNotifierFunc,
 	version string,
 	logger log.Logger,
 ) (map[string][]*Integration, error) {
@@ -255,7 +257,7 @@ func BuildReceiversIntegrations(
 
 	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
 	for name, apiReceiver := range nameToReceiver {
-		integrations, err := BuildReceiverIntegrations(tenantID, apiReceiver, templ, images, decryptFn, emailSender, version, logger)
+		integrations, err := BuildReceiverIntegrations(tenantID, apiReceiver, templ, images, decryptFn, emailSender, notifierFunc, httpClientOptions, version, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build receiver %s: %w", name, err)
 		}
@@ -273,6 +275,8 @@ func BuildReceiverIntegrations(
 	images images.Provider,
 	decryptFn GetDecryptedValueFn,
 	emailSender receivers.EmailSender,
+	wrapNotifierFunc WrapNotifierFunc,
+	httpClientOptions []http.ClientOption,
 	version string,
 	logger log.Logger,
 ) ([]*Integration, error) {
@@ -293,11 +297,10 @@ func BuildReceiverIntegrations(
 			// TODO change it to use AM's logger with and add type as label
 			logger,
 			emailSender,
-			func(_ string, n Notifier) Notifier {
-				return n
-			},
+			wrapNotifierFunc,
 			tenantID,
 			version,
+			httpClientOptions...,
 		)
 	}
 	if receiver.HasPrometheusReceivers() {
@@ -305,8 +308,9 @@ func BuildReceiverIntegrations(
 		if err != nil {
 			return nil, err
 		}
+		httpOpts := http.ToHTTPClientOption(httpClientOptions...)
 		// TODO add httpopts
-		mimir, err := BuildPrometheusReceiverIntegrations(receiver.ConfigReceiver, tmpl.Template, nil, logger, nil)
+		mimir, err := BuildPrometheusReceiverIntegrations(receiver.ConfigReceiver, tmpl.Template, httpOpts, logger, wrapNotifierFunc)
 		if err != nil {
 			return nil, err
 		}
