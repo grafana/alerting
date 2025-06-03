@@ -677,28 +677,21 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		return err
 	}
 	am.templates = factory
-
-	// Finally, build the integrations map using the receiver configuration and templates.
-	apiReceivers := cfg.Receivers
-	nameToReceiver := make(map[string]*APIReceiver, len(apiReceivers))
-	for _, receiver := range apiReceivers {
-		if existing, ok := nameToReceiver[receiver.Name]; ok {
-			itypes := make([]string, 0, len(existing.GrafanaIntegrations.Integrations))
-			for _, i := range existing.GrafanaIntegrations.Integrations {
-				itypes = append(itypes, i.Type)
-			}
-			level.Warn(am.logger).Log("msg", "receiver with same name is defined multiple times. Only the last one will be used", "receiver_name", receiver.Name, "overwritten_integrations", itypes)
-		}
-		nameToReceiver[receiver.Name] = receiver
-	}
-	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
 	cached := templates.NewCachedFactory(factory)
-	for name, apiReceiver := range nameToReceiver {
-		integrations, err := am.buildReceiverIntegrations(apiReceiver, cached)
-		if err != nil {
-			return err
-		}
-		integrationsMap[name] = integrations
+
+	// build the integrations map using the receiver configuration and templates.
+	integrationsMap, err := BuildReceiversIntegrations(
+		am.opts.TenantID,
+		cfg.Receivers,
+		cached,
+		am.opts.ImageProvider,
+		am.opts.Decrypter,
+		am.opts.EmailSender,
+		am.opts.Version,
+		am.logger,
+	)
+	if err != nil {
+		return err
 	}
 
 	// Now, let's put together our notification pipeline
@@ -932,41 +925,14 @@ func (am *GrafanaAlertmanager) tenantString() string {
 }
 
 func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpls TemplatesProvider) ([]*Integration, error) {
-	var integrations []*Integration
-	if len(receiver.Integrations) > 0 {
-		receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, am.opts.Decrypter)
-		if err != nil {
-			return nil, err
-		}
-		tmpl, err := tmpls.GetTemplate(templates.GrafanaKind)
-		if err != nil {
-			return nil, err
-		}
-		integrations = BuildReceiverIntegrations(
-			receiverCfg,
-			tmpl,
-			am.opts.ImageProvider,
-			// TODO change it to use AM's logger with and add type as label
-			am.logger,
-			am.opts.EmailSender,
-			func(_ string, n Notifier) Notifier {
-				return n
-			},
-			am.opts.TenantID,
-			am.opts.Version,
-		)
-	}
-	if receiver.HasPrometheusReceivers() {
-		tmpl, err := am.templates.GetTemplate(templates.GrafanaKind)
-		if err != nil {
-			return nil, err
-		}
-		// TODO add httpopts
-		mimir, err := BuildPromReceiverIntegrations(receiver.ConfigReceiver, tmpl.Template, nil, am.logger, nil)
-		if err != nil {
-			return nil, err
-		}
-		integrations = append(integrations, mimir...)
-	}
-	return integrations, nil
+	return BuildReceiverIntegrations(
+		am.opts.TenantID,
+		receiver,
+		tmpls,
+		am.opts.ImageProvider,
+		am.opts.Decrypter,
+		am.opts.EmailSender,
+		am.opts.Version,
+		am.logger,
+	)
 }
