@@ -35,9 +35,11 @@ import (
 
 type WrapNotifierFunc func(integrationName string, notifier notify.Notifier) notify.Notifier
 
-// BuildReceiverIntegrations creates integrations for each configured notification channel in GrafanaReceiverConfig.
+var NoWrap WrapNotifierFunc = func(integrationName string, notifier notify.Notifier) notify.Notifier { return notifier }
+
+// BuildGrafanaReceiverIntegrations creates integrations for each configured notification channel in GrafanaReceiverConfig.
 // It returns a slice of Integration objects, one for each notification channel, along with any errors that occurred.
-func BuildReceiverIntegrations(
+func BuildGrafanaReceiverIntegrations(
 	receiver GrafanaReceiverConfig,
 	tmpl *templates.Template,
 	img images.Provider,
@@ -132,4 +134,87 @@ func BuildReceiverIntegrations(
 		ci(i, cfg.Metadata, webex.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger, orgID))
 	}
 	return integrations
+}
+
+// BuildReceiversIntegrations builds integrations for the provided API receivers and returns them mapped by receiver name.
+// It ensures uniqueness of receivers by the name, overwriting duplicates and logs warnings.
+// Returns an error if any integration fails during its construction.
+func BuildReceiversIntegrations(
+	tenantID int64,
+	apiReceivers []*APIReceiver,
+	templ TemplatesProvider,
+	images images.Provider,
+	decryptFn GetDecryptedValueFn,
+	emailSender receivers.EmailSender,
+	httpClientOptions []http.ClientOption,
+	notifierFunc WrapNotifierFunc,
+	version string,
+	logger log.Logger,
+) (map[string][]*Integration, error) {
+	nameToReceiver := make(map[string]*APIReceiver, len(apiReceivers))
+	for _, receiver := range apiReceivers {
+		if existing, ok := nameToReceiver[receiver.Name]; ok {
+			itypes := make([]string, 0, len(existing.GrafanaIntegrations.Integrations))
+			for _, i := range existing.GrafanaIntegrations.Integrations {
+				itypes = append(itypes, i.Type)
+			}
+			level.Warn(logger).Log("msg", "receiver with same name is defined multiple times. Only the last one will be used", "receiver_name", receiver.Name, "overwritten_integrations", itypes)
+		}
+		nameToReceiver[receiver.Name] = receiver
+	}
+
+	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
+	for name, apiReceiver := range nameToReceiver {
+		integrations, err := BuildReceiverIntegrations(tenantID, apiReceiver, templ, images, decryptFn, emailSender, httpClientOptions, notifierFunc, version, logger)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build receiver %s: %w", name, err)
+		}
+		integrationsMap[name] = integrations
+	}
+	return integrationsMap, nil
+}
+
+// BuildReceiverIntegrations builds integrations for the provided API receiver and returns them.
+// It supports both Prometheus and Grafana integrations and ensures that both of them use only templates dedicated for the kind.
+func BuildReceiverIntegrations(
+	tenantID int64,
+	receiver *APIReceiver,
+	tmpls TemplatesProvider,
+	images images.Provider,
+	decryptFn GetDecryptedValueFn,
+	emailSender receivers.EmailSender,
+	httpClientOptions []http.ClientOption,
+	wrapNotifierFunc WrapNotifierFunc,
+	version string,
+	logger log.Logger,
+) ([]*Integration, error) {
+	var integrations []*Integration
+	if len(receiver.Integrations) > 0 {
+		receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, decryptFn)
+		if err != nil {
+			return nil, err
+		}
+		tmpl, err := tmpls.GetTemplate(templates.GrafanaKind)
+		if err != nil {
+			return nil, err
+		}
+		integrations = BuildGrafanaReceiverIntegrations(
+			receiverCfg,
+			tmpl,
+			images,
+			logger,
+			emailSender,
+			wrapNotifierFunc,
+			tenantID,
+			version,
+			httpClientOptions...,
+		)
+	}
+	mimir, err := BuildPrometheusReceiverIntegrations(receiver.ConfigReceiver, tmpls, httpClientOptions, logger, wrapNotifierFunc)
+	if err != nil {
+		return nil, err
+	}
+	integrations = append(integrations, mimir...)
+
+	return integrations, nil
 }
