@@ -3,6 +3,7 @@ package notify
 import (
 	"bytes"
 	"context"
+	tmpltext "text/template"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/template"
@@ -106,15 +107,15 @@ func (am *GrafanaAlertmanager) GetTemplate(kind templates.Kind) (*template.Templ
 	if err != nil {
 		return nil, err
 	}
-	return t.Template, nil
+	return t, nil
 }
 
 // testTemplateScopes tests the given template with the root scope. If the root scope fails, it tries
 // other more specific scopes, such as ".Alerts" or ".Alert".
 // If none of the more specific scopes work either, the original error is returned.
-func testTemplateScopes(newTextTmpl *templates.Template, def string, data *templates.ExtendedData) (string, TemplateScope, error) {
+func testTemplateScopes(newTextTmpl *tmpltext.Template, def string, data *templates.ExtendedData) (string, TemplateScope, error) {
 	var buf bytes.Buffer
-	defaultErr := newTextTmpl.Text.ExecuteTemplate(&buf, def, data)
+	defaultErr := newTextTmpl.ExecuteTemplate(&buf, def, data)
 	if defaultErr == nil {
 		return buf.String(), rootScope, nil
 	}
@@ -126,7 +127,7 @@ func testTemplateScopes(newTextTmpl *templates.Template, def string, data *templ
 	// caller to provide the correct scope.
 	for _, scope := range []TemplateScope{alertsScope, alertScope} {
 		var buf bytes.Buffer
-		err := newTextTmpl.Text.ExecuteTemplate(&buf, def, scope.Data(data))
+		err := newTextTmpl.ExecuteTemplate(&buf, def, scope.Data(data))
 		if err == nil {
 			return buf.String(), scope, nil
 		}
