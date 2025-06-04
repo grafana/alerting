@@ -134,5 +134,5 @@ func (cf *CachedFactory) GetTemplate(kind Kind) (*Template, error) {
 		return nil, err
 	}
 	cf.m[kind] = t
-	return t, nil
+	return t.Clone()
 }
