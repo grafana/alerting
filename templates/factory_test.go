@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"strings"
 	"testing"
 	"time"
 
@@ -240,4 +241,36 @@ func TestFactoryWithTemplate(t *testing.T) {
 		_, err := f.WithTemplate(TemplateDefinition{Name: "test", Kind: 1234, Template: `{{ define "factory_test" }}TEST{{ end }}`})
 		require.ErrorIs(t, err, ErrInvalidKind)
 	})
+}
+
+func TestCachedTemplateFactory(t *testing.T) {
+	def := []TemplateDefinition{
+		{
+			Name:     "test",
+			Kind:     GrafanaKind,
+			Template: fmt.Sprintf(`{{ define "factory_test" }}TEST %s KIND{{ end }}`, GrafanaKind),
+		},
+	}
+	f, err := NewFactory(def, log.NewNopLogger(), "http://localhost")
+	require.NoError(t, err)
+	cached := NewCachedFactory(f)
+
+	tmpl, err := cached.GetTemplate(GrafanaKind)
+	require.NoError(t, err)
+
+	expanded, err := tmpl.ExecuteTextString(`{{ template "factory_test" . }}`, nil)
+	require.NoError(t, err)
+	require.Equal(t, `TEST Grafana KIND`, expanded)
+	// redefine template
+	require.NoError(t, tmpl.Parse(strings.NewReader(`{{ define "factory_test" }}TEST{{ end }}`)))
+	expanded, err = tmpl.ExecuteTextString(`{{ template "factory_test" . }}`, nil)
+	require.NoError(t, err)
+	require.Equal(t, `TEST`, expanded)
+	// now get the template again
+	tmpl, err = cached.GetTemplate(GrafanaKind)
+	require.NoError(t, err)
+
+	expanded, err = tmpl.ExecuteTextString(`{{ template "factory_test" . }}`, nil)
+	require.NoError(t, err)
+	require.Equal(t, `TEST Grafana KIND`, expanded)
 }
