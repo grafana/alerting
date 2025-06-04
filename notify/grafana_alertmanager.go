@@ -126,13 +126,15 @@ type MaintenanceOptions interface {
 
 var NewIntegration = nfstatus.NewIntegration
 
-type InhibitRule = config.InhibitRule
-type MuteTimeInterval = config.MuteTimeInterval
-type TimeInterval = config.TimeInterval
-type Route = config.Route
-type Integration = nfstatus.Integration
-type DispatcherLimits = dispatch.Limits
-type Notifier = notify.Notifier
+type (
+	InhibitRule      = config.InhibitRule
+	MuteTimeInterval = config.MuteTimeInterval
+	TimeInterval     = config.TimeInterval
+	Route            = config.Route
+	Integration      = nfstatus.Integration
+	DispatcherLimits = dispatch.Limits
+	Notifier         = notify.Notifier
+)
 
 //nolint:revive
 type NotifyReceiver = nfstatus.Receiver
@@ -257,7 +259,6 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		Logger:         opts.Logger,
 		Metrics:        opts.Metrics.Registerer,
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the notification log component of alerting: %w", err)
 	}
@@ -476,8 +477,8 @@ func TestReceivers(
 	ctx context.Context,
 	c TestReceiversConfigBodyParams,
 	buildIntegrationsFunc func(*APIReceiver, TemplatesProvider) ([]*nfstatus.Integration, error),
-	tmplProvider TemplatesProvider) (*TestReceiversResult, int, error) {
-
+	tmplProvider TemplatesProvider,
+) (*TestReceiversResult, int, error) {
 	now := time.Now() // The start time of the test
 	testAlert := newTestAlert(c, now, now)
 
@@ -723,7 +724,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 	silencingStage := notify.NewMuteStage(am.silencer, am.stageMetrics)
 
 	am.route = dispatch.NewRoute(cfg.RoutingTree, nil)
-	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.DispatcherLimits, am.logger, am.dispatcherMetrics)
+	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.DispatcherLimits, am.logger, am.dispatcherMetrics, nil)
 
 	// TODO: This has not been upstreamed yet. Should be aligned when https://github.com/prometheus/alertmanager/pull/3016 is merged.
 	var receivers []*nfstatus.Receiver
