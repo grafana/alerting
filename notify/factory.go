@@ -59,7 +59,7 @@ import (
 
 type WrapNotifierFunc func(integrationName string, notifier notify.Notifier) notify.Notifier
 
-var NoWrap WrapNotifierFunc = func(integrationName string, notifier notify.Notifier) notify.Notifier { return notifier }
+var NoWrap WrapNotifierFunc = func(_ string, notifier notify.Notifier) notify.Notifier { return notifier }
 
 // BuildGrafanaReceiverIntegrations creates integrations for each configured notification channel in GrafanaReceiverConfig.
 // It returns a slice of Integration objects, one for each notification channel, along with any errors that occurred.
