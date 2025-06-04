@@ -301,7 +301,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
 	}
 
-	am.templates, err = templates.NewFactory(nil, am.logger, am.ExternalURL())
+	am.templates, err = templates.NewFactory(nil, am.logger, am.ExternalURL(), fmt.Sprintf("%d", am.TenantID()))
 	if err != nil {
 		return nil, err
 	}
@@ -677,7 +677,7 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 // ApplyConfig applies a new configuration by re-initializing all components using the configuration provided.
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err error) {
-	factory, err := templates.NewFactory(cfg.Templates, am.logger, am.ExternalURL())
+	factory, err := templates.NewFactory(cfg.Templates, am.logger, am.ExternalURL(), fmt.Sprintf("%d", am.TenantID()))
 	if err != nil {
 		return err
 	}

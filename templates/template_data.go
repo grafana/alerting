@@ -23,9 +23,8 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
-	"github.com/grafana/alerting/templates/gomplate"
-
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/templates/gomplate"
 )
 
 type KV = template.KV
@@ -94,7 +93,7 @@ func (t TemplateDefinition) Validate() error {
 	}
 	// Validate template contents. We try to stick as close to what will actually happen when the templates are parsed
 	// by the alertmanager as possible.
-	tmpl, err := template.New(defaultOptionsPerKind(t.Kind)...)
+	tmpl, err := template.New(defaultOptionsPerKind(t.Kind, "grafana")...)
 	if err != nil {
 		return fmt.Errorf("failed to create template: %w", err)
 	}
@@ -156,7 +155,7 @@ func DefaultTemplate() (TemplateDefinition, error) {
 	// The underlying template is not accessible, so we capture it via template.Option.
 
 	// Call fromContent without any user-provided templates to get the combined default template.
-	tmpl, err := fromContent(defaultTemplatesPerKind(GrafanaKind), defaultOptionsPerKind(GrafanaKind)...)
+	tmpl, err := fromContent(defaultTemplatesPerKind(GrafanaKind), defaultOptionsPerKind(GrafanaKind, "grafana")...)
 	if err != nil {
 		return TemplateDefinition{}, err
 	}

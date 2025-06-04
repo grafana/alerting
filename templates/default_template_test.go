@@ -130,7 +130,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	alert1Dashboard := fmt.Sprintf("http://localhost/grafana/d/dbuid123?from=%d&orgId=1&to=%d", alerts[0].StartsAt.Add(-time.Hour).UnixMilli(), constNow.UnixMilli())         // Firing.
 	alert4Dashboard := fmt.Sprintf("http://localhost/grafana/d/dbuid456?from=%d&orgId=1&to=%d", alerts[3].StartsAt.Add(-time.Hour).UnixMilli(), alerts[3].EndsAt.UnixMilli()) // Resolved.
 
-	tmpl, err := fromContent(defaultTemplatesPerKind(GrafanaKind), defaultOptionsPerKind(GrafanaKind)...)
+	tmpl, err := fromContent(defaultTemplatesPerKind(GrafanaKind), defaultOptionsPerKind(GrafanaKind, "grafana")...)
 	require.NoError(t, err)
 
 	externalURL, err := url.Parse("http://localhost/grafana")
@@ -144,7 +144,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	tmplDef, err := DefaultTemplate()
 	require.NoError(t, err)
 
-	tmplFromDefinition, err := template.New(defaultOptionsPerKind(GrafanaKind)...)
+	tmplFromDefinition, err := template.New(defaultOptionsPerKind(GrafanaKind, "grafana")...)
 	require.NoError(t, err)
 	// Parse default template string.
 	err = tmplFromDefinition.Parse(strings.NewReader(tmplDef.Template))
