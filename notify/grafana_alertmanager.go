@@ -604,6 +604,10 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 	if err != nil {
 		return nil, err
 	}
+	txt, err := newTmpl.Text()
+	if err != nil {
+		return nil, err
+	}
 
 	// Prepare the context.
 	alerts := OpenAPIAlertsToAlerts(c.Alerts)
@@ -612,13 +616,13 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 	ctx = notify.WithReceiverName(ctx, DefaultReceiverName)
 	ctx = notify.WithGroupLabels(ctx, labels)
 
-	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template, alerts, logger)
+	promTmplData := notify.GetTemplateData(ctx, newTmpl, alerts, logger)
 	data := templates.ExtendData(promTmplData, logger)
 
 	// Iterate over each definition in the template and evaluate it.
 	var results TestTemplatesResults
 	for _, def := range definitions {
-		res, scope, err := testTemplateScopes(newTmpl, def, data)
+		res, scope, err := testTemplateScopes(txt, def, data)
 		if err != nil {
 			results.Errors = append(results.Errors, TestTemplatesErrorResult{
 				Name:  def,

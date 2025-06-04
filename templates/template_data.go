@@ -30,11 +30,7 @@ import (
 
 type KV = template.KV
 type Data = template.Data
-
-type Template struct {
-	*template.Template
-	Text *tmpltext.Template
-}
+type Template = template.Template
 
 var (
 	// Provides current time. Can be overwritten in tests.
@@ -166,7 +162,11 @@ func DefaultTemplate() (TemplateDefinition, error) {
 	}
 
 	var combinedTemplate strings.Builder
-	tmpls := tmpl.Text.Templates()
+	txt, err := tmpl.Text()
+	if err != nil {
+		return TemplateDefinition{}, err
+	}
+	tmpls := txt.Templates()
 	// Sort for a consistent order.
 	slices.SortFunc(tmpls, func(a, b *tmpltext.Template) int {
 		return strings.Compare(a.Name(), b.Name())
@@ -204,11 +204,7 @@ func addFuncs(text *tmpltext.Template, html *tmplhtml.Template) {
 
 // fromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
 func fromContent(tmpls []string, options ...template.Option) (*Template, error) {
-	var newTextTmpl *tmpltext.Template
-	var captureTemplate template.Option = func(text *tmpltext.Template, _ *tmplhtml.Template) {
-		newTextTmpl = text
-	}
-	t, err := template.New(append(options, captureTemplate)...)
+	t, err := template.New(options...)
 	if err != nil {
 		return nil, err
 	}
@@ -234,10 +230,7 @@ func fromContent(tmpls []string, options ...template.Option) (*Template, error) 
 			return nil, err
 		}
 	}
-	return &Template{
-		Template: t,
-		Text:     newTextTmpl,
-	}, nil
+	return t, nil
 }
 
 func removePrivateItems(kv template.KV) template.KV {
@@ -416,7 +409,7 @@ func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 }
 
 func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
-	promTmplData := notify.GetTemplateData(ctx, tmpl.Template, alerts, l)
+	promTmplData := notify.GetTemplateData(ctx, tmpl, alerts, l)
 	data := ExtendData(promTmplData, l)
 
 	if groupKey, err := notify.ExtractGroupKey(ctx); err == nil {

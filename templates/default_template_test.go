@@ -152,10 +152,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	tmplFromDefinition.ExternalURL = externalURL
 
 	var tmplDefErr error
-	expandFromDefinition, _ := TmplText(context.Background(), &Template{
-		Template: tmplFromDefinition,
-		Text:     nil,
-	}, alerts, l, &tmplDefErr)
+	expandFromDefinition, _ := TmplText(context.Background(), tmplFromDefinition, alerts, l, &tmplDefErr)
 
 	cases := []struct {
 		templateString string
