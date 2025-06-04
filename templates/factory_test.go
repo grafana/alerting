@@ -255,22 +255,17 @@ func TestCachedTemplateFactory(t *testing.T) {
 	require.NoError(t, err)
 	cached := NewCachedFactory(f)
 
-	tmpl, err := cached.GetTemplate(GrafanaKind)
-	require.NoError(t, err)
+	for i := 0; i < 3; i++ { // check many times to ensure that clone it always return clean clone
+		tmpl, err := cached.GetTemplate(GrafanaKind)
+		require.NoError(t, err)
 
-	expanded, err := tmpl.ExecuteTextString(`{{ template "factory_test" . }}`, nil)
-	require.NoError(t, err)
-	require.Equal(t, `TEST Grafana KIND`, expanded)
-	// redefine template
-	require.NoError(t, tmpl.Parse(strings.NewReader(`{{ define "factory_test" }}TEST{{ end }}`)))
-	expanded, err = tmpl.ExecuteTextString(`{{ template "factory_test" . }}`, nil)
-	require.NoError(t, err)
-	require.Equal(t, `TEST`, expanded)
-	// now get the template again
-	tmpl, err = cached.GetTemplate(GrafanaKind)
-	require.NoError(t, err)
-
-	expanded, err = tmpl.ExecuteTextString(`{{ template "factory_test" . }}`, nil)
-	require.NoError(t, err)
-	require.Equal(t, `TEST Grafana KIND`, expanded)
+		expanded, err := tmpl.ExecuteTextString(`{{ template "factory_test" . }}`, nil)
+		require.NoError(t, err)
+		require.Equal(t, `TEST Grafana KIND`, expanded)
+		// redefine template
+		require.NoError(t, tmpl.Parse(strings.NewReader(`{{ define "factory_test" }}TEST{{ end }}`)))
+		expanded, err = tmpl.ExecuteTextString(`{{ template "factory_test" . }}`, nil)
+		require.NoError(t, err)
+		require.Equal(t, `TEST`, expanded)
+	}
 }
