@@ -157,6 +157,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			tmpl,
 			imageProvider,
 			NoopDecrypt,
+			NoopDecode,
 			emailService,
 			nil,
 			func(_ string, n notify.Notifier) notify.Notifier {
@@ -202,6 +203,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			tmpl,
 			imageProvider,
 			NoopDecrypt,
+			NoopDecode,
 			emailService,
 			nil,
 			func(_ string, n notify.Notifier) notify.Notifier {

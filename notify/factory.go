@@ -253,6 +253,7 @@ func BuildReceiversIntegrations(
 	templ TemplatesProvider,
 	images images.Provider,
 	decryptFn GetDecryptedValueFn,
+	decodeFn DecodeSecretsFn,
 	emailSender receivers.EmailSender,
 	httpClientOptions []http.ClientOption,
 	notifierFunc WrapNotifierFunc,
@@ -273,7 +274,7 @@ func BuildReceiversIntegrations(
 
 	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
 	for name, apiReceiver := range nameToReceiver {
-		integrations, err := BuildReceiverIntegrations(tenantID, apiReceiver, templ, images, decryptFn, emailSender, httpClientOptions, notifierFunc, version, logger)
+		integrations, err := BuildReceiverIntegrations(tenantID, apiReceiver, templ, images, decryptFn, decodeFn, emailSender, httpClientOptions, notifierFunc, version, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build receiver %s: %w", name, err)
 		}
@@ -290,6 +291,7 @@ func BuildReceiverIntegrations(
 	tmpls TemplatesProvider,
 	images images.Provider,
 	decryptFn GetDecryptedValueFn,
+	decodeFn DecodeSecretsFn,
 	emailSender receivers.EmailSender,
 	httpClientOptions []http.ClientOption,
 	wrapNotifierFunc WrapNotifierFunc,
@@ -298,7 +300,7 @@ func BuildReceiverIntegrations(
 ) ([]*Integration, error) {
 	var integrations []*Integration
 	if len(receiver.Integrations) > 0 {
-		receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, DecodeSecretsFromBase64, decryptFn)
+		receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, decodeFn, decryptFn)
 		if err != nil {
 			return nil, err
 		}
