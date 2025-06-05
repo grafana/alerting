@@ -54,7 +54,7 @@ func TestNewFactory(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			factory, err := NewFactory(tc.templates, logger, externalURL)
+			factory, err := NewFactory(tc.templates, logger, externalURL, "grafana")
 			if tc.expectError != nil {
 				require.ErrorIs(t, err, ErrInvalidKind)
 				return
@@ -69,7 +69,7 @@ func TestNewFactory(t *testing.T) {
 	}
 
 	t.Run("error if external URL is invalid", func(t *testing.T) {
-		_, err := NewFactory([]TemplateDefinition{{Name: "t1", Kind: GrafanaKind}}, logger, ":::")
+		_, err := NewFactory([]TemplateDefinition{{Name: "t1", Kind: GrafanaKind}}, logger, ":::", "grafana")
 		require.Error(t, err)
 	})
 }
@@ -112,7 +112,7 @@ func TestFactoryNewTemplate(t *testing.T) {
 			Template: fmt.Sprintf(`{{ define "factory_test" }}TEST %s KIND{{ end }}`, kind),
 		})
 	}
-	f, err := NewFactory(def, log.NewNopLogger(), "http://localhost")
+	f, err := NewFactory(def, log.NewNopLogger(), "http://localhost", "grafana")
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -181,7 +181,7 @@ func TestFactoryNewTemplate(t *testing.T) {
 				Kind:     GrafanaKind,
 				Template: fmt.Sprintf(`{{ define "factory_test" }}TEST %s KIND{{ end }}`, GrafanaKind),
 			},
-		}, log.NewNopLogger(), "http://localhost")
+		}, log.NewNopLogger(), "http://localhost", "grafana")
 		require.NoError(t, err)
 		templ, err := f.GetTemplate(GrafanaKind)
 		require.NoError(t, err)
@@ -203,7 +203,7 @@ func TestFactoryWithTemplate(t *testing.T) {
 	as := []*types.Alert{{}}
 	kind := GrafanaKind
 	initial := TemplateDefinition{Name: "test", Kind: kind, Template: `{{ define "factory_test" }}TEST{{ end }}`}
-	f, err := NewFactory([]TemplateDefinition{initial}, log.NewNopLogger(), "http://localhost")
+	f, err := NewFactory([]TemplateDefinition{initial}, log.NewNopLogger(), "http://localhost", "grafana")
 	require.NoError(t, err)
 	templ, err := f.GetTemplate(kind)
 	require.NoError(t, err)
@@ -251,7 +251,7 @@ func TestCachedTemplateFactory(t *testing.T) {
 			Template: fmt.Sprintf(`{{ define "factory_test" }}TEST %s KIND{{ end }}`, GrafanaKind),
 		},
 	}
-	f, err := NewFactory(def, log.NewNopLogger(), "http://localhost")
+	f, err := NewFactory(def, log.NewNopLogger(), "http://localhost", "grafana")
 	require.NoError(t, err)
 	cached := NewCachedFactory(f)
 

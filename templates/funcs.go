@@ -2,6 +2,8 @@ package templates
 
 import (
 	"github.com/prometheus/alertmanager/template"
+
+	"github.com/grafana/alerting/templates/mimir"
 )
 
 var (
@@ -19,11 +21,16 @@ func defaultTemplatesPerKind(kind Kind) []string {
 	}
 }
 
-func defaultOptionsPerKind(kind Kind) []template.Option {
+func defaultOptionsPerKind(kind Kind, orgID string) []template.Option {
 	switch kind {
 	case GrafanaKind:
 		return []template.Option{
 			addFuncs,
+			mimir.WithCustomFunctions(orgID),
+		}
+	case MimirKind:
+		return []template.Option{
+			mimir.WithCustomFunctions(orgID),
 		}
 	default:
 		return nil
