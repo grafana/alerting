@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -189,4 +190,25 @@ func TestSendWebhookHMAC(t *testing.T) {
 		timestamp := capturedRequest.Header.Get("X-Custom-Timestamp")
 		require.NotEmpty(t, timestamp)
 	})
+}
+
+func TestToHTTPClientOption(t *testing.T) {
+	// this test guards against adding new fields to the configuration structure without updating the conversion function
+	t.Run("empty converts to empty", func(t *testing.T) {
+		require.Empty(t, ToHTTPClientOption())
+		require.Empty(t, ToHTTPClientOption(nil))
+	})
+
+	var f ClientOption = func(configuration *clientConfiguration) {
+		configuration.userAgent = "test"
+		configuration.dialer = net.Dialer{Timeout: 5 * time.Second}
+		configuration.customDialer = true
+	}
+	actual := ToHTTPClientOption(f)
+	require.Len(t, actual, 2)
+
+	// Verify number of fields using reflection
+	tp := reflect.TypeOf(clientConfiguration{})
+	// You need to increase the number of fields covered in this test, if you add a new field to the configuration struct.
+	require.Equalf(t, 3, tp.NumField(), "Not all fields are converted to HTTPClientOption, which means that the configuration will not be supported in upstream integrations")
 }

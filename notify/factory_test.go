@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
+	"github.com/prometheus/alertmanager/config"
+	commoncfg "github.com/prometheus/common/config"
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/notify"
@@ -51,7 +53,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return n
 		}
 
-		integrations := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version)
+		integrations := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version)
 
 		require.Len(t, integrations, qty)
 
@@ -76,7 +78,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 				}),
 			}
 
-			integrations := BuildReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version, clientOpts...)
+			integrations := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version, clientOpts...)
 
 			require.Len(t, integrations, qty)
 			for _, integration := range integrations {
@@ -112,7 +114,106 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should not produce any integration if config is empty", func(t *testing.T) {
 		cfg := GrafanaReceiverConfig{Name: "test"}
 
-		integrations := BuildReceiverIntegrations(cfg, tmpl, imageProvider, log.NewNopLogger(), emailService, noopWrapper, orgID, version)
+		integrations := BuildGrafanaReceiverIntegrations(cfg, tmpl, imageProvider, log.NewNopLogger(), emailService, noopWrapper, orgID, version)
 		require.Empty(t, integrations)
+	})
+}
+
+func TestBuildReceiversIntegrations(t *testing.T) {
+	var orgID = rand.Int63()
+	var version = fmt.Sprintf("Grafana v%d", rand.Uint32())
+	imageProvider := &images.URLProvider{}
+	tmpl, err := templates.NewFactory(nil, log.NewNopLogger(), "http://localhost", "grafana")
+	require.NoError(t, err)
+	emailService := receivers.MockNotificationService()
+
+	t.Run("should build receivers", func(t *testing.T) {
+		apiReceivers := []*APIReceiver{
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "test1",
+					WebhookConfigs: []*config.WebhookConfig{
+						{
+							HTTPConfig: &commoncfg.DefaultHTTPClientConfig,
+						},
+					},
+				},
+			},
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "test2",
+				},
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{
+						AllKnownConfigsForTesting["email"].GetRawNotifierConfig("test2"),
+					},
+				},
+			},
+		}
+
+		actual, err := BuildReceiversIntegrations(
+			orgID,
+			apiReceivers,
+			tmpl,
+			imageProvider,
+			NoopDecrypt,
+			emailService,
+			nil,
+			func(_ string, n notify.Notifier) notify.Notifier {
+				return n
+			},
+			version,
+			log.NewNopLogger(),
+		)
+		require.NoError(t, err)
+		require.Contains(t, actual, "test1")
+		require.Equal(t, "webhook[0]", actual["test1"][0].String())
+		require.Contains(t, actual, "test2")
+		require.Equal(t, "email[0]", actual["test2"][0].String())
+	})
+
+	t.Run("should ignore duplicates", func(t *testing.T) {
+		apiReceivers := []*APIReceiver{
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "test",
+				},
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{
+						AllKnownConfigsForTesting["email"].GetRawNotifierConfig("test"),
+					},
+				},
+			},
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "test",
+				},
+				GrafanaIntegrations: GrafanaIntegrations{
+					Integrations: []*GrafanaIntegrationConfig{
+						AllKnownConfigsForTesting["webhook"].GetRawNotifierConfig("test"),
+					},
+				},
+			},
+		}
+
+		actual, err := BuildReceiversIntegrations(
+			orgID,
+			apiReceivers,
+			tmpl,
+			imageProvider,
+			NoopDecrypt,
+			emailService,
+			nil,
+			func(_ string, n notify.Notifier) notify.Notifier {
+				return n
+			},
+			version,
+			log.NewNopLogger(),
+		)
+		require.NoError(t, err)
+		require.Contains(t, actual, "test")
+		integrations := actual["test"]
+		require.Len(t, integrations, 1)
+		require.Equal(t, "webhook[0]", integrations[0].String())
 	})
 }
