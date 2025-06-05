@@ -72,6 +72,9 @@ func WithDialer(dialer net.Dialer) ClientOption {
 func ToHTTPClientOption(option ...ClientOption) []commoncfg.HTTPClientOption {
 	cfg := clientConfiguration{}
 	for _, opt := range option {
+		if opt == nil {
+			continue
+		}
 		opt(&cfg)
 	}
 	result := make([]commoncfg.HTTPClientOption, 0, len(option))
