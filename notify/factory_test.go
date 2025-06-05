@@ -123,7 +123,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 	var orgID = rand.Int63()
 	var version = fmt.Sprintf("Grafana v%d", rand.Uint32())
 	imageProvider := &images.URLProvider{}
-	tmpl, err := templates.NewFactory(nil, log.NewNopLogger(), "http://localhost")
+	tmpl, err := templates.NewFactory(nil, log.NewNopLogger(), "http://localhost", "grafana")
 	require.NoError(t, err)
 	emailService := receivers.MockNotificationService()
 
