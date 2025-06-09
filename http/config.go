@@ -28,14 +28,17 @@ type HTTPClientConfig struct {
 
 // Decrypt decrypts sensitive fields in the HTTPClientConfig.
 func (c *HTTPClientConfig) Decrypt(decryptFn receivers.DecryptFunc) {
-	if c.OAuth2 != nil {
-		c.OAuth2.ClientSecret = decryptFn("http_config.oauth2.client_secret", c.OAuth2.ClientSecret)
-		if c.OAuth2.TLSConfig != nil {
-			c.OAuth2.TLSConfig.CACertificate = decryptFn("http_config.oauth2.tls_config.caCertificate", c.OAuth2.TLSConfig.CACertificate)
-			c.OAuth2.TLSConfig.ClientCertificate = decryptFn("http_config.oauth2.tls_config.clientCertificate", c.OAuth2.TLSConfig.ClientCertificate)
-			c.OAuth2.TLSConfig.ClientKey = decryptFn("http_config.oauth2.tls_config.clientKey", c.OAuth2.TLSConfig.ClientKey)
-		}
+	if c.OAuth2 == nil {
+		return
 	}
+	c.OAuth2.ClientSecret = decryptFn("http_config.oauth2.client_secret", c.OAuth2.ClientSecret)
+
+	if c.OAuth2.TLSConfig == nil {
+		return
+	}
+	c.OAuth2.TLSConfig.CACertificate = decryptFn("http_config.oauth2.tls_config.caCertificate", c.OAuth2.TLSConfig.CACertificate)
+	c.OAuth2.TLSConfig.ClientCertificate = decryptFn("http_config.oauth2.tls_config.clientCertificate", c.OAuth2.TLSConfig.ClientCertificate)
+	c.OAuth2.TLSConfig.ClientKey = decryptFn("http_config.oauth2.tls_config.clientKey", c.OAuth2.TLSConfig.ClientKey)
 }
 
 func ValidateHTTPClientConfig(cfg *HTTPClientConfig) error {
