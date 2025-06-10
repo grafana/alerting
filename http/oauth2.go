@@ -130,6 +130,7 @@ func NewOAuth2TokenSource(clientConfig clientConfiguration) (oauth2.TokenSource,
 			oauth2.HTTPClient,
 			&http.Client{
 				Transport: rt,
+				Timeout:   time.Second * 30,
 			},
 		),
 	), nil
