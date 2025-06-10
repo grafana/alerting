@@ -39,14 +39,18 @@ func TestLoadCompat(t *testing.T) {
 			input: []byte(testConfigWithoutGlobal),
 		},
 		{
+			name:  "no global config with api url file",
+			input: []byte(testConfigWithoutGlobalWithUrlFile),
+		},
+		{
 			name:   "no slack api url",
 			input:  []byte(fmt.Sprintf(missingValuesTemplate, "slack_configs")),
-			expErr: "no global Slack API URL set",
+			expErr: "no global Slack API URL set either inline or in a file",
 		},
 		{
 			name:   "no Opsgenie api key",
 			input:  []byte(fmt.Sprintf(missingValuesTemplate, "opsgenie_configs")),
-			expErr: "no global OpsGenie API Key set",
+			expErr: "no global OpsGenie API Key set either inline or in a file",
 		},
 		{
 			name:   "no WeChat api secret",
@@ -61,12 +65,12 @@ func TestLoadCompat(t *testing.T) {
 		{
 			name:   "no Discord url",
 			input:  []byte(fmt.Sprintf(missingValuesTemplate, "discord_configs")),
-			expErr: "no discord webhook URL provided",
+			expErr: "one of webhook_url or webhook_url_file must be configured",
 		},
 		{
 			name:   "no MSTeams url",
 			input:  []byte(fmt.Sprintf(missingValuesTemplate, "msteams_configs")),
-			expErr: "no msteams webhook URL provided",
+			expErr: "one of webhook_url or webhook_url_file must be configured",
 		},
 		{
 			name:   "no smarthost",
@@ -207,6 +211,47 @@ receivers:
           bearer_token: test
 `
 
+const testConfigWithoutGlobalWithUrlFile = `
+route:
+  receiver: test
+  routes:
+    - receiver: test
+receivers:
+  - name: test
+    discord_configs:
+      - webhook_url_file: test
+    msteams_configs:
+      - webhook_url_file: test
+    opsgenie_configs:
+      - api_key_file: test
+    pagerduty_configs:
+      - routing_key_file: test
+    pushover_configs:
+      - user_key_file: test
+        token_file: test
+    slack_configs:
+      - api_url_file: test
+    sns_configs:
+      - topic_arn: test
+    telegram_configs:
+      - bot_token_file: test
+        chat_id: 1
+    victorops_configs:
+      - api_key_file: test
+        routing_key: test
+    webhook_configs:
+      - url_file: test
+    wechat_configs:
+      - api_key: test
+        api_secret: test
+        corp_id: test
+    webex_configs:
+      - api_url: http://test.com
+        room_id: test
+        http_config:
+          bearer_token: test
+`
+
 const testConfigWithGlobal = `
 global:
   smtp_smarthost: smtp.example.org:587
@@ -292,7 +337,6 @@ receivers:
       - send_resolved: false
         routing_key: test
         to: test
-        webhook_url_file: test
 `
 
 const testConfigWithComplexRoutes = `
