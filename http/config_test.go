@@ -119,5 +119,5 @@ func mustURL(u string) URL {
 	if err != nil {
 		panic(err)
 	}
-	return URL{res}
+	return URL{URL: res}
 }

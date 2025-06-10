@@ -439,5 +439,5 @@ func mustURL(u string) alertingHttp.URL {
 	if err != nil {
 		panic(err)
 	}
-	return alertingHttp.URL{res}
+	return alertingHttp.URL{URL: res}
 }
