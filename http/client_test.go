@@ -23,20 +23,20 @@ import (
 
 func TestClient(t *testing.T) {
 	t.Run("NewClient", func(t *testing.T) {
-		client, err := NewClient()
+		client, err := NewClient(nil)
 		require.NoError(t, err)
 		require.NotNil(t, client)
 	})
 
 	t.Run("WithUserAgent", func(t *testing.T) {
-		client, err := NewClient(WithUserAgent("TEST"))
+		client, err := NewClient(nil, WithUserAgent("TEST"))
 		require.NoError(t, err)
 		require.Equal(t, "TEST", client.cfg.userAgent)
 	})
 
 	t.Run("WithDialer with timeout", func(t *testing.T) {
 		dialer := net.Dialer{Timeout: 5 * time.Second}
-		client, err := NewClient(WithDialer(dialer))
+		client, err := NewClient(nil, WithDialer(dialer))
 		require.NoError(t, err)
 		require.Equal(t, dialer, client.cfg.dialer)
 	})
@@ -44,7 +44,7 @@ func TestClient(t *testing.T) {
 	t.Run("WithDialer missing timeout should use default", func(t *testing.T) {
 		// Mostly defensive to ensure that some timeout is set.
 		dialer := net.Dialer{LocalAddr: &net.TCPAddr{IP: net.ParseIP("::")}}
-		client, err := NewClient(WithDialer(dialer))
+		client, err := NewClient(nil, WithDialer(dialer))
 		require.NoError(t, err)
 
 		expectedDialer := dialer
@@ -58,12 +58,12 @@ func TestClient(t *testing.T) {
 			ClientSecret: "test-client-secret",
 			TokenURL:     "https://localhost:8080/oauth2/token",
 		}
-		client, err := NewClient(WithHTTPClientConfig(&HTTPClientConfig{
+		client, err := NewClient(&HTTPClientConfig{
 			OAuth2: oauth2Config,
-		}))
+		})
 		require.NoError(t, err)
 
-		require.Equal(t, oauth2Config, client.cfg.httpClientConfig.OAuth2)
+		require.NotNil(t, client.oauth2TokenSource)
 	})
 
 	t.Run("WithOAuth2 invalid TLS", func(t *testing.T) {
@@ -75,9 +75,9 @@ func TestClient(t *testing.T) {
 				CACertificate: "invalid-ca-cert",
 			},
 		}
-		_, err := NewClient(WithHTTPClientConfig(&HTTPClientConfig{
+		_, err := NewClient(&HTTPClientConfig{
 			OAuth2: oauth2Config,
-		}))
+		})
 		require.ErrorIs(t, err, ErrOAuth2TLSConfigInvalid)
 	})
 }
@@ -92,7 +92,7 @@ func TestSendWebhook(t *testing.T) {
 		got = r
 		w.WriteHeader(http.StatusOK)
 	}))
-	s, err := NewClient(WithUserAgent("TEST"))
+	s, err := NewClient(nil, WithUserAgent("TEST"))
 	require.NoError(t, err)
 
 	// The method should be either POST or PUT.
@@ -177,7 +177,7 @@ func TestSendWebhookHMAC(t *testing.T) {
 		server := initServer(httptest.NewServer)
 		defer server.Close()
 
-		client, err := NewClient()
+		client, err := NewClient(nil)
 		require.NoError(t, err)
 		webhook := &receivers.SendWebhookSettings{
 			URL:        server.URL,
@@ -209,7 +209,7 @@ func TestSendWebhookHMAC(t *testing.T) {
 		cfg, err := tlsConfig.ToCryptoTLSConfig()
 		require.NoError(t, err)
 
-		client, err := NewClient()
+		client, err := NewClient(nil)
 		require.NoError(t, err)
 		webhook := &receivers.SendWebhookSettings{
 			URL:        server.URL,
@@ -420,7 +420,7 @@ func TestSendWebhookOAuth2(t *testing.T) {
 				ClientID:     "test-client-id",
 				ClientSecret: "test-client-secret",
 				ProxyConfig: ProxyConfig{
-					ProxyURL: mustURL("http://<server>.com"), // This will be replaced with the test server URL.
+					ProxyURL: MustURL("http://<server>.com"), // This will be replaced with the test server URL.
 				},
 			},
 			oauth2Response: oauth2Response{
@@ -485,16 +485,14 @@ func TestSendWebhookOAuth2(t *testing.T) {
 			oauthConfig.TokenURL = tokenURL
 
 			if oauthConfig.ProxyConfig.ProxyURL.URL != nil && oauthConfig.ProxyConfig.ProxyURL.String() != "" {
-				oauthConfig.ProxyConfig.ProxyURL = mustURL(proxyServer.URL)
+				oauthConfig.ProxyConfig.ProxyURL = MustURL(proxyServer.URL)
 			}
 			expectedProxyRequestCnt := 0
 			if tc.expProxyRequests {
 				expectedProxyRequestCnt = 1
 			}
 
-			client, err := NewClient(append(tc.otherClientOpts, WithHTTPClientConfig(&HTTPClientConfig{
-				OAuth2: &oauthConfig,
-			}))...)
+			client, err := NewClient(&HTTPClientConfig{OAuth2: &oauthConfig}, tc.otherClientOpts...)
 			if tc.expClientError != nil {
 				assert.ErrorIs(t, err, tc.expClientError, "expected client creation error to match")
 				return
@@ -549,5 +547,5 @@ func TestToHTTPClientOption(t *testing.T) {
 	// Verify number of fields using reflection
 	tp := reflect.TypeOf(clientConfiguration{})
 	// You need to increase the number of fields covered in this test, if you add a new field to the configuration struct.
-	require.Equalf(t, 4, tp.NumField(), "Not all fields are converted to HTTPClientOption, which means that the configuration will not be supported in upstream integrations")
+	require.Equalf(t, 3, tp.NumField(), "Not all fields are converted to HTTPClientOption, which means that the configuration will not be supported in upstream integrations")
 }

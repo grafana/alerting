@@ -3,7 +3,6 @@ package webhook
 import (
 	"encoding/json"
 	"net/http"
-	"net/url"
 	"strings"
 	"testing"
 
@@ -97,32 +96,6 @@ func TestNewConfig(t *testing.T) {
 					Header:          "X-Grafana-Alerting-Signature",
 					TimestampHeader: "X-Grafana-Alerting-Timestamp",
 				},
-				HTTPConfig: &alertingHttp.HTTPClientConfig{
-					OAuth2: &alertingHttp.OAuth2Config{
-						ClientID:     "test-client-id",
-						ClientSecret: "test-client-secret",
-						TokenURL:     "https://localhost/auth/token",
-						Scopes:       []string{"scope1", "scope2"},
-						EndpointParams: map[string]string{
-							"param1": "value1",
-							"param2": "value2",
-						},
-						TLSConfig: &receivers.TLSConfig{
-							InsecureSkipVerify: false,
-							ClientCertificate:  alertingHttp.TestCertPem,
-							ClientKey:          alertingHttp.TestKeyPem,
-							CACertificate:      alertingHttp.TestCACert,
-						},
-						ProxyConfig: alertingHttp.ProxyConfig{
-							ProxyURL:             mustURL("http://localproxy:8080"),
-							NoProxy:              "localhost",
-							ProxyFromEnvironment: false,
-							ProxyConnectHeader: map[string]string{
-								"X-Proxy-Header": "proxy-value",
-							},
-						},
-					},
-				},
 			},
 		},
 		{
@@ -149,32 +122,6 @@ func TestNewConfig(t *testing.T) {
 					Secret:          "test-override-hmac-secret",
 					Header:          "X-Grafana-Alerting-Signature",
 					TimestampHeader: "X-Grafana-Alerting-Timestamp",
-				},
-				HTTPConfig: &alertingHttp.HTTPClientConfig{
-					OAuth2: &alertingHttp.OAuth2Config{
-						ClientID:     "test-client-id",
-						ClientSecret: "test-override-oauth2-secret",
-						TokenURL:     "https://localhost/auth/token",
-						Scopes:       []string{"scope1", "scope2"},
-						EndpointParams: map[string]string{
-							"param1": "value1",
-							"param2": "value2",
-						},
-						TLSConfig: &receivers.TLSConfig{
-							InsecureSkipVerify: false,
-							ClientCertificate:  alertingHttp.TestCertPem,
-							ClientKey:          alertingHttp.TestKeyPem,
-							CACertificate:      alertingHttp.TestCACert,
-						},
-						ProxyConfig: alertingHttp.ProxyConfig{
-							ProxyURL:             mustURL("http://localproxy:8080"),
-							NoProxy:              "localhost",
-							ProxyFromEnvironment: false,
-							ProxyConnectHeader: map[string]string{
-								"X-Proxy-Header": "proxy-value",
-							},
-						},
-					},
 				},
 			},
 		},
@@ -432,12 +379,4 @@ func TestNewConfig(t *testing.T) {
 			require.Equal(t, c.expectedConfig, actual)
 		})
 	}
-}
-
-func mustURL(u string) alertingHttp.URL {
-	res, err := url.Parse(u)
-	if err != nil {
-		panic(err)
-	}
-	return alertingHttp.URL{URL: res}
 }

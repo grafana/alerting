@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/grafana/alerting/http"
 	"github.com/prometheus/alertmanager/types"
 
 	"github.com/grafana/alerting/receivers/alertmanager"
@@ -200,8 +201,9 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 		Secrets: victorops.FullValidSecretsForTesting,
 	},
 	"webhook": {NotifierType: "webhook",
-		Config:  webhook.FullValidConfigForTesting,
-		Secrets: webhook.FullValidSecretsForTesting,
+		Config:                    webhook.FullValidConfigForTesting,
+		Secrets:                   webhook.FullValidSecretsForTesting,
+		commonHttpConfigSupported: true,
 	},
 	"wecom": {NotifierType: "wecom",
 		Config:  wecom.FullValidConfigForTesting,
@@ -213,10 +215,47 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 	},
 }
 
+var FullValidHTTPConfigForTesting = fmt.Sprintf(`{
+	"http_config": {
+		"oauth2": {
+			"client_id": "test-client-id",
+			"client_secret": "test-client-secret",
+			"token_url": "https://localhost/auth/token",
+			"scopes": ["scope1", "scope2"],
+			"endpoint_params": {
+				"param1": "value1",
+				"param2": "value2"
+			},
+			"tls_config": {
+				"insecureSkipVerify": false,
+				"clientCertificate": %[1]q,
+				"clientKey": %[2]q,
+				"caCertificate": %[3]q
+			},
+			"proxy_config": {
+				"proxy_url": "http://localproxy:8080",
+				"no_proxy": "localhost",
+				"proxy_from_environment": false,
+				"proxy_connect_header": {
+					"X-Proxy-Header": "proxy-value"
+				}
+			}
+		}
+    }
+}`, http.TestCertPem, http.TestKeyPem, http.TestCACert)
+
+var FullValidHTTPConfigSecretsForTesting = fmt.Sprintf(`{
+	"http_config.oauth2.client_secret": "test-override-oauth2-secret",
+	"http_config.oauth2.tls_config.clientCertificate": %[1]q,
+	"http_config.oauth2.tls_config.clientKey": %[2]q,
+	"http_config.oauth2.tls_config.caCertificate": %[3]q
+}`, http.TestCertPem, http.TestKeyPem, http.TestCACert)
+
 type NotifierConfigTest struct {
-	NotifierType string
-	Config       string
-	Secrets      string
+	NotifierType              string
+	Config                    string
+	Secrets                   string
+	commonHttpConfigSupported bool
 }
 
 func (n NotifierConfigTest) GetRawNotifierConfig(name string) *GrafanaIntegrationConfig {
@@ -230,12 +269,41 @@ func (n NotifierConfigTest) GetRawNotifierConfig(name string) *GrafanaIntegratio
 			secrets[key] = base64.StdEncoding.EncodeToString([]byte(value))
 		}
 	}
+
+	config := []byte(n.Config)
+	if n.commonHttpConfigSupported {
+		var err error
+		config, err = MergeSettings([]byte(n.Config), []byte(FullValidHTTPConfigForTesting))
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	return &GrafanaIntegrationConfig{
 		UID:                   fmt.Sprintf("%s-uid", name),
 		Name:                  name,
 		Type:                  n.NotifierType,
 		DisableResolveMessage: true,
-		Settings:              json.RawMessage(n.Config),
+		Settings:              json.RawMessage(config),
 		SecureSettings:        secrets,
 	}
+}
+
+func MergeSettings(a []byte, b []byte) ([]byte, error) {
+	var origSettings map[string]any
+	err := json.Unmarshal(a, &origSettings)
+	if err != nil {
+		return nil, err
+	}
+	var newSettings map[string]any
+	err = json.Unmarshal(b, &newSettings)
+	if err != nil {
+		return nil, err
+	}
+
+	for key, value := range newSettings {
+		origSettings[key] = value
+	}
+
+	return json.Marshal(origSettings)
 }

@@ -56,7 +56,7 @@ type URL = config.URL
 
 type ProxyConfig struct {
 	// ProxyURL is the HTTP proxy server to use to connect to the targets.
-	ProxyURL URL `yaml:"proxy_url,omitempty" json:"proxy_url,omitempty"`
+	ProxyURL URL `yaml:"proxy_url,omitzero" json:"proxy_url,omitzero"`
 	// NoProxy contains addresses that should not use a proxy.
 	NoProxy string `yaml:"no_proxy,omitempty" json:"no_proxy,omitempty"`
 	// ProxyFromEnvironment uses environment HTTP_PROXY, HTTPS_PROXY and NO_PROXY to determine proxies.

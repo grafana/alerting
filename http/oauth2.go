@@ -77,12 +77,7 @@ func NewOAuth2RoundTripper(tokenSource oauth2.TokenSource, next http.RoundTrippe
 	}
 }
 
-func NewOAuth2TokenSource(clientConfig clientConfiguration) (oauth2.TokenSource, error) {
-	config := clientConfig.httpClientConfig.OAuth2
-	if config == nil {
-		// This should never happen, but we add this check defensively.
-		return nil, fmt.Errorf("OAuth2 configuration is required")
-	}
+func NewOAuth2TokenSource(config OAuth2Config, clientConfig clientConfiguration) (oauth2.TokenSource, error) {
 	credconfig := &clientcredentials.Config{
 		ClientID:       config.ClientID,
 		ClientSecret:   config.ClientSecret,

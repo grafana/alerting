@@ -7,12 +7,26 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"strings"
+	"syscall"
 	"testing"
+	"time"
 
+	"github.com/go-kit/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	alertingHttp "github.com/grafana/alerting/http"
+	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/receivers"
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
+	"github.com/grafana/alerting/templates"
+	"github.com/prometheus/alertmanager/notify"
 )
 
 func TestReceiverTimeoutError_Error(t *testing.T) {
@@ -252,6 +266,245 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		}
 		require.Empty(t, expectedNotifiers, "not all expected notifiers were found in the parsed configuration")
 	})
+}
+
+func TestHTTPConfig(t *testing.T) {
+	for notifierType, cfg := range AllKnownConfigsForTesting {
+		t.Run(notifierType, func(t *testing.T) {
+			if notifierType != "webhook" {
+				t.Skip("currently only webhook notifier supports http_config")
+			}
+
+			t.Run("should support building with http_config", func(t *testing.T) {
+				config := cfg.GetRawNotifierConfig(notifierType)
+
+				// Config should include http_config if the notifier supports it, but let's sanity check.
+				require.Containsf(t, string(config.Settings), "http_config", "notifier %s does not contain http_config", notifierType)
+
+				recCfg := &APIReceiver{
+					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+					GrafanaIntegrations: GrafanaIntegrations{
+						[]*GrafanaIntegrationConfig{
+							config,
+						},
+					},
+				}
+
+				t.Run("with secureSettings", func(t *testing.T) {
+					for key, value := range receiversTesting.ReadSecretsJSONForTesting(FullValidHTTPConfigSecretsForTesting) {
+						config.SecureSettings[key] = base64.StdEncoding.EncodeToString(value)
+					}
+
+					parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
+					require.NoError(t, err)
+
+					recvs, _ := allReceivers(&parsed)
+					require.Len(t, recvs, 1)
+
+					recv := recvs[0]
+
+					expectedHTTPConfig := &alertingHttp.HTTPClientConfig{
+						OAuth2: &alertingHttp.OAuth2Config{
+							ClientID:     "test-client-id",
+							ClientSecret: "test-override-oauth2-secret",
+							TokenURL:     "https://localhost/auth/token",
+							Scopes:       []string{"scope1", "scope2"},
+							EndpointParams: map[string]string{
+								"param1": "value1",
+								"param2": "value2",
+							},
+							TLSConfig: &receivers.TLSConfig{
+								InsecureSkipVerify: false,
+								ClientCertificate:  alertingHttp.TestCertPem,
+								ClientKey:          alertingHttp.TestKeyPem,
+								CACertificate:      alertingHttp.TestCACert,
+							},
+							ProxyConfig: alertingHttp.ProxyConfig{
+								ProxyURL:             alertingHttp.MustURL("http://localproxy:8080"),
+								NoProxy:              "localhost",
+								ProxyFromEnvironment: false,
+								ProxyConnectHeader: map[string]string{
+									"X-Proxy-Header": "proxy-value",
+								},
+							},
+						},
+					}
+
+					require.Equal(t, expectedHTTPConfig, recv.HTTPClientConfig)
+				})
+
+				t.Run("without secureSettings", func(t *testing.T) {
+					config.SecureSettings = nil
+					parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
+					require.NoError(t, err)
+
+					recvs, _ := allReceivers(&parsed)
+					require.Len(t, recvs, 1)
+
+					recv := recvs[0]
+
+					expectedHTTPConfig := &alertingHttp.HTTPClientConfig{
+						OAuth2: &alertingHttp.OAuth2Config{
+							ClientID:     "test-client-id",
+							ClientSecret: "test-client-secret",
+							TokenURL:     "https://localhost/auth/token",
+							Scopes:       []string{"scope1", "scope2"},
+							EndpointParams: map[string]string{
+								"param1": "value1",
+								"param2": "value2",
+							},
+							TLSConfig: &receivers.TLSConfig{
+								InsecureSkipVerify: false,
+								ClientCertificate:  alertingHttp.TestCertPem,
+								ClientKey:          alertingHttp.TestKeyPem,
+								CACertificate:      alertingHttp.TestCACert,
+							},
+							ProxyConfig: alertingHttp.ProxyConfig{
+								ProxyURL:             alertingHttp.MustURL("http://localproxy:8080"),
+								NoProxy:              "localhost",
+								ProxyFromEnvironment: false,
+								ProxyConnectHeader: map[string]string{
+									"X-Proxy-Header": "proxy-value",
+								},
+							},
+						},
+					}
+
+					require.Equal(t, expectedHTTPConfig, recv.HTTPClientConfig)
+				})
+			})
+			t.Run("should support notifying with oauth2 authorization", func(t *testing.T) {
+				// Simpler, but more direct test that ensures it's working for each notifier with a minimal setup.
+				// More comprehensive tests of advanced options are in the http package.
+				type oauth2Response struct {
+					AccessToken string `json:"access_token"`
+					TokenType   string `json:"token_type"`
+				}
+
+				oathRequestCnt := 0
+				expectedAuthResponse := oauth2Response{
+					AccessToken: "12345",
+					TokenType:   "Bearer",
+				}
+				oauthHandler := func(w http.ResponseWriter, r *http.Request) {
+					oathRequestCnt++
+
+					expectedAuthHeader := alertingHttp.GetBasicAuthHeader("test-client-id", "test-client-secret")
+					actualAuthHeader := r.Header.Get("Authorization")
+					assert.Equalf(t, expectedAuthHeader, actualAuthHeader, "expected Authorization header to match, got: %s", actualAuthHeader)
+
+					err := r.ParseForm()
+					assert.NoError(t, err, "expected no error parsing form")
+
+					expectedOAuth2RequestValues := url.Values{"grant_type": []string{"client_credentials"}}
+					assert.Equalf(t, expectedOAuth2RequestValues, r.Form, "expected OAuth2 request values to match, got: %v", r.Form)
+
+					res, _ := json.Marshal(expectedAuthResponse)
+					w.Header().Add("Content-Type", "application/json")
+					_, _ = w.Write(res)
+				}
+
+				oauth2Server := httptest.NewServer(http.HandlerFunc(oauthHandler))
+				defer oauth2Server.Close()
+
+				httpConfig, err := json.Marshal(map[string]any{
+					"http_config": alertingHttp.HTTPClientConfig{
+						OAuth2: &alertingHttp.OAuth2Config{
+							ClientID:     "test-client-id",
+							ClientSecret: "test-client-secret",
+							TokenURL:     oauth2Server.URL + "/oauth2/token",
+						},
+					},
+				})
+				require.NoError(t, err)
+
+				testRequestCnt := 0
+				testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					testRequestCnt++
+					assert.Equalf(t, expectedAuthResponse.TokenType+" "+expectedAuthResponse.AccessToken, r.Header.Get("Authorization"),
+						"expected Authorization header from Access Token to match, got: %s", r.Header.Get("Authorization"))
+					w.WriteHeader(http.StatusOK)
+				}))
+				defer testServer.Close()
+
+				config := cfg.GetRawNotifierConfig(notifierType)
+
+				// Override common url patterns:
+				urlOverride, err := json.Marshal(map[string]any{
+					"url": testServer.URL,
+				})
+				require.NoError(t, err)
+				newSettings, err := MergeSettings([]byte(config.Settings), urlOverride)
+				require.NoError(t, err)
+				config.SecureSettings = nil // Remove SecureSettings to prevent interference with url overrrides.
+
+				// Modify the config to include http_config
+				newSettings, err = MergeSettings(newSettings, httpConfig)
+				require.NoError(t, err)
+
+				config.Settings = newSettings
+
+				recCfg := &APIReceiver{
+					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+					GrafanaIntegrations: GrafanaIntegrations{
+						[]*GrafanaIntegrationConfig{
+							config,
+						},
+					},
+				}
+
+				parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
+				require.NoError(t, err)
+
+				invalidAddress := fmt.Errorf("invalid address")
+				allowedUrls := map[string]struct{}{
+					strings.TrimPrefix(oauth2Server.URL, "http://"): struct{}{},
+					strings.TrimPrefix(testServer.URL, "http://"):   struct{}{},
+				}
+				integrations, err := BuildGrafanaReceiverIntegrations(
+					parsed,
+					templates.ForTests(t),
+					&images.URLProvider{},
+					log.NewNopLogger(),
+					receivers.MockNotificationService(),
+					NoWrap,
+					rand.Int63(),
+					fmt.Sprintf("Grafana v%d", rand.Uint32()),
+					alertingHttp.WithDialer(net.Dialer{
+						// Prevent all network calls not going to oauth2Server or testServer.
+						// Since we're actually calling the real Notify method, this is to ensure that
+						// we don't start calling real endpoints in the tests.
+						// Additionally, it will help ensure the test is correctly validating the OAuth2 flow.
+						Control: func(_, address string, _ syscall.RawConn) error {
+							if _, ok := allowedUrls[address]; !ok {
+								return fmt.Errorf("%w: %s", invalidAddress, address)
+							}
+							return nil
+						},
+					}),
+				)
+				require.NoError(t, err)
+
+				require.Len(t, integrations, 1)
+
+				integration := integrations[0]
+
+				alert := newTestAlert(TestReceiversConfigBodyParams{}, time.Now(), time.Now())
+
+				ctx := context.Background()
+				ctx = notify.WithGroupKey(ctx, fmt.Sprintf("%s-%s-%d", integration.Name(), alert.Labels.Fingerprint(), time.Now().Unix()))
+				ctx = notify.WithGroupLabels(ctx, alert.Labels)
+				ctx = notify.WithReceiverName(ctx, integration.String())
+				_, err = integration.Notify(ctx, &alert)
+				if errors.Is(err, invalidAddress) {
+					t.Errorf("notifier should not be sending to anything but oauth2Server or testServer, got: %v", err)
+				}
+
+				assert.Equal(t, 1, oathRequestCnt, "expected %d OAuth2 request to be sent, got: %d", 1, oathRequestCnt)
+				assert.Equal(t, 1, testRequestCnt, "expected %d webhook request to be sent, got: %d", 1, testRequestCnt)
+			})
+		})
+	}
 }
 
 func allReceivers(r *GrafanaReceiverConfig) ([]NotifierConfig[any], int) {
