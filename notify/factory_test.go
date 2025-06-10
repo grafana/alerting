@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
+	"github.com/stretchr/testify/require"
+
 	"github.com/prometheus/alertmanager/config"
 	commoncfg "github.com/prometheus/common/config"
-	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/notify"
 
@@ -53,7 +54,8 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return n
 		}
 
-		integrations := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version)
+		integrations, err := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version)
+		require.NoError(t, err)
 
 		require.Len(t, integrations, qty)
 
@@ -78,7 +80,8 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 				}),
 			}
 
-			integrations := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version, clientOpts...)
+			integrations, err := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version, clientOpts...)
+			require.NoError(t, err)
 
 			require.Len(t, integrations, qty)
 			for _, integration := range integrations {
@@ -114,7 +117,8 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should not produce any integration if config is empty", func(t *testing.T) {
 		cfg := GrafanaReceiverConfig{Name: "test"}
 
-		integrations := BuildGrafanaReceiverIntegrations(cfg, tmpl, imageProvider, log.NewNopLogger(), emailService, noopWrapper, orgID, version)
+		integrations, err := BuildGrafanaReceiverIntegrations(cfg, tmpl, imageProvider, log.NewNopLogger(), emailService, noopWrapper, orgID, version)
+		require.NoError(t, err)
 		require.Empty(t, integrations)
 	})
 }
@@ -157,7 +161,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			tmpl,
 			imageProvider,
 			NoopDecrypt,
-			NoopDecode,
+			DecodeSecretsFromBase64,
 			emailService,
 			nil,
 			func(_ string, n notify.Notifier) notify.Notifier {
@@ -203,7 +207,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			tmpl,
 			imageProvider,
 			NoopDecrypt,
-			NoopDecode,
+			DecodeSecretsFromBase64,
 			emailService,
 			nil,
 			func(_ string, n notify.Notifier) notify.Notifier {
