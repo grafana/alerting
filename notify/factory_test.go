@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
+	"github.com/stretchr/testify/require"
+
 	"github.com/prometheus/alertmanager/config"
 	commoncfg "github.com/prometheus/common/config"
-	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/notify"
 
@@ -160,7 +161,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			tmpl,
 			imageProvider,
 			NoopDecrypt,
-			NoopDecode,
+			DecodeSecretsFromBase64,
 			emailService,
 			nil,
 			func(_ string, n notify.Notifier) notify.Notifier {
@@ -206,7 +207,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			tmpl,
 			imageProvider,
 			NoopDecrypt,
-			NoopDecode,
+			DecodeSecretsFromBase64,
 			emailService,
 			nil,
 			func(_ string, n notify.Notifier) notify.Notifier {

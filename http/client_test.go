@@ -549,5 +549,5 @@ func TestToHTTPClientOption(t *testing.T) {
 	// Verify number of fields using reflection
 	tp := reflect.TypeOf(clientConfiguration{})
 	// You need to increase the number of fields covered in this test, if you add a new field to the configuration struct.
-	require.Equalf(t, 3, tp.NumField(), "Not all fields are converted to HTTPClientOption, which means that the configuration will not be supported in upstream integrations")
+	require.Equalf(t, 4, tp.NumField(), "Not all fields are converted to HTTPClientOption, which means that the configuration will not be supported in upstream integrations")
 }

@@ -15,8 +15,9 @@ import (
 	"github.com/benbjohnson/clock"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	commoncfg "github.com/prometheus/common/config"
 	"golang.org/x/oauth2"
+
+	commoncfg "github.com/prometheus/common/config"
 
 	"github.com/grafana/alerting/receivers"
 )
