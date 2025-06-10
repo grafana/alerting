@@ -1,6 +1,7 @@
 package http
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -54,39 +55,32 @@ func TestHTTPClientConfigValidation(t *testing.T) {
 func TestProxyConfigValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		cfg     *ProxyConfig
+		cfg     ProxyConfig
 		wantErr bool
 	}{
 		{
 			name: "valid proxy config with URL",
-			cfg: &ProxyConfig{
-				ProxyURL: "http://proxy.example.com:8080",
+			cfg: ProxyConfig{
+				ProxyURL: mustURL("http://proxy.example.com:8080"),
 			},
 			wantErr: false,
 		},
 		{
-			name:    "empty proxy config",
-			cfg:     nil,
+			name:    "valid empty proxy config",
+			cfg:     ProxyConfig{},
 			wantErr: false,
-		},
-		{
-			name: "invalid proxy URL",
-			cfg: &ProxyConfig{
-				ProxyURL: "ht tp://l ocalhost :12 34",
-			},
-			wantErr: true,
 		},
 		{
 			name: "invalid proxy URL and environment",
-			cfg: &ProxyConfig{
-				ProxyURL:             "http://proxy.example.com:8080",
+			cfg: ProxyConfig{
+				ProxyURL:             mustURL("http://proxy.example.com:8080"),
 				ProxyFromEnvironment: true,
 			},
 			wantErr: true,
 		},
 		{
 			name: "invalid proxy environment with no proxy",
-			cfg: &ProxyConfig{
+			cfg: ProxyConfig{
 				ProxyFromEnvironment: true,
 				NoProxy:              "localhost",
 			},
@@ -94,14 +88,14 @@ func TestProxyConfigValidation(t *testing.T) {
 		},
 		{
 			name: "invalid no proxy with empty URL",
-			cfg: &ProxyConfig{
+			cfg: ProxyConfig{
 				NoProxy: "localhost",
 			},
 			wantErr: true,
 		},
 		{
 			name: "invalid proxy connect header without URL or environment",
-			cfg: &ProxyConfig{
+			cfg: ProxyConfig{
 				ProxyConnectHeader: map[string]string{"X-Header": "value"},
 			},
 			wantErr: true,
@@ -118,4 +112,12 @@ func TestProxyConfigValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func mustURL(u string) URL {
+	res, err := url.Parse(u)
+	if err != nil {
+		panic(err)
+	}
+	return URL{res}
 }

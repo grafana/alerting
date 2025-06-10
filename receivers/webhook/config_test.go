@@ -3,6 +3,7 @@ package webhook
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -112,8 +113,8 @@ func TestNewConfig(t *testing.T) {
 							ClientKey:          alertingHttp.TestKeyPem,
 							CACertificate:      alertingHttp.TestCACert,
 						},
-						ProxyConfig: &alertingHttp.ProxyConfig{
-							ProxyURL:             "http://localproxy:8080",
+						ProxyConfig: alertingHttp.ProxyConfig{
+							ProxyURL:             mustURL("http://localproxy:8080"),
 							NoProxy:              "localhost",
 							ProxyFromEnvironment: false,
 							ProxyConnectHeader: map[string]string{
@@ -165,8 +166,8 @@ func TestNewConfig(t *testing.T) {
 							ClientKey:          alertingHttp.TestKeyPem,
 							CACertificate:      alertingHttp.TestCACert,
 						},
-						ProxyConfig: &alertingHttp.ProxyConfig{
-							ProxyURL:             "http://localproxy:8080",
+						ProxyConfig: alertingHttp.ProxyConfig{
+							ProxyURL:             mustURL("http://localproxy:8080"),
 							NoProxy:              "localhost",
 							ProxyFromEnvironment: false,
 							ProxyConnectHeader: map[string]string{
@@ -431,4 +432,12 @@ func TestNewConfig(t *testing.T) {
 			require.Equal(t, c.expectedConfig, actual)
 		})
 	}
+}
+
+func mustURL(u string) alertingHttp.URL {
+	res, err := url.Parse(u)
+	if err != nil {
+		panic(err)
+	}
+	return alertingHttp.URL{res}
 }

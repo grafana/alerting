@@ -419,8 +419,8 @@ func TestSendWebhookOAuth2(t *testing.T) {
 			oauth2Config: OAuth2Config{
 				ClientID:     "test-client-id",
 				ClientSecret: "test-client-secret",
-				ProxyConfig: &ProxyConfig{
-					ProxyURL: "xxxx", // This will be replaced with the test server URL.
+				ProxyConfig: ProxyConfig{
+					ProxyURL: mustURL("http://<server>.com"), // This will be replaced with the test server URL.
 				},
 			},
 			oauth2Response: oauth2Response{
@@ -484,8 +484,8 @@ func TestSendWebhookOAuth2(t *testing.T) {
 			oauthConfig := tc.oauth2Config
 			oauthConfig.TokenURL = tokenURL
 
-			if oauthConfig.ProxyConfig != nil && oauthConfig.ProxyConfig.ProxyURL != "" {
-				oauthConfig.ProxyConfig.ProxyURL = proxyServer.URL
+			if oauthConfig.ProxyConfig.ProxyURL.URL != nil && oauthConfig.ProxyConfig.ProxyURL.String() != "" {
+				oauthConfig.ProxyConfig.ProxyURL = mustURL(proxyServer.URL)
 			}
 			expectedProxyRequestCnt := 0
 			if tc.expProxyRequests {

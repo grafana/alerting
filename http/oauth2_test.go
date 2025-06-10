@@ -65,9 +65,8 @@ func TestValidateOAuth2Config(t *testing.T) {
 				ClientID:     "client-id",
 				ClientSecret: "client-secret",
 				TokenURL:     "https://example.com/token",
-				ProxyConfig: &ProxyConfig{
-					ProxyURL:             "http://invalid-proxy",
-					ProxyFromEnvironment: true,
+				ProxyConfig: ProxyConfig{
+					NoProxy: "localhost",
 				},
 			},
 			expError: ErrInvalidProxyConfig,

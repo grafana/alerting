@@ -9,6 +9,7 @@ import (
 	"golang.org/x/net/http/httpproxy"
 
 	"github.com/grafana/alerting/receivers"
+	"github.com/prometheus/alertmanager/config"
 )
 
 var (
@@ -50,9 +51,12 @@ func ValidateHTTPClientConfig(cfg *HTTPClientConfig) error {
 	return nil
 }
 
+// Simple wrapper to allow marshalling and unmarshalling of URL in YAML and JSON formats with validation.
+type URL = config.URL
+
 type ProxyConfig struct {
 	// ProxyURL is the HTTP proxy server to use to connect to the targets.
-	ProxyURL string `yaml:"proxy_url,omitempty" json:"proxy_url,omitempty"`
+	ProxyURL URL `yaml:"proxy_url,omitempty" json:"proxy_url,omitempty"`
 	// NoProxy contains addresses that should not use a proxy.
 	NoProxy string `yaml:"no_proxy,omitempty" json:"no_proxy,omitempty"`
 	// ProxyFromEnvironment uses environment HTTP_PROXY, HTTPS_PROXY and NO_PROXY to determine proxies.
@@ -62,35 +66,31 @@ type ProxyConfig struct {
 }
 
 // Proxy returns the Proxy URL for a request.
-func (cfg *ProxyConfig) Proxy() (fn func(*http.Request) (*url.URL, error), err error) {
+func (cfg *ProxyConfig) Proxy() func(*http.Request) (*url.URL, error) {
 	if cfg == nil {
-		return nil, nil
+		return nil
 	}
 	if cfg.ProxyFromEnvironment {
 		proxyFn := httpproxy.FromEnvironment().ProxyFunc()
 		return func(req *http.Request) (*url.URL, error) {
 			return proxyFn(req.URL)
-		}, nil
-	}
-	if cfg.ProxyURL != "" {
-		proxyURL, err := url.Parse(cfg.ProxyURL)
-		if err != nil {
-			return nil, fmt.Errorf("invalid proxy URL %q: %w", cfg.ProxyURL, err)
 		}
+	}
+	if cfg.ProxyURL.URL != nil && cfg.ProxyURL.URL.String() != "" {
 		if cfg.NoProxy == "" {
-			return http.ProxyURL(proxyURL), nil
+			return http.ProxyURL(cfg.ProxyURL.URL)
 		}
 		proxy := &httpproxy.Config{
-			HTTPProxy:  proxyURL.String(),
-			HTTPSProxy: proxyURL.String(),
+			HTTPProxy:  cfg.ProxyURL.URL.String(),
+			HTTPSProxy: cfg.ProxyURL.URL.String(),
 			NoProxy:    cfg.NoProxy,
 		}
 		proxyFn := proxy.ProxyFunc()
 		return func(req *http.Request) (*url.URL, error) {
 			return proxyFn(req.URL)
-		}, nil
+		}
 	}
-	return nil, nil
+	return nil
 }
 
 func (cfg *ProxyConfig) GetProxyConnectHeader() http.Header {
@@ -105,28 +105,18 @@ func (cfg *ProxyConfig) GetProxyConnectHeader() http.Header {
 	return headerCopy
 }
 
-func ValidateProxyConfig(cfg *ProxyConfig) error {
-	if cfg == nil {
-		// If no proxy config is provided, we consider it valid.
-		return nil
-	}
-	if len(cfg.ProxyConnectHeader) > 0 && !cfg.ProxyFromEnvironment && cfg.ProxyURL == "" {
+func ValidateProxyConfig(cfg ProxyConfig) error {
+	if len(cfg.ProxyConnectHeader) > 0 && !cfg.ProxyFromEnvironment && (cfg.ProxyURL.URL == nil || cfg.ProxyURL.String() == "") {
 		return errors.New("if proxy_connect_header is configured, proxy_url or proxy_from_environment must also be configured")
 	}
-	if cfg.ProxyFromEnvironment && cfg.ProxyURL != "" {
+	if cfg.ProxyFromEnvironment && !(cfg.ProxyURL.URL == nil || cfg.ProxyURL.String() == "") {
 		return errors.New("if proxy_from_environment is configured, proxy_url must not be configured")
 	}
 	if cfg.ProxyFromEnvironment && cfg.NoProxy != "" {
 		return errors.New("if proxy_from_environment is configured, no_proxy must not be configured")
 	}
-	if cfg.ProxyURL == "" && cfg.NoProxy != "" {
+	if cfg.ProxyURL.URL == nil && cfg.NoProxy != "" {
 		return errors.New("if no_proxy is configured, proxy_url must also be configured")
-	}
-
-	if cfg.ProxyURL != "" {
-		if _, err := url.Parse(cfg.ProxyURL); err != nil {
-			return fmt.Errorf("invalid proxy URL %q: %w", cfg.ProxyURL, err)
-		}
 	}
 
 	return nil

@@ -34,7 +34,7 @@ type OAuth2Config struct {
 	Scopes         []string             `json:"scopes,omitempty" yaml:"scopes,omitempty"`
 	EndpointParams map[string]string    `json:"endpoint_params,omitempty" yaml:"endpoint_params,omitempty"`
 	TLSConfig      *receivers.TLSConfig `json:"tls_config,omitempty" yaml:"tls_config,omitempty"`
-	ProxyConfig    *ProxyConfig         `json:"proxy_config,omitempty" yaml:"proxy_config,omitempty"`
+	ProxyConfig    ProxyConfig          `json:"proxy_config" yaml:"proxy_config"`
 }
 
 func ValidateOAuth2Config(config *OAuth2Config) error {
@@ -56,9 +56,11 @@ func ValidateOAuth2Config(config *OAuth2Config) error {
 			return fmt.Errorf("%w: %w", ErrOAuth2TLSConfigInvalid, err)
 		}
 	}
+
 	if err := ValidateProxyConfig(config.ProxyConfig); err != nil {
 		return fmt.Errorf("%w: %w", ErrInvalidProxyConfig, err)
 	}
+
 	return nil
 }
 
@@ -102,15 +104,10 @@ func NewOAuth2TokenSource(clientConfig clientConfiguration) (oauth2.TokenSource,
 		}
 	}
 
-	proxyFn, err := config.ProxyConfig.Proxy()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create proxy function: %w", err)
-	}
-
 	// From prometheus/common oauth2RoundTripper.
 	var rt http.RoundTripper = &http.Transport{
 		TLSClientConfig:       tlsConfig,
-		Proxy:                 proxyFn,
+		Proxy:                 config.ProxyConfig.Proxy(),
 		ProxyConnectHeader:    config.ProxyConfig.GetProxyConnectHeader(),
 		MaxIdleConns:          20,
 		MaxIdleConnsPerHost:   1, // see https://github.com/golang/go/issues/13801
