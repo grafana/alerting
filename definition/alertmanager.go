@@ -155,7 +155,24 @@ func (r *Route) ResourceID() string {
 // post-validation is included in the UnmarshalYAML method. Here we simply run this with
 // a noop unmarshaling function in order to benefit from said validation.
 func (c *Config) UnmarshalJSON(b []byte) error {
-	return yaml.Unmarshal(b, c)
+	// HACK: JSON -> struct -> YAML -> UnmarshalYAML to reuse validation logic.
+	// This is needed because Prometheus historically uses YAML config files and all
+	// validation logic is embedded in UnmarshalYAML methods. Rather than duplicating
+	// complex validation, we do double conversion because:
+	// 1. Struct tags might use different field names (yaml:"snake_case" vs json:"camelCase")
+	// 2. Types serialize differently (e.g., time.Duration is int in JSON, string in YAML)
+	// 3. Custom marshal methods may produce different formats
+	type plain Config
+	if err := json.Unmarshal(b, (*plain)(c)); err != nil {
+		return err
+	}
+
+	yamlData, err := yaml.Marshal(c)
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal(yamlData, c)
 }
 
 func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -254,7 +271,24 @@ func (c *PostableApiAlertingConfig) GetRoute() *Route {
 }
 
 func (c *PostableApiAlertingConfig) UnmarshalJSON(b []byte) error {
-	return yaml.Unmarshal(b, c)
+	// HACK: JSON -> struct -> YAML -> UnmarshalYAML to reuse validation logic.
+	// This is needed because Prometheus historically uses YAML config files and all
+	// validation logic is embedded in UnmarshalYAML methods. Rather than duplicating
+	// complex validation, we do double conversion because:
+	// 1. Struct tags might use different field names (yaml:"snake_case" vs json:"camelCase")
+	// 2. Types serialize differently (e.g., time.Duration is int in JSON, string in YAML)
+	// 3. Custom marshal methods may produce different formats
+	type plain PostableApiAlertingConfig
+	if err := json.Unmarshal(b, (*plain)(c)); err != nil {
+		return err
+	}
+
+	yamlData, err := yaml.Marshal(c)
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal(yamlData, c)
 }
 
 func (c *PostableApiAlertingConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -553,7 +587,24 @@ type PostableApiReceiver struct {
 }
 
 func (r *PostableApiReceiver) UnmarshalJSON(b []byte) error {
-	return yaml.Unmarshal(b, r)
+	// HACK: JSON -> struct -> YAML -> UnmarshalYAML to reuse validation logic.
+	// This is needed because Prometheus historically uses YAML config files and all
+	// validation logic is embedded in UnmarshalYAML methods. Rather than duplicating
+	// complex validation, we do double conversion because:
+	// 1. Struct tags might use different field names (yaml:"snake_case" vs json:"camelCase")
+	// 2. Types serialize differently (e.g., time.Duration is int in JSON, string in YAML)
+	// 3. Custom marshal methods may produce different formats
+	type plain PostableApiReceiver
+	if err := json.Unmarshal(b, (*plain)(r)); err != nil {
+		return err
+	}
+
+	yamlData, err := yaml.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal(yamlData, r)
 }
 
 func (r *PostableApiReceiver) UnmarshalYAML(unmarshal func(interface{}) error) error {
