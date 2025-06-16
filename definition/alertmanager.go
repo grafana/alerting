@@ -155,7 +155,22 @@ func (r *Route) ResourceID() string {
 // post-validation is included in the UnmarshalYAML method. Here we simply run this with
 // a noop unmarshaling function in order to benefit from said validation.
 func (c *Config) UnmarshalJSON(b []byte) error {
-	return yaml.Unmarshal(b, c)
+	// HACK: JSON -> struct -> YAML -> UnmarshalYAML to reuse validation logic.
+	// This approach ensures JSON data gets properly converted to the format expected by
+	// the existing YAML validation pipeline. We first unmarshal JSON using JSON rules
+	// (struct tags, type conversions), then re-marshal as YAML to apply YAML formatting,
+	// then unmarshal as YAML to trigger validation logic in UnmarshalYAML.
+	type plain Config
+	if err := json.Unmarshal(b, (*plain)(c)); err != nil {
+		return err
+	}
+
+	yamlData, err := yaml.Marshal(c)
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal(yamlData, c)
 }
 
 func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -254,7 +269,26 @@ func (c *PostableApiAlertingConfig) GetRoute() *Route {
 }
 
 func (c *PostableApiAlertingConfig) UnmarshalJSON(b []byte) error {
-	return yaml.Unmarshal(b, c)
+	// HACK: Delegate to embedded Config's UnmarshalJSON for validation, then handle receivers separately.
+	// This avoids duplicating the complex validation logic while properly handling the embedded struct
+	// with additional fields. The embedded Config handles the JSON->YAML conversion and validation.
+
+	// First unmarshal the embedded Config (which includes validation)
+	if err := c.Config.UnmarshalJSON(b); err != nil {
+		return err
+	}
+
+	// Then unmarshal receivers separately using a struct with just the receivers field
+	var receiversOnly struct {
+		Receivers []*PostableApiReceiver `json:"receivers,omitempty"`
+	}
+	if err := json.Unmarshal(b, &receiversOnly); err != nil {
+		return err
+	}
+	c.Receivers = receiversOnly.Receivers
+
+	// Finally validate the complete config with receivers
+	return c.Validate()
 }
 
 func (c *PostableApiAlertingConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -553,7 +587,22 @@ type PostableApiReceiver struct {
 }
 
 func (r *PostableApiReceiver) UnmarshalJSON(b []byte) error {
-	return yaml.Unmarshal(b, r)
+	// HACK: JSON -> struct -> YAML -> UnmarshalYAML to reuse validation logic.
+	// This approach ensures JSON data gets properly converted to the format expected by
+	// the existing YAML validation pipeline. We first unmarshal JSON using JSON rules
+	// (struct tags, type conversions), then re-marshal as YAML to apply YAML formatting,
+	// then unmarshal as YAML to trigger validation logic in UnmarshalYAML.
+	type plain PostableApiReceiver
+	if err := json.Unmarshal(b, (*plain)(r)); err != nil {
+		return err
+	}
+
+	yamlData, err := yaml.Marshal(r)
+	if err != nil {
+		return err
+	}
+
+	return yaml.Unmarshal(yamlData, r)
 }
 
 func (r *PostableApiReceiver) UnmarshalYAML(unmarshal func(interface{}) error) error {
