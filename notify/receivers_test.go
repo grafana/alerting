@@ -8,12 +8,11 @@ import (
 	"fmt"
 	"math/rand"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/grafana/alerting/receivers"
 )
 
 func TestReceiverTimeoutError_Error(t *testing.T) {
@@ -77,6 +76,21 @@ func TestProcessNotifierError(t *testing.T) {
 
 func TestBuildReceiverConfiguration(t *testing.T) {
 	decrypt := GetDecryptedValueFnForTesting
+	t.Run("AllKnownConfigsForTesting contains all notifier types", func(t *testing.T) {
+		// Sanity check to ensure this fails when not all notifier types are present in the configuration.
+		// If this doesn't pass, other tests that rely on this function will not be reliable.
+		_, missing := allReceivers(&GrafanaReceiverConfig{})
+		require.Greaterf(t, missing, 0, "all notifier types should be missing, allReceivers may no longer be reliable, missing: %d", missing)
+
+		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		for notifierType, cfg := range AllKnownConfigsForTesting {
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
+		}
+		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
+		require.NoError(t, err)
+		_, missing = allReceivers(&parsed)
+		require.Equalf(t, 0, missing, "all notifier types should be present, missing: %d", missing)
+	})
 	t.Run("should decode secrets from base64", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for notifierType, cfg := range AllKnownConfigsForTesting {
@@ -175,51 +189,27 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
 		require.NoError(t, err)
 		require.Equal(t, recCfg.Name, parsed.Name)
-		require.Len(t, parsed.AlertmanagerConfigs, 1)
-		require.Len(t, parsed.DingdingConfigs, 1)
-		require.Len(t, parsed.DiscordConfigs, 1)
-		require.Len(t, parsed.EmailConfigs, 1)
-		require.Len(t, parsed.GooglechatConfigs, 1)
-		require.Len(t, parsed.KafkaConfigs, 1)
-		require.Len(t, parsed.LineConfigs, 1)
-		require.Len(t, parsed.OpsgenieConfigs, 1)
-		require.Len(t, parsed.PagerdutyConfigs, 1)
-		require.Len(t, parsed.PushoverConfigs, 1)
-		require.Len(t, parsed.SensugoConfigs, 1)
-		require.Len(t, parsed.SlackConfigs, 1)
-		require.Len(t, parsed.SNSConfigs, 1)
-		require.Len(t, parsed.TeamsConfigs, 1)
-		require.Len(t, parsed.TelegramConfigs, 1)
-		require.Len(t, parsed.ThreemaConfigs, 1)
-		require.Len(t, parsed.VictoropsConfigs, 1)
-		require.Len(t, parsed.WebhookConfigs, 1)
-		require.Len(t, parsed.WecomConfigs, 1)
-		require.Len(t, parsed.WebexConfigs, 1)
+
+		expectedNotifiers := make(map[string]struct{})
+		for _, notifier := range recCfg.GrafanaIntegrations.Integrations {
+			expectedNotifiers[notifier.Type] = struct{}{}
+		}
+
+		// Ensure that one of every notifier is present in the parsed configuration.
+		all, _ := allReceivers(&parsed)
+		require.Len(t, all, len(AllKnownConfigsForTesting), "mismatch in number of notifiers, expected %d, got %d", len(AllKnownConfigsForTesting), len(all))
+		for _, recv := range all {
+			if _, ok := expectedNotifiers[recv.Metadata.Type]; ok {
+				delete(expectedNotifiers, recv.Metadata.Type)
+			} else {
+				t.Errorf("unexpected notifier type: %s", recv.Metadata.Type)
+			}
+		}
+		require.Empty(t, expectedNotifiers, "not all expected notifiers were found in the parsed configuration")
 
 		t.Run("should populate metadata", func(t *testing.T) {
-			var all []receivers.Metadata
-			all = append(all, getMetadata(parsed.AlertmanagerConfigs)...)
-			all = append(all, getMetadata(parsed.DingdingConfigs)...)
-			all = append(all, getMetadata(parsed.DiscordConfigs)...)
-			all = append(all, getMetadata(parsed.EmailConfigs)...)
-			all = append(all, getMetadata(parsed.GooglechatConfigs)...)
-			all = append(all, getMetadata(parsed.KafkaConfigs)...)
-			all = append(all, getMetadata(parsed.LineConfigs)...)
-			all = append(all, getMetadata(parsed.OpsgenieConfigs)...)
-			all = append(all, getMetadata(parsed.PagerdutyConfigs)...)
-			all = append(all, getMetadata(parsed.PushoverConfigs)...)
-			all = append(all, getMetadata(parsed.SensugoConfigs)...)
-			all = append(all, getMetadata(parsed.SlackConfigs)...)
-			all = append(all, getMetadata(parsed.SNSConfigs)...)
-			all = append(all, getMetadata(parsed.TeamsConfigs)...)
-			all = append(all, getMetadata(parsed.TelegramConfigs)...)
-			all = append(all, getMetadata(parsed.ThreemaConfigs)...)
-			all = append(all, getMetadata(parsed.VictoropsConfigs)...)
-			all = append(all, getMetadata(parsed.WebhookConfigs)...)
-			all = append(all, getMetadata(parsed.WecomConfigs)...)
-			all = append(all, getMetadata(parsed.WebexConfigs)...)
-
-			for idx, meta := range all {
+			for idx, cfg := range all {
+				meta := cfg.Metadata
 				require.NotEmptyf(t, meta.Type, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
 				require.NotEmptyf(t, meta.UID, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
 				require.NotEmptyf(t, meta.Name, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
@@ -244,34 +234,57 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
 		require.NoError(t, err)
-		require.Len(t, parsed.AlertmanagerConfigs, 1)
-		require.Len(t, parsed.DingdingConfigs, 1)
-		require.Len(t, parsed.DiscordConfigs, 1)
-		require.Len(t, parsed.EmailConfigs, 1)
-		require.Len(t, parsed.GooglechatConfigs, 1)
-		require.Len(t, parsed.KafkaConfigs, 1)
-		require.Len(t, parsed.LineConfigs, 1)
-		require.Len(t, parsed.OpsgenieConfigs, 1)
-		require.Len(t, parsed.PagerdutyConfigs, 1)
-		require.Len(t, parsed.PushoverConfigs, 1)
-		require.Len(t, parsed.SensugoConfigs, 1)
-		require.Len(t, parsed.SlackConfigs, 1)
-		require.Len(t, parsed.SNSConfigs, 1)
-		require.Len(t, parsed.TeamsConfigs, 1)
-		require.Len(t, parsed.TelegramConfigs, 1)
-		require.Len(t, parsed.ThreemaConfigs, 1)
-		require.Len(t, parsed.VictoropsConfigs, 1)
-		require.Len(t, parsed.WebhookConfigs, 1)
-		require.Len(t, parsed.WecomConfigs, 1)
-		require.Len(t, parsed.WebexConfigs, 1)
 
+		expectedNotifiers := make(map[string]struct{})
+		for _, notifier := range recCfg.GrafanaIntegrations.Integrations {
+			expectedNotifiers[notifier.Type] = struct{}{}
+		}
+
+		// Ensure that one of every notifier is present in the parsed configuration.
+		all, _ := allReceivers(&parsed)
+		require.Len(t, all, len(AllKnownConfigsForTesting), "mismatch in number of notifiers, expected %d, got %d", len(AllKnownConfigsForTesting), len(all))
+		for _, recv := range all {
+			if _, ok := expectedNotifiers[recv.Metadata.Type]; ok {
+				delete(expectedNotifiers, recv.Metadata.Type)
+			} else {
+				t.Errorf("unexpected notifier type: %s", recv.Metadata.Type)
+			}
+		}
+		require.Empty(t, expectedNotifiers, "not all expected notifiers were found in the parsed configuration")
 	})
 }
 
-func getMetadata[T any](notifiers []*NotifierConfig[T]) []receivers.Metadata {
-	result := make([]receivers.Metadata, 0, len(notifiers))
-	for _, notifier := range notifiers {
-		result = append(result, notifier.Metadata)
+func allReceivers(r *GrafanaReceiverConfig) ([]NotifierConfig[any], int) {
+	var recvs []NotifierConfig[any]
+	data, _ := json.Marshal(r)
+	var asMap map[string][]NotifierConfig[any]
+	_ = json.Unmarshal(data, &asMap)
+
+	notifierConfigPrefix := reflect.TypeOf((*NotifierConfig[any])(nil)).Elem().Name()
+	notifierConfigPrefix = notifierConfigPrefix[:strings.Index(notifierConfigPrefix, "[")+1]
+	isNotifierConfigField := func(name string) bool {
+		field, ok := reflect.TypeOf(GrafanaReceiverConfig{}).FieldByName(name)
+		if !ok || field.Type.Kind() != reflect.Slice {
+			return false
+		}
+
+		if !strings.HasPrefix(field.Type.Elem().Elem().Name(), notifierConfigPrefix) {
+			return false
+		}
+		return true
 	}
-	return result
+
+	missing := 0
+	for k, configs := range asMap {
+		if !isNotifierConfigField(k) {
+			// Skip fields that are not of type []*NotifierConfig.
+			continue
+		}
+		if len(configs) == 0 {
+			missing++
+			continue
+		}
+		recvs = append(recvs, configs...)
+	}
+	return recvs, missing
 }
