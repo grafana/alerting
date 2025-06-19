@@ -74,7 +74,7 @@ func TestNewConfig(t *testing.T) {
 			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
 				URL:                      "http://localhost",
-				HTTPMethod:               "test-httpMethod",
+				HTTPMethod:               "PUT",
 				MaxAlerts:                2,
 				AuthorizationScheme:      "basic",
 				AuthorizationCredentials: "",
@@ -90,7 +90,7 @@ func TestNewConfig(t *testing.T) {
 			secretSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
 				URL:                      "http://localhost",
-				HTTPMethod:               "test-httpMethod",
+				HTTPMethod:               "PUT",
 				MaxAlerts:                2,
 				AuthorizationScheme:      "basic",
 				AuthorizationCredentials: "",
