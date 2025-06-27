@@ -10,7 +10,7 @@ import (
 )
 
 // secretEncoder encodes Secret to plain text JSON,
-// avoding the default masking behavior of the structure.
+// avoiding the default masking behavior of the structure.
 type secretEncoder struct{}
 
 func (encoder *secretEncoder) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
@@ -26,7 +26,7 @@ func getStr(ptr unsafe.Pointer) string {
 }
 
 // secretEncoder encodes SecretURL to plain text JSON,
-// avoding the default masking behavior of the structure.
+// avoiding the default masking behavior of the structure.
 type secretURLEncoder struct{}
 
 func (encoder *secretURLEncoder) Encode(ptr unsafe.Pointer, stream *jsoniter.Stream) {
@@ -77,7 +77,7 @@ var (
 
 // MarshalJSONWithSecrets marshals the given value to JSON with secrets in plain text.
 //
-// alertmanager's and prometeus' Secret and SecretURL types mask their values
+// alertmanager's and prometheus' Secret and SecretURL types mask their values
 // when marshaled with the standard JSON or YAML marshallers. This function
 // preserves the values of these types by using a custom JSON encoder.
 func MarshalJSONWithSecrets(v any) ([]byte, error) {
