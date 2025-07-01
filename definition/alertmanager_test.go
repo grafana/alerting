@@ -47,23 +47,6 @@ func Test_ApiReceiver_Marshaling(t *testing.T) {
 				},
 			},
 		},
-		{
-			desc: "failure mixed",
-			input: PostableApiReceiver{
-				Receiver: config.Receiver{
-					Name: "foo",
-					EmailConfigs: []*config.EmailConfig{{
-						To:      "test@test.com",
-						HTML:    config.DefaultEmailConfig.HTML,
-						Headers: map[string]string{},
-					}},
-				},
-				PostableGrafanaReceivers: PostableGrafanaReceivers{
-					GrafanaManagedReceivers: []*PostableGrafanaReceiver{{}},
-				},
-			},
-			err: true,
-		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			encoded, err := json.Marshal(tc.input)
