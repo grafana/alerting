@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/template"
+	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/templates"
 )
@@ -100,10 +101,10 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 	return TestTemplate(ctx, c, templateFactory, log.With(am.logger, "operation", "TestTemplate"))
 }
 
-func (am *GrafanaAlertmanager) GetTemplate(kind templates.Kind) (*template.Template, error) {
+func (am *GrafanaAlertmanager) GetTemplate(kind templates.Kind, labels model.LabelSet) (*template.Template, error) {
 	am.reloadConfigMtx.RLock()
 	defer am.reloadConfigMtx.RUnlock()
-	t, err := am.templates.GetTemplate(kind)
+	t, err := am.templates.GetTemplate(kind, labels)
 	if err != nil {
 		return nil, err
 	}

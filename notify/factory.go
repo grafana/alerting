@@ -231,7 +231,7 @@ func BuildPrometheusReceiverIntegrations(
 		httpOps      []commoncfg.HTTPClientOption
 		initOnce     = sync.OnceFunc(func() { // lazy evaluate template so we do not create one if we don't need it
 			httpOps = http.ToHTTPClientOption(httpClientOptions...)
-			t, err := tmplProvider.GetTemplate(templates.MimirKind)
+			t, err := tmplProvider.GetTemplate(templates.MimirKind, nil)
 			if err != nil {
 				errs.Add(err)
 				return
@@ -358,7 +358,7 @@ func BuildReceiverIntegrations(
 		if err != nil {
 			return nil, err
 		}
-		tmpl, err := tmpls.GetTemplate(templates.GrafanaKind)
+		tmpl, err := tmpls.GetTemplate(templates.GrafanaKind, nil)
 		if err != nil {
 			return nil, err
 		}
