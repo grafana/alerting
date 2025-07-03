@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	commoncfg "github.com/prometheus/common/config"
+	"github.com/prometheus/common/model"
 
 	promDiscord "github.com/prometheus/alertmanager/notify/discord"
 	promEmail "github.com/prometheus/alertmanager/notify/email"
@@ -67,7 +68,7 @@ var NoWrap WrapNotifierFunc = func(_ string, notifier notify.Notifier) notify.No
 // It returns a slice of Integration objects, one for each notification channel, along with any errors that occurred.
 func BuildGrafanaReceiverIntegrations(
 	receiver GrafanaReceiverConfig,
-	tmpl *templates.Template,
+	tmplProvider TemplatesProvider,
 	img images.Provider,
 	logger log.Logger,
 	emailSender receivers.EmailSender,
@@ -83,13 +84,20 @@ func BuildGrafanaReceiverIntegrations(
 	var (
 		integrations []*Integration
 		errs         error
-		ci           = func(idx int, cfg receivers.Metadata, newInt func(cli *http.Client) notificationChannel, opts ...http.ClientOption) {
+		ci           = func(idx int, cfg receivers.Metadata, newInt func(cli *http.Client, tmpl *templates.Template) notificationChannel, opts ...http.ClientOption) {
 			client, err := http.NewClient(slices.Concat(httpClientOptions, opts)...)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("failed to create HTTP client for %q notifier %q (UID: %q): %w", cfg.Type, cfg.Name, cfg.UID, err))
 				return
 			}
-			n := newInt(client)
+			tmpl, err := tmplProvider.GetTemplate(templates.GrafanaKind, model.LabelSet{
+				"integrationType": model.LabelValue(cfg.Type),
+			})
+			if err != nil {
+				errs = errors.Join(errs, fmt.Errorf("failed to create template for %q notifier %q (UID: %q): %w", cfg.Type, cfg.Name, cfg.UID, err))
+				return
+			}
+			n := newInt(client, tmpl)
 			notify := wrapNotifier(cfg.Name, n)
 			i := NewIntegration(notify, n, cfg.Type, idx, cfg.Name)
 			integrations = append(integrations, i)
@@ -97,117 +105,117 @@ func BuildGrafanaReceiverIntegrations(
 	)
 	// Range through each notification channel in the receiver and create an integration for it.
 	for i, cfg := range receiver.AlertmanagerConfigs {
-		ci(i, cfg.Metadata, func(_ *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(_ *http.Client, _ *templates.Template) notificationChannel {
 			return alertmanager.New(cfg.Settings, cfg.Metadata, img, logger)
 		})
 	}
 	for i, cfg := range receiver.DingdingConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return dinding.New(cfg.Settings, cfg.Metadata, tmpl, cli, logger)
 		})
 	}
 	for i, cfg := range receiver.DiscordConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return discord.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger, version)
 		})
 	}
 	for i, cfg := range receiver.EmailConfigs {
-		ci(i, cfg.Metadata, func(_ *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(_ *http.Client, tmpl *templates.Template) notificationChannel {
 			return email.New(cfg.Settings, cfg.Metadata, tmpl, emailSender, img, logger)
 		})
 	}
 	for i, cfg := range receiver.GooglechatConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return googlechat.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger, version)
 		})
 	}
 	for i, cfg := range receiver.JiraConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return jira.New(cfg.Settings, cfg.Metadata, tmpl, http.NewForkedSender(cli), logger)
 		})
 	}
 	for i, cfg := range receiver.KafkaConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return kafka.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger)
 		})
 	}
 	for i, cfg := range receiver.LineConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return line.New(cfg.Settings, cfg.Metadata, tmpl, cli, logger)
 		})
 	}
 	for i, cfg := range receiver.MqttConfigs {
-		ci(i, cfg.Metadata, func(_ *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(_ *http.Client, tmpl *templates.Template) notificationChannel {
 			return mqtt.New(cfg.Settings, cfg.Metadata, tmpl, logger, nil)
 		})
 	}
 	for i, cfg := range receiver.OnCallConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return oncall.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger, orgID)
 		})
 	}
 	for i, cfg := range receiver.OpsgenieConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return opsgenie.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger)
 		})
 	}
 	for i, cfg := range receiver.PagerdutyConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return pagerduty.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger)
 		})
 	}
 	for i, cfg := range receiver.PushoverConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return pushover.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger)
 		})
 	}
 	for i, cfg := range receiver.SensugoConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return sensugo.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger)
 		})
 	}
 	for i, cfg := range receiver.SNSConfigs {
-		ci(i, cfg.Metadata, func(_ *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(_ *http.Client, tmpl *templates.Template) notificationChannel {
 			return sns.New(cfg.Settings, cfg.Metadata, tmpl, logger)
 		})
 	}
 	for i, cfg := range receiver.SlackConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return slack.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger, version)
 		})
 	}
 	for i, cfg := range receiver.TeamsConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return teams.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger)
 		})
 	}
 	for i, cfg := range receiver.TelegramConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return telegram.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger)
 		})
 	}
 	for i, cfg := range receiver.ThreemaConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return threema.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger)
 		})
 	}
 	for i, cfg := range receiver.VictoropsConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return victorops.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger, version)
 		})
 	}
 	for i, cfg := range receiver.WebhookConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return webhook.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger, orgID)
 		}, http.WithHTTPClientConfig(cfg.Settings.HTTPConfig))
 	}
 	for i, cfg := range receiver.WecomConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return wecom.New(cfg.Settings, cfg.Metadata, tmpl, cli, logger)
 		})
 	}
 	for i, cfg := range receiver.WebexConfigs {
-		ci(i, cfg.Metadata, func(cli *http.Client) notificationChannel {
+		ci(i, cfg.Metadata, func(cli *http.Client, tmpl *templates.Template) notificationChannel {
 			return webex.New(cfg.Settings, cfg.Metadata, tmpl, cli, img, logger, orgID)
 		})
 	}
@@ -223,24 +231,25 @@ func BuildPrometheusReceiverIntegrations(
 	httpClientOptions []http.ClientOption,
 	logger log.Logger,
 	wrapper WrapNotifierFunc,
+	templateSelectorLabels model.LabelSet,
 ) ([]*nfstatus.Integration, error) {
 	var (
 		errs         types.MultiError
 		integrations []*nfstatus.Integration
-		tmpl         *template.Template
 		httpOps      []commoncfg.HTTPClientOption
 		initOnce     = sync.OnceFunc(func() { // lazy evaluate template so we do not create one if we don't need it
 			httpOps = http.ToHTTPClientOption(httpClientOptions...)
-			t, err := tmplProvider.GetTemplate(templates.MimirKind, nil)
+		})
+		add = func(name string, i int, rs notify.ResolvedSender, f func(l log.Logger, t *templates.Template) (notify.Notifier, error)) {
+			initOnce()
+			cl := templateSelectorLabels.Clone()
+			cl["integrationType"] = model.LabelValue(name)
+			t, err := tmplProvider.GetTemplate(templates.MimirKind, cl)
 			if err != nil {
 				errs.Add(err)
 				return
 			}
-			tmpl = t
-		})
-		add = func(name string, i int, rs notify.ResolvedSender, f func(l log.Logger) (notify.Notifier, error)) {
-			initOnce()
-			n, err := f(log.With(logger, "integration", name))
+			n, err := f(log.With(logger, "integration", name), t)
 			if err != nil {
 				errs.Add(err)
 				return
@@ -253,43 +262,69 @@ func BuildPrometheusReceiverIntegrations(
 	)
 
 	for i, c := range nc.WebhookConfigs {
-		add("webhook", i, c, func(l log.Logger) (notify.Notifier, error) { return promWebhook.New(c, tmpl, l, httpOps...) })
+		add("webhook", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promWebhook.New(c, tmpl, l, httpOps...)
+		})
 	}
 	for i, c := range nc.EmailConfigs {
-		add("email", i, c, func(l log.Logger) (notify.Notifier, error) { return promEmail.New(c, tmpl, l), nil })
+		add("email", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promEmail.New(c, tmpl, l), nil
+		})
 	}
 	for i, c := range nc.PagerdutyConfigs {
-		add("pagerduty", i, c, func(l log.Logger) (notify.Notifier, error) { return promPagerduty.New(c, tmpl, l, httpOps...) })
+		add("pagerduty", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promPagerduty.New(c, tmpl, l, httpOps...)
+		})
 	}
 	for i, c := range nc.OpsGenieConfigs {
-		add("opsgenie", i, c, func(l log.Logger) (notify.Notifier, error) { return promOpsgenie.New(c, tmpl, l, httpOps...) })
+		add("opsgenie", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promOpsgenie.New(c, tmpl, l, httpOps...)
+		})
 	}
 	for i, c := range nc.WechatConfigs {
-		add("wechat", i, c, func(l log.Logger) (notify.Notifier, error) { return promWechat.New(c, tmpl, l, httpOps...) })
+		add("wechat", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promWechat.New(c, tmpl, l, httpOps...)
+		})
 	}
 	for i, c := range nc.SlackConfigs {
-		add("slack", i, c, func(l log.Logger) (notify.Notifier, error) { return promSlack.New(c, tmpl, l, httpOps...) })
+		add("slack", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promSlack.New(c, tmpl, l, httpOps...)
+		})
 	}
 	for i, c := range nc.VictorOpsConfigs {
-		add("victorops", i, c, func(l log.Logger) (notify.Notifier, error) { return promVictorops.New(c, tmpl, l, httpOps...) })
+		add("victorops", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promVictorops.New(c, tmpl, l, httpOps...)
+		})
 	}
 	for i, c := range nc.PushoverConfigs {
-		add("pushover", i, c, func(l log.Logger) (notify.Notifier, error) { return promPushover.New(c, tmpl, l, httpOps...) })
+		add("pushover", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promPushover.New(c, tmpl, l, httpOps...)
+		})
 	}
 	for i, c := range nc.SNSConfigs {
-		add("sns", i, c, func(l log.Logger) (notify.Notifier, error) { return promSns.New(c, tmpl, l, httpOps...) })
+		add("sns", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promSns.New(c, tmpl, l, httpOps...)
+		})
 	}
 	for i, c := range nc.TelegramConfigs {
-		add("telegram", i, c, func(l log.Logger) (notify.Notifier, error) { return promTelegram.New(c, tmpl, l, httpOps...) })
+		add("telegram", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promTelegram.New(c, tmpl, l, httpOps...)
+		})
 	}
 	for i, c := range nc.DiscordConfigs {
-		add("discord", i, c, func(l log.Logger) (notify.Notifier, error) { return promDiscord.New(c, tmpl, l, httpOps...) })
+		add("discord", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promDiscord.New(c, tmpl, l, httpOps...)
+		})
 	}
 	for i, c := range nc.WebexConfigs {
-		add("webex", i, c, func(l log.Logger) (notify.Notifier, error) { return promWebex.New(c, tmpl, l, httpOps...) })
+		add("webex", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promWebex.New(c, tmpl, l, httpOps...)
+		})
 	}
 	for i, c := range nc.MSTeamsConfigs {
-		add("msteams", i, c, func(l log.Logger) (notify.Notifier, error) { return promMsteams.New(c, tmpl, l, httpOps...) })
+		add("msteams", i, c, func(l log.Logger, tmpl *template.Template) (notify.Notifier, error) {
+			return promMsteams.New(c, tmpl, l, httpOps...)
+		})
 	}
 	// If we add support for more integrations, we need to add them to validation as well. See validation.allowedIntegrationNames field.
 	if errs.Len() > 0 {
@@ -358,13 +393,9 @@ func BuildReceiverIntegrations(
 		if err != nil {
 			return nil, err
 		}
-		tmpl, err := tmpls.GetTemplate(templates.GrafanaKind, nil)
-		if err != nil {
-			return nil, err
-		}
 		integrations, err = BuildGrafanaReceiverIntegrations(
 			receiverCfg,
-			tmpl,
+			tmpls,
 			images,
 			logger,
 			emailSender,
@@ -377,7 +408,7 @@ func BuildReceiverIntegrations(
 			return nil, err
 		}
 	}
-	mimir, err := BuildPrometheusReceiverIntegrations(receiver.ConfigReceiver, tmpls, httpClientOptions, logger, wrapNotifierFunc)
+	mimir, err := BuildPrometheusReceiverIntegrations(receiver.ConfigReceiver, tmpls, httpClientOptions, logger, wrapNotifierFunc, receiver.Labels)
 	if err != nil {
 		return nil, err
 	}
