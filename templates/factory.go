@@ -2,11 +2,14 @@ package templates
 
 import (
 	"fmt"
+	"iter"
 	"net/url"
+	"slices"
 	"sync"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/prometheus/common/model"
 )
 
 // Factory is a factory that can be used to create templates of specific kind.
@@ -17,15 +20,16 @@ type Factory struct {
 }
 
 // GetTemplate creates a new template of the given kind. If Kind is not known, GrafanaKind automatically assumed
-func (tp *Factory) GetTemplate(kind Kind) (*Template, error) {
+func (tp *Factory) GetTemplate(kind Kind, labels model.LabelSet) (*Template, error) {
 	if err := ValidateKind(kind); err != nil {
 		return nil, err
 	}
-	definitions := tp.templates[kind]
-	content := defaultTemplatesPerKind(kind)
-	for _, def := range definitions { // TODO sort the list by name?
-		content = append(content, def.Template)
-	}
+	definitions := tp.getDefinitionsThatMatch(kind, labels)
+	content := slices.AppendSeq(defaultTemplatesPerKind(kind), func(yield func(string) bool) {
+		definitions(func(def TemplateDefinition) bool {
+			return yield(def.Template)
+		})
+	})
 	t, err := fromContent(content, defaultOptionsPerKind(kind, tp.orgID)...)
 	if err != nil {
 		return nil, err
@@ -35,6 +39,19 @@ func (tp *Factory) GetTemplate(kind Kind) (*Template, error) {
 		*t.ExternalURL = *tp.externalURL
 	}
 	return t, nil
+}
+
+func (tp *Factory) getDefinitionsThatMatch(kind Kind, labels model.LabelSet) iter.Seq[TemplateDefinition] {
+	return func(yield func(TemplateDefinition) bool) {
+		for _, def := range tp.templates[kind] {
+			if !def.Matchers.Matches(labels) {
+				continue
+			}
+			if !yield(def) {
+				return
+			}
+		}
+	}
 }
 
 // WithTemplate creates a new factory that has the provided TemplateDefinition. If definition with the same name already exists for this kind, it is replaced.
