@@ -81,6 +81,7 @@ type ConfigReceiver = config.Receiver
 type APIReceiver struct {
 	ConfigReceiver      `yaml:",inline"`
 	GrafanaIntegrations `yaml:",inline"`
+	Labels              model.LabelSet
 }
 
 type GrafanaIntegrations struct {
@@ -179,6 +180,7 @@ func ProcessIntegrationError(config *GrafanaIntegrationConfig, err error) error 
 // GrafanaReceiverConfig represents a parsed and validated APIReceiver
 type GrafanaReceiverConfig struct {
 	Name                string
+	Labels              model.LabelSet
 	AlertmanagerConfigs []*NotifierConfig[alertmanager.Config]
 	DingdingConfigs     []*NotifierConfig[dinding.Config]
 	DiscordConfigs      []*NotifierConfig[discord.Config]
@@ -257,7 +259,8 @@ func NoopDecrypt(_ context.Context, sjd map[string][]byte, key string, fallback 
 // BuildReceiverConfiguration parses, decrypts and validates the APIReceiver.
 func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decode DecodeSecretsFn, decrypt GetDecryptedValueFn) (GrafanaReceiverConfig, error) {
 	result := GrafanaReceiverConfig{
-		Name: api.Name,
+		Name:   api.Name,
+		Labels: api.Labels,
 	}
 	for i, receiver := range api.Integrations {
 		err := parseNotifier(ctx, &result, receiver, decode, decrypt, i)
