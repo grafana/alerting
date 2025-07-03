@@ -16,6 +16,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/prometheus/alertmanager/pkg/labels"
 
 	"github.com/prometheus/alertmanager/asset"
 	"github.com/prometheus/alertmanager/notify"
@@ -85,6 +86,8 @@ type TemplateDefinition struct {
 	Template string
 	// Kind of the template. Determines which base templates and functions are available.
 	Kind Kind
+	// Matchers is optional set matchers that let pick the template only if request contains labels that match the set
+	Matchers labels.Matchers
 }
 
 func (t TemplateDefinition) Validate() error {

@@ -27,7 +27,7 @@ func Test_withCustomFunctions(t *testing.T) {
 
 	f, err := NewFactory(nil, log.NewNopLogger(), "http://localhost", "test")
 	assert.NoError(t, err)
-	tmpl, err := f.GetTemplate(MimirKind)
+	tmpl, err := f.GetTemplate(MimirKind, nil)
 	assert.NoError(t, err)
 	cases := []tc{
 		{
@@ -153,7 +153,7 @@ func Test_loadTemplates(t *testing.T) {
 			}
 			f, err := NewFactory(def, log.NewNopLogger(), "http://localhost", "grafana")
 			require.NoError(t, err)
-			tmpl, err := f.GetTemplate(MimirKind)
+			tmpl, err := f.GetTemplate(MimirKind, nil)
 			assert.NoError(t, err)
 
 			call := fmt.Sprintf(`{{ template "%s" . }}`, c.invoke)
