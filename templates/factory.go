@@ -1,11 +1,14 @@
 package templates
 
 import (
+	"encoding/binary"
 	"fmt"
+	"hash/fnv"
 	"iter"
 	"net/url"
 	"slices"
 	"sync"
+	"unsafe"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -124,7 +127,7 @@ func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string, o
 func NewCachedFactory(factory *Factory) *CachedFactory {
 	return &CachedFactory{
 		factory: factory,
-		m:       make(map[Kind]*Template, len(validKinds)),
+		m:       make(map[uint64]*Template, len(validKinds)),
 	}
 }
 
@@ -134,7 +137,7 @@ func NewCachedFactory(factory *Factory) *CachedFactory {
 // Access is synchronized using a mutex to ensure thread-safety.
 type CachedFactory struct {
 	factory *Factory
-	m       map[Kind]*Template
+	m       map[uint64]*Template
 	mtx     sync.Mutex
 }
 
@@ -142,16 +145,29 @@ func (cf *CachedFactory) Factory() *Factory {
 	return cf.factory
 }
 
-func (cf *CachedFactory) GetTemplate(kind Kind) (*Template, error) {
+// getCacheKey generates a unique hash key based on kind and template definitions that match the current label set.
+// this guarantees that an existing template instance is reused for different label sets that result in the same templates selected.
+func (cf *CachedFactory) getCacheKey(kind Kind, labels model.LabelSet) uint64 {
+	hash := fnv.New64()
+	_ = binary.Write(hash, binary.LittleEndian, kind)
+	cf.factory.getDefinitionsThatMatch(kind, labels)(func(def TemplateDefinition) bool {
+		_, _ = hash.Write(unsafe.Slice(unsafe.StringData(def.Name), len(def.Name)))
+		return true
+	})
+	return hash.Sum64()
+}
+
+func (cf *CachedFactory) GetTemplate(kind Kind, labels model.LabelSet) (*Template, error) {
 	cf.mtx.Lock()
 	defer cf.mtx.Unlock()
-	if t, ok := cf.m[kind]; ok {
+	key := cf.getCacheKey(kind, labels)
+	if t, ok := cf.m[key]; ok {
 		return t.Clone()
 	}
-	t, err := cf.factory.GetTemplate(kind)
+	t, err := cf.factory.GetTemplate(kind, labels)
 	if err != nil {
 		return nil, err
 	}
-	cf.m[kind] = t
+	cf.m[key] = t
 	return t.Clone()
 }

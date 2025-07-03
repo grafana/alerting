@@ -290,7 +290,7 @@ func TestCachedTemplateFactory(t *testing.T) {
 	cached := NewCachedFactory(f)
 
 	for i := 0; i < 3; i++ { // check many times to ensure that clone it always return clean clone
-		tmpl, err := cached.GetTemplate(GrafanaKind)
+		tmpl, err := cached.GetTemplate(GrafanaKind, nil)
 		require.NoError(t, err)
 
 		expanded, err := tmpl.ExecuteTextString(`{{ template "factory_test" . }}`, nil)
