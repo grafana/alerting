@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/dispatch"
@@ -185,7 +186,7 @@ func mergeTimeIntervals(amt []config.MuteTimeInterval, ati []config.TimeInterval
 	}
 	renamed := make(map[string]string, len(bmt)+len(bti))
 	for _, r := range bmt {
-		name := getUniqueName(r.Name, suffix, usedNames)
+		name := getUniqueName(r.Name, suffix, func(newName string) bool { _, ok := usedNames[newName]; return ok })
 		if name != r.Name {
 			renamed[r.Name] = name
 			r.Name = name
@@ -193,7 +194,7 @@ func mergeTimeIntervals(amt []config.MuteTimeInterval, ati []config.TimeInterval
 		amt = append(amt, r)
 	}
 	for _, r := range bti {
-		name := getUniqueName(r.Name, suffix, usedNames)
+		name := getUniqueName(r.Name, suffix, func(newName string) bool { _, ok := usedNames[newName]; return ok })
 		if name != r.Name {
 			renamed[r.Name] = name
 			r.Name = name
@@ -304,7 +305,7 @@ func mergeReceivers(a, b []*PostableApiReceiver, suffix string) ([]*PostableApiR
 	renamed := make(map[string]string, len(b))
 
 	for _, r := range b {
-		name := getUniqueName(r.Name, suffix, usedNames)
+		name := getUniqueName(r.Name, suffix, func(newName string) bool { _, ok := usedNames[newName]; return ok })
 		if name != r.Name {
 			renamed[r.Name] = name
 			r.Name = name
@@ -316,11 +317,11 @@ func mergeReceivers(a, b []*PostableApiReceiver, suffix string) ([]*PostableApiR
 	return result, renamed
 }
 
-func getUniqueName(name string, suffix string, usedNames map[string]struct{}) string {
+func getUniqueName(name string, suffix string, exists func(string) bool) string {
 	result := name
 	done := false
 	for i := 0; i <= math.MaxInt32; i++ {
-		if _, ok := usedNames[result]; !ok {
+		if !exists(result) {
 			done = true
 			break
 		}
@@ -334,4 +335,27 @@ func getUniqueName(name string, suffix string, usedNames map[string]struct{}) st
 		panic(fmt.Sprintf("unable to find unique name for %s", name))
 	}
 	return result
+}
+
+// MergeTemplates merges two slices of PostableApiTemplate, ensuring unique names and returns the merged slice and a map of renamed templates from slice `b`.
+func MergeTemplates(a, b []PostableApiTemplate, opts MergeOpts) ([]PostableApiTemplate, map[string]string) {
+	makeKey := func(name string, kind TemplateKind) string {
+		return fmt.Sprintf("%s|%s", name, kind)
+	}
+	usedNames := make(map[string]struct{}, len(a)+len(b))
+	result := slices.Grow(a, len(b))
+	for _, r := range a {
+		usedNames[makeKey(r.Name, r.Kind)] = struct{}{}
+	}
+	renamed := make(map[string]string, len(b))
+	for _, r := range b {
+		name := getUniqueName(r.Name, opts.DedupSuffix, func(newName string) bool { _, ok := usedNames[makeKey(newName, r.Kind)]; return ok })
+		if name != r.Name {
+			renamed[r.Name] = name
+		}
+		usedNames[makeKey(name, r.Kind)] = struct{}{}
+		r.Name = name
+		result = append(result, r)
+	}
+	return result, renamed
 }

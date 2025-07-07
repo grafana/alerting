@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/grafana/alerting/definition"
+	"github.com/grafana/alerting/templates"
 )
 
 func PostableAPIReceiverToAPIReceiver(r *definition.PostableApiReceiver) *APIReceiver {
@@ -25,4 +26,21 @@ func PostableAPIReceiverToAPIReceiver(r *definition.PostableApiReceiver) *APIRec
 		ConfigReceiver:      r.Receiver,
 		GrafanaIntegrations: integrations,
 	}
+}
+
+// PostableApiTemplateToTemplateDefinition converts a definition.PostableApiTemplate to a templates.TemplateDefinition
+func PostableApiTemplateToTemplateDefinition(t definition.PostableApiTemplate) templates.TemplateDefinition {
+	var kind templates.Kind
+	switch t.Kind {
+	case definition.GrafanaTemplateKind:
+		kind = templates.GrafanaKind
+	case definition.MimirTemplateKind:
+		kind = templates.MimirKind
+	}
+	d := templates.TemplateDefinition{
+		Name:     t.Name,
+		Template: t.Content,
+		Kind:     kind,
+	}
+	return d
 }
