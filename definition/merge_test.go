@@ -446,58 +446,6 @@ func TestCheckIfMatchersUsed(t *testing.T) {
 	}
 }
 
-func TestMergeTemplates(t *testing.T) {
-	dedupSuffix := "_extra"
-
-	testCases := []struct {
-		name     string
-		left     []PostableApiTemplate
-		right    []PostableApiTemplate
-		expected []PostableApiTemplate
-		renamed  map[string]string
-	}{
-		{
-			name:     "should merge two slices of templates of different kind",
-			left:     []PostableApiTemplate{{Name: "test", Kind: "grafana"}},
-			right:    []PostableApiTemplate{{Name: "test", Kind: "mimir"}},
-			expected: []PostableApiTemplate{{Name: "test", Kind: "grafana"}, {Name: "test", Kind: "mimir"}},
-			renamed:  map[string]string{},
-		},
-		{
-			name:     "should rename items from second slice ",
-			left:     []PostableApiTemplate{{Name: "test", Kind: "grafana"}},
-			right:    []PostableApiTemplate{{Name: "test", Kind: "grafana"}},
-			expected: []PostableApiTemplate{{Name: "test", Kind: "grafana"}, {Name: "test" + dedupSuffix, Kind: "grafana"}},
-			renamed: map[string]string{
-				"test": "test" + dedupSuffix,
-			},
-		},
-		{
-			name:     "empty right slice should not rename anything",
-			left:     []PostableApiTemplate{{Name: "test", Kind: "grafana"}, {Name: "test", Kind: "grafana"}},
-			right:    nil,
-			expected: []PostableApiTemplate{{Name: "test", Kind: "grafana"}, {Name: "test", Kind: "grafana"}},
-		},
-		{
-			name:     "empty left slice should only rename duplicates in right slice",
-			left:     nil,
-			right:    []PostableApiTemplate{{Name: "test", Kind: "grafana"}, {Name: "test", Kind: "grafana"}},
-			expected: []PostableApiTemplate{{Name: "test", Kind: "grafana"}, {Name: "test" + dedupSuffix, Kind: "grafana"}},
-			renamed: map[string]string{
-				"test": "test" + dedupSuffix,
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual, actualRenamed := MergeTemplates(tc.left, tc.right, MergeOpts{DedupSuffix: dedupSuffix})
-			assert.Equal(t, tc.expected, actual)
-			assert.EqualValues(t, tc.renamed, actualRenamed)
-		})
-	}
-}
-
 func load(t *testing.T, yaml string, mutate ...func(p *PostableApiAlertingConfig)) *PostableApiAlertingConfig {
 	t.Helper()
 	p, err := LoadCompat([]byte(yaml))
