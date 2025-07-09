@@ -477,7 +477,6 @@ func TestMergeTemplates(t *testing.T) {
 			left:     []PostableApiTemplate{{Name: "test", Kind: "grafana"}, {Name: "test", Kind: "grafana"}},
 			right:    nil,
 			expected: []PostableApiTemplate{{Name: "test", Kind: "grafana"}, {Name: "test", Kind: "grafana"}},
-			renamed:  map[string]string{},
 		},
 		{
 			name:     "empty left slice should only rename duplicates in right slice",

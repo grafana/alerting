@@ -338,6 +338,9 @@ func getUniqueName(name string, suffix string, exists func(string) bool) string 
 
 // MergeTemplates merges two slices of PostableApiTemplate, ensuring unique names and returns the merged slice and a map of renamed templates from slice `b`.
 func MergeTemplates(a, b []PostableApiTemplate, opts MergeOpts) ([]PostableApiTemplate, map[string]string) {
+	if len(b) == 0 {
+		return a, nil
+	}
 	makeKey := func(name string, kind TemplateKind) string {
 		return fmt.Sprintf("%s|%s", name, kind)
 	}
