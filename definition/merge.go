@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"slices"
 
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/dispatch"
@@ -343,9 +342,10 @@ func MergeTemplates(a, b []PostableApiTemplate, opts MergeOpts) ([]PostableApiTe
 		return fmt.Sprintf("%s|%s", name, kind)
 	}
 	usedNames := make(map[string]struct{}, len(a)+len(b))
-	result := slices.Grow(a, len(b))
+	result := make([]PostableApiTemplate, 0, len(a)+len(b))
 	for _, r := range a {
 		usedNames[makeKey(r.Name, r.Kind)] = struct{}{}
+		result = append(result, r)
 	}
 	renamed := make(map[string]string, len(b))
 	for _, r := range b {

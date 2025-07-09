@@ -46,7 +46,7 @@ func PostableAPITemplateToTemplateDefinition(t definition.PostableApiTemplate) t
 }
 
 func PostableAPITemplatesToTemplateDefinitions(ts []definition.PostableApiTemplate) []templates.TemplateDefinition {
-	var defs []templates.TemplateDefinition
+	defs := make([]templates.TemplateDefinition, 0, len(ts))
 	for _, t := range ts {
 		defs = append(defs, PostableAPITemplateToTemplateDefinition(t))
 	}

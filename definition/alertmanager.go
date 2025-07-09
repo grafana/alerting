@@ -628,8 +628,8 @@ func (t *PostableApiTemplate) Validate() error {
 		return fmt.Errorf("template kind is required")
 	}
 	k := strings.ToLower(string(t.Kind))
-	if k != "grafana" && k != "mimir" {
-		return fmt.Errorf("invalid template kind, must be either 'grafana' or 'mimir'")
+	if k != string(GrafanaTemplateKind) && k != string(MimirTemplateKind) {
+		return fmt.Errorf("invalid template kind, must be either '%s' or '%s'", GrafanaTemplateKind, MimirTemplateKind)
 	}
 	return nil
 }
