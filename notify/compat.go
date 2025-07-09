@@ -28,8 +28,8 @@ func PostableAPIReceiverToAPIReceiver(r *definition.PostableApiReceiver) *APIRec
 	}
 }
 
-// PostableApiTemplateToTemplateDefinition converts a definition.PostableApiTemplate to a templates.TemplateDefinition
-func PostableApiTemplateToTemplateDefinition(t definition.PostableApiTemplate) templates.TemplateDefinition {
+// PostableAPITemplateToTemplateDefinition converts a definition.PostableApiTemplate to a templates.TemplateDefinition
+func PostableAPITemplateToTemplateDefinition(t definition.PostableApiTemplate) templates.TemplateDefinition {
 	var kind templates.Kind
 	switch t.Kind {
 	case definition.GrafanaTemplateKind:
@@ -45,10 +45,10 @@ func PostableApiTemplateToTemplateDefinition(t definition.PostableApiTemplate) t
 	return d
 }
 
-func PostableApiTemplatesToTemplateDefinitions(ts []definition.PostableApiTemplate) []templates.TemplateDefinition {
+func PostableAPITemplatesToTemplateDefinitions(ts []definition.PostableApiTemplate) []templates.TemplateDefinition {
 	var defs []templates.TemplateDefinition
 	for _, t := range ts {
-		defs = append(defs, PostableApiTemplateToTemplateDefinition(t))
+		defs = append(defs, PostableAPITemplateToTemplateDefinition(t))
 	}
 	return defs
 }
