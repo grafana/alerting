@@ -24,7 +24,11 @@ import (
 	alertingHttp "github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
+	"github.com/grafana/alerting/receivers/line"
+	"github.com/grafana/alerting/receivers/pushover"
+	"github.com/grafana/alerting/receivers/telegram"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
+	"github.com/grafana/alerting/receivers/threema"
 	"github.com/grafana/alerting/templates"
 	"github.com/prometheus/alertmanager/notify"
 )
@@ -271,8 +275,15 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 func TestHTTPConfig(t *testing.T) {
 	for notifierType, cfg := range AllKnownConfigsForTesting {
 		t.Run(notifierType, func(t *testing.T) {
-			if notifierType != "webhook" {
-				t.Skip("currently only webhook notifier supports http_config")
+			if notifierType == "email" {
+				t.Skip("does not support http_config")
+			}
+
+			if notifierType == "slack" ||
+				notifierType == "sns" ||
+				notifierType == "mqtt" ||
+				notifierType == "prometheus-alertmanager" {
+				t.Skip("does not yet support http client")
 			}
 
 			t.Run("should support building with http_config", func(t *testing.T) {
@@ -427,11 +438,33 @@ func TestHTTPConfig(t *testing.T) {
 				}))
 				defer testServer.Close()
 
+				// Deal with notifiers that have hardcoded API URLs.
+				origLine := line.APIURL
+				origPushover := pushover.APIURL
+				origTelegram := telegram.APIURL
+				origThreema := threema.APIURL
+				line.APIURL = testServer.URL
+				pushover.APIURL = testServer.URL
+				telegram.APIURL = testServer.URL + "/bot%s/%s"
+				threema.APIURL = testServer.URL
+				defer func() {
+					line.APIURL = origLine
+					pushover.APIURL = origPushover
+					telegram.APIURL = origTelegram
+					threema.APIURL = origThreema
+				}()
+
 				config := cfg.GetRawNotifierConfig(notifierType)
 
 				// Override common url patterns:
 				urlOverride, err := json.Marshal(map[string]any{
-					"url": testServer.URL,
+					"url":            testServer.URL,
+					"api_url":        testServer.URL, // JIRA, SNS, Webex
+					"kafkaRestProxy": testServer.URL, // Kafka REST Proxy
+					"brokerUrl":      testServer.URL, // MQTT
+					"apiUrl":         testServer.URL, // OpsGenie
+					"client_url":     testServer.URL, // PagerDuty
+					"endpointUrl":    testServer.URL, // Slack, Wecom
 				})
 				require.NoError(t, err)
 				newSettings, err := MergeSettings([]byte(config.Settings), urlOverride)

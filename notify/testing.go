@@ -125,9 +125,10 @@ func GetDecryptedValueFnForTesting(_ context.Context, sjd map[string][]byte, key
 
 var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 	"prometheus-alertmanager": {
-		NotifierType: "prometheus-alertmanager",
-		Config:       alertmanager.FullValidConfigForTesting,
-		Secrets:      alertmanager.FullValidSecretsForTesting,
+		NotifierType:                "prometheus-alertmanager",
+		Config:                      alertmanager.FullValidConfigForTesting,
+		Secrets:                     alertmanager.FullValidSecretsForTesting,
+		commonHttpConfigUnsupported: true,
 	},
 	"dingding": {NotifierType: "dingding",
 		Config: dinding.FullValidConfigForTesting,
@@ -136,7 +137,8 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 		Config: discord.FullValidConfigForTesting,
 	},
 	"email": {NotifierType: "email",
-		Config: email.FullValidConfigForTesting,
+		Config:                      email.FullValidConfigForTesting,
+		commonHttpConfigUnsupported: true,
 	},
 	"googlechat": {NotifierType: "googlechat",
 		Config:  googlechat.FullValidConfigForTesting,
@@ -155,8 +157,9 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 		Secrets: line.FullValidSecretsForTesting,
 	},
 	"mqtt": {NotifierType: "mqtt",
-		Config:  mqtt.FullValidConfigForTesting,
-		Secrets: mqtt.FullValidSecretsForTesting,
+		Config:                      mqtt.FullValidConfigForTesting,
+		Secrets:                     mqtt.FullValidSecretsForTesting,
+		commonHttpConfigUnsupported: true,
 	},
 	"oncall": {NotifierType: "oncall",
 		Config:  oncall.FullValidConfigForTesting,
@@ -179,11 +182,13 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 		Secrets: sensugo.FullValidSecretsForTesting,
 	},
 	"slack": {NotifierType: "slack",
-		Config:  slack.FullValidConfigForTesting,
-		Secrets: slack.FullValidSecretsForTesting,
+		Config:                      slack.FullValidConfigForTesting,
+		Secrets:                     slack.FullValidSecretsForTesting,
+		commonHttpConfigUnsupported: true,
 	},
 	"sns": {NotifierType: "sns",
-		Config: sns.FullValidConfigForTesting,
+		Config:                      sns.FullValidConfigForTesting,
+		commonHttpConfigUnsupported: true,
 	},
 	"teams": {NotifierType: "teams",
 		Config: teams.FullValidConfigForTesting,
@@ -201,9 +206,8 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 		Secrets: victorops.FullValidSecretsForTesting,
 	},
 	"webhook": {NotifierType: "webhook",
-		Config:                    webhook.FullValidConfigForTesting,
-		Secrets:                   webhook.FullValidSecretsForTesting,
-		commonHttpConfigSupported: true,
+		Config:  webhook.FullValidConfigForTesting,
+		Secrets: webhook.FullValidSecretsForTesting,
 	},
 	"wecom": {NotifierType: "wecom",
 		Config:  wecom.FullValidConfigForTesting,
@@ -252,10 +256,10 @@ var FullValidHTTPConfigSecretsForTesting = fmt.Sprintf(`{
 }`, http.TestCertPem, http.TestKeyPem, http.TestCACert)
 
 type NotifierConfigTest struct {
-	NotifierType              string
-	Config                    string
-	Secrets                   string
-	commonHttpConfigSupported bool
+	NotifierType                string
+	Config                      string
+	Secrets                     string
+	commonHttpConfigUnsupported bool
 }
 
 func (n NotifierConfigTest) GetRawNotifierConfig(name string) *GrafanaIntegrationConfig {
@@ -271,7 +275,7 @@ func (n NotifierConfigTest) GetRawNotifierConfig(name string) *GrafanaIntegratio
 	}
 
 	config := []byte(n.Config)
-	if n.commonHttpConfigSupported {
+	if !n.commonHttpConfigUnsupported {
 		var err error
 		config, err = MergeSettings([]byte(n.Config), []byte(FullValidHTTPConfigForTesting))
 		if err != nil {
