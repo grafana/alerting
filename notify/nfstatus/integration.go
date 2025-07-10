@@ -11,7 +11,7 @@ import (
 )
 
 type NotificationHistorian interface {
-	Record(ctx context.Context, alerts []*types.Alert, notificationErr error) error
+	Record(ctx context.Context, alerts []*types.Alert, notificationErr error) <-chan error
 }
 
 // Integration wraps an upstream notify.Integration, adding the ability to
