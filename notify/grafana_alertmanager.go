@@ -13,6 +13,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/go-openapi/strfmt"
+	"github.com/prometheus/alertmanager/pkg/labels"
 	"golang.org/x/sync/errgroup"
 
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
@@ -66,7 +67,7 @@ type ClusterPeer interface {
 }
 
 type TemplatesProvider interface {
-	GetTemplate(kind templates.Kind) (*templates.Template, error)
+	GetTemplate(kind templates.Kind, labels model.LabelSet) (*templates.Template, error)
 }
 
 type GrafanaAlertmanager struct {
@@ -608,7 +609,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 		}, nil
 	}
 
-	newTmpl, err := factory.GetTemplate(tc.Kind)
+	newTmpl, err := factory.GetTemplate(tc.Kind, nil)
 	if err != nil {
 		return nil, err
 	}

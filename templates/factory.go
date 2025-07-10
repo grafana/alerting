@@ -1,12 +1,18 @@
 package templates
 
 import (
+	"encoding/binary"
 	"fmt"
+	"hash/fnv"
+	"iter"
 	"net/url"
+	"slices"
 	"sync"
+	"unsafe"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/prometheus/common/model"
 )
 
 // Factory is a factory that can be used to create templates of specific kind.
@@ -17,15 +23,16 @@ type Factory struct {
 }
 
 // GetTemplate creates a new template of the given kind. If Kind is not known, GrafanaKind automatically assumed
-func (tp *Factory) GetTemplate(kind Kind) (*Template, error) {
+func (tp *Factory) GetTemplate(kind Kind, labels model.LabelSet) (*Template, error) {
 	if err := ValidateKind(kind); err != nil {
 		return nil, err
 	}
-	definitions := tp.templates[kind]
-	content := defaultTemplatesPerKind(kind)
-	for _, def := range definitions { // TODO sort the list by name?
-		content = append(content, def.Template)
-	}
+	definitions := tp.getDefinitionsThatMatch(kind, labels)
+	content := slices.AppendSeq(defaultTemplatesPerKind(kind), func(yield func(string) bool) {
+		definitions(func(def TemplateDefinition) bool {
+			return yield(def.Template)
+		})
+	})
 	t, err := fromContent(content, defaultOptionsPerKind(kind, tp.orgID)...)
 	if err != nil {
 		return nil, err
@@ -35,6 +42,19 @@ func (tp *Factory) GetTemplate(kind Kind) (*Template, error) {
 		*t.ExternalURL = *tp.externalURL
 	}
 	return t, nil
+}
+
+func (tp *Factory) getDefinitionsThatMatch(kind Kind, labels model.LabelSet) iter.Seq[TemplateDefinition] {
+	return func(yield func(TemplateDefinition) bool) {
+		for _, def := range tp.templates[kind] {
+			if !def.Matchers.Matches(labels) {
+				continue
+			}
+			if !yield(def) {
+				return
+			}
+		}
+	}
 }
 
 // WithTemplate creates a new factory that has the provided TemplateDefinition. If definition with the same name already exists for this kind, it is replaced.
@@ -107,7 +127,7 @@ func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string, o
 func NewCachedFactory(factory *Factory) *CachedFactory {
 	return &CachedFactory{
 		factory: factory,
-		m:       make(map[Kind]*Template, len(validKinds)),
+		m:       make(map[uint64]*Template, len(validKinds)),
 	}
 }
 
@@ -117,7 +137,7 @@ func NewCachedFactory(factory *Factory) *CachedFactory {
 // Access is synchronized using a mutex to ensure thread-safety.
 type CachedFactory struct {
 	factory *Factory
-	m       map[Kind]*Template
+	m       map[uint64]*Template
 	mtx     sync.Mutex
 }
 
@@ -125,16 +145,29 @@ func (cf *CachedFactory) Factory() *Factory {
 	return cf.factory
 }
 
-func (cf *CachedFactory) GetTemplate(kind Kind) (*Template, error) {
+// getCacheKey generates a unique hash key based on kind and template definitions that match the current label set.
+// this guarantees that an existing template instance is reused for different label sets that result in the same templates selected.
+func (cf *CachedFactory) getCacheKey(kind Kind, labels model.LabelSet) uint64 {
+	hash := fnv.New64()
+	_ = binary.Write(hash, binary.LittleEndian, kind)
+	cf.factory.getDefinitionsThatMatch(kind, labels)(func(def TemplateDefinition) bool {
+		_, _ = hash.Write(unsafe.Slice(unsafe.StringData(def.Name), len(def.Name)))
+		return true
+	})
+	return hash.Sum64()
+}
+
+func (cf *CachedFactory) GetTemplate(kind Kind, labels model.LabelSet) (*Template, error) {
 	cf.mtx.Lock()
 	defer cf.mtx.Unlock()
-	if t, ok := cf.m[kind]; ok {
+	key := cf.getCacheKey(kind, labels)
+	if t, ok := cf.m[key]; ok {
 		return t.Clone()
 	}
-	t, err := cf.factory.GetTemplate(kind)
+	t, err := cf.factory.GetTemplate(kind, labels)
 	if err != nil {
 		return nil, err
 	}
-	cf.m[kind] = t
+	cf.m[key] = t
 	return t.Clone()
 }

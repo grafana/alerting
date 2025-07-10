@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
+	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
@@ -145,7 +146,7 @@ func TestFactoryNewTemplate(t *testing.T) {
 	maps.Copy(seen, validKinds)
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			templ, err := f.GetTemplate(tc.kind)
+			templ, err := f.GetTemplate(tc.kind, nil)
 			assert.NoError(t, err)
 			require.NotNil(t, templ)
 			var tmplErr error
@@ -164,7 +165,7 @@ func TestFactoryNewTemplate(t *testing.T) {
 
 	t.Run("should apply user-defined templates", func(t *testing.T) {
 		for kind := range validKinds {
-			templ, err := f.GetTemplate(kind)
+			templ, err := f.GetTemplate(kind, nil)
 			require.NoError(t, err)
 			var tmplErr error
 			tmpl, _ := TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
@@ -183,19 +184,52 @@ func TestFactoryNewTemplate(t *testing.T) {
 			},
 		}, log.NewNopLogger(), "http://localhost", "grafana")
 		require.NoError(t, err)
-		templ, err := f.GetTemplate(GrafanaKind)
+		templ, err := f.GetTemplate(GrafanaKind, nil)
 		require.NoError(t, err)
 		var tmplErr error
 		tmpl, _ := TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
 		result := tmpl(`{{ template "factory_test" . }}`)
 		require.NoError(t, tmplErr)
 		require.Equal(t, `TEST Grafana KIND`, result)
-		templ, err = f.GetTemplate(MimirKind)
+		templ, err = f.GetTemplate(MimirKind, nil)
 		require.NoError(t, err)
 		require.NotNil(t, templ)
 		tmpl, _ = TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
 		_ = tmpl(`{{ template "factory_test" . }}`)
 		require.ErrorContains(t, tmplErr, `template "factory_test" not defined`)
+	})
+
+	t.Run("user-defined should be selectable", func(t *testing.T) {
+		f, err := NewFactory([]TemplateDefinition{
+			{
+				Name:     "test-1",
+				Kind:     GrafanaKind,
+				Template: fmt.Sprintf(`{{ define "factory_test" }}TEST %s KIND{{ end }}`, GrafanaKind),
+			},
+			{
+				Name:     "test-2",
+				Kind:     GrafanaKind,
+				Template: fmt.Sprintf(`{{ define "factory_test" }}TEST %s KIND OVERRIDDEN{{ end }}`, GrafanaKind),
+				Matchers: labels.Matchers{
+					{Type: labels.MatchEqual, Name: "test", Value: "test"},
+				},
+			},
+		}, log.NewNopLogger(), "http://localhost", "grafana")
+
+		templ, err := f.GetTemplate(GrafanaKind, model.LabelSet{"test": "test"})
+		require.NoError(t, err)
+		var tmplErr error
+		tmpl, _ := TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
+		result := tmpl(`{{ template "factory_test" . }}`)
+		require.NoError(t, tmplErr)
+		require.Equal(t, `TEST Grafana KIND OVERRIDDEN`, result)
+
+		templ, err = f.GetTemplate(GrafanaKind, model.LabelSet{"test": "test2"})
+		require.NoError(t, err)
+		tmpl, _ = TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
+		result = tmpl(`{{ template "factory_test" . }}`)
+		require.NoError(t, tmplErr)
+		require.Equal(t, `TEST Grafana KIND`, result)
 	})
 }
 
@@ -205,7 +239,7 @@ func TestFactoryWithTemplate(t *testing.T) {
 	initial := TemplateDefinition{Name: "test", Kind: kind, Template: `{{ define "factory_test" }}TEST{{ end }}`}
 	f, err := NewFactory([]TemplateDefinition{initial}, log.NewNopLogger(), "http://localhost", "grafana")
 	require.NoError(t, err)
-	templ, err := f.GetTemplate(kind)
+	templ, err := f.GetTemplate(kind, nil)
 	require.NoError(t, err)
 	var tmplErr error
 	tmpl, _ := TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
@@ -216,7 +250,7 @@ func TestFactoryWithTemplate(t *testing.T) {
 	t.Run("should add new template", func(t *testing.T) {
 		f2, err := f.WithTemplate(TemplateDefinition{Name: "test2", Kind: kind, Template: `{{ define "factory_test2" }}TEST2{{ end }}`})
 		require.NoError(t, err)
-		templ, err := f2.GetTemplate(kind)
+		templ, err := f2.GetTemplate(kind, nil)
 		require.NoError(t, err)
 		var tmplErr error
 		tmpl, _ := TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
@@ -228,7 +262,7 @@ func TestFactoryWithTemplate(t *testing.T) {
 	t.Run("should replace existing template", func(t *testing.T) {
 		f2, err := f.WithTemplate(TemplateDefinition{Name: "test", Kind: kind, Template: `{{ define "factory_test" }}TEST2{{ end }}`})
 		require.NoError(t, err)
-		templ, err := f2.GetTemplate(kind)
+		templ, err := f2.GetTemplate(kind, nil)
 		require.NoError(t, err)
 		var tmplErr error
 		tmpl, _ := TmplText(context.Background(), templ, as, log.NewNopLogger(), &tmplErr)
@@ -256,7 +290,7 @@ func TestCachedTemplateFactory(t *testing.T) {
 	cached := NewCachedFactory(f)
 
 	for i := 0; i < 3; i++ { // check many times to ensure that clone it always return clean clone
-		tmpl, err := cached.GetTemplate(GrafanaKind)
+		tmpl, err := cached.GetTemplate(GrafanaKind, nil)
 		require.NoError(t, err)
 
 		expanded, err := tmpl.ExecuteTextString(`{{ template "factory_test" . }}`, nil)
