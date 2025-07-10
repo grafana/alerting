@@ -532,7 +532,7 @@ func GetActiveReceiversMap(r *dispatch.Route) map[string]struct{} {
 	return receiversMap
 }
 
-func parseHttpConfig(integration *GrafanaIntegrationConfig, decryptFn func(key string, fallback string) string) (*http.HTTPClientConfig, error) {
+func parseHTTPConfig(integration *GrafanaIntegrationConfig, decryptFn func(key string, fallback string) string) (*http.HTTPClientConfig, error) {
 	httpConfigSettings := struct {
 		HTTPConfig *http.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 	}{}
@@ -552,7 +552,7 @@ func parseHttpConfig(integration *GrafanaIntegrationConfig, decryptFn func(key s
 }
 
 func newNotifierConfig[T interface{}](integration *GrafanaIntegrationConfig, idx int, settings T, decryptFn func(key string, fallback string) string) (*NotifierConfig[T], error) {
-	httpClientConfig, err := parseHttpConfig(integration, decryptFn)
+	httpClientConfig, err := parseHTTPConfig(integration, decryptFn)
 	if err != nil {
 		return nil, err
 	}

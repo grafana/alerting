@@ -491,8 +491,8 @@ func TestHTTPConfig(t *testing.T) {
 
 				invalidAddress := fmt.Errorf("invalid address")
 				allowedUrls := map[string]struct{}{
-					strings.TrimPrefix(oauth2Server.URL, "http://"): struct{}{},
-					strings.TrimPrefix(testServer.URL, "http://"):   struct{}{},
+					oauth2Server.URL: {},
+					testServer.URL:   {},
 				}
 				integrations, err := BuildGrafanaReceiverIntegrations(
 					parsed,
@@ -509,7 +509,7 @@ func TestHTTPConfig(t *testing.T) {
 						// we don't start calling real endpoints in the tests.
 						// Additionally, it will help ensure the test is correctly validating the OAuth2 flow.
 						Control: func(_, address string, _ syscall.RawConn) error {
-							if _, ok := allowedUrls[address]; !ok {
+							if _, ok := allowedUrls["http://"+address]; !ok {
 								return fmt.Errorf("%w: %s", invalidAddress, address)
 							}
 							return nil

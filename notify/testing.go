@@ -128,7 +128,7 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 		NotifierType:                "prometheus-alertmanager",
 		Config:                      alertmanager.FullValidConfigForTesting,
 		Secrets:                     alertmanager.FullValidSecretsForTesting,
-		commonHttpConfigUnsupported: true,
+		commonHTTPConfigUnsupported: true,
 	},
 	"dingding": {NotifierType: "dingding",
 		Config: dinding.FullValidConfigForTesting,
@@ -138,7 +138,7 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 	},
 	"email": {NotifierType: "email",
 		Config:                      email.FullValidConfigForTesting,
-		commonHttpConfigUnsupported: true,
+		commonHTTPConfigUnsupported: true,
 	},
 	"googlechat": {NotifierType: "googlechat",
 		Config:  googlechat.FullValidConfigForTesting,
@@ -159,7 +159,7 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 	"mqtt": {NotifierType: "mqtt",
 		Config:                      mqtt.FullValidConfigForTesting,
 		Secrets:                     mqtt.FullValidSecretsForTesting,
-		commonHttpConfigUnsupported: true,
+		commonHTTPConfigUnsupported: true,
 	},
 	"oncall": {NotifierType: "oncall",
 		Config:  oncall.FullValidConfigForTesting,
@@ -184,11 +184,11 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 	"slack": {NotifierType: "slack",
 		Config:                      slack.FullValidConfigForTesting,
 		Secrets:                     slack.FullValidSecretsForTesting,
-		commonHttpConfigUnsupported: true,
+		commonHTTPConfigUnsupported: true,
 	},
 	"sns": {NotifierType: "sns",
 		Config:                      sns.FullValidConfigForTesting,
-		commonHttpConfigUnsupported: true,
+		commonHTTPConfigUnsupported: true,
 	},
 	"teams": {NotifierType: "teams",
 		Config: teams.FullValidConfigForTesting,
@@ -259,7 +259,7 @@ type NotifierConfigTest struct {
 	NotifierType                string
 	Config                      string
 	Secrets                     string
-	commonHttpConfigUnsupported bool
+	commonHTTPConfigUnsupported bool
 }
 
 func (n NotifierConfigTest) GetRawNotifierConfig(name string) *GrafanaIntegrationConfig {
@@ -275,7 +275,7 @@ func (n NotifierConfigTest) GetRawNotifierConfig(name string) *GrafanaIntegratio
 	}
 
 	config := []byte(n.Config)
-	if !n.commonHttpConfigUnsupported {
+	if !n.commonHTTPConfigUnsupported {
 		var err error
 		config, err = MergeSettings([]byte(n.Config), []byte(FullValidHTTPConfigForTesting))
 		if err != nil {
