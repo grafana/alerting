@@ -330,7 +330,7 @@ func TestHTTPConfig(t *testing.T) {
 								ClientKey:          alertingHttp.TestKeyPem,
 								CACertificate:      alertingHttp.TestCACert,
 							},
-							ProxyConfig: alertingHttp.ProxyConfig{
+							ProxyConfig: &alertingHttp.ProxyConfig{
 								ProxyURL:             alertingHttp.MustURL("http://localproxy:8080"),
 								NoProxy:              "localhost",
 								ProxyFromEnvironment: false,
@@ -370,7 +370,7 @@ func TestHTTPConfig(t *testing.T) {
 								ClientKey:          alertingHttp.TestKeyPem,
 								CACertificate:      alertingHttp.TestCACert,
 							},
-							ProxyConfig: alertingHttp.ProxyConfig{
+							ProxyConfig: &alertingHttp.ProxyConfig{
 								ProxyURL:             alertingHttp.MustURL("http://localproxy:8080"),
 								NoProxy:              "localhost",
 								ProxyFromEnvironment: false,
