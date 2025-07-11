@@ -37,7 +37,7 @@ func TestNewConfig(t *testing.T) {
 		{
 			name:              "Invalid message format",
 			settings:          `{ "brokerUrl" : "tcp://localhost:1883", "topic": "grafana/alerts", "messageFormat": "invalid"}`,
-			expectedInitError: `Invalid message format, must be 'json' or 'text'`,
+			expectedInitError: `invalid message format, must be 'json' or 'text'`,
 		},
 		{
 			name:     "Minimal valid configuration",

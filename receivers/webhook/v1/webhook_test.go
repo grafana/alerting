@@ -609,7 +609,7 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsgError: fmt.Errorf("Unable to use the provided CA certificate"),
+			expMsgError: fmt.Errorf("unable to use the provided CA certificate"),
 		},
 		{
 			name: "bad template in url",
