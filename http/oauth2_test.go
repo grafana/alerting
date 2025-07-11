@@ -65,7 +65,7 @@ func TestValidateOAuth2Config(t *testing.T) {
 				ClientID:     "client-id",
 				ClientSecret: "client-secret",
 				TokenURL:     "https://example.com/token",
-				ProxyConfig: ProxyConfig{
+				ProxyConfig: &ProxyConfig{
 					NoProxy: "localhost",
 				},
 			},

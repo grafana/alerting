@@ -1,7 +1,6 @@
 package http
 
 import (
-	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -61,7 +60,7 @@ func TestProxyConfigValidation(t *testing.T) {
 		{
 			name: "valid proxy config with URL",
 			cfg: ProxyConfig{
-				ProxyURL: mustURL("http://proxy.example.com:8080"),
+				ProxyURL: MustURL("http://proxy.example.com:8080"),
 			},
 			wantErr: false,
 		},
@@ -73,7 +72,7 @@ func TestProxyConfigValidation(t *testing.T) {
 		{
 			name: "invalid proxy URL and environment",
 			cfg: ProxyConfig{
-				ProxyURL:             mustURL("http://proxy.example.com:8080"),
+				ProxyURL:             MustURL("http://proxy.example.com:8080"),
 				ProxyFromEnvironment: true,
 			},
 			wantErr: true,
@@ -112,12 +111,4 @@ func TestProxyConfigValidation(t *testing.T) {
 			}
 		})
 	}
-}
-
-func mustURL(u string) URL {
-	res, err := url.Parse(u)
-	if err != nil {
-		panic(err)
-	}
-	return URL{URL: res}
 }
