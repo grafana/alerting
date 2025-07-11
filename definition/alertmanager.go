@@ -570,7 +570,7 @@ func (r *PostableApiReceiver) UnmarshalYAML(unmarshal func(interface{}) error) e
 }
 
 func (r *PostableApiReceiver) Type() ReceiverType {
-	if len(r.PostableGrafanaReceivers.GrafanaManagedReceivers) > 0 {
+	if len(r.GrafanaManagedReceivers) > 0 {
 		return GrafanaReceiverType
 	}
 
@@ -584,7 +584,7 @@ func (r *PostableApiReceiver) Type() ReceiverType {
 }
 
 func (r *PostableApiReceiver) GetName() string {
-	return r.Receiver.Name
+	return r.Name
 }
 
 type PostableGrafanaReceivers struct {
