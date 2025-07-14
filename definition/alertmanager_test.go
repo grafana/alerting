@@ -1540,3 +1540,76 @@ equal:
     - "corge\U0001F642"
 `, string(b))
 }
+
+func TestPostableApiTemplateValidate(t *testing.T) {
+	testCases := []struct {
+		name     string
+		template *PostableApiTemplate
+		err      string
+	}{
+		{
+			name: "empty name",
+			template: &PostableApiTemplate{
+				Name:    "",
+				Content: "test",
+				Kind:    "grafana",
+			},
+			err: "name is required",
+		},
+		{
+			name: "empty content",
+			template: &PostableApiTemplate{
+				Name:    "test",
+				Content: "",
+				Kind:    "grafana",
+			},
+			err: "content is required",
+		},
+		{
+			name: "empty kind",
+			template: &PostableApiTemplate{
+				Name:    "test",
+				Content: "test",
+				Kind:    "",
+			},
+			err: "kind is required",
+		},
+		{
+			name: "invalid kind",
+			template: &PostableApiTemplate{
+				Name:    "test",
+				Content: "test",
+				Kind:    "invalid",
+			},
+			err: "invalid template kind",
+		},
+		{
+			name: "valid grafana",
+			template: &PostableApiTemplate{
+				Name:    "test",
+				Content: "test",
+				Kind:    GrafanaTemplateKind,
+			},
+			err: "",
+		},
+		{
+			name: "valid mimir",
+			template: &PostableApiTemplate{
+				Name:    "test",
+				Content: "test",
+				Kind:    MimirTemplateKind,
+			},
+			err: "",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.template.Validate()
+			if tc.err != "" {
+				require.ErrorContains(t, err, tc.err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
