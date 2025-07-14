@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/mock"
+
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +33,7 @@ func (f *fakeResolvedSender) SendResolved() bool {
 func TestIntegration(t *testing.T) {
 	notifier := &fakeNotifier{}
 	rs := &fakeResolvedSender{}
-	integration := NewIntegration(notifier, rs, "foo", 42, "bar")
+	integration := NewIntegration(notifier, rs, "foo", 42, "bar", nil)
 
 	// Check wrapped functions work as expected.
 	assert.Equal(t, "foo", integration.Name())
@@ -75,4 +77,34 @@ func TestIntegration(t *testing.T) {
 	assert.NotEqual(t, time.Time{}, lastAttempt)
 	assert.NotEqual(t, model.Duration(0), lastDuration)
 	assert.Equal(t, "An error", lastError.Error())
+}
+
+type mockNotificationHistorian struct {
+	mock.Mock
+}
+
+func (m *mockNotificationHistorian) Record(ctx context.Context, alerts []*types.Alert, notificationErr error) <-chan error {
+	args := m.Called(ctx, alerts, notificationErr)
+	return args.Get(0).(chan error)
+}
+
+func TestIntegrationWithNotificationHistorian(t *testing.T) {
+	notifier := &fakeNotifier{err: errors.New("notification error")}
+	notificationHistorian := &mockNotificationHistorian{}
+	integration := NewIntegration(notifier, &fakeResolvedSender{}, "foo", 42, "bar", notificationHistorian)
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:       model.LabelSet{"alertname": "Alert1"},
+				Annotations:  model.LabelSet{"foo": "bar"},
+				StartsAt:     time.Now(),
+				EndsAt:       time.Now().Add(5 * time.Minute),
+				GeneratorURL: "http://localhost/test",
+			},
+		},
+	}
+	notificationHistorian.On("Record", mock.Anything, alerts, notifier.err).Return(make(chan error, 1)).Once()
+	_, err := integration.Notify(context.Background(), alerts...)
+	assert.Error(t, err)
+	notificationHistorian.AssertExpectations(t)
 }

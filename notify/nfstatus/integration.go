@@ -98,7 +98,9 @@ func (n *statusCaptureNotifier) Notify(ctx context.Context, alerts ...*types.Ale
 	retry, err := n.upstream.Notify(ctx, alerts...)
 	duration := time.Since(start)
 
-	n.notificationHistorian.Record(ctx, alerts, err)
+	if n.notificationHistorian != nil {
+		n.notificationHistorian.Record(ctx, alerts, err)
+	}
 
 	n.mtx.Lock()
 	defer n.mtx.Unlock()

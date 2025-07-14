@@ -54,7 +54,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 			return n
 		}
 
-		integrations, err := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version)
+		integrations, err := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version, nil)
 		require.NoError(t, err)
 
 		require.Len(t, integrations, qty)
@@ -80,7 +80,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 				}),
 			}
 
-			integrations, err := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version, clientOpts...)
+			integrations, err := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version, nil, clientOpts...)
 			require.NoError(t, err)
 
 			require.Len(t, integrations, qty)
@@ -117,7 +117,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	t.Run("should not produce any integration if config is empty", func(t *testing.T) {
 		cfg := GrafanaReceiverConfig{Name: "test"}
 
-		integrations, err := BuildGrafanaReceiverIntegrations(cfg, tmpl, imageProvider, log.NewNopLogger(), emailService, noopWrapper, orgID, version)
+		integrations, err := BuildGrafanaReceiverIntegrations(cfg, tmpl, imageProvider, log.NewNopLogger(), emailService, noopWrapper, orgID, version, nil)
 		require.NoError(t, err)
 		require.Empty(t, integrations)
 	})
@@ -169,6 +169,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			},
 			version,
 			log.NewNopLogger(),
+			nil,
 		)
 		require.NoError(t, err)
 		require.Contains(t, actual, "test1")
@@ -215,6 +216,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			},
 			version,
 			log.NewNopLogger(),
+			nil,
 		)
 		require.NoError(t, err)
 		require.Contains(t, actual, "test")
