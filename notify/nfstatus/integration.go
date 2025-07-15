@@ -11,7 +11,7 @@ import (
 )
 
 type NotificationHistorian interface {
-	Record(ctx context.Context, alerts []*types.Alert, notificationErr error) <-chan error
+	Record(ctx context.Context, alerts []*types.Alert, retry bool, notificationErr error, duration time.Duration) <-chan error
 }
 
 // Integration wraps an upstream notify.Integration, adding the ability to
@@ -99,7 +99,7 @@ func (n *statusCaptureNotifier) Notify(ctx context.Context, alerts ...*types.Ale
 	duration := time.Since(start)
 
 	if n.notificationHistorian != nil {
-		n.notificationHistorian.Record(ctx, alerts, err)
+		n.notificationHistorian.Record(ctx, alerts, retry, err, duration)
 	}
 
 	n.mtx.Lock()

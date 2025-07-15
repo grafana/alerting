@@ -83,13 +83,13 @@ type mockNotificationHistorian struct {
 	mock.Mock
 }
 
-func (m *mockNotificationHistorian) Record(ctx context.Context, alerts []*types.Alert, notificationErr error) <-chan error {
-	args := m.Called(ctx, alerts, notificationErr)
+func (m *mockNotificationHistorian) Record(ctx context.Context, alerts []*types.Alert, retry bool, notificationErr error, duration time.Duration) <-chan error {
+	args := m.Called(ctx, alerts, retry, notificationErr, duration)
 	return args.Get(0).(chan error)
 }
 
 func TestIntegrationWithNotificationHistorian(t *testing.T) {
-	notifier := &fakeNotifier{err: errors.New("notification error")}
+	notifier := &fakeNotifier{retry: true, err: errors.New("notification error")}
 	notificationHistorian := &mockNotificationHistorian{}
 	integration := NewIntegration(notifier, &fakeResolvedSender{}, "foo", 42, "bar", notificationHistorian)
 	alerts := []*types.Alert{
@@ -103,7 +103,7 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 			},
 		},
 	}
-	notificationHistorian.On("Record", mock.Anything, alerts, notifier.err).Return(make(chan error, 1)).Once()
+	notificationHistorian.On("Record", mock.Anything, alerts, notifier.retry, notifier.err, mock.Anything).Return(make(chan error, 1)).Once()
 	_, err := integration.Notify(context.Background(), alerts...)
 	assert.Error(t, err)
 	notificationHistorian.AssertExpectations(t)
