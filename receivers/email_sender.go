@@ -16,6 +16,8 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	gomail "gopkg.in/mail.v2"
+
+	"github.com/grafana/alerting/utils/fingerprint"
 )
 
 //go:embed templates/*
@@ -36,6 +38,26 @@ type EmailSenderConfig struct {
 	StartTLSPolicy string
 	StaticHeaders  map[string]string
 	SentBy         string
+}
+
+func (cfg EmailSenderConfig) Fingerprint() fingerprint.Fingerprint {
+	fp := fingerprint.NewHash()
+	builder := fingerprint.NewBuilder(fp)
+	builder.Append(fp.String(cfg.AuthPassword))
+	builder.Append(fp.String(cfg.AuthUser))
+	builder.Append(fp.String(cfg.CertFile))
+	builder.Append(fingerprint.SliceUnordered(cfg.ContentTypes, fp.String))
+	builder.Append(fp.String(cfg.EhloIdentity))
+	builder.Append(fp.String(cfg.ExternalURL))
+	builder.Append(fp.String(cfg.FromName))
+	builder.Append(fp.String(cfg.FromAddress))
+	builder.Append(fp.String(cfg.Host))
+	builder.Append(fp.String(cfg.KeyFile))
+	builder.Append(fp.Bool(cfg.SkipVerify))
+	builder.Append(fp.String(cfg.StartTLSPolicy))
+	builder.Append(fingerprint.Map(cfg.StaticHeaders, fp.String, fp.String))
+	builder.Append(fp.String(cfg.SentBy))
+	return builder.Fingerprint()
 }
 
 type defaultEmailSender struct {
