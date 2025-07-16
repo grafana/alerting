@@ -542,9 +542,8 @@ func TestNotify(t *testing.T) {
 								transition,
 							},
 						}), 200)
-					} else {
-						return cmd.Validation(nil, 200)
 					}
+					return cmd.Validation(nil, 200)
 				default:
 					t.Fatalf("unexpected url: %s", cmd.URL)
 					return nil
@@ -747,9 +746,8 @@ func TestNotify(t *testing.T) {
 								transition,
 							},
 						}), 200)
-					} else {
-						return cmd.Validation(nil, 200)
 					}
+					return cmd.Validation(nil, 200)
 				default:
 					t.Fatalf("unexpected url: %s", cmd.URL)
 					return nil

@@ -503,6 +503,7 @@ func TestHTTPConfig(t *testing.T) {
 					NoWrap,
 					rand.Int63(),
 					fmt.Sprintf("Grafana v%d", rand.Uint32()),
+					nil,
 					alertingHttp.WithDialer(net.Dialer{
 						// Prevent all network calls not going to oauth2Server or testServer.
 						// Since we're actually calling the real Notify method, this is to ensure that
