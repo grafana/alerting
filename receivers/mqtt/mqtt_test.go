@@ -92,6 +92,15 @@ func TestNotify(t *testing.T) {
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
 
+	defaultAlert := &types.Alert{
+		Alert: model.Alert{
+			Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+			Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+			GeneratorURL: "a URL",
+		},
+	}
+	defaultAlertRenderedJSON := "{\"receiver\":\"\",\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\",\"labels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"annotations\":{\"ann1\":\"annv1\"},\"startsAt\":\"0001-01-01T00:00:00Z\",\"endsAt\":\"0001-01-01T00:00:00Z\",\"generatorURL\":\"a URL\",\"fingerprint\":\"fac0861a85de433a\",\"silenceURL\":\"http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\",\"dashboardURL\":\"http://localhost/base/d/abcd\",\"panelURL\":\"http://localhost/base/d/abcd?viewPanel=efgh\",\"values\":null,\"valueString\":\"\"}],\"groupLabels\":{\"alertname\":\"\"},\"commonLabels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"commonAnnotations\":{\"ann1\":\"annv1\"},\"externalURL\":\"http://localhost/base\",\"version\":\"1\",\"groupKey\":\"alertname\",\"message\":\"**Firing**\\n\\nValue: [no value]\\nLabels:\\n - alertname = alert1\\n - lbl1 = val1\\nAnnotations:\\n - ann1 = annv1\\nSource: a URL\\nSilence: http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\\nDashboard: http://localhost/base/d/abcd\\nPanel: http://localhost/base/d/abcd?viewPanel=efgh\\n\"}"
+
 	cases := []struct {
 		name        string
 		settings    Config
@@ -110,17 +119,11 @@ func TestNotify(t *testing.T) {
 				MessageFormat: MessageFormatJSON,
 			},
 			alerts: []*types.Alert{
-				{
-					Alert: model.Alert{
-						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-						Annotations:  model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
-						GeneratorURL: "a URL",
-					},
-				},
+				defaultAlert,
 			},
 			expMessage: message{
 				topic:   "alert1",
-				payload: []byte("{\"receiver\":\"\",\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\",\"labels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"annotations\":{\"ann1\":\"annv1\"},\"startsAt\":\"0001-01-01T00:00:00Z\",\"endsAt\":\"0001-01-01T00:00:00Z\",\"generatorURL\":\"a URL\",\"fingerprint\":\"fac0861a85de433a\",\"silenceURL\":\"http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\",\"dashboardURL\":\"http://localhost/base/d/abcd\",\"panelURL\":\"http://localhost/base/d/abcd?viewPanel=efgh\",\"values\":null,\"valueString\":\"\"}],\"groupLabels\":{\"alertname\":\"\"},\"commonLabels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"commonAnnotations\":{\"ann1\":\"annv1\"},\"externalURL\":\"http://localhost/base\",\"version\":\"1\",\"groupKey\":\"alertname\",\"message\":\"**Firing**\\n\\nValue: [no value]\\nLabels:\\n - alertname = alert1\\n - lbl1 = val1\\nAnnotations:\\n - ann1 = annv1\\nSource: a URL\\nSilence: http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\\nDashboard: http://localhost/base/d/abcd\\nPanel: http://localhost/base/d/abcd?viewPanel=efgh\\n\"}"),
+				payload: []byte(defaultAlertRenderedJSON),
 				retain:  false,
 				qos:     0,
 			},
@@ -149,6 +152,22 @@ func TestNotify(t *testing.T) {
 				payload: []byte("{\"receiver\":\"\",\"status\":\"firing\",\"alerts\":[{\"status\":\"firing\",\"labels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"annotations\":{\"ann1\":\"annv1\"},\"startsAt\":\"0001-01-01T00:00:00Z\",\"endsAt\":\"0001-01-01T00:00:00Z\",\"generatorURL\":\"a URL\",\"fingerprint\":\"fac0861a85de433a\",\"silenceURL\":\"http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\",\"dashboardURL\":\"http://localhost/base/d/abcd\",\"panelURL\":\"http://localhost/base/d/abcd?viewPanel=efgh\",\"values\":null,\"valueString\":\"\"}],\"groupLabels\":{\"alertname\":\"\"},\"commonLabels\":{\"alertname\":\"alert1\",\"lbl1\":\"val1\"},\"commonAnnotations\":{\"ann1\":\"annv1\"},\"externalURL\":\"http://localhost/base\",\"version\":\"1\",\"groupKey\":\"alertname\",\"message\":\"**Firing**\\n\\nValue: [no value]\\nLabels:\\n - alertname = alert1\\n - lbl1 = val1\\nAnnotations:\\n - ann1 = annv1\\nSource: a URL\\nSilence: http://localhost/base/alerting/silence/new?alertmanager=grafana\\u0026matcher=alertname%3Dalert1\\u0026matcher=lbl1%3Dval1\\nDashboard: http://localhost/base/d/abcd\\nPanel: http://localhost/base/d/abcd?viewPanel=efgh\\n\"}"),
 				retain:  true,
 				qos:     1,
+			},
+		},
+		{
+			name: "A single alert with the default template in JSON and group-key added to the topic",
+			settings: Config{
+				Topic:              "alert1",
+				Message:            templates.DefaultMessageEmbed,
+				MessageFormat:      MessageFormatJSON,
+				AddGroupKeyToTopic: true,
+			},
+			alerts: []*types.Alert{
+				defaultAlert,
+			},
+			expMessage: message{
+				topic:   "alert1/alertname",
+				payload: []byte(defaultAlertRenderedJSON),
 			},
 			expError: nil,
 		},
