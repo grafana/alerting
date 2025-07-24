@@ -14,7 +14,7 @@ type test struct {
 	private int
 }
 
-type complex struct {
+type complexStruct struct {
 	Test    *test
 	TestMap *map[test]any
 }
@@ -47,20 +47,20 @@ func TestDeepHashObject_Map(t *testing.T) {
 			&[]bool{false, true},
 		},
 		{
-			[]*complex{
+			[]*complexStruct{
 				nil,
 				{Test: &test{"test", 1}},
 			},
-			[]*complex{
+			[]*complexStruct{
 				{Test: &test{"test", 1}},
 			},
 		},
 		{
-			[]*complex{
+			[]*complexStruct{
 				nil,
 				{Test: &test{"test", 1}},
 			},
-			[]*complex{
+			[]*complexStruct{
 				{TestMap: &map[test]any{
 					{"test", 1}: &test{"test", 1},
 					{"test", 2}: float64(1),
@@ -74,7 +74,7 @@ func TestDeepHashObject_Map(t *testing.T) {
 		{
 			map[any]any{
 				"a": "b",
-				&test{"test", 1}: complex{
+				&test{"test", 1}: complexStruct{
 					Test: &test{"test", 1},
 					TestMap: &map[test]any{
 						{"test", 1}: &test{"test", 1},
@@ -108,14 +108,14 @@ func TestDeepHashObject_Map(t *testing.T) {
 			time.Now().UTC(),
 		},
 		{
-			complex{
+			complexStruct{
 				Test: &test{"test", 1},
 				TestMap: &map[test]any{
 					{"test", 1}: &test{"test", 1},
 					{"test", 2}: 1,
 				},
 			},
-			complex{
+			complexStruct{
 				Test: &test{"test", 1},
 				TestMap: &map[test]any{
 					{"test", 1}: &test{"test", 1},
