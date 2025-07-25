@@ -88,6 +88,8 @@ func NewTLSClient(tlsConfig *tls.Config) *http.Client {
 					Timeout: 30 * time.Second,
 				}).Dial,
 				TLSHandshakeTimeout: 5 * time.Second,
+				// Disable keep alive since this is always used as a short lived client
+				DisableKeepAlives: true,
 			},
 		}
 	}
