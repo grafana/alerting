@@ -848,14 +848,14 @@ func PostableAlertsToAlertmanagerAlerts(postableAlerts amv2.PostableAlerts, now 
 				continue
 			}
 
-			alert.Alert.Labels[model.LabelName(k)] = model.LabelValue(v)
+			alert.Labels[model.LabelName(k)] = model.LabelValue(v)
 		}
 
 		for k, v := range a.Annotations {
 			if len(v) == 0 { // Skip empty annotation.
 				continue
 			}
-			alert.Alert.Annotations[model.LabelName(k)] = model.LabelValue(v)
+			alert.Annotations[model.LabelName(k)] = model.LabelValue(v)
 		}
 
 		// Ensure StartsAt is set.
