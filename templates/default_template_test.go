@@ -2,6 +2,7 @@ package templates
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strings"
 	"testing"
@@ -17,6 +18,8 @@ import (
 )
 
 func TestDefaultTemplateString(t *testing.T) {
+	constNow := time.Now()
+	defer mockTimeNow(constNow)()
 	alerts := []*types.Alert{
 		{ // Firing with dashboard and panel ID.
 			Alert: model.Alert{
@@ -34,8 +37,8 @@ func TestDefaultTemplateString(t *testing.T) {
 					"__values__":       "{\"A\": 1234}",
 					"__value_string__": "1234",
 				},
-				StartsAt:     time.Now(),
-				EndsAt:       time.Now().Add(1 * time.Hour),
+				StartsAt:     constNow,
+				EndsAt:       constNow.Add(1 * time.Hour),
 				GeneratorURL: "http://localhost/alert1?orgId=1",
 			},
 		}, { // Firing without dashboard and panel ID.
@@ -50,8 +53,8 @@ func TestDefaultTemplateString(t *testing.T) {
 					"__values__":       "{\"A\": 1234, \"B\": 5678, \"C\": 9}",
 					"__value_string__": "1234",
 				},
-				StartsAt:     time.Now(),
-				EndsAt:       time.Now().Add(2 * time.Hour),
+				StartsAt:     constNow,
+				EndsAt:       constNow.Add(2 * time.Hour),
 				GeneratorURL: "http://localhost/alert2",
 			},
 		}, { // Firing with OrgID and without dashboard and panel ID.
@@ -67,8 +70,8 @@ func TestDefaultTemplateString(t *testing.T) {
 					"__values__":       "{\"A\": 1234}",
 					"__value_string__": "1234",
 				},
-				StartsAt:     time.Now(),
-				EndsAt:       time.Now().Add(2 * time.Hour),
+				StartsAt:     constNow,
+				EndsAt:       constNow.Add(2 * time.Hour),
 				GeneratorURL: "http://localhost/alert3?orgId=1",
 			},
 		}, { // Resolved with dashboard and panel ID.
@@ -85,8 +88,8 @@ func TestDefaultTemplateString(t *testing.T) {
 					"__values__":       "{\"A\": 1234}",
 					"__value_string__": "1234",
 				},
-				StartsAt:     time.Now().Add(-1 * time.Hour),
-				EndsAt:       time.Now().Add(-30 * time.Minute),
+				StartsAt:     constNow.Add(-1 * time.Hour),
+				EndsAt:       constNow.Add(-30 * time.Minute),
 				GeneratorURL: "http://localhost/alert4?orgId=1",
 			},
 		}, { // Resolved without dashboard and panel ID.
@@ -100,8 +103,8 @@ func TestDefaultTemplateString(t *testing.T) {
 					"__values__":       "{\"A\": 1234, \"B\": 5678, \"C\": 9}",
 					"__value_string__": "1234",
 				},
-				StartsAt:     time.Now().Add(-2 * time.Hour),
-				EndsAt:       time.Now().Add(-3 * time.Hour),
+				StartsAt:     constNow.Add(-2 * time.Hour),
+				EndsAt:       constNow.Add(-3 * time.Hour),
 				GeneratorURL: "http://localhost/alert5",
 			},
 		}, { // Resolved with OrgID and without dashboard and panel ID.
@@ -116,12 +119,15 @@ func TestDefaultTemplateString(t *testing.T) {
 					"__values__":       "{\"A\": 1234}",
 					"__value_string__": "1234",
 				},
-				StartsAt:     time.Now().Add(-2 * time.Hour),
-				EndsAt:       time.Now().Add(-3 * time.Hour),
+				StartsAt:     constNow.Add(-2 * time.Hour),
+				EndsAt:       constNow.Add(-3 * time.Hour),
 				GeneratorURL: "http://localhost/alert6?orgId=1",
 			},
 		},
 	}
+
+	alert1Dashboard := fmt.Sprintf("http://localhost/grafana/d/dbuid123?from=%d&orgId=1&to=%d", alerts[0].StartsAt.Add(-time.Hour).UnixMilli(), constNow.UnixMilli())         // Firing.
+	alert4Dashboard := fmt.Sprintf("http://localhost/grafana/d/dbuid456?from=%d&orgId=1&to=%d", alerts[3].StartsAt.Add(-time.Hour).UnixMilli(), alerts[3].EndsAt.UnixMilli()) // Resolved.
 
 	tmpl, err := FromContent(nil)
 	require.NoError(t, err)
@@ -157,7 +163,7 @@ func TestDefaultTemplateString(t *testing.T) {
 		},
 		{
 			templateString: DefaultMessageEmbed,
-			expected: `**Firing**
+			expected: fmt.Sprint(`**Firing**
 
 Value: A=1234
 Labels:
@@ -168,8 +174,8 @@ Annotations:
  - ann1 = annv1
 Source: http://localhost/alert1?orgId=1
 Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Druleuid1&matcher=lbl1%3Dval1&orgId=1
-Dashboard: http://localhost/grafana/d/dbuid123?orgId=1
-Panel: http://localhost/grafana/d/dbuid123?orgId=1&viewPanel=puid123
+Dashboard: `, alert1Dashboard, `
+Panel: `, alert1Dashboard, `&viewPanel=puid123
 
 Value: A=1234, B=5678, C=9
 Labels:
@@ -201,8 +207,8 @@ Annotations:
  - ann1 = annv4
 Source: http://localhost/alert4?orgId=1
 Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval4&orgId=1
-Dashboard: http://localhost/grafana/d/dbuid456?orgId=1
-Panel: http://localhost/grafana/d/dbuid456?orgId=1&viewPanel=puid456
+Dashboard: `, alert4Dashboard, `
+Panel: `, alert4Dashboard, `&viewPanel=puid456
 
 Value: A=1234, B=5678, C=9
 Labels:
@@ -221,11 +227,11 @@ Annotations:
  - ann1 = annv6
 Source: http://localhost/alert6?orgId=1
 Silence: http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval6&orgId=1
-`,
+`),
 		},
 		{
 			templateString: `{{ template "teams.default.message" .}}`,
-			expected: `**Firing**
+			expected: fmt.Sprint(`**Firing**
 
 Value: A=1234
 Labels:
@@ -240,9 +246,9 @@ Source: [http://localhost/alert1?orgId=1](http://localhost/alert1?orgId=1)
 
 Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Druleuid1&matcher=lbl1%3Dval1&orgId=1](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Druleuid1&matcher=lbl1%3Dval1&orgId=1)
 
-Dashboard: [http://localhost/grafana/d/dbuid123?orgId=1](http://localhost/grafana/d/dbuid123?orgId=1)
+Dashboard: [`, alert1Dashboard, `](`, alert1Dashboard, `)
 
-Panel: [http://localhost/grafana/d/dbuid123?orgId=1&viewPanel=puid123](http://localhost/grafana/d/dbuid123?orgId=1&viewPanel=puid123)
+Panel: [`, alert1Dashboard, `&viewPanel=puid123](`, alert1Dashboard, `&viewPanel=puid123)
 
 
 
@@ -290,9 +296,9 @@ Source: [http://localhost/alert4?orgId=1](http://localhost/alert4?orgId=1)
 
 Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval4&orgId=1](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval4&orgId=1)
 
-Dashboard: [http://localhost/grafana/d/dbuid456?orgId=1](http://localhost/grafana/d/dbuid456?orgId=1)
+Dashboard: [`, alert4Dashboard, `](`, alert4Dashboard, `)
 
-Panel: [http://localhost/grafana/d/dbuid456?orgId=1&viewPanel=puid456](http://localhost/grafana/d/dbuid456?orgId=1&viewPanel=puid456)
+Panel: [`, alert4Dashboard, `&viewPanel=puid456](`, alert4Dashboard, `&viewPanel=puid456)
 
 
 
@@ -323,7 +329,7 @@ Source: [http://localhost/alert6?orgId=1](http://localhost/alert6?orgId=1)
 Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval6&orgId=1](http://localhost/grafana/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval6&orgId=1)
 
 
-`,
+`),
 		},
 	}
 
@@ -344,4 +350,16 @@ Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&mat
 	}
 	require.NoError(t, tmplErr)
 	require.NoError(t, tmplDefErr)
+}
+
+// resetTimeNow resets the global variable timeNow to the default value, which is time.Now
+func resetTimeNow() {
+	timeNow = time.Now
+}
+
+func mockTimeNow(constTime time.Time) func() {
+	timeNow = func() time.Time {
+		return constTime
+	}
+	return resetTimeNow
 }

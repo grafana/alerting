@@ -482,6 +482,69 @@ func TestNotify(t *testing.T) {
 			expHeaders:    map[string]string{"Authorization": "Bearer mysecret"},
 		},
 		{
+			name: "with HMAC config",
+			settings: Config{
+				URL:        "http://localhost/test1",
+				HTTPMethod: http.MethodPost,
+				MaxAlerts:  2,
+				Title:      templates.DefaultMessageTitleEmbed,
+				Message:    templates.DefaultMessageEmbed,
+				HMACConfig: &receivers.HMACConfig{
+					Secret:          "test-secret",
+					Header:          "X-Test-Hash",
+					TimestampHeader: "X-Test-Timestamp",
+				},
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+					},
+				},
+			},
+			expMsg: &webhookMessage{
+				ExtendedData: &templates.ExtendedData{
+					Receiver: "my_receiver",
+					Status:   "firing",
+					Alerts: templates.ExtendedAlerts{
+						{
+							Status: "firing",
+							Labels: templates.KV{
+								"alertname": "alert1",
+								"lbl1":      "val1",
+							},
+							Annotations: templates.KV{
+								"ann1": "annv1",
+							},
+							Fingerprint: "fac0861a85de433a",
+							SilenceURL:  "http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1",
+						},
+					},
+					GroupLabels: templates.KV{
+						"alertname": "",
+					},
+					CommonLabels: templates.KV{
+						"alertname": "alert1",
+						"lbl1":      "val1",
+					},
+					CommonAnnotations: templates.KV{
+						"ann1": "annv1",
+					},
+					ExternalURL: "http://localhost",
+				},
+				Version:  "1",
+				GroupKey: "alertname",
+				Title:    "[FIRING:1]  (val1)",
+				State:    "alerting",
+				Message:  "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+				OrgID:    orgID,
+			},
+			expURL:        "http://localhost/test1",
+			expHTTPMethod: "POST",
+			expHeaders:    map[string]string{},
+		},
+		{
 			name: "bad CA certificate set",
 			settings: Config{
 				URL:                      "http://localhost/test1",
