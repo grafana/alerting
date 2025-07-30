@@ -1,0 +1,124 @@
+package notifier
+
+import (
+	"context"
+	"errors"
+	"io"
+	"net/url"
+	"testing"
+	"time"
+
+	"github.com/go-kit/log"
+	"github.com/grafana/alerting/client"
+	"github.com/grafana/alerting/lokiclient"
+	alertingModels "github.com/grafana/alerting/models"
+	"github.com/grafana/dskit/instrument"
+	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/alertmanager/types"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
+	"github.com/prometheus/common/model"
+	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
+)
+
+var testNow = time.Date(2025, time.July, 15, 16, 55, 0, 0, time.UTC)
+var testAlerts = []*types.Alert{
+	{
+		Alert: model.Alert{
+			Labels:       model.LabelSet{"alertname": "Alert1", alertingModels.RuleUIDLabel: "testRuleUID"},
+			Annotations:  model.LabelSet{"foo": "bar", "__private__": "baz"},
+			StartsAt:     testNow,
+			EndsAt:       testNow,
+			GeneratorURL: "http://localhost/test",
+		},
+	},
+}
+
+func TestRecord(t *testing.T) {
+	t.Run("write notification history to Loki", func(t *testing.T) {
+		testCases := []struct {
+			name            string
+			retry           bool
+			notificationErr error
+			expected        string
+		}{
+			{
+				"successful notification",
+				false,
+				nil,
+				"{\"streams\":[{\"stream\":{\"externalLabelKey\":\"externalLabelValue\",\"from\":\"notify-history\"},\"values\":[[\"1752598500000000000\",\"{\\\"schemaVersion\\\":1,\\\"receiver\\\":\\\"testReceiverName\\\",\\\"status\\\":\\\"resolved\\\",\\\"groupLabels\\\":{\\\"foo\\\":\\\"bar\\\"},\\\"alerts\\\":[{\\\"status\\\":\\\"resolved\\\",\\\"labels\\\":{\\\"alertname\\\":\\\"Alert1\\\"},\\\"annotations\\\":{\\\"foo\\\":\\\"bar\\\"},\\\"startsAt\\\":\\\"2025-07-15T16:55:00Z\\\",\\\"endsAt\\\":\\\"2025-07-15T16:55:00Z\\\",\\\"ruleUID\\\":\\\"testRuleUID\\\"}],\\\"retry\\\":false,\\\"duration\\\":1000}\"]]}]}",
+			},
+			{
+				"failed notification",
+				true,
+				errors.New("test notification error"),
+				"{\"streams\":[{\"stream\":{\"externalLabelKey\":\"externalLabelValue\",\"from\":\"notify-history\"},\"values\":[[\"1752598500000000000\",\"{\\\"schemaVersion\\\":1,\\\"receiver\\\":\\\"testReceiverName\\\",\\\"status\\\":\\\"resolved\\\",\\\"groupLabels\\\":{\\\"foo\\\":\\\"bar\\\"},\\\"alerts\\\":[{\\\"status\\\":\\\"resolved\\\",\\\"labels\\\":{\\\"alertname\\\":\\\"Alert1\\\"},\\\"annotations\\\":{\\\"foo\\\":\\\"bar\\\"},\\\"startsAt\\\":\\\"2025-07-15T16:55:00Z\\\",\\\"endsAt\\\":\\\"2025-07-15T16:55:00Z\\\",\\\"ruleUID\\\":\\\"testRuleUID\\\"}],\\\"retry\\\":true,\\\"error\\\":\\\"test notification error\\\",\\\"duration\\\":1000}\"]]}]}",
+			},
+		}
+		for _, tc := range testCases {
+			t.Run(tc.name, func(t *testing.T) {
+				req := lokiclient.NewFakeRequester()
+				writesTotal := prometheus.NewCounter(prometheus.CounterOpts{})
+				writesFailed := prometheus.NewCounter(prometheus.CounterOpts{})
+
+				// TODO: check metrics updated
+				h := createTestNotificationHistorian(req, writesTotal, writesFailed)
+
+				err := <-h.Record(recordCtx(), testAlerts, tc.retry, tc.notificationErr, time.Second)
+				require.NoError(t, err)
+
+				reqBody, err := io.ReadAll(req.LastRequest.Body)
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, string(reqBody))
+			})
+		}
+	})
+
+	t.Run("emits expected write metrics", func(t *testing.T) {
+		// TODO: fix mess with metrics
+		writesTotal := prometheus.NewCounter(prometheus.CounterOpts{})
+		writesFailed := prometheus.NewCounter(prometheus.CounterOpts{})
+
+		goodHistorian := createTestNotificationHistorian(lokiclient.NewFakeRequester(), writesTotal, writesFailed)
+		badHistorian := createTestNotificationHistorian(lokiclient.NewFakeRequester().WithResponse(lokiclient.BadResponse()), writesTotal, writesFailed)
+
+		<-goodHistorian.Record(recordCtx(), testAlerts, false, nil, time.Second)
+		<-badHistorian.Record(recordCtx(), testAlerts, false, nil, time.Second)
+
+		require.Equal(t, 2, int(testutil.ToFloat64(writesTotal)))
+		require.Equal(t, 1, int(testutil.ToFloat64(writesFailed)))
+	})
+
+	t.Run("returns error when context is missing required fields", func(t *testing.T) {
+		req := lokiclient.NewFakeRequester()
+		writesTotal := prometheus.NewCounter(prometheus.CounterOpts{})
+		writesFailed := prometheus.NewCounter(prometheus.CounterOpts{})
+
+		h := createTestNotificationHistorian(req, writesTotal, writesFailed)
+
+		err := <-h.Record(context.Background(), testAlerts, false, nil, time.Second)
+		require.Error(t, err)
+	})
+}
+
+func createTestNotificationHistorian(req client.Requester, writesTotal prometheus.Counter, writesFailed prometheus.Counter) *NotificationHistorian {
+	writePathURL, _ := url.Parse("http://some.url")
+	cfg := lokiclient.LokiConfig{
+		WritePathURL:   writePathURL,
+		ExternalLabels: map[string]string{"externalLabelKey": "externalLabelValue"},
+		Encoder:        lokiclient.JsonEncoder{},
+	}
+
+	bytesWritten := prometheus.NewCounter(prometheus.CounterOpts{})
+	writeDuration := instrument.NewHistogramCollector(prometheus.NewHistogramVec(prometheus.HistogramOpts{}, instrument.HistogramCollectorBuckets))
+
+	return NewNotificationHistorian(log.NewNopLogger(), cfg, req, bytesWritten, writeDuration, writesTotal, writesFailed, noop.NewTracerProvider().Tracer("test"))
+}
+
+func recordCtx() context.Context {
+	ctx := notify.WithReceiverName(context.Background(), "testReceiverName")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"foo": "bar"})
+	ctx = notify.WithNow(ctx, testNow)
+	return ctx
+}
