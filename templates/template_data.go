@@ -73,7 +73,7 @@ func ValidateKind(kind Kind) error {
 }
 
 const (
-	kindUnknown Kind = iota
+	_ Kind = iota
 	GrafanaKind
 	MimirKind
 )
