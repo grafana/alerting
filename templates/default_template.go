@@ -214,8 +214,13 @@ func ForTests(t *testing.T) *Template {
 
 var DefaultTemplateName = "__default__"
 
+var DefaultTemplatesToOmit = []string{
+	"email.default.html",
+	"email.default.subject",
+}
+
 // DefaultTemplate returns a new Template with all default templates parsed.
-func DefaultTemplate() (TemplateDefinition, error) {
+func DefaultTemplate(omitTemplates []string) (TemplateDefinition, error) {
 	// We cannot simply append the text of each default file together as there can be (and are) duplicate template
 	// names. Duplicate templates should override when parsed from separate files but will fail to parse if both are in
 	// the same file.
@@ -241,16 +246,17 @@ func DefaultTemplate() (TemplateDefinition, error) {
 
 	// Recreate the "define" blocks for all templates. Would be nice to have a more direct way to do this.
 	for _, tmpl := range tmpls {
-		if tmpl.Name() != "" {
-			def := tmpl.Tree.Root.String()
-			if tmpl.Name() == "__text_values_list" {
-				// Temporary fix for https://github.com/golang/go/commit/6fea4094242fe4e7be8bd7ec0b55df9f6df3f025.
-				// TODO: Can remove with GO v1.24.
-				def = strings.Replace(def, "$first := false", "$first = false", 1)
-			}
-
-			combinedTemplate.WriteString(fmt.Sprintf("{{ define \"%s\" }}%s{{ end }}\n\n", tmpl.Name(), def))
+		name := tmpl.Name()
+		if name == "" || slices.Contains(omitTemplates, name) {
+			continue
 		}
+		def := tmpl.Tree.Root.String()
+		if tmpl.Name() == "__text_values_list" {
+			// Temporary fix for https://github.com/golang/go/commit/6fea4094242fe4e7be8bd7ec0b55df9f6df3f025.
+			// TODO: Can remove with GO v1.24.
+			def = strings.Replace(def, "$first := false", "$first = false", 1)
+		}
+		combinedTemplate.WriteString(fmt.Sprintf("{{ define \"%s\" }}%s{{ end }}\n\n", tmpl.Name(), def))
 	}
 	return TemplateDefinition{
 		Name:     DefaultTemplateName,
