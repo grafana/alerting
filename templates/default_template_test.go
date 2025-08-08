@@ -355,6 +355,7 @@ Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&mat
 
 	t.Run("should omit templates", func(t *testing.T) {
 		def, err := DefaultTemplate(nil)
+		require.NoError(t, err)
 		defOmit, err := DefaultTemplate(DefaultTemplatesToOmit)
 		require.NoError(t, err)
 		for _, tmpl := range DefaultTemplatesToOmit {
