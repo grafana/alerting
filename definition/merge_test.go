@@ -351,6 +351,15 @@ func TestMerge(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("should not modify existing config", func(t *testing.T) {
+		g := load(t, fullGrafanaConfig)
+		m := load(t, fullMimirConfig)
+		_, err := Merge(*g, *m, opts)
+		require.NoError(t, err)
+		assert.Equal(t, load(t, fullGrafanaConfig), g)
+		assert.Equal(t, load(t, fullMimirConfig), m)
+	})
 }
 
 func TestCheckIfMatchersUsed(t *testing.T) {
