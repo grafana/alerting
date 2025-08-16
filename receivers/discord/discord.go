@@ -111,7 +111,6 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, d.tmpl, as, l, &tmplErr)
 
-	// Store the message content for use in embed description
 	messageContent := tmpl(d.settings.Message)
 	if tmplErr != nil {
 		level.Warn(l).Log("msg", "failed to template Discord notification content", "err", tmplErr.Error())
@@ -127,7 +126,6 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 		level.Warn(l).Log("msg", "Truncated content", "key", key, "max_runes", discordMaxMessageLen)
 		messageContent = truncatedMsg
 	}
-	// Leave msg.Content empty to avoid showing message above the embed
 	msg.Content = ""
 
 	if d.settings.AvatarURL != "" {
@@ -152,7 +150,6 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 		// Reset tmplErr for templating other fields.
 		tmplErr = nil
 	}
-	// Put the message content in the embed description instead of the main content field
 	linkEmbed.Description = messageContent
 	linkEmbed.Footer = footer
 	linkEmbed.Type = discordRichEmbed
