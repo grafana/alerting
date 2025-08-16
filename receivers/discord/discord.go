@@ -42,10 +42,11 @@ type discordMessage struct {
 
 // discordLinkEmbed implements https://discord.com/developers/docs/resources/channel#embed-object
 type discordLinkEmbed struct {
-	Title string           `json:"title,omitempty"`
-	Type  discordEmbedType `json:"type,omitempty"`
-	URL   string           `json:"url,omitempty"`
-	Color int64            `json:"color,omitempty"`
+	Title       string           `json:"title,omitempty"`
+	Type        discordEmbedType `json:"type,omitempty"`
+	Description string           `json:"description,omitempty"`
+	URL         string           `json:"url,omitempty"`
+	Color       int64            `json:"color,omitempty"`
 
 	Footer *discordFooter `json:"footer,omitempty"`
 
@@ -110,21 +111,24 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, d.tmpl, as, l, &tmplErr)
 
-	msg.Content = tmpl(d.settings.Message)
+	// Store the message content for use in embed description
+	messageContent := tmpl(d.settings.Message)
 	if tmplErr != nil {
 		level.Warn(l).Log("msg", "failed to template Discord notification content", "err", tmplErr.Error())
 		// Reset tmplErr for templating other fields.
 		tmplErr = nil
 	}
-	truncatedMsg, truncated := receivers.TruncateInRunes(msg.Content, discordMaxMessageLen)
+	truncatedMsg, truncated := receivers.TruncateInRunes(messageContent, discordMaxMessageLen)
 	if truncated {
 		key, err := notify.ExtractGroupKey(ctx)
 		if err != nil {
 			return false, err
 		}
 		level.Warn(l).Log("msg", "Truncated content", "key", key, "max_runes", discordMaxMessageLen)
-		msg.Content = truncatedMsg
+		messageContent = truncatedMsg
 	}
+	// Leave msg.Content empty to avoid showing message above the embed
+	msg.Content = ""
 
 	if d.settings.AvatarURL != "" {
 		msg.AvatarURL = tmpl(d.settings.AvatarURL)
@@ -148,6 +152,8 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 		// Reset tmplErr for templating other fields.
 		tmplErr = nil
 	}
+	// Put the message content in the embed description instead of the main content field
+	linkEmbed.Description = messageContent
 	linkEmbed.Footer = footer
 	linkEmbed.Type = discordRichEmbed
 

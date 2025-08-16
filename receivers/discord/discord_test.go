@@ -61,9 +61,10 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"content": "",
 				"embeds": []interface{}{map[string]interface{}{
 					"color": 1.4037554e+07,
+					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -94,9 +95,10 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"content": "",
 				"embeds": []interface{}{map[string]interface{}{
 					"color": 1.4037554e+07,
+					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
