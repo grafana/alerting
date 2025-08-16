@@ -61,9 +61,10 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"content": "",
 				"embeds": []interface{}{map[string]interface{}{
 					"color": 1.4037554e+07,
+					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -94,9 +95,10 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"content": "",
 				"embeds": []interface{}{map[string]interface{}{
 					"color": 1.4037554e+07,
+					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -127,9 +129,10 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]any{
-				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"content": "",
 				"embeds": []any{map[string]any{
-					"color": 1.4037554e+07,
+					"color":       1.4037554e+07,
+					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 					"footer": map[string]any{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -161,9 +164,10 @@ func TestNotify(t *testing.T) {
 			},
 			expMsg: map[string]interface{}{
 				"avatar_url": "https://grafana.com/static/assets/img/fav32.png",
-				"content":    "I'm a custom template ",
+				"content":    "",
 				"embeds": []interface{}{map[string]interface{}{
-					"color": 1.4037554e+07,
+					"color":       1.4037554e+07,
+					"description": "I'm a custom template ",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -229,9 +233,10 @@ func TestNotify(t *testing.T) {
 			},
 			expMsg: map[string]interface{}{
 				"avatar_url": "{{ invalid } }}",
-				"content":    "valid message",
+				"content":    "",
 				"embeds": []interface{}{map[string]interface{}{
-					"color": 1.4037554e+07,
+					"color":       1.4037554e+07,
+					"description": "valid message",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -263,9 +268,10 @@ func TestNotify(t *testing.T) {
 			},
 			expMsg: map[string]interface{}{
 				"avatar_url": "https://grafana.com/static/assets/img/fav32.png",
-				"content":    "valid message",
+				"content":    "",
 				"embeds": []interface{}{map[string]interface{}{
-					"color": 1.4037554e+07,
+					"color":       1.4037554e+07,
+					"description": "valid message",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -302,9 +308,10 @@ func TestNotify(t *testing.T) {
 			},
 			expMsg: map[string]interface{}{
 				"avatar_url": "https://grafana.com/static/assets/img/fav32.png",
-				"content":    "2 alerts are firing, 0 are resolved",
+				"content":    "",
 				"embeds": []interface{}{map[string]interface{}{
-					"color": 1.4037554e+07,
+					"color":       1.4037554e+07,
+					"description": "2 alerts are firing, 0 are resolved",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -335,9 +342,10 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"content": "",
 				"embeds": []interface{}{map[string]interface{}{
-					"color": 1.4037554e+07,
+					"color":       1.4037554e+07,
+					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -367,9 +375,10 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": strings.Repeat("Y", discordMaxMessageLen-1) + "…",
+				"content": "",
 				"embeds": []interface{}{map[string]interface{}{
-					"color": 1.4037554e+07,
+					"color":       1.4037554e+07,
+					"description": strings.Repeat("Y", discordMaxMessageLen-1) + "…",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -471,9 +480,10 @@ func TestNotify_WithImages(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"content": "",
 				"embeds": []interface{}{map[string]interface{}{
-					"color": 1.4037554e+07,
+					"color":       1.4037554e+07,
+					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -511,9 +521,10 @@ func TestNotify_WithImages(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"content": "",
 				"embeds": []interface{}{map[string]interface{}{
-					"color": 1.4037554e+07,
+					"color":       1.4037554e+07,
+					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -559,7 +570,11 @@ func TestNotify_WithImages(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": `**Firing**
+				"content": "",
+				"embeds": []interface{}{
+					map[string]interface{}{
+						"color": 1.4037554e+07,
+						"description": `**Firing**
 
 Value: [no value]
 Labels:
@@ -578,9 +593,6 @@ Labels:
 Annotations:
 Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1
 `,
-				"embeds": []interface{}{
-					map[string]interface{}{
-						"color": 1.4037554e+07,
 						"footer": map[string]interface{}{
 							"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 							"text":     "Grafana v" + appVersion,
@@ -625,7 +637,11 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": `**Firing**
+				"content": "",
+				"embeds": []interface{}{
+					map[string]interface{}{
+						"color": 1.4037554e+07,
+						"description": `**Firing**
 
 Value: [no value]
 Labels:
@@ -642,9 +658,6 @@ Labels:
 Annotations:
 Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert2&matcher=lbl1%3Dval2
 `,
-				"embeds": []interface{}{
-					map[string]interface{}{
-						"color": 1.4037554e+07,
 						"footer": map[string]interface{}{
 							"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 							"text":     "Grafana v" + appVersion,
@@ -690,10 +703,11 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = " + strings.Repeat("B", discordMaxTitleLen+1) + "\n - lbl1 = val1\nAnnotations:\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3D" + strings.Repeat("B", discordMaxTitleLen+1) + "&matcher=lbl1%3Dval1\n",
+				"content": "",
 				"embeds": []interface{}{
 					map[string]interface{}{
-						"color": 1.4037554e+07,
+						"color":       1.4037554e+07,
+						"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = " + strings.Repeat("B", discordMaxTitleLen+1) + "\n - lbl1 = val1\nAnnotations:\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3D" + strings.Repeat("B", discordMaxTitleLen+1) + "&matcher=lbl1%3Dval1\n",
 						"footer": map[string]interface{}{
 							"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 							"text":     "Grafana v" + appVersion,
@@ -854,6 +868,15 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 		embeds, ok := payloadMap["embeds"]
 		require.True(tt, ok)
 		require.Len(tt, embeds, 10)
+
+		// The message content (verified separately in TestNotify) now lives in the first embed's
+		// description; copy it over so this test can focus on the embed quota logic.
+		firstEmbed, ok := embeds.([]interface{})[0].(map[string]interface{})
+		require.True(tt, ok)
+		description, ok := firstEmbed["description"]
+		require.True(tt, ok)
+		expEmbeds[0].(map[string]interface{})["description"] = description
+
 		require.Equal(tt, expEmbeds, embeds)
 	})
 }
