@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/go-kit/log"
@@ -191,10 +190,7 @@ func (h *NotificationHistorian) recordStream(ctx context.Context, stream lokicli
 func prepareLabels(labels prometheusModel.LabelSet) map[string]string {
 	result := make(map[string]string)
 	for k, v := range labels {
-		// Remove private labels
-		if !strings.HasPrefix(string(k), "__") && !strings.HasSuffix(string(k), "__") {
-			result[string(k)] = string(v)
-		}
+		result[string(k)] = string(v)
 	}
 	return result
 }
