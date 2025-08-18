@@ -13,7 +13,6 @@ import (
 	"github.com/grafana/alerting/lokiclient"
 	alertingModels "github.com/grafana/alerting/models"
 	"github.com/grafana/dskit/instrument"
-	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
@@ -22,18 +21,23 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 )
 
-var testNow = time.Date(2025, time.July, 15, 16, 55, 0, 0, time.UTC)
-var testAlerts = []*types.Alert{
-	{
-		Alert: model.Alert{
-			Labels:       model.LabelSet{"alertname": "Alert1", alertingModels.RuleUIDLabel: "testRuleUID"},
-			Annotations:  model.LabelSet{"foo": "bar", "__private__": "baz"},
-			StartsAt:     testNow,
-			EndsAt:       testNow,
-			GeneratorURL: "http://localhost/test",
+const testReceiverName = "testReceiverName"
+
+var (
+	testGroupLabels  = model.LabelSet{"foo": "bar"}
+	testPipelineTime = time.Date(2025, time.July, 15, 16, 55, 0, 0, time.UTC)
+	testAlerts       = []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:       model.LabelSet{"alertname": "Alert1", alertingModels.RuleUIDLabel: "testRuleUID"},
+				Annotations:  model.LabelSet{"foo": "bar", "__private__": "baz"},
+				StartsAt:     testPipelineTime,
+				EndsAt:       testPipelineTime,
+				GeneratorURL: "http://localhost/test",
+			},
 		},
-	},
-}
+	}
+)
 
 func TestRecord(t *testing.T) {
 	t.Run("write notification history to Loki", func(t *testing.T) {
@@ -65,8 +69,7 @@ func TestRecord(t *testing.T) {
 				// TODO: check metrics updated
 				h := createTestNotificationHistorian(req, writesTotal, writesFailed)
 
-				err := <-h.Record(recordCtx(), testAlerts, tc.retry, tc.notificationErr, time.Second)
-				require.NoError(t, err)
+				h.Record(context.Background(), testAlerts, tc.retry, tc.notificationErr, time.Second, testReceiverName, testGroupLabels, testPipelineTime)
 
 				reqBody, err := io.ReadAll(req.LastRequest.Body)
 				require.NoError(t, err)
@@ -83,22 +86,11 @@ func TestRecord(t *testing.T) {
 		goodHistorian := createTestNotificationHistorian(lokiclient.NewFakeRequester(), writesTotal, writesFailed)
 		badHistorian := createTestNotificationHistorian(lokiclient.NewFakeRequester().WithResponse(lokiclient.BadResponse()), writesTotal, writesFailed)
 
-		<-goodHistorian.Record(recordCtx(), testAlerts, false, nil, time.Second)
-		<-badHistorian.Record(recordCtx(), testAlerts, false, nil, time.Second)
+		goodHistorian.Record(context.Background(), testAlerts, false, nil, time.Second, testReceiverName, testGroupLabels, testPipelineTime)
+		badHistorian.Record(context.Background(), testAlerts, false, nil, time.Second, testReceiverName, testGroupLabels, testPipelineTime)
 
 		require.Equal(t, 2, int(testutil.ToFloat64(writesTotal)))
 		require.Equal(t, 1, int(testutil.ToFloat64(writesFailed)))
-	})
-
-	t.Run("returns error when context is missing required fields", func(t *testing.T) {
-		req := lokiclient.NewFakeRequester()
-		writesTotal := prometheus.NewCounter(prometheus.CounterOpts{})
-		writesFailed := prometheus.NewCounter(prometheus.CounterOpts{})
-
-		h := createTestNotificationHistorian(req, writesTotal, writesFailed)
-
-		err := <-h.Record(context.Background(), testAlerts, false, nil, time.Second)
-		require.Error(t, err)
 	})
 }
 
@@ -114,11 +106,4 @@ func createTestNotificationHistorian(req client.Requester, writesTotal prometheu
 	writeDuration := instrument.NewHistogramCollector(prometheus.NewHistogramVec(prometheus.HistogramOpts{}, instrument.HistogramCollectorBuckets))
 
 	return NewNotificationHistorian(log.NewNopLogger(), cfg, req, bytesWritten, writeDuration, writesTotal, writesFailed, noop.NewTracerProvider().Tracer("test"))
-}
-
-func recordCtx() context.Context {
-	ctx := notify.WithReceiverName(context.Background(), "testReceiverName")
-	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"foo": "bar"})
-	ctx = notify.WithNow(ctx, testNow)
-	return ctx
 }
