@@ -3,7 +3,6 @@ package notificationhistorian
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/go-kit/log"
@@ -12,17 +11,18 @@ import (
 	"github.com/grafana/alerting/lokiclient"
 	alertingModels "github.com/grafana/alerting/models"
 	"github.com/grafana/dskit/instrument"
-	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
 	prometheusModel "github.com/prometheus/common/model"
 	"go.opentelemetry.io/otel/trace"
 )
 
-const LokiClientSpanName = "ngalert.notification-historian.client"
-const NotificationHistoryWriteTimeout = time.Minute
-const NotificationHistoryKey = "from"
-const NotificationHistoryLabelValue = "notify-history"
+const (
+	LokiClientSpanName              = "ngalert.notification-historian.client"
+	NotificationHistoryWriteTimeout = time.Minute
+	NotificationHistoryKey          = "from"
+	NotificationHistoryLabelValue   = "notify-history"
+)
 
 type NotificationHistoryLokiEntry struct {
 	SchemaVersion int                                 `json:"schemaVersion"`
@@ -80,14 +80,20 @@ func (h *NotificationHistorian) TestConnection(ctx context.Context) error {
 	return h.client.Ping(ctx)
 }
 
-func (h *NotificationHistorian) Record(ctx context.Context, alerts []*types.Alert, retry bool, notificationErr error, duration time.Duration) <-chan error {
-	stream, err := h.prepareStream(ctx, alerts, retry, notificationErr, duration)
-	errCh := make(chan error, 1)
+func (h *NotificationHistorian) Record(
+	ctx context.Context, // TODO: Do we need this context?
+	alerts []*types.Alert,
+	retry bool,
+	notificationErr error,
+	duration time.Duration,
+	receiverName string,
+	groupLabels prometheusModel.LabelSet,
+	pipelineTime time.Time,
+) {
+	stream, err := h.prepareStream(alerts, retry, notificationErr, duration, receiverName, groupLabels, pipelineTime)
 	if err != nil {
 		level.Error(h.logger).Log("msg", "Failed to convert notification history to stream", "error", err)
-		errCh <- fmt.Errorf("failed to convert notification history to stream: %w", err)
-		close(errCh)
-		return errCh
+		return
 	}
 
 	// This is a new background job, so let's create a new context for it.
@@ -101,32 +107,26 @@ func (h *NotificationHistorian) Record(ctx context.Context, alerts []*types.Aler
 
 	go func(ctx context.Context) {
 		defer cancel()
-		defer close(errCh)
 		level.Debug(h.logger).Log("msg", "Saving notification history")
 		h.writesTotal.Inc()
 
 		if err := h.recordStream(ctx, stream, h.logger); err != nil {
 			level.Error(h.logger).Log("msg", "Failed to save notification history", "error", err)
 			h.writesFailed.Inc()
-			errCh <- fmt.Errorf("failed to save notification history: %w", err)
 		}
 	}(writeCtx)
-	return errCh
 }
 
-func (h *NotificationHistorian) prepareStream(ctx context.Context, alerts []*types.Alert, retry bool, notificationErr error, duration time.Duration) (lokiclient.Stream, error) {
-	receiverName, ok := notify.ReceiverName(ctx)
-	if !ok {
-		return lokiclient.Stream{}, fmt.Errorf("receiver name not found in context")
-	}
-	groupLabels, ok := notify.GroupLabels(ctx)
-	if !ok {
-		return lokiclient.Stream{}, fmt.Errorf("group labels not found in context")
-	}
-	now, ok := notify.Now(ctx)
-	if !ok {
-		return lokiclient.Stream{}, fmt.Errorf("now not found in context")
-	}
+func (h *NotificationHistorian) prepareStream(
+	alerts []*types.Alert,
+	retry bool,
+	notificationErr error,
+	duration time.Duration,
+	receiverName string,
+	groupLabels prometheusModel.LabelSet,
+	pipelineTime time.Time, // TODO
+) (lokiclient.Stream, error) {
+	now := time.Now()
 
 	entryAlerts := make([]NotificationHistoryLokiEntryAlert, len(alerts))
 	for i, alert := range alerts {
