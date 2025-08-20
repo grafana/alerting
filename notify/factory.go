@@ -255,6 +255,7 @@ func BuildPrometheusReceiverIntegrations(
 						Type:                  name,
 						DisableResolveMessage: rs.SendResolved(),
 					},
+					// Mimir integrations do not support per-integration rate limiting
 					RateLimits: nil,
 				}
 				n = wrapper(base, n)
