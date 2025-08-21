@@ -11,7 +11,16 @@ import (
 )
 
 type NotificationHistorian interface {
-	Record(ctx context.Context, alerts []*types.Alert, retry bool, notificationErr error, duration time.Duration) <-chan error
+	Record(
+		ctx context.Context,
+		alerts []*types.Alert,
+		retry bool,
+		notificationErr error,
+		duration time.Duration,
+		receiverName string,
+		groupLabels model.LabelSet,
+		pipelineTime time.Time,
+	)
 }
 
 // Integration wraps an upstream notify.Integration, adding the ability to
@@ -98,9 +107,7 @@ func (n *statusCaptureNotifier) Notify(ctx context.Context, alerts ...*types.Ale
 	retry, err := n.upstream.Notify(ctx, alerts...)
 	duration := time.Since(start)
 
-	if n.notificationHistorian != nil {
-		n.notificationHistorian.Record(ctx, alerts, retry, err, duration)
-	}
+	go n.NotificationHistorianRecord(ctx, alerts, retry, err, duration)
 
 	n.mtx.Lock()
 	defer n.mtx.Unlock()
@@ -110,6 +117,28 @@ func (n *statusCaptureNotifier) Notify(ctx context.Context, alerts ...*types.Ale
 	n.lastNotifyAttemptError = err
 
 	return retry, err
+}
+
+func (n *statusCaptureNotifier) NotificationHistorianRecord(ctx context.Context, alerts []*types.Alert, retry bool, err error, duration time.Duration) {
+	if n.notificationHistorian == nil {
+		return
+	}
+	receiverName, ok := notify.ReceiverName(ctx)
+	if !ok {
+		return
+	}
+	groupLabels, ok := notify.GroupLabels(ctx)
+	if !ok {
+		return
+	}
+	// TODO: explain pipelineTime vs time.Now()
+	pipelineTime, ok := notify.Now(ctx)
+	if !ok {
+		return
+	}
+
+	// TODO: maybe pass timed context here?
+	n.notificationHistorian.Record(ctx, alerts, retry, err, duration, receiverName, groupLabels, pipelineTime)
 }
 
 // GetReport returns information about the last notification attempt.
