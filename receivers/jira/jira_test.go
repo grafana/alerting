@@ -464,7 +464,6 @@ func TestNotify(t *testing.T) {
 				switch cmd.URL {
 				case baseURL + "/search/jql":
 					return cmd.Validation(mustMarshal(issueSearchResult{
-						Total: 1,
 						Issues: []issue{
 							{
 								Key: issueKey,
@@ -522,7 +521,6 @@ func TestNotify(t *testing.T) {
 				switch cmd.URL {
 				case baseURL + "/search/jql":
 					return cmd.Validation(mustMarshal(issueSearchResult{
-						Total: 1,
 						Issues: []issue{
 							{
 								Key: issueKey,
@@ -675,7 +673,6 @@ func TestNotify(t *testing.T) {
 				switch cmd.URL {
 				case baseURL + "/search/jql":
 					return cmd.Validation(mustMarshal(issueSearchResult{
-						Total: 1,
 						Issues: []issue{
 							{
 								Key: issueKey,
@@ -727,7 +724,6 @@ func TestNotify(t *testing.T) {
 				switch cmd.URL {
 				case baseURL + "/search/jql":
 					return cmd.Validation(mustMarshal(issueSearchResult{
-						Total: 1,
 						Issues: []issue{
 							{
 								Key: issueKey,
