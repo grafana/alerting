@@ -427,7 +427,7 @@ func TestNotify(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search":
+				case baseURL + "/search/jql":
 					return cmd.Validation(mustMarshal(issueSearchResult{}), 200)
 				case baseURL + "/issue":
 					return cmd.Validation(nil, 201)
@@ -447,7 +447,7 @@ func TestNotify(t *testing.T) {
 			assert.Equal(t, cfg.User, searchRequest.User)
 			assert.Equal(t, cfg.Password, searchRequest.Password)
 			assert.JSONEq(t, string(mustMarshal(getSearchJql(cfg, groupKey.Hash(), true))), searchRequest.Body)
-			assert.Equal(t, baseURL+"/search", searchRequest.URL)
+			assert.Equal(t, baseURL+"/search/jql", searchRequest.URL)
 			assert.Equal(t, "POST", searchRequest.HTTPMethod)
 
 			submitRequest := mock.Calls[1].Args[1].(*receivers.SendWebhookSettings)
@@ -463,9 +463,8 @@ func TestNotify(t *testing.T) {
 			issueKey := "TEST-1"
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search":
+				case baseURL + "/search/jql":
 					return cmd.Validation(mustMarshal(issueSearchResult{
-						Total: 1,
 						Issues: []issue{
 							{
 								Key: issueKey,
@@ -521,9 +520,8 @@ func TestNotify(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search":
+				case baseURL + "/search/jql":
 					return cmd.Validation(mustMarshal(issueSearchResult{
-						Total: 1,
 						Issues: []issue{
 							{
 								Key: issueKey,
@@ -648,7 +646,7 @@ func TestNotify(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search":
+				case baseURL + "/search/jql":
 					return cmd.Validation(mustMarshal(issueSearchResult{}), 200)
 				default:
 					t.Fatalf("unexpected url: %s", cmd.URL)
@@ -675,9 +673,8 @@ func TestNotify(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search":
+				case baseURL + "/search/jql":
 					return cmd.Validation(mustMarshal(issueSearchResult{
-						Total: 1,
 						Issues: []issue{
 							{
 								Key: issueKey,
@@ -727,9 +724,8 @@ func TestNotify(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search":
+				case baseURL + "/search/jql":
 					return cmd.Validation(mustMarshal(issueSearchResult{
-						Total: 1,
 						Issues: []issue{
 							{
 								Key: issueKey,
