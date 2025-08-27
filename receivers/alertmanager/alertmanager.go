@@ -14,19 +14,23 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-func New(cfg Config, meta receivers.Metadata, images images.Provider, logger log.Logger) *Notifier {
-	return &Notifier{
-		Base:     receivers.NewBase(meta, logger),
-		images:   images,
-		settings: cfg,
-	}
-}
-
 // Notifier sends alert notifications to the alert manager
 type Notifier struct {
 	*receivers.Base
 	images   images.Provider
 	settings Config
+	logger   log.Logger
+	sender   receivers.Sender
+}
+
+func New(cfg Config, meta receivers.Metadata, images images.Provider, logger log.Logger) *Notifier {
+	return &Notifier{
+		Base:     receivers.NewBase(meta, logger),
+		images:   images,
+		settings: cfg,
+		logger:   logger,
+		sender:   receivers.NewSender(logger),
+	}
 }
 
 // Notify sends alert notifications to Alertmanager.
@@ -57,12 +61,12 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		numErrs int
 	)
 	for _, u := range n.settings.URLs {
-		if _, err := receivers.SendHTTPRequest(ctx, u, receivers.HTTPCfg{
+		if _, err := n.sender.SendHTTPRequest(ctx, u, receivers.HTTPCfg{
 			User:     n.settings.User,
 			Password: n.settings.Password,
 			Body:     body,
-		}, l); err != nil {
-			level.Warn(l).Log("msg", "failed to send to Alertmanager", "err", err, "url", u.String())
+		}); err != nil {
+			level.Warn(n.logger).Log("failed to send to Alertmanager", "error", err, "alertmanager", n.Name, "url", u.String())
 			lastErr = err
 			numErrs++
 		}
