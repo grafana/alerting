@@ -3,6 +3,7 @@ package notificationhistorian
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/go-kit/log"
@@ -20,8 +21,9 @@ import (
 const (
 	LokiClientSpanName              = "ngalert.notification-historian.client"
 	NotificationHistoryWriteTimeout = time.Minute
-	NotificationHistoryKey          = "from"
-	NotificationHistoryLabelValue   = "notify-history"
+	LabelFrom                       = "from"
+	LabelFromValue                  = "notify-history"
+	LabelRuleUID                    = "ruleUID"
 )
 
 type NotificationHistoryLokiEntry struct {
@@ -42,7 +44,6 @@ type NotificationHistoryLokiEntryAlert struct {
 	Annotations map[string]string `json:"annotations"`
 	StartsAt    time.Time         `json:"startsAt"`
 	EndsAt      time.Time         `json:"endsAt"`
-	RuleUID     string            `json:"ruleUID"`
 }
 
 type remoteLokiClient interface {
@@ -91,9 +92,9 @@ func (h *NotificationHistorian) Record(
 	groupLabels prometheusModel.LabelSet,
 	pipelineTime time.Time,
 ) {
-	stream, err := h.prepareStream(alerts, retry, notificationErr, duration, receiverName, groupLabels, pipelineTime)
+	streams, err := h.prepareStreams(alerts, retry, notificationErr, duration, receiverName, groupLabels, pipelineTime)
 	if err != nil {
-		level.Error(h.logger).Log("msg", "Failed to convert notification history to stream", "error", err)
+		level.Error(h.logger).Log("msg", "Failed to convert notification history to streams", "error", err)
 		return
 	}
 
@@ -109,10 +110,42 @@ func (h *NotificationHistorian) Record(
 	level.Debug(h.logger).Log("msg", "Saving notification history")
 	h.writesTotal.Inc()
 
-	if err := h.recordStream(ctx, stream, h.logger); err != nil {
+	if err := h.client.Push(ctx, streams); err != nil {
 		level.Error(h.logger).Log("msg", "Failed to save notification history", "error", err)
 		h.writesFailed.Inc()
 	}
+	level.Debug(h.logger).Log("msg", "Done saving notification history")
+}
+
+func (h *NotificationHistorian) prepareStreams(
+	alerts []*types.Alert,
+	retry bool,
+	notificationErr error,
+	duration time.Duration,
+	receiverName string,
+	groupLabels prometheusModel.LabelSet,
+	pipelineTime time.Time,
+) ([]lokiclient.Stream, error) {
+	// group alerts by rule UID. each rule UID will be a separate stream.
+	ruleUIDToAlerts := make(map[prometheusModel.LabelValue][]*types.Alert)
+	for _, alert := range alerts {
+		ruleUID, ok := alert.Labels[alertingModels.RuleUIDLabel]
+		if !ok {
+			return []lokiclient.Stream{}, fmt.Errorf("rule UID not found in labels")
+		}
+		ruleUIDToAlerts[ruleUID] = append(ruleUIDToAlerts[ruleUID], alert)
+	}
+
+	streams := make([]lokiclient.Stream, 0)
+	for ruleUID := range ruleUIDToAlerts {
+		stream, err := h.prepareStream(ruleUIDToAlerts[ruleUID], retry, notificationErr, duration, receiverName, groupLabels, pipelineTime)
+		if err != nil {
+			return []lokiclient.Stream{}, err
+		}
+		streams = append(streams, stream)
+	}
+
+	return streams, nil
 }
 
 func (h *NotificationHistorian) prepareStream(
@@ -136,7 +169,6 @@ func (h *NotificationHistorian) prepareStream(
 			Status:      string(alert.StatusAt(now)),
 			StartsAt:    alert.StartsAt,
 			EndsAt:      alert.EndsAt,
-			RuleUID:     string(alert.Labels[alertingModels.RuleUIDLabel]),
 		}
 	}
 
@@ -163,7 +195,9 @@ func (h *NotificationHistorian) prepareStream(
 	}
 
 	streamLabels := make(map[string]string)
-	streamLabels[NotificationHistoryKey] = NotificationHistoryLabelValue
+	streamLabels[LabelFrom] = LabelFromValue
+	streamLabels[LabelRuleUID] = string(alerts[0].Labels[alertingModels.RuleUIDLabel])
+
 	for k, v := range h.externalLabels {
 		streamLabels[k] = v
 	}
@@ -176,14 +210,6 @@ func (h *NotificationHistorian) prepareStream(
 				V: string(entryJSON),
 			}},
 	}, nil
-}
-
-func (h *NotificationHistorian) recordStream(ctx context.Context, stream lokiclient.Stream, logger log.Logger) error {
-	if err := h.client.Push(ctx, []lokiclient.Stream{stream}); err != nil {
-		return err
-	}
-	level.Debug(logger).Log("msg", "Done saving notification history")
-	return nil
 }
 
 func prepareLabels(labels prometheusModel.LabelSet) map[string]string {
