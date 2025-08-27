@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/template"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/types"
@@ -141,7 +142,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	l := log.NewNopLogger()
 	expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
 
-	tmplDef, err := DefaultTemplate()
+	tmplDef, err := DefaultTemplate(nil)
 	require.NoError(t, err)
 
 	tmplFromDefinition, err := template.New(defaultOptionsPerKind(GrafanaKind, "grafana")...)
@@ -351,6 +352,17 @@ Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&mat
 	}
 	require.NoError(t, tmplErr)
 	require.NoError(t, tmplDefErr)
+
+	t.Run("should omit templates", func(t *testing.T) {
+		def, err := DefaultTemplate(nil)
+		require.NoError(t, err)
+		defOmit, err := DefaultTemplate(DefaultTemplatesToOmit)
+		require.NoError(t, err)
+		for _, tmpl := range DefaultTemplatesToOmit {
+			assert.Contains(t, def.Template, tmpl)
+			assert.NotContains(t, defOmit.Template, tmpl)
+		}
+	})
 }
 
 // resetTimeNow resets the global variable timeNow to the default value, which is time.Now
