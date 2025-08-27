@@ -27,10 +27,10 @@ var (
 	errWebhookURLFileNotAllowed          = errors.New("setting Webhook url_file is not allowed")
 )
 
-// validateAlertmanagerConfig recursively scans the input config looking for data types for which
+// ValidateAlertmanagerConfig recursively scans the input config looking for data types for which
 // we have a specific validation and, whenever encountered, it runs their validation. Returns the
 // first error or nil if validation succeeds.
-func validateAlertmanagerConfig(cfg any) error {
+func ValidateAlertmanagerConfig(cfg any) error {
 	v := reflect.ValueOf(cfg)
 	t := v.Type()
 
@@ -123,7 +123,7 @@ func validateAlertmanagerConfig(cfg any) error {
 
 			// Skip any field value which can't be converted to interface (eg. primitive types).
 			if fieldValue.CanInterface() {
-				if err := validateAlertmanagerConfig(fieldValue.Interface()); err != nil {
+				if err := ValidateAlertmanagerConfig(fieldValue.Interface()); err != nil {
 					return err
 				}
 			}
@@ -136,7 +136,7 @@ func validateAlertmanagerConfig(cfg any) error {
 
 			// Skip any field value which can't be converted to interface (eg. primitive types).
 			if fieldValue.CanInterface() {
-				if err := validateAlertmanagerConfig(fieldValue.Interface()); err != nil {
+				if err := ValidateAlertmanagerConfig(fieldValue.Interface()); err != nil {
 					return err
 				}
 			}
@@ -149,7 +149,7 @@ func validateAlertmanagerConfig(cfg any) error {
 
 			// Skip any field value which can't be converted to interface (eg. primitive types).
 			if fieldValue.CanInterface() {
-				if err := validateAlertmanagerConfig(fieldValue.Interface()); err != nil {
+				if err := ValidateAlertmanagerConfig(fieldValue.Interface()); err != nil {
 					return err
 				}
 			}
