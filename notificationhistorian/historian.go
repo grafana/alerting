@@ -33,6 +33,7 @@ type NotificationHistoryLokiEntry struct {
 	Retry         bool                                `json:"retry"`
 	Error         string                              `json:"error,omitempty"`
 	Duration      int64                               `json:"duration"`
+	PipelineTime  time.Time                           `json:"pipelineTime"`
 }
 
 type NotificationHistoryLokiEntryAlert struct {
@@ -121,7 +122,7 @@ func (h *NotificationHistorian) prepareStream(
 	duration time.Duration,
 	receiverName string,
 	groupLabels prometheusModel.LabelSet,
-	pipelineTime time.Time, // TODO
+	pipelineTime time.Time,
 ) (lokiclient.Stream, error) {
 	now := time.Now()
 
@@ -153,6 +154,7 @@ func (h *NotificationHistorian) prepareStream(
 		Retry:         retry,
 		Error:         notificationErrStr,
 		Duration:      duration.Milliseconds(),
+		PipelineTime:  pipelineTime,
 	}
 
 	entryJSON, err := json.Marshal(entry)
