@@ -81,7 +81,7 @@ func (h *NotificationHistorian) TestConnection(ctx context.Context) error {
 }
 
 func (h *NotificationHistorian) Record(
-	ctx context.Context, // TODO: Do we need this context?
+	ctx context.Context,
 	alerts []*types.Alert,
 	retry bool,
 	notificationErr error,
@@ -101,20 +101,17 @@ func (h *NotificationHistorian) Record(
 	// immediately but rather try to flush writes.
 	// This also prevents timeouts or other lingering objects (like transactions) from being
 	// incorrectly propagated here from other areas.
-	writeCtx := context.Background()
-	writeCtx, cancel := context.WithTimeout(writeCtx, NotificationHistoryWriteTimeout)
+	writeCtx, cancel := context.WithTimeout(context.Background(), NotificationHistoryWriteTimeout)
 	writeCtx = trace.ContextWithSpan(writeCtx, trace.SpanFromContext(ctx))
+	defer cancel()
 
-	go func(ctx context.Context) {
-		defer cancel()
-		level.Debug(h.logger).Log("msg", "Saving notification history")
-		h.writesTotal.Inc()
+	level.Debug(h.logger).Log("msg", "Saving notification history")
+	h.writesTotal.Inc()
 
-		if err := h.recordStream(ctx, stream, h.logger); err != nil {
-			level.Error(h.logger).Log("msg", "Failed to save notification history", "error", err)
-			h.writesFailed.Inc()
-		}
-	}(writeCtx)
+	if err := h.recordStream(ctx, stream, h.logger); err != nil {
+		level.Error(h.logger).Log("msg", "Failed to save notification history", "error", err)
+		h.writesFailed.Inc()
+	}
 }
 
 func (h *NotificationHistorian) prepareStream(

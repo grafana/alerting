@@ -107,7 +107,7 @@ func (n *statusCaptureNotifier) Notify(ctx context.Context, alerts ...*types.Ale
 	retry, err := n.upstream.Notify(ctx, alerts...)
 	duration := time.Since(start)
 
-	go n.NotificationHistorianRecord(ctx, alerts, retry, err, duration)
+	go n.recordNotificationHistory(ctx, alerts, retry, err, duration)
 
 	n.mtx.Lock()
 	defer n.mtx.Unlock()
@@ -119,7 +119,7 @@ func (n *statusCaptureNotifier) Notify(ctx context.Context, alerts ...*types.Ale
 	return retry, err
 }
 
-func (n *statusCaptureNotifier) NotificationHistorianRecord(ctx context.Context, alerts []*types.Alert, retry bool, err error, duration time.Duration) {
+func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, alerts []*types.Alert, retry bool, err error, duration time.Duration) {
 	if n.notificationHistorian == nil {
 		return
 	}
@@ -131,13 +131,11 @@ func (n *statusCaptureNotifier) NotificationHistorianRecord(ctx context.Context,
 	if !ok {
 		return
 	}
-	// TODO: explain pipelineTime vs time.Now()
 	pipelineTime, ok := notify.Now(ctx)
 	if !ok {
 		return
 	}
 
-	// TODO: maybe pass timed context here?
 	n.notificationHistorian.Record(ctx, alerts, retry, err, duration, receiverName, groupLabels, pipelineTime)
 }
 
