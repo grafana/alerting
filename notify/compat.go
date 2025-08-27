@@ -3,6 +3,8 @@ package notify
 import (
 	"encoding/json"
 
+	"golang.org/x/time/rate"
+
 	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/templates"
 )
@@ -12,6 +14,13 @@ func PostableAPIReceiverToAPIReceiver(r *definition.PostableApiReceiver) *APIRec
 		Integrations: make([]*GrafanaIntegrationConfig, 0, len(r.GrafanaManagedReceivers)),
 	}
 	for _, p := range r.GrafanaManagedReceivers {
+		var rl *RateLimits
+		if r.RateLimits != nil {
+			rl = &RateLimits{
+				RateLimit: rate.Limit(r.RateLimits.Limit),
+				Burst:     r.RateLimits.Burst,
+			}
+		}
 		integrations.Integrations = append(integrations.Integrations, &GrafanaIntegrationConfig{
 			UID:                   p.UID,
 			Name:                  p.Name,
@@ -19,6 +28,7 @@ func PostableAPIReceiverToAPIReceiver(r *definition.PostableApiReceiver) *APIRec
 			DisableResolveMessage: p.DisableResolveMessage,
 			Settings:              json.RawMessage(p.Settings),
 			SecureSettings:        p.SecureSettings,
+			RateLimits:            rl,
 		})
 	}
 

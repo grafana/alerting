@@ -31,7 +31,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 
 	emailService := receivers.MockNotificationService()
 
-	noopWrapper := func(_ string, n Notifier) Notifier {
+	noopWrapper := func(_ NotifierConfigBase, n Notifier) Notifier {
 		return n
 	}
 
@@ -49,7 +49,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 		fullCfg, qty := getFullConfig(t)
 
 		wrapped := 0
-		notifyWrapper := func(_ string, n Notifier) Notifier {
+		notifyWrapper := func(_ NotifierConfigBase, n Notifier) Notifier {
 			wrapped++
 			return n
 		}
@@ -164,7 +164,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			DecodeSecretsFromBase64,
 			emailService,
 			nil,
-			func(_ string, n notify.Notifier) notify.Notifier {
+			func(_ NotifierConfigBase, n notify.Notifier) notify.Notifier {
 				return n
 			},
 			version,
@@ -211,7 +211,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			DecodeSecretsFromBase64,
 			emailService,
 			nil,
-			func(_ string, n notify.Notifier) notify.Notifier {
+			func(_ NotifierConfigBase, n notify.Notifier) notify.Notifier {
 				return n
 			},
 			version,
