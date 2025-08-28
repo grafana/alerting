@@ -13,9 +13,9 @@ import (
 	"github.com/prometheus/common/model"
 )
 
-type JsonEncoder struct{}
+type JSONEncoder struct{}
 
-func (e JsonEncoder) encode(s []Stream) ([]byte, error) {
+func (e JSONEncoder) encode(s []Stream) ([]byte, error) {
 	body := struct {
 		Streams []Stream `json:"streams"`
 	}{Streams: s}
@@ -26,7 +26,7 @@ func (e JsonEncoder) encode(s []Stream) ([]byte, error) {
 	return enc, nil
 }
 
-func (e JsonEncoder) headers() map[string]string {
+func (e JSONEncoder) headers() map[string]string {
 	return map[string]string{
 		"Content-Type": "application/json",
 	}

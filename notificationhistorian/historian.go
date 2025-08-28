@@ -110,7 +110,7 @@ func (h *NotificationHistorian) Record(
 	level.Debug(h.logger).Log("msg", "Saving notification history")
 	h.writesTotal.Inc()
 
-	if err := h.client.Push(ctx, streams); err != nil {
+	if err := h.client.Push(writeCtx, streams); err != nil {
 		level.Error(h.logger).Log("msg", "Failed to save notification history", "error", err)
 		h.writesFailed.Inc()
 	}

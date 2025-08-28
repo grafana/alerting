@@ -47,7 +47,7 @@ type LokiConfig struct {
 	MaxQuerySize      int
 }
 
-type HttpLokiClient struct {
+type HTTPLokiClient struct {
 	client       client.Requester
 	encoder      encoder
 	cfg          LokiConfig
@@ -69,10 +69,10 @@ const (
 	NeqRegEx Operator = "!~"
 )
 
-func NewLokiClient(cfg LokiConfig, req client.Requester, bytesWritten prometheus.Counter, writeDuration *instrument.HistogramCollector, logger log.Logger, tracer trace.Tracer, spanName string) *HttpLokiClient {
+func NewLokiClient(cfg LokiConfig, req client.Requester, bytesWritten prometheus.Counter, writeDuration *instrument.HistogramCollector, logger log.Logger, tracer trace.Tracer, spanName string) *HTTPLokiClient {
 	tc := client.NewTimedClient(req, writeDuration)
 	trc := client.NewTracedClient(tc, tracer, spanName)
-	return &HttpLokiClient{
+	return &HTTPLokiClient{
 		client:       trc,
 		encoder:      cfg.Encoder,
 		cfg:          cfg,
@@ -81,7 +81,7 @@ func NewLokiClient(cfg LokiConfig, req client.Requester, bytesWritten prometheus
 	}
 }
 
-func (c *HttpLokiClient) Ping(ctx context.Context) error {
+func (c *HTTPLokiClient) Ping(ctx context.Context) error {
 	uri := c.cfg.ReadPathURL.JoinPath("/loki/api/v1/labels")
 	req, err := http.NewRequest(http.MethodGet, uri.String(), nil)
 	if err != nil {
@@ -142,7 +142,7 @@ func (r *Sample) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (c *HttpLokiClient) Push(ctx context.Context, s []Stream) error {
+func (c *HTTPLokiClient) Push(ctx context.Context, s []Stream) error {
 	enc, err := c.encoder.encode(s)
 	if err != nil {
 		return err
@@ -179,7 +179,7 @@ func (c *HttpLokiClient) Push(ctx context.Context, s []Stream) error {
 	return nil
 }
 
-func (c *HttpLokiClient) setAuthAndTenantHeaders(req *http.Request) {
+func (c *HTTPLokiClient) setAuthAndTenantHeaders(req *http.Request) {
 	if c.cfg.BasicAuthUser != "" || c.cfg.BasicAuthPassword != "" {
 		req.SetBasicAuth(c.cfg.BasicAuthUser, c.cfg.BasicAuthPassword)
 	}
@@ -189,7 +189,7 @@ func (c *HttpLokiClient) setAuthAndTenantHeaders(req *http.Request) {
 	}
 }
 
-func (c *HttpLokiClient) RangeQuery(ctx context.Context, logQL string, start, end, limit int64) (QueryRes, error) {
+func (c *HTTPLokiClient) RangeQuery(ctx context.Context, logQL string, start, end, limit int64) (QueryRes, error) {
 	// Run the pre-flight checks for the query.
 	if start > end {
 		return QueryRes{}, fmt.Errorf("start time cannot be after end time")
@@ -246,7 +246,7 @@ func (c *HttpLokiClient) RangeQuery(ctx context.Context, logQL string, start, en
 	return result, nil
 }
 
-func (c *HttpLokiClient) MaxQuerySize() int {
+func (c *HTTPLokiClient) MaxQuerySize() int {
 	return c.cfg.MaxQuerySize
 }
 
@@ -258,7 +258,7 @@ type QueryData struct {
 	Result []Stream `json:"result"`
 }
 
-func (c *HttpLokiClient) handleLokiResponse(logger log.Logger, res *http.Response) ([]byte, error) {
+func (c *HTTPLokiClient) handleLokiResponse(logger log.Logger, res *http.Response) ([]byte, error) {
 	if res == nil {
 		return nil, fmt.Errorf("response is nil")
 	}

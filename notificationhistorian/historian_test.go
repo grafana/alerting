@@ -99,7 +99,7 @@ func createTestNotificationHistorian(req client.Requester, writesTotal prometheu
 	cfg := lokiclient.LokiConfig{
 		WritePathURL:   writePathURL,
 		ExternalLabels: map[string]string{"externalLabelKey": "externalLabelValue"},
-		Encoder:        lokiclient.JsonEncoder{},
+		Encoder:        lokiclient.JSONEncoder{},
 	}
 
 	bytesWritten := prometheus.NewCounter(prometheus.CounterOpts{})

@@ -145,7 +145,7 @@ func TestLokiHTTPClient_Manual(t *testing.T) {
 		client := NewLokiClient(LokiConfig{
 			ReadPathURL:  url,
 			WritePathURL: url,
-			Encoder:      JsonEncoder{},
+			Encoder:      JSONEncoder{},
 		}, NewRequester(), bytesWritten, writeDuration, log.NewNopLogger(), noop.NewTracerProvider().Tracer("test"), lokiClientSpanName)
 
 		// Authorized request should not fail.
@@ -165,7 +165,7 @@ func TestLokiHTTPClient_Manual(t *testing.T) {
 			WritePathURL:      url,
 			BasicAuthUser:     "<your_username>",
 			BasicAuthPassword: "<your_password>",
-			Encoder:           JsonEncoder{},
+			Encoder:           JSONEncoder{},
 		}, NewRequester(), bytesWritten, writeDuration, log.NewNopLogger(), noop.NewTracerProvider().Tracer("test"), lokiClientSpanName)
 
 		// Define the query time range
@@ -286,12 +286,12 @@ func TestClampRange(t *testing.T) {
 	}
 }
 
-func createTestLokiClient(req client.Requester) *HttpLokiClient {
+func createTestLokiClient(req client.Requester) *HTTPLokiClient {
 	url, _ := url.Parse("http://some.url")
 	cfg := LokiConfig{
 		WritePathURL: url,
 		ReadPathURL:  url,
-		Encoder:      JsonEncoder{},
+		Encoder:      JSONEncoder{},
 	}
 
 	bytesWritten := prometheus.NewCounter(prometheus.CounterOpts{})
