@@ -136,8 +136,8 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 	if !ok {
 		return
 	}
-
 	now := time.Now()
+
 	n.notificationHistorian.Record(ctx, alerts, retry, err, duration, receiverName, groupLabels, pipelineTime, now)
 }
 
