@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	alertingModels "github.com/grafana/alerting/models"
+	"github.com/prometheus/alertmanager/notify"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/prometheus/alertmanager/types"
@@ -83,9 +85,17 @@ type mockNotificationHistorian struct {
 	mock.Mock
 }
 
-func (m *mockNotificationHistorian) Record(ctx context.Context, alerts []*types.Alert, retry bool, notificationErr error, duration time.Duration) <-chan error {
-	args := m.Called(ctx, alerts, retry, notificationErr, duration)
-	return args.Get(0).(chan error)
+func (m *mockNotificationHistorian) Record(
+	ctx context.Context,
+	alerts []*types.Alert,
+	retry bool,
+	notificationErr error,
+	duration time.Duration,
+	receiverName string,
+	groupLabels model.LabelSet,
+	pipelineTime time.Time,
+) {
+	m.Called(ctx, alerts, retry, notificationErr, duration, receiverName, groupLabels, pipelineTime)
 }
 
 func TestIntegrationWithNotificationHistorian(t *testing.T) {
@@ -95,7 +105,7 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 	alerts := []*types.Alert{
 		{
 			Alert: model.Alert{
-				Labels:       model.LabelSet{"alertname": "Alert1"},
+				Labels:       model.LabelSet{"alertname": "Alert1", alertingModels.RuleUIDLabel: "testRuleUID"},
 				Annotations:  model.LabelSet{"foo": "bar"},
 				StartsAt:     time.Now(),
 				EndsAt:       time.Now().Add(5 * time.Minute),
@@ -103,8 +113,19 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 			},
 		},
 	}
-	notificationHistorian.On("Record", mock.Anything, alerts, notifier.retry, notifier.err, mock.Anything).Return(make(chan error, 1)).Once()
-	_, err := integration.Notify(context.Background(), alerts...)
+
+	testReceiverName := "testReceiverName"
+	testGroupLabels := model.LabelSet{"key1": "value1"}
+	testPipelineTime := time.Now()
+	ctx := notify.WithReceiverName(context.Background(), testReceiverName)
+	ctx = notify.WithGroupLabels(ctx, testGroupLabels)
+	ctx = notify.WithNow(ctx, testPipelineTime)
+
+	notificationHistorian.On("Record", mock.Anything, alerts, notifier.retry, notifier.err, mock.Anything, testReceiverName, testGroupLabels, testPipelineTime).Once()
+
+	_, err := integration.Notify(ctx, alerts...)
 	assert.Error(t, err)
-	notificationHistorian.AssertExpectations(t)
+	assert.Eventually(t, func() bool {
+		return notificationHistorian.AssertExpectations(t)
+	}, 1*time.Second, 10*time.Millisecond)
 }
