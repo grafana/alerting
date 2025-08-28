@@ -17,8 +17,10 @@ import (
 
 	"github.com/prometheus/alertmanager/notify"
 
+	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -224,4 +226,16 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 		require.Len(t, integrations, 1)
 		require.Equal(t, "webhook[0]", integrations[0].String())
 	})
+}
+
+func TestBuildPrometheusReceiverIntegrations(t *testing.T) {
+	receiver, err := notifytest.GetMimirReceiverWithAllIntegrations(notifytest.WithTLS, notifytest.WithAuthorization, notifytest.WithOAuth2)
+	require.NoError(t, err)
+	err = definition.ValidateAlertmanagerConfig(receiver)
+	require.NoError(t, err)
+	tmpl, err := templates.NewFactory(nil, log.NewNopLogger(), "http://localhost", "1")
+	require.NoError(t, err)
+	integrations, err := BuildPrometheusReceiverIntegrations(receiver, tmpl, nil, log.NewNopLogger(), NoWrap, nil)
+	require.NoError(t, err)
+	require.Len(t, integrations, 13)
 }
