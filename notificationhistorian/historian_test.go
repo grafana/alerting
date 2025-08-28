@@ -26,6 +26,7 @@ const testReceiverName = "testReceiverName"
 var (
 	testGroupLabels  = model.LabelSet{"foo": "bar"}
 	testPipelineTime = time.Date(2025, time.July, 15, 16, 55, 0, 0, time.UTC)
+	testNow          = time.Date(2025, time.August, 28, 13, 15, 0, 0, time.UTC)
 	testAlerts       = []*types.Alert{
 		{
 			Alert: model.Alert{
@@ -51,13 +52,13 @@ func TestRecord(t *testing.T) {
 				"successful notification",
 				false,
 				nil,
-				"{\"streams\":[{\"stream\":{\"externalLabelKey\":\"externalLabelValue\",\"from\":\"notify-history\"},\"values\":[[\"1752598500000000000\",\"{\\\"schemaVersion\\\":1,\\\"receiver\\\":\\\"testReceiverName\\\",\\\"status\\\":\\\"resolved\\\",\\\"groupLabels\\\":{\\\"foo\\\":\\\"bar\\\"},\\\"alerts\\\":[{\\\"status\\\":\\\"resolved\\\",\\\"labels\\\":{\\\"alertname\\\":\\\"Alert1\\\"},\\\"annotations\\\":{\\\"foo\\\":\\\"bar\\\"},\\\"startsAt\\\":\\\"2025-07-15T16:55:00Z\\\",\\\"endsAt\\\":\\\"2025-07-15T16:55:00Z\\\",\\\"ruleUID\\\":\\\"testRuleUID\\\"}],\\\"retry\\\":false,\\\"duration\\\":1000}\"]]}]}",
+				"{\"streams\":[{\"stream\":{\"externalLabelKey\":\"externalLabelValue\",\"from\":\"notify-history\",\"ruleUID\":\"testRuleUID\"},\"values\":[[\"1756386900000000000\",\"{\\\"schemaVersion\\\":1,\\\"receiver\\\":\\\"testReceiverName\\\",\\\"status\\\":\\\"resolved\\\",\\\"groupLabels\\\":{\\\"foo\\\":\\\"bar\\\"},\\\"alerts\\\":[{\\\"status\\\":\\\"resolved\\\",\\\"labels\\\":{\\\"__alert_rule_uid__\\\":\\\"testRuleUID\\\",\\\"alertname\\\":\\\"Alert1\\\"},\\\"annotations\\\":{\\\"__private__\\\":\\\"baz\\\",\\\"foo\\\":\\\"bar\\\"},\\\"startsAt\\\":\\\"2025-07-15T16:55:00Z\\\",\\\"endsAt\\\":\\\"2025-07-15T16:55:00Z\\\"}],\\\"retry\\\":false,\\\"duration\\\":1000,\\\"pipelineTime\\\":\\\"2025-07-15T16:55:00Z\\\"}\"]]}]}",
 			},
 			{
 				"failed notification",
 				true,
 				errors.New("test notification error"),
-				"{\"streams\":[{\"stream\":{\"externalLabelKey\":\"externalLabelValue\",\"from\":\"notify-history\"},\"values\":[[\"1752598500000000000\",\"{\\\"schemaVersion\\\":1,\\\"receiver\\\":\\\"testReceiverName\\\",\\\"status\\\":\\\"resolved\\\",\\\"groupLabels\\\":{\\\"foo\\\":\\\"bar\\\"},\\\"alerts\\\":[{\\\"status\\\":\\\"resolved\\\",\\\"labels\\\":{\\\"alertname\\\":\\\"Alert1\\\"},\\\"annotations\\\":{\\\"foo\\\":\\\"bar\\\"},\\\"startsAt\\\":\\\"2025-07-15T16:55:00Z\\\",\\\"endsAt\\\":\\\"2025-07-15T16:55:00Z\\\",\\\"ruleUID\\\":\\\"testRuleUID\\\"}],\\\"retry\\\":true,\\\"error\\\":\\\"test notification error\\\",\\\"duration\\\":1000}\"]]}]}",
+				"{\"streams\":[{\"stream\":{\"externalLabelKey\":\"externalLabelValue\",\"from\":\"notify-history\",\"ruleUID\":\"testRuleUID\"},\"values\":[[\"1756386900000000000\",\"{\\\"schemaVersion\\\":1,\\\"receiver\\\":\\\"testReceiverName\\\",\\\"status\\\":\\\"resolved\\\",\\\"groupLabels\\\":{\\\"foo\\\":\\\"bar\\\"},\\\"alerts\\\":[{\\\"status\\\":\\\"resolved\\\",\\\"labels\\\":{\\\"__alert_rule_uid__\\\":\\\"testRuleUID\\\",\\\"alertname\\\":\\\"Alert1\\\"},\\\"annotations\\\":{\\\"__private__\\\":\\\"baz\\\",\\\"foo\\\":\\\"bar\\\"},\\\"startsAt\\\":\\\"2025-07-15T16:55:00Z\\\",\\\"endsAt\\\":\\\"2025-07-15T16:55:00Z\\\"}],\\\"retry\\\":true,\\\"error\\\":\\\"test notification error\\\",\\\"duration\\\":1000,\\\"pipelineTime\\\":\\\"2025-07-15T16:55:00Z\\\"}\"]]}]}",
 			},
 		}
 		for _, tc := range testCases {
@@ -69,7 +70,7 @@ func TestRecord(t *testing.T) {
 				// TODO: check metrics updated
 				h := createTestNotificationHistorian(req, writesTotal, writesFailed)
 
-				h.Record(context.Background(), testAlerts, tc.retry, tc.notificationErr, time.Second, testReceiverName, testGroupLabels, testPipelineTime)
+				h.Record(context.Background(), testAlerts, tc.retry, tc.notificationErr, time.Second, testReceiverName, testGroupLabels, testPipelineTime, testNow)
 
 				reqBody, err := io.ReadAll(req.LastRequest.Body)
 				require.NoError(t, err)
@@ -86,8 +87,8 @@ func TestRecord(t *testing.T) {
 		goodHistorian := createTestNotificationHistorian(lokiclient.NewFakeRequester(), writesTotal, writesFailed)
 		badHistorian := createTestNotificationHistorian(lokiclient.NewFakeRequester().WithResponse(lokiclient.BadResponse()), writesTotal, writesFailed)
 
-		goodHistorian.Record(context.Background(), testAlerts, false, nil, time.Second, testReceiverName, testGroupLabels, testPipelineTime)
-		badHistorian.Record(context.Background(), testAlerts, false, nil, time.Second, testReceiverName, testGroupLabels, testPipelineTime)
+		goodHistorian.Record(context.Background(), testAlerts, false, nil, time.Second, testReceiverName, testGroupLabels, testPipelineTime, testNow)
+		badHistorian.Record(context.Background(), testAlerts, false, nil, time.Second, testReceiverName, testGroupLabels, testPipelineTime, testNow)
 
 		require.Equal(t, 2, int(testutil.ToFloat64(writesTotal)))
 		require.Equal(t, 1, int(testutil.ToFloat64(writesFailed)))

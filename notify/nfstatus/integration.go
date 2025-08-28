@@ -20,6 +20,7 @@ type NotificationHistorian interface {
 		receiverName string,
 		groupLabels model.LabelSet,
 		pipelineTime time.Time,
+		now time.Time,
 	)
 }
 
@@ -136,7 +137,8 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 		return
 	}
 
-	n.notificationHistorian.Record(ctx, alerts, retry, err, duration, receiverName, groupLabels, pipelineTime)
+	now := time.Now()
+	n.notificationHistorian.Record(ctx, alerts, retry, err, duration, receiverName, groupLabels, pipelineTime, now)
 }
 
 // GetReport returns information about the last notification attempt.

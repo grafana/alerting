@@ -91,8 +91,9 @@ func (h *NotificationHistorian) Record(
 	receiverName string,
 	groupLabels prometheusModel.LabelSet,
 	pipelineTime time.Time,
+	now time.Time,
 ) {
-	streams, err := h.prepareStreams(alerts, retry, notificationErr, duration, receiverName, groupLabels, pipelineTime)
+	streams, err := h.prepareStreams(alerts, retry, notificationErr, duration, receiverName, groupLabels, pipelineTime, now)
 	if err != nil {
 		level.Error(h.logger).Log("msg", "Failed to convert notification history to streams", "error", err)
 		return
@@ -125,6 +126,7 @@ func (h *NotificationHistorian) prepareStreams(
 	receiverName string,
 	groupLabels prometheusModel.LabelSet,
 	pipelineTime time.Time,
+	now time.Time,
 ) ([]lokiclient.Stream, error) {
 	// group alerts by rule UID. each rule UID will be a separate stream.
 	ruleUIDToAlerts := make(map[prometheusModel.LabelValue][]*types.Alert)
@@ -138,7 +140,7 @@ func (h *NotificationHistorian) prepareStreams(
 
 	streams := make([]lokiclient.Stream, 0)
 	for ruleUID := range ruleUIDToAlerts {
-		stream, err := h.prepareStream(ruleUIDToAlerts[ruleUID], retry, notificationErr, duration, receiverName, groupLabels, pipelineTime)
+		stream, err := h.prepareStream(ruleUIDToAlerts[ruleUID], retry, notificationErr, duration, receiverName, groupLabels, pipelineTime, now)
 		if err != nil {
 			return []lokiclient.Stream{}, err
 		}
@@ -156,9 +158,8 @@ func (h *NotificationHistorian) prepareStream(
 	receiverName string,
 	groupLabels prometheusModel.LabelSet,
 	pipelineTime time.Time,
+	now time.Time,
 ) (lokiclient.Stream, error) {
-	now := time.Now()
-
 	entryAlerts := make([]NotificationHistoryLokiEntryAlert, len(alerts))
 	for i, alert := range alerts {
 		labels := prepareLabels(alert.Labels)

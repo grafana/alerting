@@ -94,8 +94,9 @@ func (m *mockNotificationHistorian) Record(
 	receiverName string,
 	groupLabels model.LabelSet,
 	pipelineTime time.Time,
+	now time.Time,
 ) {
-	m.Called(ctx, alerts, retry, notificationErr, duration, receiverName, groupLabels, pipelineTime)
+	m.Called(ctx, alerts, retry, notificationErr, duration, receiverName, groupLabels, pipelineTime, now)
 }
 
 func TestIntegrationWithNotificationHistorian(t *testing.T) {
@@ -116,12 +117,12 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 
 	testReceiverName := "testReceiverName"
 	testGroupLabels := model.LabelSet{"key1": "value1"}
-	testPipelineTime := time.Now()
+	testPipelineTime := time.Date(2025, time.July, 15, 16, 55, 0, 0, time.UTC)
 	ctx := notify.WithReceiverName(context.Background(), testReceiverName)
 	ctx = notify.WithGroupLabels(ctx, testGroupLabels)
 	ctx = notify.WithNow(ctx, testPipelineTime)
 
-	notificationHistorian.On("Record", mock.Anything, alerts, notifier.retry, notifier.err, mock.Anything, testReceiverName, testGroupLabels, testPipelineTime).Once()
+	notificationHistorian.On("Record", mock.Anything, alerts, notifier.retry, notifier.err, mock.Anything, testReceiverName, testGroupLabels, testPipelineTime, mock.Anything).Once()
 
 	_, err := integration.Notify(ctx, alerts...)
 	assert.Error(t, err)
