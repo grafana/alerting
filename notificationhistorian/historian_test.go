@@ -67,9 +67,7 @@ func TestRecord(t *testing.T) {
 				writesTotal := prometheus.NewCounter(prometheus.CounterOpts{})
 				writesFailed := prometheus.NewCounter(prometheus.CounterOpts{})
 
-				// TODO: check metrics updated
 				h := createTestNotificationHistorian(req, writesTotal, writesFailed)
-
 				h.Record(context.Background(), testAlerts, tc.retry, tc.notificationErr, time.Second, testReceiverName, testGroupLabels, testPipelineTime, testNow)
 
 				reqBody, err := io.ReadAll(req.LastRequest.Body)
@@ -80,7 +78,6 @@ func TestRecord(t *testing.T) {
 	})
 
 	t.Run("emits expected write metrics", func(t *testing.T) {
-		// TODO: fix mess with metrics
 		writesTotal := prometheus.NewCounter(prometheus.CounterOpts{})
 		writesFailed := prometheus.NewCounter(prometheus.CounterOpts{})
 

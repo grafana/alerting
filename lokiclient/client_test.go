@@ -130,7 +130,6 @@ func TestLokiHTTPClient(t *testing.T) {
 	})
 }
 
-// TODO: refactor tests to make it more DRY.
 // This function can be used for local testing, just remove the skip call.
 func TestLokiHTTPClient_Manual(t *testing.T) {
 	t.Skip()
