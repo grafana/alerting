@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -32,9 +34,9 @@ type Integration struct {
 }
 
 // NewIntegration returns a new integration.
-func NewIntegration(notifier notify.Notifier, rs notify.ResolvedSender, name string, idx int, receiverName string, notificationHistorian NotificationHistorian) *Integration {
+func NewIntegration(notifier notify.Notifier, rs notify.ResolvedSender, name string, idx int, receiverName string, notificationHistorian NotificationHistorian, logger log.Logger) *Integration {
 	// Wrap the provided Notifier with our own, which will capture notification attempt errors.
-	status := &statusCaptureNotifier{upstream: notifier, notificationHistorian: notificationHistorian}
+	status := &statusCaptureNotifier{upstream: notifier, notificationHistorian: notificationHistorian, logger: logger}
 
 	integration := notify.NewIntegration(status, rs, name, idx, receiverName)
 
@@ -95,6 +97,7 @@ func GetIntegrations(integrations []*Integration) []*notify.Integration {
 type statusCaptureNotifier struct {
 	upstream              notify.Notifier
 	notificationHistorian NotificationHistorian
+	logger                log.Logger
 
 	mtx                       sync.RWMutex
 	lastNotifyAttempt         time.Time
@@ -126,14 +129,17 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 	}
 	receiverName, ok := notify.ReceiverName(ctx)
 	if !ok {
+		level.Warn(n.logger).Log("msg", "failed to get receiver name from context, skipping notification history write")
 		return
 	}
 	groupLabels, ok := notify.GroupLabels(ctx)
 	if !ok {
+		level.Warn(n.logger).Log("msg", "failed to get group labels from context, skipping notification history write")
 		return
 	}
 	pipelineTime, ok := notify.Now(ctx)
 	if !ok {
+		level.Warn(n.logger).Log("msg", "failed to get pipeline time from context, skipping notification history write")
 		return
 	}
 	now := time.Now()

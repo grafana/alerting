@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/log"
 	alertingModels "github.com/grafana/alerting/models"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/stretchr/testify/mock"
@@ -35,7 +36,7 @@ func (f *fakeResolvedSender) SendResolved() bool {
 func TestIntegration(t *testing.T) {
 	notifier := &fakeNotifier{}
 	rs := &fakeResolvedSender{}
-	integration := NewIntegration(notifier, rs, "foo", 42, "bar", nil)
+	integration := NewIntegration(notifier, rs, "foo", 42, "bar", nil, log.NewNopLogger())
 
 	// Check wrapped functions work as expected.
 	assert.Equal(t, "foo", integration.Name())
@@ -102,7 +103,7 @@ func (m *mockNotificationHistorian) Record(
 func TestIntegrationWithNotificationHistorian(t *testing.T) {
 	notifier := &fakeNotifier{retry: true, err: errors.New("notification error")}
 	notificationHistorian := &mockNotificationHistorian{}
-	integration := NewIntegration(notifier, &fakeResolvedSender{}, "foo", 42, "bar", notificationHistorian)
+	integration := NewIntegration(notifier, &fakeResolvedSender{}, "foo", 42, "bar", notificationHistorian, log.NewNopLogger())
 	alerts := []*types.Alert{
 		{
 			Alert: model.Alert{
