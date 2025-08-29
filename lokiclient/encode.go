@@ -9,7 +9,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
-	"github.com/grafana/alerting/lokiclient/logproto"
+	"github.com/grafana/loki/pkg/logproto"
 	"github.com/prometheus/common/model"
 )
 
