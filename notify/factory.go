@@ -92,7 +92,7 @@ func BuildGrafanaReceiverIntegrations(
 			}
 			n := newInt(client)
 			notify := wrapNotifier(cfg.Name, n)
-			i := NewIntegration(notify, n, cfg.Type, idx, cfg.Name, notificationHistorian)
+			i := NewIntegration(notify, n, cfg.Type, idx, cfg.Name, notificationHistorian, logger)
 			integrations = append(integrations, i)
 		}
 	)
@@ -250,7 +250,7 @@ func BuildPrometheusReceiverIntegrations(
 			if wrapper != nil {
 				n = wrapper(name, n)
 			}
-			integrations = append(integrations, nfstatus.NewIntegration(n, rs, name, i, nc.Name, notificationHistorian))
+			integrations = append(integrations, nfstatus.NewIntegration(n, rs, name, i, nc.Name, notificationHistorian, logger))
 		}
 	)
 
