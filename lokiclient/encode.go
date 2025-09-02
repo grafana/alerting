@@ -9,7 +9,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
-	"github.com/grafana/loki/pkg/logproto"
+	"github.com/grafana/loki/pkg/push"
 	"github.com/prometheus/common/model"
 )
 
@@ -35,19 +35,19 @@ func (e JSONEncoder) headers() map[string]string {
 type SnappyProtoEncoder struct{}
 
 func (e SnappyProtoEncoder) encode(s []Stream) ([]byte, error) {
-	body := logproto.PushRequest{
-		Streams: make([]logproto.Stream, 0, len(s)),
+	body := push.PushRequest{
+		Streams: make([]push.Stream, 0, len(s)),
 	}
 
 	for _, str := range s {
-		entries := make([]logproto.Entry, 0, len(str.Values))
+		entries := make([]push.Entry, 0, len(str.Values))
 		for _, sample := range str.Values {
-			entries = append(entries, logproto.Entry{
+			entries = append(entries, push.Entry{
 				Timestamp: sample.T,
 				Line:      sample.V,
 			})
 		}
-		body.Streams = append(body.Streams, logproto.Stream{
+		body.Streams = append(body.Streams, push.Stream{
 			Labels:  labelsMapToString(str.Stream, ""),
 			Entries: entries,
 			// Hash seems to be mainly used for query responses. Promtail does not seem to calculate this field on push.
