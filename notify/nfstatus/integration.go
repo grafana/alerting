@@ -12,18 +12,18 @@ import (
 	"github.com/prometheus/common/model"
 )
 
+type NotificationHistoryEntry struct {
+	Alerts          []*types.Alert
+	Retry           bool
+	NotificationErr error
+	Duration        time.Duration
+	ReceiverName    string
+	GroupLabels     model.LabelSet
+	PipelineTime    time.Time
+}
+
 type NotificationHistorian interface {
-	Record(
-		ctx context.Context,
-		alerts []*types.Alert,
-		retry bool,
-		notificationErr error,
-		duration time.Duration,
-		receiverName string,
-		groupLabels model.LabelSet,
-		pipelineTime time.Time,
-		now time.Time,
-	)
+	Record(ctx context.Context, nhe NotificationHistoryEntry)
 }
 
 // Integration wraps an upstream notify.Integration, adding the ability to
@@ -142,9 +142,16 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 		level.Warn(n.logger).Log("msg", "failed to get pipeline time from context, skipping notification history write")
 		return
 	}
-	now := time.Now()
 
-	n.notificationHistorian.Record(ctx, alerts, retry, err, duration, receiverName, groupLabels, pipelineTime, now)
+	n.notificationHistorian.Record(ctx, NotificationHistoryEntry{
+		Alerts:          alerts,
+		Retry:           retry,
+		NotificationErr: err,
+		Duration:        duration,
+		ReceiverName:    receiverName,
+		GroupLabels:     groupLabels,
+		PipelineTime:    pipelineTime,
+	})
 }
 
 // GetReport returns information about the last notification attempt.

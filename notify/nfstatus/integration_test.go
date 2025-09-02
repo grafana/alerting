@@ -86,18 +86,8 @@ type mockNotificationHistorian struct {
 	mock.Mock
 }
 
-func (m *mockNotificationHistorian) Record(
-	ctx context.Context,
-	alerts []*types.Alert,
-	retry bool,
-	notificationErr error,
-	duration time.Duration,
-	receiverName string,
-	groupLabels model.LabelSet,
-	pipelineTime time.Time,
-	now time.Time,
-) {
-	m.Called(ctx, alerts, retry, notificationErr, duration, receiverName, groupLabels, pipelineTime, now)
+func (m *mockNotificationHistorian) Record(ctx context.Context, nhe NotificationHistoryEntry) {
+	m.Called(ctx, nhe)
 }
 
 func TestIntegrationWithNotificationHistorian(t *testing.T) {
@@ -123,11 +113,26 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 	ctx = notify.WithGroupLabels(ctx, testGroupLabels)
 	ctx = notify.WithNow(ctx, testPipelineTime)
 
-	notificationHistorian.On("Record", mock.Anything, alerts, notifier.retry, notifier.err, mock.Anything, testReceiverName, testGroupLabels, testPipelineTime, mock.Anything).Once()
+	notificationHistorian.On("Record", mock.Anything, mock.Anything).Once()
 
 	_, err := integration.Notify(ctx, alerts...)
 	assert.Error(t, err)
 	assert.Eventually(t, func() bool {
-		return notificationHistorian.AssertExpectations(t)
+		if !notificationHistorian.AssertExpectations(t) {
+			return false
+		}
+
+		actual := notificationHistorian.Calls[0].Arguments.Get(1).(NotificationHistoryEntry)
+		actual.Duration = 0 // Zero out duration to make comparison easier.
+		expected := NotificationHistoryEntry{
+			Alerts:          alerts,
+			Retry:           notifier.retry,
+			NotificationErr: notifier.err,
+			Duration:        0,
+			ReceiverName:    testReceiverName,
+			GroupLabels:     testGroupLabels,
+			PipelineTime:    testPipelineTime,
+		}
+		return assert.Equal(t, expected, actual)
 	}, 1*time.Second, 10*time.Millisecond)
 }

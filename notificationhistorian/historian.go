@@ -11,6 +11,7 @@ import (
 	alertingInstrument "github.com/grafana/alerting/http/instrument"
 	"github.com/grafana/alerting/lokiclient"
 	alertingModels "github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/dskit/instrument"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -82,18 +83,8 @@ func (h *NotificationHistorian) TestConnection(ctx context.Context) error {
 	return h.client.Ping(ctx)
 }
 
-func (h *NotificationHistorian) Record(
-	ctx context.Context,
-	alerts []*types.Alert,
-	retry bool,
-	notificationErr error,
-	duration time.Duration,
-	receiverName string,
-	groupLabels prometheusModel.LabelSet,
-	pipelineTime time.Time,
-	now time.Time,
-) {
-	streams, err := h.prepareStreams(alerts, retry, notificationErr, duration, receiverName, groupLabels, pipelineTime, now)
+func (h *NotificationHistorian) Record(ctx context.Context, nhe nfstatus.NotificationHistoryEntry) {
+	streams, err := h.prepareStreams(nhe)
 	if err != nil {
 		level.Error(h.logger).Log("msg", "Failed to convert notification history to streams", "error", err)
 		return
@@ -118,19 +109,10 @@ func (h *NotificationHistorian) Record(
 	level.Debug(h.logger).Log("msg", "Done saving notification history")
 }
 
-func (h *NotificationHistorian) prepareStreams(
-	alerts []*types.Alert,
-	retry bool,
-	notificationErr error,
-	duration time.Duration,
-	receiverName string,
-	groupLabels prometheusModel.LabelSet,
-	pipelineTime time.Time,
-	now time.Time,
-) ([]lokiclient.Stream, error) {
+func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryEntry) ([]lokiclient.Stream, error) {
 	// group alerts by rule UID. each rule UID will be a separate stream.
 	ruleUIDToAlerts := make(map[prometheusModel.LabelValue][]*types.Alert)
-	for _, alert := range alerts {
+	for _, alert := range nhe.Alerts {
 		ruleUID, ok := alert.Labels[alertingModels.RuleUIDLabel]
 		if !ok {
 			return []lokiclient.Stream{}, fmt.Errorf("rule UID not found in labels")
@@ -140,7 +122,15 @@ func (h *NotificationHistorian) prepareStreams(
 
 	streams := make([]lokiclient.Stream, 0)
 	for ruleUID := range ruleUIDToAlerts {
-		stream, err := h.prepareStream(ruleUIDToAlerts[ruleUID], retry, notificationErr, duration, receiverName, groupLabels, pipelineTime, now)
+		stream, err := h.prepareStream(nfstatus.NotificationHistoryEntry{
+			Alerts:          ruleUIDToAlerts[ruleUID],
+			Retry:           nhe.Retry,
+			NotificationErr: nhe.NotificationErr,
+			Duration:        nhe.Duration,
+			ReceiverName:    nhe.ReceiverName,
+			GroupLabels:     nhe.GroupLabels,
+			PipelineTime:    nhe.PipelineTime,
+		})
 		if err != nil {
 			return []lokiclient.Stream{}, err
 		}
@@ -150,18 +140,10 @@ func (h *NotificationHistorian) prepareStreams(
 	return streams, nil
 }
 
-func (h *NotificationHistorian) prepareStream(
-	alerts []*types.Alert,
-	retry bool,
-	notificationErr error,
-	duration time.Duration,
-	receiverName string,
-	groupLabels prometheusModel.LabelSet,
-	pipelineTime time.Time,
-	now time.Time,
-) (lokiclient.Stream, error) {
-	entryAlerts := make([]NotificationHistoryLokiEntryAlert, len(alerts))
-	for i, alert := range alerts {
+func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEntry) (lokiclient.Stream, error) {
+	now := time.Now()
+	entryAlerts := make([]NotificationHistoryLokiEntryAlert, len(nhe.Alerts))
+	for i, alert := range nhe.Alerts {
 		labels := prepareLabels(alert.Labels)
 		annotations := prepareLabels(alert.Annotations)
 		entryAlerts[i] = NotificationHistoryLokiEntryAlert{
@@ -174,20 +156,20 @@ func (h *NotificationHistorian) prepareStream(
 	}
 
 	notificationErrStr := ""
-	if notificationErr != nil {
-		notificationErrStr = notificationErr.Error()
+	if nhe.NotificationErr != nil {
+		notificationErrStr = nhe.NotificationErr.Error()
 	}
 
 	entry := NotificationHistoryLokiEntry{
 		SchemaVersion: 1,
-		Receiver:      receiverName,
-		Status:        string(types.Alerts(alerts...).StatusAt(now)),
-		GroupLabels:   prepareLabels(groupLabels),
+		Receiver:      nhe.ReceiverName,
+		Status:        string(types.Alerts(nhe.Alerts...).StatusAt(now)),
+		GroupLabels:   prepareLabels(nhe.GroupLabels),
 		Alerts:        entryAlerts,
-		Retry:         retry,
+		Retry:         nhe.Retry,
 		Error:         notificationErrStr,
-		Duration:      duration.Milliseconds(),
-		PipelineTime:  pipelineTime,
+		Duration:      nhe.Duration.Milliseconds(),
+		PipelineTime:  nhe.PipelineTime,
 	}
 
 	entryJSON, err := json.Marshal(entry)
@@ -197,7 +179,7 @@ func (h *NotificationHistorian) prepareStream(
 
 	streamLabels := make(map[string]string)
 	streamLabels[LabelFrom] = LabelFromValue
-	streamLabels[LabelRuleUID] = string(alerts[0].Labels[alertingModels.RuleUIDLabel])
+	streamLabels[LabelRuleUID] = string(nhe.Alerts[0].Labels[alertingModels.RuleUIDLabel])
 
 	for k, v := range h.externalLabels {
 		streamLabels[k] = v
