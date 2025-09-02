@@ -1,4 +1,4 @@
-package notificationhistorian
+package historian
 
 import (
 	"context"
@@ -13,8 +13,8 @@ import (
 	"github.com/go-kit/log"
 	alertingInstrument "github.com/grafana/alerting/http/instrument"
 	"github.com/grafana/alerting/http/instrument/instrumenttest"
-	"github.com/grafana/alerting/lokiclient"
 	alertingModels "github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/notify/historian/lokiclient"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/dskit/instrument"
 	"github.com/prometheus/alertmanager/types"
