@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-kit/log"
 	alertingInstrument "github.com/grafana/alerting/http/instrument"
+	"github.com/grafana/alerting/http/instrument/instrumenttest"
 	"github.com/grafana/dskit/instrument"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ const lokiClientSpanName = "testLokiClientSpanName"
 
 func TestLokiHTTPClient(t *testing.T) {
 	t.Run("push formats expected data", func(t *testing.T) {
-		req := NewFakeRequester()
+		req := instrumenttest.NewFakeRequester()
 		client := createTestLokiClient(req)
 		now := time.Now().UTC()
 		data := []Stream{
@@ -49,7 +50,7 @@ func TestLokiHTTPClient(t *testing.T) {
 
 	t.Run("range query", func(t *testing.T) {
 		t.Run("passes along page size", func(t *testing.T) {
-			req := NewFakeRequester().WithResponse(&http.Response{
+			req := instrumenttest.NewFakeRequester().WithResponse(&http.Response{
 				Status:        "200 OK",
 				StatusCode:    200,
 				Body:          io.NopCloser(bytes.NewBufferString(`{}`)),
@@ -69,7 +70,7 @@ func TestLokiHTTPClient(t *testing.T) {
 		})
 
 		t.Run("uses default page size if limit not provided", func(t *testing.T) {
-			req := NewFakeRequester().WithResponse(&http.Response{
+			req := instrumenttest.NewFakeRequester().WithResponse(&http.Response{
 				Status:        "200 OK",
 				StatusCode:    200,
 				Body:          io.NopCloser(bytes.NewBufferString(`{}`)),
@@ -89,7 +90,7 @@ func TestLokiHTTPClient(t *testing.T) {
 		})
 
 		t.Run("uses default page size if limit invalid", func(t *testing.T) {
-			req := NewFakeRequester().WithResponse(&http.Response{
+			req := instrumenttest.NewFakeRequester().WithResponse(&http.Response{
 				Status:        "200 OK",
 				StatusCode:    200,
 				Body:          io.NopCloser(bytes.NewBufferString(`{}`)),
@@ -109,7 +110,7 @@ func TestLokiHTTPClient(t *testing.T) {
 		})
 
 		t.Run("uses maximum page size if limit too big", func(t *testing.T) {
-			req := NewFakeRequester().WithResponse(&http.Response{
+			req := instrumenttest.NewFakeRequester().WithResponse(&http.Response{
 				Status:        "200 OK",
 				StatusCode:    200,
 				Body:          io.NopCloser(bytes.NewBufferString(`{}`)),

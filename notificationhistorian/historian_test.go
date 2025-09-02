@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-kit/log"
 	alertingInstrument "github.com/grafana/alerting/http/instrument"
+	"github.com/grafana/alerting/http/instrument/instrumenttest"
 	"github.com/grafana/alerting/lokiclient"
 	alertingModels "github.com/grafana/alerting/models"
 	"github.com/grafana/dskit/instrument"
@@ -63,7 +64,7 @@ func TestRecord(t *testing.T) {
 		}
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				req := lokiclient.NewFakeRequester()
+				req := instrumenttest.NewFakeRequester()
 				writesTotal := prometheus.NewCounter(prometheus.CounterOpts{})
 				writesFailed := prometheus.NewCounter(prometheus.CounterOpts{})
 
@@ -81,8 +82,8 @@ func TestRecord(t *testing.T) {
 		writesTotal := prometheus.NewCounter(prometheus.CounterOpts{})
 		writesFailed := prometheus.NewCounter(prometheus.CounterOpts{})
 
-		goodHistorian := createTestNotificationHistorian(lokiclient.NewFakeRequester(), writesTotal, writesFailed)
-		badHistorian := createTestNotificationHistorian(lokiclient.NewFakeRequester().WithResponse(lokiclient.BadResponse()), writesTotal, writesFailed)
+		goodHistorian := createTestNotificationHistorian(instrumenttest.NewFakeRequester(), writesTotal, writesFailed)
+		badHistorian := createTestNotificationHistorian(instrumenttest.NewFakeRequester().WithResponse(instrumenttest.BadResponse()), writesTotal, writesFailed)
 
 		goodHistorian.Record(context.Background(), testAlerts, false, nil, time.Second, testReceiverName, testGroupLabels, testPipelineTime, testNow)
 		badHistorian.Record(context.Background(), testAlerts, false, nil, time.Second, testReceiverName, testGroupLabels, testPipelineTime, testNow)

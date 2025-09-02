@@ -1,4 +1,4 @@
-package lokiclient
+package instrumenttest
 
 import (
 	"bytes"
