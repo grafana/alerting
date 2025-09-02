@@ -117,8 +117,9 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 
 	_, err := integration.Notify(ctx, alerts...)
 	assert.Error(t, err)
-	assert.EventuallyWithT(t, func(c *assert.CollectT) {
-		assert.Equal(c, 1, len(notificationHistorian.Calls))
+	assert.Eventually(t, func() bool {
+		// use a separate testing.T instance to avoid failing the main test
+		return notificationHistorian.AssertExpectations(&testing.T{})
 	}, 1*time.Second, 10*time.Millisecond)
 
 	actual := notificationHistorian.Calls[0].Arguments.Get(1).(NotificationHistoryEntry)
