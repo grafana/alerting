@@ -117,22 +117,20 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 
 	_, err := integration.Notify(ctx, alerts...)
 	assert.Error(t, err)
-	assert.Eventually(t, func() bool {
-		if !notificationHistorian.AssertExpectations(t) {
-			return false
-		}
-
-		actual := notificationHistorian.Calls[0].Arguments.Get(1).(NotificationHistoryEntry)
-		actual.Duration = 0 // Zero out duration to make comparison easier.
-		expected := NotificationHistoryEntry{
-			Alerts:          alerts,
-			Retry:           notifier.retry,
-			NotificationErr: notifier.err,
-			Duration:        0,
-			ReceiverName:    testReceiverName,
-			GroupLabels:     testGroupLabels,
-			PipelineTime:    testPipelineTime,
-		}
-		return assert.Equal(t, expected, actual)
+	assert.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, 1, len(notificationHistorian.Calls))
 	}, 1*time.Second, 10*time.Millisecond)
+
+	actual := notificationHistorian.Calls[0].Arguments.Get(1).(NotificationHistoryEntry)
+	actual.Duration = 0 // Zero out duration to make comparison easier.
+	expected := NotificationHistoryEntry{
+		Alerts:          alerts,
+		Retry:           notifier.retry,
+		NotificationErr: notifier.err,
+		Duration:        0,
+		ReceiverName:    testReceiverName,
+		GroupLabels:     testGroupLabels,
+		PipelineTime:    testPipelineTime,
+	}
+	assert.Equal(t, expected, actual)
 }
