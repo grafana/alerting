@@ -8,7 +8,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/grafana/alerting/client"
+	alertingInstrument "github.com/grafana/alerting/http/instrument"
 	"github.com/grafana/alerting/lokiclient"
 	alertingModels "github.com/grafana/alerting/models"
 	"github.com/grafana/dskit/instrument"
@@ -62,7 +62,7 @@ type NotificationHistorian struct {
 func NewNotificationHistorian(
 	logger log.Logger,
 	cfg lokiclient.LokiConfig,
-	req client.Requester,
+	req alertingInstrument.Requester,
 	bytesWritten prometheus.Counter,
 	writeDuration *instrument.HistogramCollector,
 	writesTotal prometheus.Counter,

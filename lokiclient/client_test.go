@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	"github.com/grafana/alerting/client"
+	alertingInstrument "github.com/grafana/alerting/http/instrument"
 	"github.com/grafana/dskit/instrument"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
@@ -285,7 +285,7 @@ func TestClampRange(t *testing.T) {
 	}
 }
 
-func createTestLokiClient(req client.Requester) *HTTPLokiClient {
+func createTestLokiClient(req alertingInstrument.Requester) *HTTPLokiClient {
 	url, _ := url.Parse("http://some.url")
 	cfg := LokiConfig{
 		WritePathURL: url,

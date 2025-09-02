@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	"github.com/grafana/alerting/client"
+	alertingInstrument "github.com/grafana/alerting/http/instrument"
 	"github.com/grafana/alerting/lokiclient"
 	alertingModels "github.com/grafana/alerting/models"
 	"github.com/grafana/dskit/instrument"
@@ -92,7 +92,7 @@ func TestRecord(t *testing.T) {
 	})
 }
 
-func createTestNotificationHistorian(req client.Requester, writesTotal prometheus.Counter, writesFailed prometheus.Counter) *NotificationHistorian {
+func createTestNotificationHistorian(req alertingInstrument.Requester, writesTotal prometheus.Counter, writesFailed prometheus.Counter) *NotificationHistorian {
 	writePathURL, _ := url.Parse("http://some.url")
 	cfg := lokiclient.LokiConfig{
 		WritePathURL:   writePathURL,

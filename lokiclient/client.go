@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/grafana/alerting/client"
+	alertingInstrument "github.com/grafana/alerting/http/instrument"
 	"github.com/grafana/dskit/instrument"
 	"go.opentelemetry.io/otel/trace"
 
@@ -23,7 +23,7 @@ import (
 const defaultPageSize = 1000
 const maximumPageSize = 5000
 
-func NewRequester() client.Requester {
+func NewRequester() alertingInstrument.Requester {
 	return &http.Client{}
 }
 
@@ -48,7 +48,7 @@ type LokiConfig struct {
 }
 
 type HTTPLokiClient struct {
-	client       client.Requester
+	client       alertingInstrument.Requester
 	encoder      encoder
 	cfg          LokiConfig
 	bytesWritten prometheus.Counter
@@ -69,9 +69,9 @@ const (
 	NeqRegEx Operator = "!~"
 )
 
-func NewLokiClient(cfg LokiConfig, req client.Requester, bytesWritten prometheus.Counter, writeDuration *instrument.HistogramCollector, logger log.Logger, tracer trace.Tracer, spanName string) *HTTPLokiClient {
-	tc := client.NewTimedClient(req, writeDuration)
-	trc := client.NewTracedClient(tc, tracer, spanName)
+func NewLokiClient(cfg LokiConfig, req alertingInstrument.Requester, bytesWritten prometheus.Counter, writeDuration *instrument.HistogramCollector, logger log.Logger, tracer trace.Tracer, spanName string) *HTTPLokiClient {
+	tc := alertingInstrument.NewTimedClient(req, writeDuration)
+	trc := alertingInstrument.NewTracedClient(tc, tracer, spanName)
 	return &HTTPLokiClient{
 		client:       trc,
 		encoder:      cfg.Encoder,
