@@ -19,6 +19,14 @@ import (
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 )
 
+type mockSender struct {
+	sendHTTPReqFunc func(context.Context, *url.URL, receivers.HTTPCfg) ([]byte, error)
+}
+
+func (m *mockSender) SendHTTPRequest(ctx context.Context, url *url.URL, cfg receivers.HTTPCfg) ([]byte, error) {
+	return m.sendHTTPReqFunc(ctx, url, cfg)
+}
+
 func TestNotify(t *testing.T) {
 	imageProvider := images.NewFakeProvider(1)
 	singleURLConfig := Config{
@@ -86,22 +94,23 @@ func TestNotify(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			mock := &mockSender{
+				sendHTTPReqFunc: func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg) ([]byte, error) {
+					expBody, err := json.Marshal(c.alerts)
+					require.NoError(t, err)
+					require.JSONEq(t, string(expBody), string(cfg.Body))
+					assert.Equal(t, c.settings.User, cfg.User)
+					assert.Equal(t, c.settings.Password, cfg.Password)
+					return nil, c.sendHTTPRequestError
+				},
+			}
+
 			sn := &Notifier{
 				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				images:   imageProvider,
 				settings: c.settings,
-			}
-
-			var body []byte
-			origSendHTTPRequest := receivers.SendHTTPRequest
-			t.Cleanup(func() {
-				receivers.SendHTTPRequest = origSendHTTPRequest
-			})
-			receivers.SendHTTPRequest = func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg, _ log.Logger) ([]byte, error) {
-				body = cfg.Body
-				assert.Equal(t, c.settings.User, cfg.User)
-				assert.Equal(t, c.settings.Password, cfg.Password)
-				return nil, c.sendHTTPRequestError
+				logger:   log.NewNopLogger(),
+				sender:   mock,
 			}
 
 			ctx := notify.WithGroupKey(context.Background(), "alertname")
@@ -114,9 +123,6 @@ func TestNotify(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.True(t, ok)
-				expBody, err := json.Marshal(c.alerts)
-				require.NoError(t, err)
-				require.JSONEq(t, string(expBody), string(body))
 			}
 		})
 	}
