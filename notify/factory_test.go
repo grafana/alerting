@@ -235,5 +235,5 @@ func TestBuildPrometheusReceiverIntegrations(t *testing.T) {
 	require.NoError(t, err)
 	integrations, err := BuildPrometheusReceiverIntegrations(receiver, tmpl, nil, log.NewNopLogger(), NoWrap, nil)
 	require.NoError(t, err)
-	require.Len(t, integrations, 13)
+	require.Len(t, integrations, 14)
 }
