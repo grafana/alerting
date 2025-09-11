@@ -39,14 +39,18 @@ func TestLoadCompat(t *testing.T) {
 			input: []byte(testConfigWithoutGlobal),
 		},
 		{
+			name:  "no global config with api url file",
+			input: []byte(testConfigWithoutGlobalWithUrlFile),
+		},
+		{
 			name:   "no slack api url",
 			input:  []byte(fmt.Sprintf(missingValuesTemplate, "slack_configs")),
-			expErr: "no global Slack API URL set",
+			expErr: "no global Slack API URL set either inline or in a file",
 		},
 		{
 			name:   "no Opsgenie api key",
 			input:  []byte(fmt.Sprintf(missingValuesTemplate, "opsgenie_configs")),
-			expErr: "no global OpsGenie API Key set",
+			expErr: "no global OpsGenie API Key set either inline or in a file",
 		},
 		{
 			name:   "no WeChat api secret",
@@ -196,6 +200,47 @@ receivers:
         routing_key: test
     webhook_configs:
       - url: http://test.com
+    wechat_configs:
+      - api_key: test
+        api_secret: test
+        corp_id: test
+    webex_configs:
+      - api_url: http://test.com
+        room_id: test
+        http_config:
+          bearer_token: test
+`
+
+const testConfigWithoutGlobalWithUrlFile = `
+route:
+  receiver: test
+  routes:
+    - receiver: test
+receivers:
+  - name: test
+    discord_configs:
+      - webhook_url_file: test
+    msteams_configs:
+      - webhook_url_file: test
+    opsgenie_configs:
+      - api_key_file: test
+    pagerduty_configs:
+      - routing_key_file: test
+    pushover_configs:
+      - user_key_file: test
+        token_file: test
+    slack_configs:
+      - api_url_file: test
+    sns_configs:
+      - topic_arn: test
+    telegram_configs:
+      - bot_token_file: test
+        chat_id: 1
+    victorops_configs:
+      - api_key_file: test
+        routing_key: test
+    webhook_configs:
+      - url_file: test
     wechat_configs:
       - api_key: test
         api_secret: test
