@@ -462,6 +462,13 @@ var ValidMimirConfigs = map[reflect.Type]string{
 			"summary": "test summary",
 			"text": "test text"
         }`,
+	reflect.TypeOf(promCfg.MSTeamsV2Config{}): `{
+			"send_resolved": true,
+			"webhook_url": "http://localhost",
+			"http_config": {},
+			"title": "test title",
+			"text": "test text"
+        }`,
 	reflect.TypeOf(promCfg.JiraConfig{}): `{
 			"api_url": "http://localhost",
 			"project": "PROJ",
