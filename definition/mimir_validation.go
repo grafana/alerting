@@ -104,6 +104,11 @@ func ValidateAlertmanagerConfig(cfg any) error {
 			return err
 		}
 
+	case reflect.TypeOf(config.MSTeamsV2Config{}):
+		if err := validateMSTeamsV2Config(v.Interface().(config.MSTeamsV2Config)); err != nil {
+			return err
+		}
+
 	case reflect.TypeOf(config.TelegramConfig{}):
 		if err := validateTelegramConfig(v.Interface().(config.TelegramConfig)); err != nil {
 			return err
@@ -288,6 +293,15 @@ func validatePushoverConfig(cfg config.PushoverConfig) error {
 // validateMSTeamsConfig validates the Microsoft Teams config and returns an error if it
 // contains settings not allowed by Mimir.
 func validateMSTeamsConfig(cfg config.MSTeamsConfig) error {
+	if cfg.WebhookURLFile != "" {
+		return errWebhookURLFileNotAllowed
+	}
+	return nil
+}
+
+// validateMSTeamsV2Config validates the Microsoft Teams config and returns an error if it
+// contains settings not allowed by Mimir.
+func validateMSTeamsV2Config(cfg config.MSTeamsV2Config) error {
 	if cfg.WebhookURLFile != "" {
 		return errWebhookURLFileNotAllowed
 	}
