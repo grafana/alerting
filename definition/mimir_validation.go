@@ -299,7 +299,7 @@ func validateMSTeamsConfig(cfg config.MSTeamsConfig) error {
 	return nil
 }
 
-// validateMSTeamsV2Config validates the Microsoft Teams config and returns an error if it
+// validateMSTeamsV2Config validates the Microsoft Teams V2 config and returns an error if it
 // contains settings not allowed by Mimir.
 func validateMSTeamsV2Config(cfg config.MSTeamsV2Config) error {
 	if cfg.WebhookURLFile != "" {
