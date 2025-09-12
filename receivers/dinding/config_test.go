@@ -40,16 +40,18 @@ func TestNewConfig(t *testing.T) {
 				MessageType: defaultDingdingMsgType,
 				Title:       templates.DefaultMessageTitleEmbed,
 				Message:     templates.DefaultMessageEmbed,
+				ToUser:      defaultDingdingToUser,
 			},
 		},
 		{
 			name:     "All empty fields = minimal valid configuration",
-			settings: `{"url": "http://localhost", "message": "", "title": "", "msgType": ""}`,
+			settings: `{"url": "http://localhost", "message": "", "title": "", "msgType": "", "toUser":""}`,
 			expectedConfig: Config{
 				URL:         "http://localhost",
 				MessageType: defaultDingdingMsgType,
 				Title:       templates.DefaultMessageTitleEmbed,
 				Message:     templates.DefaultMessageEmbed,
+				ToUser:      defaultDingdingToUser,
 			},
 		},
 		{
@@ -60,6 +62,7 @@ func TestNewConfig(t *testing.T) {
 				MessageType: "actionCard",
 				Title:       "Alerts firing: {{ len .Alerts.Firing }}",
 				Message:     "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+				ToUser:      "all",
 			},
 		},
 	}
