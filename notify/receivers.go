@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grafana/alerting/http"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/http"
 
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/alertmanager"
@@ -75,6 +76,7 @@ type GrafanaIntegrationConfig struct {
 	DisableResolveMessage bool              `json:"disableResolveMessage" yaml:"disableResolveMessage"`
 	Settings              json.RawMessage   `json:"settings" yaml:"settings"`
 	SecureSettings        map[string]string `json:"secureSettings" yaml:"secureSettings"`
+	RateLimits            *RateLimits       `json:"rateLimits,omitempty" yaml:"rateLimits,omitempty"`
 }
 
 type ConfigReceiver = config.Receiver
@@ -205,11 +207,16 @@ type GrafanaReceiverConfig struct {
 	WebexConfigs        []*NotifierConfig[webex.Config]
 }
 
+type NotifierConfigBase struct {
+	receivers.Metadata
+	RateLimits       *RateLimits
+	HTTPClientConfig *http.HTTPClientConfig
+}
+
 // NotifierConfig represents parsed GrafanaIntegrationConfig.
 type NotifierConfig[T interface{}] struct {
-	receivers.Metadata
-	Settings         T
-	HTTPClientConfig *http.HTTPClientConfig
+	NotifierConfigBase
+	Settings T
 }
 
 // DecodeSecretsFn is a function used to decode a map of secrets before creating a receiver.
@@ -557,15 +564,18 @@ func newNotifierConfig[T interface{}](integration *GrafanaIntegrationConfig, idx
 		return nil, err
 	}
 	return &NotifierConfig[T]{
-		Metadata: receivers.Metadata{
-			Index:                 idx,
-			UID:                   integration.UID,
-			Name:                  integration.Name,
-			Type:                  integration.Type,
-			DisableResolveMessage: integration.DisableResolveMessage,
+		NotifierConfigBase: NotifierConfigBase{
+			Metadata: receivers.Metadata{
+				Index:                 idx,
+				UID:                   integration.UID,
+				Name:                  integration.Name,
+				Type:                  integration.Type,
+				DisableResolveMessage: integration.DisableResolveMessage,
+			},
+			RateLimits:       integration.RateLimits,
+			HTTPClientConfig: httpClientConfig,
 		},
-		Settings:         settings,
-		HTTPClientConfig: httpClientConfig,
+		Settings: settings,
 	}, nil
 }
 

@@ -148,6 +148,7 @@ type NotificationsConfiguration struct {
 	Receivers         []*APIReceiver
 
 	DispatcherLimits DispatcherLimits
+	RateLimits       RateLimitSettings
 
 	Raw  []byte
 	Hash [16]byte
@@ -693,7 +694,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 	}
 	am.templates = factory
 	cached := templates.NewCachedFactory(factory)
-
+	wrap := NewRateLimiterWrapperFactory(am.opts.TenantID, cfg.RateLimits, am.opts.Metrics.rateLimitedNotifications, am.logger)
 	// build the integrations map using the receiver configuration and templates.
 	integrationsMap, err := BuildReceiversIntegrations(
 		am.opts.TenantID,
@@ -704,7 +705,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		DecodeSecretsFromBase64,
 		am.opts.EmailSender,
 		nil,
-		NoWrap,
+		wrap,
 		am.opts.Version,
 		am.logger,
 		am.opts.NotificationHistorian,

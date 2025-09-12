@@ -546,10 +546,16 @@ func (m ObjectMatchers) MarshalJSON() ([]byte, error) {
 	return json.Marshal(result)
 }
 
+type RateLimits struct {
+	Limit float64 `yaml:"limit"`
+	Burst int     `yaml:"burst"`
+}
+
 // nolint:revive
 type PostableApiReceiver struct {
 	config.Receiver          `yaml:",inline"`
 	PostableGrafanaReceivers `yaml:",inline"`
+	RateLimits               *RateLimits `yaml:"rateLimits,omitempty"`
 }
 
 func (r *PostableApiReceiver) UnmarshalJSON(b []byte) error {
