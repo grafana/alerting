@@ -196,7 +196,7 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 }
 
 func prepareLabels(labels prometheusModel.LabelSet) map[string]string {
-	result := make(map[string]string)
+	result := make(map[string]string, len(labels))
 	for k, v := range labels {
 		result[string(k)] = string(v)
 	}
