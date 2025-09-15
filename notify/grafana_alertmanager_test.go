@@ -597,8 +597,8 @@ func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
 func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
 	fn := &fakeNotifier{}
 	integrations := []*nfstatus.Integration{
-		nfstatus.NewIntegration(fn, fn, "grafana-oncall", 0, "test-grafana-oncall", nil),
-		nfstatus.NewIntegration(fn, fn, "sns", 1, "test-sns", nil),
+		nfstatus.NewIntegration(fn, fn, "grafana-oncall", 0, "test-grafana-oncall", nil, log.NewNopLogger()),
+		nfstatus.NewIntegration(fn, fn, "sns", 1, "test-sns", nil, log.NewNopLogger()),
 	}
 
 	am, reg := setupAMTest(t)
