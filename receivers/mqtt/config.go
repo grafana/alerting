@@ -17,16 +17,17 @@ const (
 )
 
 type Config struct {
-	BrokerURL     string                   `json:"brokerUrl,omitempty" yaml:"brokerUrl,omitempty"`
-	ClientID      string                   `json:"clientId,omitempty" yaml:"clientId,omitempty"`
-	Topic         string                   `json:"topic,omitempty" yaml:"topic,omitempty"`
-	Message       string                   `json:"message,omitempty" yaml:"message,omitempty"`
-	MessageFormat string                   `json:"messageFormat,omitempty" yaml:"messageFormat,omitempty"`
-	Username      string                   `json:"username,omitempty" yaml:"username,omitempty"`
-	Password      string                   `json:"password,omitempty" yaml:"password,omitempty"`
-	QoS           receivers.OptionalNumber `json:"qos,omitempty" yaml:"qos,omitempty"`
-	Retain        bool                     `json:"retain,omitempty" yaml:"retain,omitempty"`
-	TLSConfig     *receivers.TLSConfig     `json:"tlsConfig,omitempty" yaml:"tlsConfig,omitempty"`
+	BrokerURL          string                   `json:"brokerUrl,omitempty" yaml:"brokerUrl,omitempty"`
+	ClientID           string                   `json:"clientId,omitempty" yaml:"clientId,omitempty"`
+	Topic              string                   `json:"topic,omitempty" yaml:"topic,omitempty"`
+	Message            string                   `json:"message,omitempty" yaml:"message,omitempty"`
+	MessageFormat      string                   `json:"messageFormat,omitempty" yaml:"messageFormat,omitempty"`
+	Username           string                   `json:"username,omitempty" yaml:"username,omitempty"`
+	Password           string                   `json:"password,omitempty" yaml:"password,omitempty"`
+	QoS                receivers.OptionalNumber `json:"qos,omitempty" yaml:"qos,omitempty"`
+	Retain             bool                     `json:"retain,omitempty" yaml:"retain,omitempty"`
+	TLSConfig          *receivers.TLSConfig     `json:"tlsConfig,omitempty" yaml:"tlsConfig,omitempty"`
+	AddGroupKeyToTopic bool                     `json:"addGroupKeyToTopic,omitempty" yaml:"addGroupKeyToTopic,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
