@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/templates"
 )
+
+const Version = schema.V1
 
 type Config struct {
 	URL         string `json:"url,omitempty" yaml:"url,omitempty"`
@@ -36,4 +39,51 @@ func NewConfig(jsonData json.RawMessage) (Config, error) {
 		settings.Message = templates.DefaultMessageEmbed
 	}
 	return settings, nil
+}
+
+func Schema() schema.IntegrationSchemaVersion {
+	return schema.IntegrationSchemaVersion{
+		Version:   Version,
+		CanCreate: true,
+		Options: []schema.Field{
+			{
+				Label:        "URL",
+				Element:      schema.ElementTypeInput,
+				InputType:    schema.InputTypeText,
+				Placeholder:  "https://oapi.dingtalk.com/robot/send?access_token=xxxxxxxxx",
+				PropertyName: "url",
+				Required:     true,
+				Secure:       true,
+			},
+			{
+				Label:        "Message Type",
+				Element:      schema.ElementTypeSelect,
+				PropertyName: "msgType",
+				SelectOptions: []schema.SelectOption{
+					{
+						Value: "link",
+						Label: "Link"},
+					{
+						Value: "actionCard",
+						Label: "ActionCard",
+					},
+				},
+			},
+			{ // New in 9.3.
+				Label:        "Title",
+				Element:      schema.ElementTypeInput,
+				InputType:    schema.InputTypeText,
+				Description:  "Templated title of the message",
+				Placeholder:  templates.DefaultMessageTitleEmbed,
+				PropertyName: "title",
+			},
+			{ // New in 8.0.
+				Label:        "Message",
+				Element:      schema.ElementTypeTextArea,
+				Description:  "Custom DingDing message. You can use template variables.",
+				Placeholder:  templates.DefaultMessageEmbed,
+				PropertyName: "message",
+			},
+		},
+	}
 }
