@@ -19,7 +19,7 @@ import (
 
 	"github.com/grafana/alerting/receivers"
 	alertmanager "github.com/grafana/alerting/receivers/alertmanager/v1"
-	"github.com/grafana/alerting/receivers/dinding"
+	dingding "github.com/grafana/alerting/receivers/dingding/v1"
 	"github.com/grafana/alerting/receivers/discord"
 	"github.com/grafana/alerting/receivers/email"
 	"github.com/grafana/alerting/receivers/googlechat"
@@ -182,7 +182,7 @@ func ProcessIntegrationError(config *GrafanaIntegrationConfig, err error) error 
 type GrafanaReceiverConfig struct {
 	Name                string
 	AlertmanagerConfigs []*NotifierConfig[alertmanager.Config]
-	DingdingConfigs     []*NotifierConfig[dinding.Config]
+	DingdingConfigs     []*NotifierConfig[dingding.Config]
 	DiscordConfigs      []*NotifierConfig[discord.Config]
 	EmailConfigs        []*NotifierConfig[email.Config]
 	GooglechatConfigs   []*NotifierConfig[googlechat.Config]
@@ -297,7 +297,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 		}
 		result.AlertmanagerConfigs = append(result.AlertmanagerConfigs, notifierConfig)
 	case "dingding":
-		cfg, err := dinding.NewConfig(receiver.Settings)
+		cfg, err := dingding.NewConfig(receiver.Settings)
 		if err != nil {
 			return err
 		}

@@ -13,7 +13,7 @@ import (
 	"github.com/prometheus/alertmanager/types"
 
 	alertmanager "github.com/grafana/alerting/receivers/alertmanager/v1"
-	"github.com/grafana/alerting/receivers/dinding"
+	dingding "github.com/grafana/alerting/receivers/dingding/v1"
 	"github.com/grafana/alerting/receivers/discord"
 	"github.com/grafana/alerting/receivers/email"
 	"github.com/grafana/alerting/receivers/googlechat"
@@ -132,7 +132,7 @@ var AllKnownConfigsForTesting = map[string]NotifierConfigTest{
 		commonHTTPConfigUnsupported: true,
 	},
 	"dingding": {NotifierType: "dingding",
-		Config: dinding.FullValidConfigForTesting,
+		Config: dingding.FullValidConfigForTesting,
 	},
 	"discord": {NotifierType: "discord",
 		Config: discord.FullValidConfigForTesting,
