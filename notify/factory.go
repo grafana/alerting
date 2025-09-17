@@ -34,7 +34,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/receivers/alertmanager"
+	alertmanager "github.com/grafana/alerting/receivers/alertmanager/v1"
 	"github.com/grafana/alerting/receivers/dinding"
 	"github.com/grafana/alerting/receivers/discord"
 	"github.com/grafana/alerting/receivers/email"

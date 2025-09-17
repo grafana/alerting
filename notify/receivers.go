@@ -10,14 +10,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grafana/alerting/http"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
+	"github.com/grafana/alerting/http"
+
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/receivers/alertmanager"
+	alertmanager "github.com/grafana/alerting/receivers/alertmanager/v1"
 	"github.com/grafana/alerting/receivers/dinding"
 	"github.com/grafana/alerting/receivers/discord"
 	"github.com/grafana/alerting/receivers/email"
