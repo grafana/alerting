@@ -1,4 +1,4 @@
-package dinding
+package v1
 
 import (
 	"context"

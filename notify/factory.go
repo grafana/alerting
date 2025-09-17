@@ -34,9 +34,9 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/receivers/alertmanager"
-	"github.com/grafana/alerting/receivers/dinding"
-	"github.com/grafana/alerting/receivers/discord"
+	alertmanager "github.com/grafana/alerting/receivers/alertmanager/v1"
+	dingding "github.com/grafana/alerting/receivers/dingding/v1"
+	discord "github.com/grafana/alerting/receivers/discord/v1"
 	"github.com/grafana/alerting/receivers/email"
 	"github.com/grafana/alerting/receivers/googlechat"
 	"github.com/grafana/alerting/receivers/jira"
@@ -105,7 +105,7 @@ func BuildGrafanaReceiverIntegrations(
 	}
 	for i, cfg := range receiver.DingdingConfigs {
 		ci(i, cfg.Metadata, cfg.HTTPClientConfig, func(cli *http.Client) notificationChannel {
-			return dinding.New(cfg.Settings, cfg.Metadata, tmpl, cli, logger)
+			return dingding.New(cfg.Settings, cfg.Metadata, tmpl, cli, logger)
 		})
 	}
 	for i, cfg := range receiver.DiscordConfigs {

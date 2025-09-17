@@ -10,16 +10,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grafana/alerting/http"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
+	"github.com/grafana/alerting/http"
+
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/receivers/alertmanager"
-	"github.com/grafana/alerting/receivers/dinding"
-	"github.com/grafana/alerting/receivers/discord"
+	alertmanager "github.com/grafana/alerting/receivers/alertmanager/v1"
+	dingding "github.com/grafana/alerting/receivers/dingding/v1"
+	discord "github.com/grafana/alerting/receivers/discord/v1"
 	"github.com/grafana/alerting/receivers/email"
 	"github.com/grafana/alerting/receivers/googlechat"
 	"github.com/grafana/alerting/receivers/jira"
@@ -181,7 +182,7 @@ func ProcessIntegrationError(config *GrafanaIntegrationConfig, err error) error 
 type GrafanaReceiverConfig struct {
 	Name                string
 	AlertmanagerConfigs []*NotifierConfig[alertmanager.Config]
-	DingdingConfigs     []*NotifierConfig[dinding.Config]
+	DingdingConfigs     []*NotifierConfig[dingding.Config]
 	DiscordConfigs      []*NotifierConfig[discord.Config]
 	EmailConfigs        []*NotifierConfig[email.Config]
 	GooglechatConfigs   []*NotifierConfig[googlechat.Config]
@@ -296,7 +297,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 		}
 		result.AlertmanagerConfigs = append(result.AlertmanagerConfigs, notifierConfig)
 	case "dingding":
-		cfg, err := dinding.NewConfig(receiver.Settings)
+		cfg, err := dingding.NewConfig(receiver.Settings)
 		if err != nil {
 			return err
 		}
