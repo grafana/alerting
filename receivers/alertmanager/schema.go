@@ -5,7 +5,7 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Type schema.NotifierType = "prometheus-alertmanager"
+const Type schema.IntegrationType = "prometheus-alertmanager"
 
 func Schema() schema.IntegrationTypeSchema {
 	return schema.IntegrationTypeSchema{
