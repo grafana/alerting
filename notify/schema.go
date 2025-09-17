@@ -2,6 +2,7 @@ package notify
 
 import (
 	"github.com/grafana/alerting/receivers/alertmanager"
+	"github.com/grafana/alerting/receivers/dingding"
 	"github.com/grafana/alerting/receivers/schema"
 )
 
@@ -9,5 +10,6 @@ import (
 func GetSchemaForAllIntegrations() []schema.IntegrationTypeSchema {
 	return []schema.IntegrationTypeSchema{
 		alertmanager.Schema(),
+		dingding.Schema(),
 	}
 }
