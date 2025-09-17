@@ -1,21 +1,21 @@
 package schema
 
-type NotifierVersion string
-type NotifierType string
+type Version string
+type IntegrationType string
 
 const (
 	// versions that contain the "mimir" tag in their name are dedicated to integrations supported by Mimir.
 	// By default, all mimir integrations should use the V0mimir1 version.
 	// Exceptions are Mimir integrations that have multiple configurations for the same Grafana type.
 
-	V0mimir1 NotifierVersion = "v0mimir1"
-	V0mimir2 NotifierVersion = "v0mimir2"
-	V1       NotifierVersion = "v1"
+	V0mimir1 Version = "v0mimir1"
+	V0mimir2 Version = "v0mimir2"
+	V1       Version = "v1"
 )
-
 
 // ElementType is the type of element that can be rendered in the frontend.
 type ElementType string
+
 // InputType is the type of input that can be rendered in the frontend.
 type InputType string
 
@@ -29,8 +29,8 @@ const (
 // IntegrationTypeSchema represents a notifier plugin with multiple versions and detailed configuration options.
 // It includes metadata such as type, name, description, and version-specific details.
 type IntegrationTypeSchema struct {
-	Type           NotifierType               `json:"type"`
-	CurrentVersion NotifierVersion            `json:"currentVersion"`
+	Type           IntegrationType            `json:"type"`
+	CurrentVersion Version                    `json:"currentVersion"`
 	Name           string                     `json:"name"`
 	Heading        string                     `json:"heading,omitempty"`
 	Description    string                     `json:"description,omitempty"`
@@ -39,7 +39,7 @@ type IntegrationTypeSchema struct {
 }
 
 // GetVersion retrieves a specific version of the notifier plugin by its version string. Returns the version and a boolean indicating success.
-func (p IntegrationTypeSchema) GetVersion(v NotifierVersion) (IntegrationSchemaVersion, bool) {
+func (p IntegrationTypeSchema) GetVersion(v Version) (IntegrationSchemaVersion, bool) {
 	for _, version := range p.Versions {
 		if version.Version == v {
 			return version, true
@@ -61,9 +61,9 @@ func (p IntegrationTypeSchema) GetCurrentVersion() IntegrationSchemaVersion {
 // IntegrationSchemaVersion represents a version of a notifier plugin, including configuration options and metadata.
 type IntegrationSchemaVersion struct {
 	// Alternative type name for this particular version
-	TypeAlias NotifierType `json:"typeAlias,omitempty"`
+	TypeAlias IntegrationType `json:"typeAlias,omitempty"`
 	// Version of the integration schema
-	Version NotifierVersion `json:"version"`
+	Version Version `json:"version"`
 	// Whether new integration of this version can be created by users
 	CanCreate bool `json:"canCreate"`
 	// Integration fields
@@ -130,7 +130,6 @@ const (
 	// ElementStringArray will render a set of fields to manage an array of strings.
 	ElementStringArray = "string_array"
 )
-
 
 // SelectOption is a simple type for Options that have dropdown options. Should be used when Element is ElementTypeSelect.
 type SelectOption struct {

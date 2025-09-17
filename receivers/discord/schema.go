@@ -6,7 +6,7 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Type schema.NotifierType = "discord"
+const Type schema.IntegrationType = "discord"
 
 func Schema() schema.IntegrationTypeSchema {
 	return schema.IntegrationTypeSchema{
