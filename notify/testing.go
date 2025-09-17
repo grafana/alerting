@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grafana/alerting/http"
-
 	"github.com/prometheus/alertmanager/types"
+
+	"github.com/grafana/alerting/http"
 
 	alertmanager "github.com/grafana/alerting/receivers/alertmanager/v1"
 	dingding "github.com/grafana/alerting/receivers/dingding/v1"
-	"github.com/grafana/alerting/receivers/discord"
+	discord "github.com/grafana/alerting/receivers/discord/v1"
 	"github.com/grafana/alerting/receivers/email"
 	"github.com/grafana/alerting/receivers/googlechat"
 	"github.com/grafana/alerting/receivers/jira"
