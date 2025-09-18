@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/prometheus/common/model"
 )
 
@@ -211,6 +212,36 @@ func TestValidateRoutes(t *testing.T) {
 					GroupByStr: []string{"..."},
 					Match: map[string]string{
 						"abc": "def",
+					},
+				},
+				expMsg: "must not have any matchers",
+			},
+			{
+				desc: "matchers present",
+				route: Route{
+					Receiver:   "foo",
+					GroupByStr: []string{"..."},
+					Matchers: []*labels.Matcher{
+						{
+							Type:  labels.MatchEqual,
+							Name:  "abc",
+							Value: "def",
+						},
+					},
+				},
+				expMsg: "must not have any matchers",
+			},
+			{
+				desc: "object matchers present",
+				route: Route{
+					Receiver:   "foo",
+					GroupByStr: []string{"..."},
+					ObjectMatchers: ObjectMatchers{
+						&labels.Matcher{
+							Type:  labels.MatchEqual,
+							Name:  "abc",
+							Value: "def",
+						},
 					},
 				},
 				expMsg: "must not have any matchers",
