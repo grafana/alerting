@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"sort"
 	"strings"
 
@@ -308,21 +307,6 @@ func (c *PostableApiAlertingConfig) Validate() error {
 	return ValidateAlertmanagerConfig(c)
 }
 
-// Type requires validate has been called and just checks the first receiver type
-func (c *PostableApiAlertingConfig) ReceiverType() ReceiverType {
-	for _, r := range c.Receivers {
-		switch r.Type() {
-		case GrafanaReceiverType:
-			return GrafanaReceiverType
-		case AlertmanagerReceiverType:
-			return AlertmanagerReceiverType
-		default:
-			continue
-		}
-	}
-	return EmptyReceiverType
-}
-
 // AllReceivers will recursively walk a routing tree and return a list of all the
 // referenced receiver names.
 func AllReceivers(route *config.Route) (res []string) {
@@ -404,32 +388,6 @@ type PostableGrafanaReceiver struct {
 	Settings              RawMessage        `json:"settings,omitempty" yaml:"settings,omitempty"`
 	SecureSettings        map[string]string `json:"secureSettings,omitempty" yaml:"secureSettings,omitempty"`
 }
-
-type ReceiverType int
-
-const (
-	GrafanaReceiverType ReceiverType = 1 << iota
-	AlertmanagerReceiverType
-	EmptyReceiverType = GrafanaReceiverType | AlertmanagerReceiverType
-)
-
-func (r ReceiverType) String() string {
-	switch r {
-	case GrafanaReceiverType:
-		return "grafana"
-	case AlertmanagerReceiverType:
-		return "alertmanager"
-	case EmptyReceiverType:
-		return "empty"
-	default:
-		return "unknown"
-	}
-}
-
-// Can determines whether a receiver type can implement another receiver type.
-// This is useful as receivers with just names but no contact points
-// are valid in all backends.
-func (r ReceiverType) Can(other ReceiverType) bool { return r&other != 0 }
 
 // ObjectMatcher is a matcher that can be used to filter alerts.
 // swagger:model ObjectMatcher
@@ -567,20 +525,6 @@ func (r *PostableApiReceiver) UnmarshalYAML(unmarshal func(interface{}) error) e
 	}
 
 	return nil
-}
-
-func (r *PostableApiReceiver) Type() ReceiverType {
-	if len(r.PostableGrafanaReceivers.GrafanaManagedReceivers) > 0 {
-		return GrafanaReceiverType
-	}
-
-	cpy := r.Receiver
-	cpy.Name = ""
-	if reflect.ValueOf(cpy).IsZero() {
-		return EmptyReceiverType
-	}
-
-	return AlertmanagerReceiverType
 }
 
 func (r *PostableApiReceiver) GetName() string {
