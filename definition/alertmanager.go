@@ -527,6 +527,16 @@ func (r *PostableApiReceiver) UnmarshalYAML(unmarshal func(interface{}) error) e
 	return nil
 }
 
+func (r *PostableApiReceiver) HasMimirIntegrations() bool {
+	cpy := r.Receiver
+	cpy.Name = ""
+	return !reflect.ValueOf(cpy).IsZero()
+}
+
+func (r *PostableApiReceiver) HasGrafanaIntegrations() bool {
+	return len(r.GrafanaManagedReceivers) > 0
+}
+
 func (r *PostableApiReceiver) GetName() string {
 	return r.Receiver.Name
 }
