@@ -1613,3 +1613,113 @@ func TestPostableApiTemplateValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestCopyIntegrations(t *testing.T) {
+	mimirEmail := &config.EmailConfig{
+		From: "test",
+		To:   "test",
+	}
+	mimirSlack := &config.SlackConfig{
+		Title: "test",
+	}
+	grafana := &PostableGrafanaReceiver{
+		UID:  "test-uid",
+		Name: "test",
+	}
+
+	t.Run("should noop on empty source and dest", func(t *testing.T) {
+		dst := PostableApiReceiver{}
+		src := PostableApiReceiver{}
+		require.NoError(t, CopyIntegrations(&src, &dst))
+		require.Equal(t, PostableApiReceiver{}, dst)
+	})
+
+	t.Run("should copy all integrations from src to dest by reference", func(t *testing.T) {
+		dst := PostableApiReceiver{}
+		src := PostableApiReceiver{
+			Receiver: config.Receiver{
+				Name: "source",
+				EmailConfigs: []*config.EmailConfig{
+					mimirEmail,
+				},
+				SlackConfigs: []*config.SlackConfig{
+					mimirSlack,
+				},
+			},
+			PostableGrafanaReceivers: PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
+					grafana,
+				},
+			},
+		}
+		require.NoError(t, CopyIntegrations(&src, &dst))
+		require.Equal(t, PostableApiReceiver{
+			Receiver: config.Receiver{
+				EmailConfigs: []*config.EmailConfig{
+					mimirEmail,
+				},
+				SlackConfigs: []*config.SlackConfig{
+					mimirSlack,
+				},
+			},
+			PostableGrafanaReceivers: PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
+					grafana,
+				},
+			},
+		}, dst)
+		require.Same(t, mimirEmail, dst.Receiver.EmailConfigs[0])
+		require.Same(t, mimirSlack, dst.Receiver.SlackConfigs[0])
+		require.Same(t, grafana, dst.PostableGrafanaReceivers.GrafanaManagedReceivers[0])
+	})
+
+	t.Run("should append to existing integrations", func(t *testing.T) {
+		dst := PostableApiReceiver{
+			Receiver: config.Receiver{
+				Name: "dest",
+				SlackConfigs: []*config.SlackConfig{
+					mimirSlack,
+				},
+			},
+			PostableGrafanaReceivers: PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
+					grafana,
+				},
+			},
+		}
+		src := PostableApiReceiver{
+			Receiver: config.Receiver{
+				Name: "source",
+				SlackConfigs: []*config.SlackConfig{
+					mimirSlack,
+				},
+			},
+			PostableGrafanaReceivers: PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
+					grafana,
+				},
+			},
+		}
+		require.NoError(t, CopyIntegrations(&src, &dst))
+		require.Equal(t, PostableApiReceiver{
+			Receiver: config.Receiver{
+				Name: "dest",
+				SlackConfigs: []*config.SlackConfig{
+					mimirSlack,
+					mimirSlack,
+				},
+			},
+			PostableGrafanaReceivers: PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
+					grafana,
+					grafana,
+				},
+			},
+		}, dst)
+	})
+
+	t.Run("fails when either is nil", func(t *testing.T) {
+		require.Error(t, CopyIntegrations(&PostableApiReceiver{}, nil))
+		require.Error(t, CopyIntegrations(nil, &PostableApiReceiver{}))
+	})
+}
