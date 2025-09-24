@@ -6,8 +6,11 @@ import (
 	"fmt"
 
 	"github.com/grafana/alerting/receivers"
+	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/templates"
 )
+
+const Version = schema.V1
 
 type Config struct {
 	URL     string `json:"url,omitempty" yaml:"url,omitempty"`
@@ -33,4 +36,36 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		settings.Message = templates.DefaultMessageEmbed
 	}
 	return settings, nil
+}
+
+func Schema() schema.IntegrationSchemaVersion {
+	return schema.IntegrationSchemaVersion{
+		Version:   Version,
+		CanCreate: true,
+		Options: []schema.Field{
+			{
+				Label:        "URL",
+				Element:      schema.ElementTypeInput,
+				InputType:    schema.InputTypeText,
+				Placeholder:  "Google Chat incoming webhook url",
+				PropertyName: "url",
+				Required:     true,
+				Secure:       true,
+			},
+			{
+				Label:        "Title",
+				Description:  "Templated title of the message",
+				Element:      schema.ElementTypeTextArea,
+				InputType:    schema.InputTypeText,
+				Placeholder:  templates.DefaultMessageTitleEmbed,
+				PropertyName: "title",
+			},
+			{
+				Label:        "Message",
+				Element:      schema.ElementTypeTextArea,
+				Placeholder:  templates.DefaultMessageEmbed,
+				PropertyName: "message",
+			},
+		},
+	}
 }
