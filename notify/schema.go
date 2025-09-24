@@ -7,6 +7,7 @@ import (
 	"github.com/grafana/alerting/receivers/email"
 	"github.com/grafana/alerting/receivers/googlechat"
 	"github.com/grafana/alerting/receivers/jira"
+	"github.com/grafana/alerting/receivers/kafka"
 	"github.com/grafana/alerting/receivers/schema"
 )
 
@@ -19,5 +20,6 @@ func GetSchemaForAllIntegrations() []schema.IntegrationTypeSchema {
 		email.Schema(),
 		googlechat.Schema(),
 		jira.Schema(),
+		kafka.Schema(),
 	}
 }
