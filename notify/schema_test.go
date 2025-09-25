@@ -246,11 +246,14 @@ func TestSchemaTypeUniqueness(t *testing.T) {
 			if version.TypeAlias == "" {
 				continue
 			}
-			iType = strings.ToLower(string(version.TypeAlias))
-			if _, ok := knownTypes[iType]; ok {
+			vType := strings.ToLower(string(version.TypeAlias))
+			if iType == vType { // allow type and type alias to be the same
+				continue
+			}
+			if _, ok := knownTypes[vType]; ok {
 				assert.Failf(t, "mimir type duplicates Grafana plugin type", "plugin type %s", iType)
 			}
-			knownTypes[iType] = struct{}{}
+			knownTypes[vType] = struct{}{}
 		}
 	}
 }

@@ -39,6 +39,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 
 func Schema() schema.IntegrationSchemaVersion {
 	return schema.IntegrationSchemaVersion{
+		TypeAlias: "line",
 		Version:   Version,
 		CanCreate: true,
 		Options: []schema.Field{
