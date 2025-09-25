@@ -38,6 +38,26 @@ type IntegrationTypeSchema struct {
 	Versions       []IntegrationSchemaVersion `json:"versions"`
 }
 
+// GetAllTypes returns a list of all types that are mentioned by the schema.
+// Includes the main schema's type and all aliases of its versions
+func (p IntegrationTypeSchema) GetAllTypes() []IntegrationType {
+	types := []IntegrationType{p.Type}
+	for _, version := range p.Versions {
+		types = append(types, version.TypeAlias)
+	}
+	return types
+}
+
+// GetVersionByTypeAlias retrieves a specific version of the schema by its type alias. Returns the version and a boolean indicating success.
+func (p IntegrationTypeSchema) GetVersionByTypeAlias(alias IntegrationType) (IntegrationSchemaVersion, bool) {
+	for _, version := range p.Versions {
+		if version.TypeAlias == alias {
+			return version, true
+		}
+	}
+	return IntegrationSchemaVersion{}, false
+}
+
 // GetVersion retrieves a specific version of the notifier plugin by its version string. Returns the version and a boolean indicating success.
 func (p IntegrationTypeSchema) GetVersion(v Version) (IntegrationSchemaVersion, bool) {
 	for _, version := range p.Versions {
