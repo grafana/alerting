@@ -1,6 +1,6 @@
 package v0mimir1
 
-const FullValidConfigForTesting =` {
+const FullValidConfigForTesting = ` {
 	"url": "http://localhost/",
 	"http_config": {},
 	"routing_key": "test-routing-secret-key",

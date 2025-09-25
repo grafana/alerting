@@ -1,6 +1,6 @@
 package v0mimir1
 
-const FullValidConfigForTesting =`{
+const FullValidConfigForTesting = `{
 	"api_url": "http://localhost",
 	"http_config": {},
 	"channel": "#alerts",
