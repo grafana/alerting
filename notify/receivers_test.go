@@ -21,16 +21,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/prometheus/alertmanager/notify"
+
 	alertingHttp "github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/receivers/line"
-	"github.com/grafana/alerting/receivers/pushover"
-	"github.com/grafana/alerting/receivers/telegram"
+	line "github.com/grafana/alerting/receivers/line/v1"
+	pushover "github.com/grafana/alerting/receivers/pushover/v1"
+	telegram "github.com/grafana/alerting/receivers/telegram/v1"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
-	"github.com/grafana/alerting/receivers/threema"
+	threema "github.com/grafana/alerting/receivers/threema/v1"
 	"github.com/grafana/alerting/templates"
-	"github.com/prometheus/alertmanager/notify"
 )
 
 func TestReceiverTimeoutError_Error(t *testing.T) {
