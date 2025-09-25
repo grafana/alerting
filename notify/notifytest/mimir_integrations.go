@@ -8,6 +8,22 @@ import (
 	"slices"
 
 	promCfg "github.com/prometheus/alertmanager/config"
+
+	discordV0 "github.com/grafana/alerting/receivers/discord/v0mimir1"
+	emailV0 "github.com/grafana/alerting/receivers/email/v0mimir1"
+	jiraV0 "github.com/grafana/alerting/receivers/jira/v0mimir1"
+	opsgenieV0 "github.com/grafana/alerting/receivers/opsgenie/v0mimir1"
+	pagerdutyV0 "github.com/grafana/alerting/receivers/pagerduty/v0mimir1"
+	pushoverV0 "github.com/grafana/alerting/receivers/pushover/v0mimir1"
+	slackV0 "github.com/grafana/alerting/receivers/slack/v0mimir1"
+	snsV0 "github.com/grafana/alerting/receivers/sns/v0mimir1"
+	msteamsV01 "github.com/grafana/alerting/receivers/teams/v0mimir1"
+	msteamsV02 "github.com/grafana/alerting/receivers/teams/v0mimir2"
+	telegramV0 "github.com/grafana/alerting/receivers/telegram/v0mimir1"
+	victoropsV0 "github.com/grafana/alerting/receivers/victorops/v0mimir1"
+	webexV0 "github.com/grafana/alerting/receivers/webex/v0mimir1"
+	webhookV0 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
+	wechatV0 "github.com/grafana/alerting/receivers/wechat/v0mimir1"
 )
 
 type MimirIntegrationHTTPConfigOption string
@@ -94,11 +110,11 @@ func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...MimirIntegr
 // GetMimirReceiverWithAllIntegrations creates a Receiver with all integrations configured from given types and options.
 // It returns a Receiver for testing purposes or an error if the configuration process encounters an issue.
 func GetMimirReceiverWithAllIntegrations(opts ...MimirIntegrationHTTPConfigOption) (promCfg.Receiver, error) {
-	return GetMimirReceiverWithIntegrations(slices.Collect(maps.Keys(ValidMimirConfigs)), opts...)
+	return GetMimirReceiverWithIntegrations(slices.Collect(maps.Keys(AllValidMimirConfigs)), opts...)
 }
 
 func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...MimirIntegrationHTTPConfigOption) (string, error) {
-	cfg, ok := ValidMimirConfigs[iType]
+	cfg, ok := AllValidMimirConfigs[iType]
 	if !ok {
 		return "", fmt.Errorf("invalid config type [%s", iType.String())
 	}
@@ -245,241 +261,22 @@ var ValidMimirHTTPConfigs = map[MimirIntegrationHTTPConfigOption]string{
 	}`,
 }
 
-var ValidMimirConfigs = map[reflect.Type]string{
-	reflect.TypeOf(promCfg.DiscordConfig{}): `{
-			"send_resolved": true,
-			"webhook_url": "http://localhost",
-			"http_config": {},
-			"title": "test title",
-			"message": "test message"
-		}`,
-	reflect.TypeOf(promCfg.EmailConfig{}): `{
-			"to": "team@example.com",
-			"from": "alertmanager@example.com",
-			"smarthost": "smtp.example.com:587",
-			"auth_username": "alertmanager",
-			"auth_password": "password123",
-			"auth_secret": "secret-auth",
-			"auth_identity": "alertmanager",
-			"require_tls": true,
-			"text": "test email",
-			"headers": {
-				"Subject": "test subject"
-			},
-			"tls_config": {
-				"insecure_skip_verify": false,     
-				"server_name": "test-server-name"
-			},
-			"send_resolved": true
-        }`,
-	reflect.TypeOf(promCfg.PagerdutyConfig{}): ` {
-			"url": "http://localhost/",
-			"http_config": {},
-			"routing_key": "test-routing-secret-key",
-			"service_key": "test-service-secret-key",
-			"client": "Alertmanager",
-			"client_url": "https://monitoring.example.com",
-			"description": "test description",
-			"severity": "test severity",
-			"details": {
-			  "firing": "test firing"
-			},
-			"images": [
-				{ 
-					"alt": "test alt",
-					"src": "test src",
-					"href": "http://localhost"
-				}
-			],
-			"links": [
-				{
-					"href": "http://localhost",
-					"text": "test text"     
-				}
-			],
-			"source": "test source",
-			"class": "test class",
-			"component": "test component",
-			"group": "test group",
-			"send_resolved": true
-        }`,
-	reflect.TypeOf(promCfg.SlackConfig{}): `{
-			"api_url": "http://localhost",
-			"http_config": {},
-			"channel": "#alerts",
-			"username": "Alerting Team",
-			"color": "danger",
-			"title": "test title",
-			"title_link": "http://localhost",
-			"pretext": "test pretext",
-			"text": "test text",
-			"fields": [ 
-				{
-					"title": "test title",
-					"value": "test value",
-					"short": true   
-				}
-			],
-			"short_fields": true,
-			"footer": "test footer",
-			"fallback": "test fallback",
-			"callback_id": "test callback id",
-			"icon_emoji": ":warning:",
-			"icon_url": "https://example.com/icon.png",
-			"image_url": "https://example.com/image.png",
-			"thumb_url": "https://example.com/thumb.png",
-			"link_names": true,
-			"mrkdwn_in": ["fallback", "pretext", "text"],
-			"actions": [
-				{
-					"type": "test-type",
-					"text": "test-text",
-					"url": "http://localhost",
-					"style": "test-style",
-					"name": "test-name",
-					"value": "test-value",
-					"confirm": {
-						"title": "test-title",
-						"text": "test-text",
-						"ok_text": "test-ok-text",
-						"dismiss_text": "test-dismiss-text"     
-					}
-				}
-			],
-			"send_resolved": true
-		}`,
-	reflect.TypeOf(promCfg.WebhookConfig{}): `{
-			"send_resolved": true,
-			"url": "http://localhost",
-			"url_file": "",
-			"http_config": {},
-			"max_alerts": 10,
-			"timeout": "30s"
-		}`,
-	reflect.TypeOf(promCfg.OpsGenieConfig{}): `{
-			"api_key": "api-secret-key",
-			"api_url": "http://localhost",
-			"http_config": {},
-			"message": "test message",
-			"description": "test description",
-			"source": "Alertmanager",
-			"details": {
-				"firing": "test firing"
-			},
-			"entity": "test entity",
-			"responders": [{ "type": "team", "name": "ops-team" }],
-			"actions": "test actions",
-			"tags": "test-tags",   
-			"note": "Triggered by Alertmanager",
-			"priority": "P3",
-			"update_alerts": true,
-			"send_resolved": true
-		}`,
-	reflect.TypeOf(promCfg.WechatConfig{}): `{
-			"send_resolved": true,
-			"api_url": "http://localhost",
-			"http_config": {},
-			"api_secret": "12345-secret",
-			"corp_id": "12345",
-			"to_user": "user1",
-			"to_party": "party1",
-			"to_tag": "tag1",
-			"agent_id": "1000002",
-			"message": "test message",
-			"message_type": "text"
-        }`,
-	reflect.TypeOf(promCfg.PushoverConfig{}): `{
-			"user_key": "secret-user-key",
-			"token": "secret-token",
-			"title": "test title",
-			"message": "test message",
-			"url": "https://monitoring.example.com",
-			"http_config": {},
-			"url_title": "test url title",
-			"device": "test device",
-			"sound": "bike",
-			"priority": "urgent",
-			"retry": "30s",
-			"expire": "1h0m0s",
-			"ttl": "1h0m0s",
-			"html": true,
-			"send_resolved": true
-		}`,
-	reflect.TypeOf(promCfg.VictorOpsConfig{}): ` {
-			"api_url": "http://localhost",
-			"api_key": "secret-api-key",
-			"http_config": {},
-			"routing_key": "team1",
-			"message_type": "CRITICAL",
-			"entity_display_name": "test entity",
-			"state_message": "test state message",
-			"monitoring_tool": "Grafana",
-			"custom_fields": {
-				"test": "test"
-			},
-			"send_resolved": true
-		}`,
+var AllValidMimirConfigs = map[reflect.Type]string{
+	reflect.TypeOf(promCfg.DiscordConfig{}):   discordV0.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.EmailConfig{}):     emailV0.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.PagerdutyConfig{}): pagerdutyV0.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.SlackConfig{}):     slackV0.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.WebhookConfig{}):   webhookV0.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.OpsGenieConfig{}):  opsgenieV0.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.WechatConfig{}):    wechatV0.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.PushoverConfig{}):  pushoverV0.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.VictorOpsConfig{}): victoropsV0.FullValidConfigForTesting,
 	// all sigv4 fields of SNSConfig are different in yaml
-	reflect.TypeOf(promCfg.SNSConfig{}): ` {
-			"http_config": {},
-			"topic_arn": "arn:aws:sns:us-east-1:123456789012:alerts",
-			"sigv4": {
-				"Region": "us-east-1",
-				"AccessKey": "secret-access-key",
-				"SecretKey": "secret-secret-key",
-				"Profile": "default",
-				"RoleARN": "arn:aws:iam::123456789012:role/role-name"
-			},
-			"subject": "test subject",
-			"message": "test message",
-			"attributes": { "key1": "value1" },
-			"send_resolved": true
-		}`,
+	reflect.TypeOf(promCfg.SNSConfig{}): snsV0.FullValidConfigForTesting,
 	// token and chat fields of TelegramConfig are different in yaml
-	reflect.TypeOf(promCfg.TelegramConfig{}): `{
-			"api_url": "https://localhost",
-			"http_config": {},
-			"token": "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11",
-			"chat": -1001234567890,
-			"message": "TestMessage",
-			"parse_mode": "MarkdownV2",
-			"send_resolved": true
-		}`,
-	reflect.TypeOf(promCfg.WebexConfig{}): `{
-			"api_url": "https://localhost",
-			"http_config": {
-			  "authorization": { "type": "Bearer", "credentials": "bot_token" }
-			},
-			"room_id": "12345",
-			"message": "test templated message",
-			"send_resolved": true
-        }`,
-	reflect.TypeOf(promCfg.MSTeamsConfig{}): `{
-			"send_resolved": true,
-			"webhook_url": "http://localhost",
-			"http_config": {},
-			"title": "test title",
-			"summary": "test summary",
-			"text": "test text"
-        }`,
-	reflect.TypeOf(promCfg.MSTeamsV2Config{}): `{
-			"send_resolved": true,
-			"webhook_url": "http://localhost",
-			"http_config": {},
-			"title": "test title",
-			"text": "test text"
-        }`,
-	reflect.TypeOf(promCfg.JiraConfig{}): `{
-			"api_url": "http://localhost",
-			"project": "PROJ",
-			"issue_type": "Bug",
-			"summary": "test summary",
-			"description": "test description",
-			"priority": "High",
-			"labels": ["alertmanager"],
-			"custom_fields": {
-				"customfield_10000": "test customfield_10000"
-			},
-			"send_resolved": true
-		}`,
+	reflect.TypeOf(promCfg.TelegramConfig{}):  telegramV0.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.WebexConfig{}):     webexV0.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.MSTeamsConfig{}):   msteamsV01.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.MSTeamsV2Config{}): msteamsV02.FullValidConfigForTesting,
+	reflect.TypeOf(promCfg.JiraConfig{}):      jiraV0.FullValidConfigForTesting,
 }

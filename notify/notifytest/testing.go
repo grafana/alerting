@@ -17,7 +17,7 @@ import (
 // ForEachIntegrationTypeReceiver runs the given function for each integration type.
 func ForEachIntegrationTypeReceiver(t *testing.T, f func(configType reflect.Type, receiver promCfg.Receiver, rawConfig string)) {
 	t.Helper()
-	keys := slices.SortedFunc(maps.Keys(ValidMimirConfigs), func(r reflect.Type, r2 reflect.Type) int {
+	keys := slices.SortedFunc(maps.Keys(AllValidMimirConfigs), func(r reflect.Type, r2 reflect.Type) int {
 		return strings.Compare(r.Name(), r2.Name())
 	})
 	for _, iType := range keys {
@@ -32,7 +32,7 @@ func ForEachIntegrationTypeReceiver(t *testing.T, f func(configType reflect.Type
 // ForEachIntegrationTypeReceiver runs the given function for each integration type.
 func ForEachIntegrationType(t *testing.T, f func(configType reflect.Type)) {
 	t.Helper()
-	keys := slices.SortedFunc(maps.Keys(ValidMimirConfigs), func(r reflect.Type, r2 reflect.Type) int {
+	keys := slices.SortedFunc(maps.Keys(AllValidMimirConfigs), func(r reflect.Type, r2 reflect.Type) int {
 		return strings.Compare(r.Name(), r2.Name())
 	})
 	for _, iType := range keys {
