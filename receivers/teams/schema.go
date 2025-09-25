@@ -2,6 +2,8 @@ package teams
 
 import (
 	"github.com/grafana/alerting/receivers/schema"
+	"github.com/grafana/alerting/receivers/teams/v0mimir1"
+	"github.com/grafana/alerting/receivers/teams/v0mimir2"
 	v1 "github.com/grafana/alerting/receivers/teams/v1"
 )
 
@@ -16,6 +18,8 @@ func Schema() schema.IntegrationTypeSchema {
 		CurrentVersion: v1.Version,
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),
+			v0mimir1.Schema(),
+			v0mimir2.Schema(),
 		},
 	}
 }

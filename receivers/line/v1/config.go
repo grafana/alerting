@@ -41,7 +41,7 @@ func Schema() schema.IntegrationSchemaVersion {
 	return schema.IntegrationSchemaVersion{
 		Version:   Version,
 		CanCreate: true,
-		Options:[]schema.Field{
+		Options: []schema.Field{
 			{
 				Label:        "Token",
 				Element:      schema.ElementTypeInput,

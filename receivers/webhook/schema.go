@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"github.com/grafana/alerting/receivers/schema"
+	"github.com/grafana/alerting/receivers/webhook/v0mimir1"
 	v1 "github.com/grafana/alerting/receivers/webhook/v1"
 )
 
@@ -16,6 +17,7 @@ func Schema() schema.IntegrationTypeSchema {
 		CurrentVersion: v1.Version,
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),
+			v0mimir1.Schema(),
 		},
 	}
 }

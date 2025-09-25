@@ -24,6 +24,7 @@ import (
 	"github.com/grafana/alerting/receivers/victorops"
 	"github.com/grafana/alerting/receivers/webex"
 	"github.com/grafana/alerting/receivers/webhook"
+	"github.com/grafana/alerting/receivers/wechat"
 	"github.com/grafana/alerting/receivers/wecom"
 )
 
@@ -53,5 +54,6 @@ func GetSchemaForAllIntegrations() map[schema.IntegrationType]schema.Integration
 		webex.Type:        webex.Schema(),
 		webhook.Type:      webhook.Schema(),
 		wecom.Type:        wecom.Schema(),
+		wechat.Type:       wechat.Schema(),
 	}
 }

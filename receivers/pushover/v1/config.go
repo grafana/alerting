@@ -192,7 +192,7 @@ func Schema() schema.IntegrationSchemaVersion {
 			Label: "Lowest",
 		},
 	}
-	
+
 	return schema.IntegrationSchemaVersion{
 		Version:   Version,
 		CanCreate: true,

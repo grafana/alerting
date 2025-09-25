@@ -10,13 +10,12 @@ const Type schema.IntegrationType = "mqtt"
 func Schema() schema.IntegrationTypeSchema {
 	return schema.IntegrationTypeSchema{
 		Type:           Type,
-		Name:        "MQTT",
-		Description: "Sends notifications to an MQTT broker",
-		Heading:     "MQTT settings",
+		Name:           "MQTT",
+		Description:    "Sends notifications to an MQTT broker",
+		Heading:        "MQTT settings",
 		CurrentVersion: v1.Version,
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),
 		},
 	}
 }
-

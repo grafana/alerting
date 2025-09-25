@@ -1,6 +1,7 @@
 package pagerduty
 
 import (
+	"github.com/grafana/alerting/receivers/pagerduty/v0mimir1"
 	v1 "github.com/grafana/alerting/receivers/pagerduty/v1"
 	"github.com/grafana/alerting/receivers/schema"
 )
@@ -16,6 +17,7 @@ func Schema() schema.IntegrationTypeSchema {
 		CurrentVersion: v1.Version,
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),
+			v0mimir1.Schema(),
 		},
 	}
 }
