@@ -6,10 +6,12 @@ import (
 	"fmt"
 
 	"github.com/grafana/alerting/receivers"
+	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/templates"
 )
 
 const (
+	Version = schema.V1
 	// DefaultMessageType - Victorops uses "CRITICAL" string to indicate "Alerting" state
 	DefaultMessageType = "CRITICAL"
 )
@@ -41,4 +43,52 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		settings.Description = templates.DefaultMessageEmbed
 	}
 	return settings, nil
+}
+
+func Schema() schema.IntegrationSchemaVersion {
+	return schema.IntegrationSchemaVersion{
+		Version:   Version,
+		CanCreate: true,
+		Options: []schema.Field{
+			{
+				Label:        "URL",
+				Element:      schema.ElementTypeInput,
+				InputType:    schema.InputTypeText,
+				Placeholder:  "VictorOps url",
+				PropertyName: "url",
+				Required:     true,
+				Secure:       true,
+			},
+			{ // New in 8.0.
+				Label:        "Message Type",
+				Element:      schema.ElementTypeSelect,
+				PropertyName: "messageType",
+				SelectOptions: []schema.SelectOption{
+					{
+						Value: "CRITICAL",
+						Label: "CRITICAL"},
+					{
+						Value: "WARNING",
+						Label: "WARNING",
+					},
+				},
+			},
+			{ // New in 9.3.
+				Label:        "Title",
+				Element:      schema.ElementTypeTextArea,
+				InputType:    schema.InputTypeText,
+				Description:  "Templated title to display",
+				PropertyName: "title",
+				Placeholder:  templates.DefaultMessageTitleEmbed,
+			},
+			{ // New in 9.3.
+				Label:        "Description",
+				Element:      schema.ElementTypeTextArea,
+				InputType:    schema.InputTypeText,
+				Description:  "Templated description of the message",
+				PropertyName: "description",
+				Placeholder:  templates.DefaultMessageEmbed,
+			},
+		},
+	}
 }
