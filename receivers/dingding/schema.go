@@ -1,7 +1,7 @@
 package dingding
 
 import (
-	"github.com/grafana/alerting/receivers/dingding/v1"
+	v1 "github.com/grafana/alerting/receivers/dingding/v1"
 	"github.com/grafana/alerting/receivers/schema"
 )
 
