@@ -13,7 +13,7 @@ func Schema() schema.IntegrationTypeSchema {
 		Type:           Type,
 		Name:           "Email",
 		Heading:        "Email settings",
-		Description:    "Send notification over SMTP",
+		Description:    "Sends notifications using Grafana server configured SMTP settings",
 		CurrentVersion: v1.Version,
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),

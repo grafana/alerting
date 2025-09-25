@@ -12,6 +12,7 @@ type Config = config.MSTeamsV2Config
 
 func Schema() schema.IntegrationSchemaVersion {
 	return schema.IntegrationSchemaVersion{
+		TypeAlias: "msteamsv2",
 		Version:   Version,
 		CanCreate: false,
 		Options: []schema.Field{

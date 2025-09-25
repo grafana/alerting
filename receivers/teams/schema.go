@@ -18,8 +18,8 @@ func Schema() schema.IntegrationTypeSchema {
 		CurrentVersion: v1.Version,
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),
-			v0mimir1.Schema(),
 			v0mimir2.Schema(),
+			v0mimir1.Schema(),
 		},
 	}
 }
