@@ -25,6 +25,7 @@ import (
 
 	alertingHttp "github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers"
 	line "github.com/grafana/alerting/receivers/line/v1"
@@ -37,7 +38,7 @@ import (
 
 func TestReceiverTimeoutError_Error(t *testing.T) {
 	e := IntegrationTimeoutError{
-		Integration: &GrafanaIntegrationConfig{
+		Integration: &models.IntegrationConfig{
 			Name: "test",
 			UID:  "uid",
 		},
@@ -58,7 +59,7 @@ func (e timeoutError) Timeout() bool {
 
 func TestProcessNotifierError(t *testing.T) {
 	t.Run("assert IntegrationTimeoutError is returned for context deadline exceeded", func(t *testing.T) {
-		r := &GrafanaIntegrationConfig{
+		r := &models.IntegrationConfig{
 			Name: "test",
 			UID:  "uid",
 		}
@@ -69,7 +70,7 @@ func TestProcessNotifierError(t *testing.T) {
 	})
 
 	t.Run("assert IntegrationTimeoutError is returned for *url.Error timeout", func(t *testing.T) {
-		r := &GrafanaIntegrationConfig{
+		r := &models.IntegrationConfig{
 			Name: "test",
 			UID:  "uid",
 		}
@@ -85,7 +86,7 @@ func TestProcessNotifierError(t *testing.T) {
 	})
 
 	t.Run("assert unknown error is returned unmodified", func(t *testing.T) {
-		r := &GrafanaIntegrationConfig{
+		r := &models.IntegrationConfig{
 			Name: "test",
 			UID:  "uid",
 		}
@@ -104,7 +105,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, GetRawNotifierConfig(cfg, ""))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
 		require.NoError(t, err)
@@ -114,7 +115,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	t.Run("should decode secrets from base64", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, GetRawNotifierConfig(cfg, ""))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
 		counter := 0
 		decryptCount := func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
@@ -127,9 +128,9 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	t.Run("should fail if at least one config is invalid", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, GetRawNotifierConfig(cfg, ""))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
-		bad := &GrafanaIntegrationConfig{
+		bad := &models.IntegrationConfig{
 			UID:      "invalid-test",
 			Name:     "invalid-test",
 			Type:     "slack",
@@ -157,7 +158,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		// We decode all the secureSettings from base64 and then build then receivers. The test is to ensure that
 		// BuildReceiverConfiguration can handle the already decoded secrets correctly.
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			notifierRaw := GetRawNotifierConfig(cfg, "")
+			notifierRaw := cfg.GetRawNotifierConfig("")
 			if len(notifierRaw.SecureSettings) == 0 {
 				continue
 			}
@@ -182,9 +183,9 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	t.Run("should fail if notifier type is unknown", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, GetRawNotifierConfig(cfg, ""))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
-		bad := &GrafanaIntegrationConfig{
+		bad := &models.IntegrationConfig{
 			UID:      "test",
 			Name:     "test",
 			Type:     fmt.Sprintf("invalid-%d", rand.Uint32()),
@@ -204,7 +205,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	t.Run("should recognize all known types", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, GetRawNotifierConfig(cfg, ""))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
 		require.NoError(t, err)
@@ -233,7 +234,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 				require.NotEmptyf(t, meta.Type, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
 				require.NotEmptyf(t, meta.UID, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
 				require.NotEmptyf(t, meta.Name, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
-				var notifierRaw *GrafanaIntegrationConfig
+				var notifierRaw *models.IntegrationConfig
 				for _, receiver := range recCfg.Integrations {
 					if receiver.Type == meta.Type && receiver.UID == meta.UID && receiver.Name == meta.Name {
 						notifierRaw = receiver
@@ -248,9 +249,9 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 	t.Run("should recognize type in any case", func(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			notifierRaw := GetRawNotifierConfig(cfg, "")
+			notifierRaw := cfg.GetRawNotifierConfig("")
 			notifierRaw.Type = strings.ToUpper(notifierRaw.Type)
-			recCfg.Integrations = append(recCfg.Integrations, GetRawNotifierConfig(cfg, ""))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
 		require.NoError(t, err)
@@ -289,7 +290,7 @@ func TestHTTPConfig(t *testing.T) {
 			}
 
 			t.Run("should support building with http_config", func(t *testing.T) {
-				config := GetRawNotifierConfig(cfg, "")
+				config := cfg.GetRawNotifierConfig("")
 
 				// Config should include http_config if the notifier supports it, but let's sanity check.
 				require.Containsf(t, string(config.Settings), "http_config", "notifier %s does not contain http_config", notifierType)
@@ -297,7 +298,7 @@ func TestHTTPConfig(t *testing.T) {
 				recCfg := &APIReceiver{
 					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
 					GrafanaIntegrations: GrafanaIntegrations{
-						[]*GrafanaIntegrationConfig{
+						[]*models.IntegrationConfig{
 							config,
 						},
 					},
@@ -456,7 +457,7 @@ func TestHTTPConfig(t *testing.T) {
 					threema.APIURL = origThreema
 				}()
 
-				config := GetRawNotifierConfig(cfg, "")
+				config := cfg.GetRawNotifierConfig("")
 
 				// Override common url patterns:
 				urlOverride, err := json.Marshal(map[string]any{
@@ -482,7 +483,7 @@ func TestHTTPConfig(t *testing.T) {
 				recCfg := &APIReceiver{
 					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
 					GrafanaIntegrations: GrafanaIntegrations{
-						[]*GrafanaIntegrationConfig{
+						[]*models.IntegrationConfig{
 							config,
 						},
 					},

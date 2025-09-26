@@ -4,15 +4,16 @@ import (
 	"encoding/json"
 
 	"github.com/grafana/alerting/definition"
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/templates"
 )
 
 func PostableAPIReceiverToAPIReceiver(r *definition.PostableApiReceiver) *APIReceiver {
 	integrations := GrafanaIntegrations{
-		Integrations: make([]*GrafanaIntegrationConfig, 0, len(r.GrafanaManagedReceivers)),
+		Integrations: make([]*models.IntegrationConfig, 0, len(r.GrafanaManagedReceivers)),
 	}
 	for _, p := range r.GrafanaManagedReceivers {
-		integrations.Integrations = append(integrations.Integrations, &GrafanaIntegrationConfig{
+		integrations.Integrations = append(integrations.Integrations, &models.IntegrationConfig{
 			UID:                   p.UID,
 			Name:                  p.Name,
 			Type:                  p.Type,

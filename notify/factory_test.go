@@ -20,6 +20,7 @@ import (
 	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
@@ -40,7 +41,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	getFullConfig := func(t *testing.T) (GrafanaReceiverConfig, int) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, GetRawNotifierConfig(cfg, ""))
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
 		require.NoError(t, err)
@@ -150,8 +151,8 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 					Name: "test2",
 				},
 				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
-						GetRawNotifierConfig(notifytest.AllKnownV1ConfigsForTesting["email"], "test2"),
+					Integrations: []*models.IntegrationConfig{
+						notifytest.AllKnownV1ConfigsForTesting["email"].GetRawNotifierConfig("test2"),
 					},
 				},
 			},
@@ -187,8 +188,8 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 					Name: "test",
 				},
 				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
-						GetRawNotifierConfig(notifytest.AllKnownV1ConfigsForTesting["email"], "test"),
+					Integrations: []*models.IntegrationConfig{
+						notifytest.AllKnownV1ConfigsForTesting["email"].GetRawNotifierConfig("test"),
 					},
 				},
 			},
@@ -197,8 +198,8 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 					Name: "test",
 				},
 				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
-						GetRawNotifierConfig(notifytest.AllKnownV1ConfigsForTesting["webhook"], "test"),
+					Integrations: []*models.IntegrationConfig{
+						notifytest.AllKnownV1ConfigsForTesting["webhook"].GetRawNotifierConfig("test"),
 					},
 				},
 			},

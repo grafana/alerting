@@ -397,14 +397,14 @@ func GetReceivers(receivers []*nfstatus.Receiver) []models.Receiver {
 
 // job contains all metadata required to test a receiver
 type job struct {
-	Config       *GrafanaIntegrationConfig
+	Config       *models.IntegrationConfig
 	ReceiverName string
 	Notifier     notify.Notifier
 }
 
 // result contains the receiver that was tested and a non-nil error if the test failed
 type result struct {
-	Config       *GrafanaIntegrationConfig
+	Config       *models.IntegrationConfig
 	ReceiverName string
 	Error        error
 }
@@ -503,7 +503,7 @@ func TestReceivers(
 			// can identify invalid receiver integration configs
 			singleIntReceiver := &APIReceiver{
 				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{intg},
+					Integrations: []*models.IntegrationConfig{intg},
 				},
 			}
 			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmplProvider)
