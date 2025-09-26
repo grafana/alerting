@@ -150,7 +150,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "test2",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{
 						notifytest.AllKnownV1ConfigsForTesting["email"].GetRawNotifierConfig("test2"),
 					},
@@ -187,7 +187,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "test",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{
 						notifytest.AllKnownV1ConfigsForTesting["email"].GetRawNotifierConfig("test"),
 					},
@@ -197,7 +197,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "test",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{
 						notifytest.AllKnownV1ConfigsForTesting["webhook"].GetRawNotifierConfig("test"),
 					},

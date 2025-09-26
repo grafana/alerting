@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/grafana/alerting/definition"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/definition"
 )
 
 func TestPostableApiReceiverToApiReceiver(t *testing.T) {
@@ -28,9 +29,9 @@ func TestPostableApiReceiverToApiReceiver(t *testing.T) {
 	receiver := PostableAPIReceiverToAPIReceiver(postableReceiver)
 
 	require.Equal(t, "test", receiver.Name)
-	require.Equal(t, 1, len(receiver.GrafanaIntegrations.Integrations))
+	require.Equal(t, 1, len(receiver.ReceiverConfig.Integrations))
 
-	i := receiver.GrafanaIntegrations.Integrations[0]
+	i := receiver.ReceiverConfig.Integrations[0]
 	require.Equal(t, "abc", i.UID)
 	require.Equal(t, "test", i.Name)
 	require.Equal(t, "slack", i.Type)

@@ -502,7 +502,7 @@ func TestReceivers(
 			// Create an APIReceiver with a single integration so we
 			// can identify invalid receiver integration configs
 			singleIntReceiver := &APIReceiver{
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{intg},
 				},
 			}

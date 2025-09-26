@@ -10,3 +10,7 @@ type IntegrationConfig struct {
 	Settings              json.RawMessage   `json:"settings" yaml:"settings"`
 	SecureSettings        map[string]string `json:"secureSettings" yaml:"secureSettings"`
 }
+
+type ReceiverConfig struct {
+	Integrations []*IntegrationConfig `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
+}

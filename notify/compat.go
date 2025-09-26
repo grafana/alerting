@@ -9,7 +9,7 @@ import (
 )
 
 func PostableAPIReceiverToAPIReceiver(r *definition.PostableApiReceiver) *APIReceiver {
-	integrations := GrafanaIntegrations{
+	integrations := models.ReceiverConfig{
 		Integrations: make([]*models.IntegrationConfig, 0, len(r.GrafanaManagedReceivers)),
 	}
 	for _, p := range r.GrafanaManagedReceivers {
@@ -24,8 +24,8 @@ func PostableAPIReceiverToAPIReceiver(r *definition.PostableApiReceiver) *APIRec
 	}
 
 	return &APIReceiver{
-		ConfigReceiver:      r.Receiver,
-		GrafanaIntegrations: integrations,
+		ConfigReceiver: r.Receiver,
+		ReceiverConfig: integrations,
 	}
 }
 

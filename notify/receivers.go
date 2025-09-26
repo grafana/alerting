@@ -73,12 +73,8 @@ type TestIntegrationConfigResult struct {
 type ConfigReceiver = config.Receiver
 
 type APIReceiver struct {
-	ConfigReceiver      `yaml:",inline"`
-	GrafanaIntegrations `yaml:",inline"`
-}
-
-type GrafanaIntegrations struct {
-	Integrations []*models.IntegrationConfig `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
+	ConfigReceiver        `yaml:",inline"`
+	models.ReceiverConfig `yaml:",inline"`
 }
 
 type TestReceiversConfigBodyParams struct {

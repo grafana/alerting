@@ -714,7 +714,7 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 1",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 1"},
 					},
@@ -724,7 +724,7 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 2",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 2"},
 					},
@@ -757,7 +757,7 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 1",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 1"},
 					},
@@ -767,7 +767,7 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 2",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 2"},
 					},
@@ -800,7 +800,7 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 1",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 1"},
 					},
@@ -810,7 +810,7 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 2",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 2"},
 					},
@@ -835,7 +835,7 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 1",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 1"},
 					},
@@ -845,7 +845,7 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 2",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
+				ReceiverConfig: models.ReceiverConfig{
 					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 2"},
 					},

@@ -173,7 +173,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, NoopDecode, NoopDecrypt)
 		require.NoError(t, err)
 		require.Equal(t, recCfg.Name, parsed.Name)
-		for _, notifier := range recCfg.GrafanaIntegrations.Integrations {
+		for _, notifier := range recCfg.ReceiverConfig.Integrations {
 			if notifier.Type == "prometheus-alertmanager" {
 				require.Equal(t, notifier.SecureSettings["basicAuthPassword"], parsed.AlertmanagerConfigs[0].Settings.Password)
 			}
@@ -212,7 +212,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.Equal(t, recCfg.Name, parsed.Name)
 
 		expectedNotifiers := make(map[string]struct{})
-		for _, notifier := range recCfg.GrafanaIntegrations.Integrations {
+		for _, notifier := range recCfg.ReceiverConfig.Integrations {
 			expectedNotifiers[notifier.Type] = struct{}{}
 		}
 
@@ -257,7 +257,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.NoError(t, err)
 
 		expectedNotifiers := make(map[string]struct{})
-		for _, notifier := range recCfg.GrafanaIntegrations.Integrations {
+		for _, notifier := range recCfg.ReceiverConfig.Integrations {
 			expectedNotifiers[notifier.Type] = struct{}{}
 		}
 
@@ -297,7 +297,7 @@ func TestHTTPConfig(t *testing.T) {
 
 				recCfg := &APIReceiver{
 					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-					GrafanaIntegrations: GrafanaIntegrations{
+					ReceiverConfig: models.ReceiverConfig{
 						[]*models.IntegrationConfig{
 							config,
 						},
@@ -482,7 +482,7 @@ func TestHTTPConfig(t *testing.T) {
 
 				recCfg := &APIReceiver{
 					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-					GrafanaIntegrations: GrafanaIntegrations{
+					ReceiverConfig: models.ReceiverConfig{
 						[]*models.IntegrationConfig{
 							config,
 						},
