@@ -353,9 +353,9 @@ func (am *GrafanaAlertmanager) StopAndWait() {
 	am.wg.Wait()
 }
 
-// GetReceivers returns the receivers configured as part of the current configuration.
+// GetReceiversStatus returns the status of receivers configured as part of the current configuration.
 // It is safe to call concurrently.
-func (am *GrafanaAlertmanager) GetReceivers() []models.Receiver {
+func (am *GrafanaAlertmanager) GetReceiversStatus() []models.ReceiverStatus {
 	am.reloadConfigMtx.RLock()
 	receivers := am.receivers
 	am.reloadConfigMtx.RUnlock()
@@ -364,14 +364,14 @@ func (am *GrafanaAlertmanager) GetReceivers() []models.Receiver {
 }
 
 // GetReceivers converts the internal receiver status into the API response.
-func GetReceivers(receivers []*nfstatus.Receiver) []models.Receiver {
-	apiReceivers := make([]models.Receiver, 0, len(receivers))
+func GetReceivers(receivers []*nfstatus.Receiver) []models.ReceiverStatus {
+	apiReceivers := make([]models.ReceiverStatus, 0, len(receivers))
 	for _, rcv := range receivers {
 		// Build integrations slice for each receiver.
-		integrations := make([]models.Integration, 0, len(rcv.Integrations()))
+		integrations := make([]models.IntegrationStatus, 0, len(rcv.Integrations()))
 		for _, integration := range rcv.Integrations() {
 			ts, d, err := integration.GetReport()
-			integrations = append(integrations, models.Integration{
+			integrations = append(integrations, models.IntegrationStatus{
 				Name:                      integration.Name(),
 				SendResolved:              integration.SendResolved(),
 				LastNotifyAttempt:         strfmt.DateTime(ts),
@@ -385,7 +385,7 @@ func GetReceivers(receivers []*nfstatus.Receiver) []models.Receiver {
 			})
 		}
 
-		apiReceivers = append(apiReceivers, models.Receiver{
+		apiReceivers = append(apiReceivers, models.ReceiverStatus{
 			Active:       rcv.Active(),
 			Integrations: integrations,
 			Name:         rcv.Name(),
