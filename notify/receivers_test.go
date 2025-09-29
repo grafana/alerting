@@ -298,7 +298,7 @@ func TestHTTPConfig(t *testing.T) {
 				recCfg := &APIReceiver{
 					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
 					ReceiverConfig: models.ReceiverConfig{
-						[]*models.IntegrationConfig{
+						Integrations: []*models.IntegrationConfig{
 							config,
 						},
 					},
@@ -483,7 +483,7 @@ func TestHTTPConfig(t *testing.T) {
 				recCfg := &APIReceiver{
 					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
 					ReceiverConfig: models.ReceiverConfig{
-						[]*models.IntegrationConfig{
+						Integrations: []*models.IntegrationConfig{
 							config,
 						},
 					},
