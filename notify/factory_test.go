@@ -39,8 +39,8 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 
 	getFullConfig := func(t *testing.T) (GrafanaReceiverConfig, int) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
-		for notifierType, cfg := range AllKnownConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
+		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
+			recCfg.Integrations = append(recCfg.Integrations, GetRawNotifierConfig(cfg, ""))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
 		require.NoError(t, err)
@@ -151,7 +151,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 				},
 				GrafanaIntegrations: GrafanaIntegrations{
 					Integrations: []*GrafanaIntegrationConfig{
-						AllKnownConfigsForTesting["email"].GetRawNotifierConfig("test2"),
+						GetRawNotifierConfig(notifytest.AllKnownV1ConfigsForTesting["email"], "test2"),
 					},
 				},
 			},
@@ -188,7 +188,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 				},
 				GrafanaIntegrations: GrafanaIntegrations{
 					Integrations: []*GrafanaIntegrationConfig{
-						AllKnownConfigsForTesting["email"].GetRawNotifierConfig("test"),
+						GetRawNotifierConfig(notifytest.AllKnownV1ConfigsForTesting["email"], "test"),
 					},
 				},
 			},
@@ -198,7 +198,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 				},
 				GrafanaIntegrations: GrafanaIntegrations{
 					Integrations: []*GrafanaIntegrationConfig{
-						AllKnownConfigsForTesting["webhook"].GetRawNotifierConfig("test"),
+						GetRawNotifierConfig(notifytest.AllKnownV1ConfigsForTesting["webhook"], "test"),
 					},
 				},
 			},
