@@ -8,7 +8,7 @@ import (
 const Type schema.IntegrationType = "dingding"
 
 func Schema() schema.IntegrationTypeSchema {
-	return schema.IntegrationTypeSchema{
+	return schema.InitSchema(schema.IntegrationTypeSchema{
 		Type:           Type,
 		Name:           "DingDing",
 		Description:    "Sends HTTP POST request to DingDing",
@@ -17,5 +17,5 @@ func Schema() schema.IntegrationTypeSchema {
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),
 		},
-	}
+	})
 }

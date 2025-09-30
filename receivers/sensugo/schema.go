@@ -8,7 +8,7 @@ import (
 const Type schema.IntegrationType = "sensugo"
 
 func Schema() schema.IntegrationTypeSchema {
-	return schema.IntegrationTypeSchema{
+	return schema.InitSchema(schema.IntegrationTypeSchema{
 		Type:           Type,
 		Name:           "Sensu Go",
 		Description:    "Sends HTTP POST request to a Sensu Go API",
@@ -17,5 +17,5 @@ func Schema() schema.IntegrationTypeSchema {
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),
 		},
-	}
+	})
 }

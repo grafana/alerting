@@ -8,7 +8,7 @@ import (
 const Type schema.IntegrationType = "mqtt"
 
 func Schema() schema.IntegrationTypeSchema {
-	return schema.IntegrationTypeSchema{
+	return schema.InitSchema(schema.IntegrationTypeSchema{
 		Type:           Type,
 		Name:           "MQTT",
 		Description:    "Sends notifications to an MQTT broker",
@@ -18,5 +18,5 @@ func Schema() schema.IntegrationTypeSchema {
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),
 		},
-	}
+	})
 }

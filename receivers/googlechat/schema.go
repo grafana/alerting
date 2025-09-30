@@ -8,7 +8,7 @@ import (
 const Type schema.IntegrationType = "googlechat"
 
 func Schema() schema.IntegrationTypeSchema {
-	return schema.IntegrationTypeSchema{
+	return schema.InitSchema(schema.IntegrationTypeSchema{
 		Type:           Type,
 		Name:           "Google Chat",
 		Description:    "Sends notifications to Google Chat via webhooks based on the official JSON message format",
@@ -17,5 +17,5 @@ func Schema() schema.IntegrationTypeSchema {
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),
 		},
-	}
+	})
 }

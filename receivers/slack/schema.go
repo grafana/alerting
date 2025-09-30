@@ -9,7 +9,7 @@ import (
 const Type schema.IntegrationType = "slack"
 
 func Schema() schema.IntegrationTypeSchema {
-	return schema.IntegrationTypeSchema{
+	return schema.InitSchema(schema.IntegrationTypeSchema{
 		Type:           Type,
 		Name:           "Slack",
 		Description:    "Sends notifications to Slack",
@@ -19,5 +19,5 @@ func Schema() schema.IntegrationTypeSchema {
 			v1.Schema(),
 			v0mimir1.Schema(),
 		},
-	}
+	})
 }

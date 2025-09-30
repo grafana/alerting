@@ -8,7 +8,7 @@ import (
 const Type schema.IntegrationType = "threema"
 
 func Schema() schema.IntegrationTypeSchema {
-	return schema.IntegrationTypeSchema{
+	return schema.InitSchema(schema.IntegrationTypeSchema{
 		Type:        Type,
 		Name:        "Threema Gateway",
 		Description: "Sends notifications to Threema using Threema Gateway (Basic IDs)",
@@ -19,5 +19,5 @@ func Schema() schema.IntegrationTypeSchema {
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),
 		},
-	}
+	})
 }

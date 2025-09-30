@@ -8,7 +8,7 @@ import (
 const Type schema.IntegrationType = "prometheus-alertmanager"
 
 func Schema() schema.IntegrationTypeSchema {
-	return schema.IntegrationTypeSchema{
+	return schema.InitSchema(schema.IntegrationTypeSchema{
 		Type:           Type,
 		Name:           "Alertmanager",
 		Description:    "Sends notifications to Alertmanager",
@@ -17,5 +17,5 @@ func Schema() schema.IntegrationTypeSchema {
 		Versions: []schema.IntegrationSchemaVersion{
 			v1.Schema(),
 		},
-	}
+	})
 }

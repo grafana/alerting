@@ -1,5 +1,10 @@
 package schema
 
+import (
+	"errors"
+	"fmt"
+)
+
 type Version string
 type IntegrationType string
 
@@ -90,6 +95,15 @@ type IntegrationSchemaVersion struct {
 	Options []Field `json:"options"`
 	// Additional information about the version
 	Info string `json:"info,omitempty"`
+
+	typeSchema *IntegrationTypeSchema
+}
+
+func (v IntegrationSchemaVersion) GetTypeSchema() IntegrationTypeSchema {
+	if v.typeSchema == nil {
+		panic("type schema not set")
+	}
+	return *v.typeSchema
 }
 
 // GetSecretFieldsPaths returns a list of paths for fields marked as secure within the IntegrationSchemaVersion's options.
@@ -163,4 +177,11 @@ type SelectOption struct {
 type ShowWhen struct {
 	Field string `json:"field"`
 	Is    string `json:"is"`
+}
+
+func InitSchema(s IntegrationTypeSchema) IntegrationTypeSchema {
+	for i := range s.Versions {
+		s.Versions[i].typeSchema = &s
+	}
+	return s
 }

@@ -10,7 +10,7 @@ import (
 const Type schema.IntegrationType = "teams"
 
 func Schema() schema.IntegrationTypeSchema {
-	return schema.IntegrationTypeSchema{
+	return schema.InitSchema(schema.IntegrationTypeSchema{
 		Type:           Type,
 		Name:           "Microsoft Teams",
 		Description:    "Sends notifications using Incoming Webhook connector to Microsoft Teams",
@@ -21,5 +21,5 @@ func Schema() schema.IntegrationTypeSchema {
 			v0mimir2.Schema(),
 			v0mimir1.Schema(),
 		},
-	}
+	})
 }

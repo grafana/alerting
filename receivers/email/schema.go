@@ -9,7 +9,7 @@ import (
 const Type schema.IntegrationType = "email"
 
 func Schema() schema.IntegrationTypeSchema {
-	return schema.IntegrationTypeSchema{
+	return schema.InitSchema(schema.IntegrationTypeSchema{
 		Type:           Type,
 		Name:           "Email",
 		Heading:        "Email settings",
@@ -19,5 +19,5 @@ func Schema() schema.IntegrationTypeSchema {
 			v1.Schema(),
 			v0mimir1.Schema(),
 		},
-	}
+	})
 }

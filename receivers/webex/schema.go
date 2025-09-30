@@ -9,7 +9,7 @@ import (
 const Type schema.IntegrationType = "webex"
 
 func Schema() schema.IntegrationTypeSchema {
-	return schema.IntegrationTypeSchema{
+	return schema.InitSchema(schema.IntegrationTypeSchema{
 		Type:           Type,
 		Name:           "Cisco Webex Teams",
 		Description:    "Sends notifications to Cisco Webex Teams",
@@ -20,5 +20,5 @@ func Schema() schema.IntegrationTypeSchema {
 			v1.Schema(),
 			v0mimir1.Schema(),
 		},
-	}
+	})
 }
