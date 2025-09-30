@@ -258,6 +258,14 @@ func TestSchemaTypeUniqueness(t *testing.T) {
 	}
 }
 
+func TestValidateSchema(t *testing.T) {
+	for _, s := range GetSchemaForAllIntegrations() {
+		t.Run(string(s.Type), func(t *testing.T) {
+			assert.NoError(t, schema.ValidateTypeSchema(s))
+		})
+	}
+}
+
 func TestV0IntegrationsSecrets(t *testing.T) {
 	// This test ensures that all known integrations' secrets are listed in the schema definition.
 	notifytest.ForEachIntegrationType(t, func(configType reflect.Type) {
