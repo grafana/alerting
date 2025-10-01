@@ -173,7 +173,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, NoopDecode, NoopDecrypt)
 		require.NoError(t, err)
 		require.Equal(t, recCfg.Name, parsed.Name)
-		for _, notifier := range recCfg.ReceiverConfig.Integrations {
+		for _, notifier := range recCfg.Integrations {
 			if notifier.Type == "prometheus-alertmanager" {
 				require.Equal(t, notifier.SecureSettings["basicAuthPassword"], parsed.AlertmanagerConfigs[0].Settings.Password)
 			}
@@ -212,7 +212,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.Equal(t, recCfg.Name, parsed.Name)
 
 		expectedNotifiers := make(map[string]struct{})
-		for _, notifier := range recCfg.ReceiverConfig.Integrations {
+		for _, notifier := range recCfg.Integrations {
 			expectedNotifiers[notifier.Type] = struct{}{}
 		}
 
@@ -220,10 +220,10 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		all, _ := allReceivers(&parsed)
 		require.Len(t, all, len(notifytest.AllKnownV1ConfigsForTesting), "mismatch in number of notifiers, expected %d, got %d", len(notifytest.AllKnownV1ConfigsForTesting), len(all))
 		for _, recv := range all {
-			if _, ok := expectedNotifiers[recv.Metadata.Type]; ok {
-				delete(expectedNotifiers, recv.Metadata.Type)
+			if _, ok := expectedNotifiers[recv.Type]; ok {
+				delete(expectedNotifiers, recv.Type)
 			} else {
-				t.Errorf("unexpected notifier type: %s", recv.Metadata.Type)
+				t.Errorf("unexpected notifier type: %s", recv.Type)
 			}
 		}
 		require.Empty(t, expectedNotifiers, "not all expected notifiers were found in the parsed configuration")
@@ -257,7 +257,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.NoError(t, err)
 
 		expectedNotifiers := make(map[string]struct{})
-		for _, notifier := range recCfg.ReceiverConfig.Integrations {
+		for _, notifier := range recCfg.Integrations {
 			expectedNotifiers[notifier.Type] = struct{}{}
 		}
 
@@ -265,10 +265,10 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		all, _ := allReceivers(&parsed)
 		require.Len(t, all, len(notifytest.AllKnownV1ConfigsForTesting), "mismatch in number of notifiers, expected %d, got %d", len(notifytest.AllKnownV1ConfigsForTesting), len(all))
 		for _, recv := range all {
-			if _, ok := expectedNotifiers[recv.Metadata.Type]; ok {
-				delete(expectedNotifiers, recv.Metadata.Type)
+			if _, ok := expectedNotifiers[recv.Type]; ok {
+				delete(expectedNotifiers, recv.Type)
 			} else {
-				t.Errorf("unexpected notifier type: %s", recv.Metadata.Type)
+				t.Errorf("unexpected notifier type: %s", recv.Type)
 			}
 		}
 		require.Empty(t, expectedNotifiers, "not all expected notifiers were found in the parsed configuration")

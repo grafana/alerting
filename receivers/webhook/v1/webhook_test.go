@@ -609,7 +609,7 @@ func TestNotify(t *testing.T) {
 					},
 				},
 			},
-			expMsgError: fmt.Errorf("Unable to use the provided CA certificate"),
+			expMsgError: fmt.Errorf("unable to use the provided CA certificate"),
 		},
 		{
 			name: "bad template in url",
@@ -1143,7 +1143,7 @@ func TestNotify_ExtraData(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify that extra data is present in the alerts
-	require.Len(t, webhookMsg.ExtendedData.Alerts, 2)
+	require.Len(t, webhookMsg.Alerts, 2)
 
 	// Check first alert's extra data
 	require.JSONEq(t, string(extraData1), string(webhookMsg.ExtendedData.Alerts[0].ExtraData))

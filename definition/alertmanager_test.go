@@ -1472,9 +1472,9 @@ func TestCopyIntegrations(t *testing.T) {
 				},
 			},
 		}, dst)
-		require.Same(t, mimirEmail, dst.Receiver.EmailConfigs[0])
-		require.Same(t, mimirSlack, dst.Receiver.SlackConfigs[0])
-		require.Same(t, grafana, dst.PostableGrafanaReceivers.GrafanaManagedReceivers[0])
+		require.Same(t, mimirEmail, dst.EmailConfigs[0])
+		require.Same(t, mimirSlack, dst.SlackConfigs[0])
+		require.Same(t, grafana, dst.GrafanaManagedReceivers[0])
 	})
 
 	t.Run("should append to existing integrations", func(t *testing.T) {

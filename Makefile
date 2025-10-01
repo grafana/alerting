@@ -36,4 +36,4 @@ mod-check:
 	GOPATH=$(CURDIR)/.tools go install github.com/fatih/faillint@v1.10.0
 
 .tools/bin/golangci-lint: .tools
-	GOPATH=$(CURDIR)/.tools go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+	GOPATH=$(CURDIR)/.tools go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.0.2
