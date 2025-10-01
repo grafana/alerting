@@ -48,6 +48,9 @@ type IntegrationTypeSchema struct {
 func (p IntegrationTypeSchema) GetAllTypes() []IntegrationType {
 	types := []IntegrationType{p.Type}
 	for _, version := range p.Versions {
+		if version.TypeAlias == "" {
+			continue
+		}
 		types = append(types, version.TypeAlias)
 	}
 	return types
