@@ -3,6 +3,7 @@ package schema
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 type Version string
@@ -102,6 +103,7 @@ type IntegrationSchemaVersion struct {
 	typeSchema *IntegrationTypeSchema
 }
 
+// GetTypeSchema returns the IntegrationTypeSchema that this version belongs to.
 func (v IntegrationSchemaVersion) GetTypeSchema() IntegrationTypeSchema {
 	if v.typeSchema == nil {
 		panic("type schema not set")
@@ -109,24 +111,43 @@ func (v IntegrationSchemaVersion) GetTypeSchema() IntegrationTypeSchema {
 	return *v.typeSchema
 }
 
-// GetSecretFieldsPaths returns a list of paths for fields marked as secure within the IntegrationSchemaVersion's options.
-func (v IntegrationSchemaVersion) GetSecretFieldsPaths() []string {
-	return getSecretFields("", v.Options)
+// Type returns the type of the integration schema version.
+func (v IntegrationSchemaVersion) Type() IntegrationType {
+	return v.typeSchema.Type
 }
 
-func getSecretFields(parentPath string, options []Field) []string {
-	var secureFields []string
-	for _, field := range options {
-		name := field.PropertyName
-		if parentPath != "" {
-			name = parentPath + "." + name
+// GetSecretFieldsPaths returns a list of paths for fields marked as secure within the IntegrationSchemaVersion's options.
+func (v IntegrationSchemaVersion) GetSecretFieldsPaths() []IntegrationFieldPath {
+	return getSecretFields(nil, v.Options)
+}
+
+// IsSecureField returns true if the field is both known and marked as secure in the integration configuration.
+func (v IntegrationSchemaVersion) IsSecureField(path IntegrationFieldPath) bool {
+	f, ok := v.GetField(path)
+	return ok && f.Secure
+}
+
+func (v IntegrationSchemaVersion) GetField(path IntegrationFieldPath) (Field, bool) {
+	for _, integrationField := range v.Options {
+		if strings.EqualFold(integrationField.PropertyName, path.Head()) {
+			if path.IsLeaf() {
+				return integrationField, true
+			}
+			return getFieldRecursive(integrationField, path.Tail())
 		}
+	}
+	return Field{}, false
+}
+
+func getSecretFields(parentPath IntegrationFieldPath, options []Field) []IntegrationFieldPath {
+	var secureFields []IntegrationFieldPath
+	for _, field := range options {
 		if field.Secure {
-			secureFields = append(secureFields, name)
+			secureFields = append(secureFields, parentPath.With(field.PropertyName))
 			continue
 		}
 		if len(field.SubformOptions) > 0 {
-			secureFields = append(secureFields, getSecretFields(name, field.SubformOptions)...)
+			secureFields = append(secureFields, getSecretFields(append(parentPath, field.PropertyName), field.SubformOptions)...)
 		}
 	}
 	return secureFields
@@ -234,4 +255,49 @@ func ValidateSchemaVersion(version IntegrationSchemaVersion) error {
 		}
 	}
 	return nil
+}
+
+type IntegrationFieldPath []string
+
+func ParseIntegrationPath(path string) IntegrationFieldPath {
+	return strings.Split(path, ".")
+}
+
+func (f IntegrationFieldPath) Head() string {
+	if len(f) > 0 {
+		return f[0]
+	}
+	return ""
+}
+
+func (f IntegrationFieldPath) Tail() IntegrationFieldPath {
+	return f[1:]
+}
+
+func (f IntegrationFieldPath) IsLeaf() bool {
+	return len(f) == 1
+}
+
+func (f IntegrationFieldPath) String() string {
+	return strings.Join(f, ".")
+}
+
+func (f IntegrationFieldPath) With(segment string) IntegrationFieldPath {
+	// Copy the existing path to avoid modifying the original slice.
+	newPath := make(IntegrationFieldPath, len(f)+1)
+	copy(newPath, f)
+	newPath[len(newPath)-1] = segment
+	return newPath
+}
+
+func getFieldRecursive(field Field, path IntegrationFieldPath) (Field, bool) {
+	for _, integrationField := range field.SubformOptions {
+		if strings.EqualFold(integrationField.PropertyName, path.Head()) {
+			if path.IsLeaf() {
+				return integrationField, true
+			}
+			return getFieldRecursive(integrationField, path.Tail())
+		}
+	}
+	return Field{}, false
 }
