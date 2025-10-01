@@ -115,9 +115,13 @@ func TestGetSecretKeysForContactPointType(t *testing.T) {
 		delete(allTypes, getKey(testCase.receiverType, testCase.version))
 		t.Run(fmt.Sprintf("%s-%s", testCase.receiverType, testCase.version), func(t *testing.T) {
 			s, _ := GetSchemaForIntegration(testCase.receiverType)
-			v, _ := s.GetVersion(testCase.version)
-			got := v.GetSecretFieldsPaths()
-			require.ElementsMatch(t, testCase.expectedSecretFields, got)
+			v, ok := s.GetVersion(testCase.version)
+			require.Truef(t, ok, "expected version %s for %s", testCase.version, testCase.receiverType)
+			actual := make([]string, 0)
+			for _, f := range v.GetSecretFieldsPaths() {
+				actual = append(actual, f.String())
+			}
+			require.ElementsMatch(t, testCase.expectedSecretFields, actual)
 		})
 	}
 
@@ -133,7 +137,7 @@ func TestGetSecretKeysForContactPointType(t *testing.T) {
 	require.Emptyf(t, allTypes, "not all types are covered: %s", allTypes)
 }
 
-func TestGetAvailableNotifiersV2(t *testing.T) {
+func TestGetAvailableNotifiers(t *testing.T) {
 	n := GetSchemaForAllIntegrations()
 	require.NotEmpty(t, n)
 	for _, notifier := range n {
@@ -145,25 +149,26 @@ func TestGetAvailableNotifiersV2(t *testing.T) {
 			t.Run(fmt.Sprintf("current version is %s", currentVersion), func(t *testing.T) {
 				require.Equal(t, currentVersion, notifier.GetCurrentVersion().Version)
 			})
-			t.Run("should be able to create only v1", func(t *testing.T) {
-				for _, version := range notifier.Versions {
-					if version.Version == schema.V1 {
-						require.True(t, version.CanCreate, "v1 should be able to create")
-						continue
-					}
-					require.False(t, version.CanCreate, "v0 should not be able to create")
-				}
-			})
 		})
 	}
 }
 
 func TestGetSchemaForIntegration(t *testing.T) {
-	t.Run("should return integration schema by type", func(t *testing.T) {
+	t.Run("should return integration schema by type case insensitive", func(t *testing.T) {
 		for _, expected := range GetSchemaForAllIntegrations() {
-			actual, ok := GetSchemaForIntegration(expected.Type)
-			require.Truef(t, ok, "expected config but got error for plugin type %s", actual.Type)
-			assert.Equal(t, expected, actual)
+			t.Run(string(expected.Type), func(t *testing.T) {
+				actual, ok := GetSchemaForIntegration(expected.Type)
+				assert.Truef(t, ok, "plugin type %s", actual.Type)
+				require.Equal(t, expected, actual)
+
+				t.Run("case insensitive", func(t *testing.T) {
+					otherCase := changeCase(expected.Type)
+					actual, ok = GetSchemaForIntegration(otherCase)
+					require.Truef(t, ok, "plugin type %s", otherCase)
+					assert.Equal(t, expected, actual)
+				})
+			})
+
 		}
 	})
 
@@ -175,7 +180,7 @@ func TestGetSchemaForIntegration(t *testing.T) {
 				}
 				t.Run(string(version.TypeAlias), func(t *testing.T) {
 					plugin2, ok := GetSchemaForIntegration(version.TypeAlias)
-					require.Truef(t, ok, "expected config but got error for plugin type %s", plugin.Type)
+					require.Truef(t, ok, "plugin type %s", plugin.Type)
 					assert.Equal(t, plugin, plugin2)
 				})
 			}
@@ -185,52 +190,6 @@ func TestGetSchemaForIntegration(t *testing.T) {
 	t.Run("should not return if unknown type", func(t *testing.T) {
 		v, ok := GetSchemaForIntegration("unknown")
 		require.Falsef(t, ok, "returned an unexpected unknown type %v", v)
-	})
-}
-
-func TestGetSchemaVersionForIntegration(t *testing.T) {
-	t.Run("should return specific version of integration schema", func(t *testing.T) {
-		for _, typeSchema := range GetSchemaForAllIntegrations() {
-			for _, expected := range typeSchema.Versions {
-				actual, ok := GetSchemaVersionForIntegration(typeSchema.Type, expected.Version)
-				require.Truef(t, ok, "version %s of type %s not found", expected.Version, typeSchema.Type)
-				assert.Equal(t, expected, actual)
-				if expected.TypeAlias == "" {
-					continue
-				}
-				actual, ok = GetSchemaVersionForIntegration(expected.TypeAlias, expected.Version)
-				require.Truef(t, ok, "version %s of type alias %s not found", expected.Version, typeSchema.Type)
-				assert.Equal(t, expected, actual)
-			}
-		}
-	})
-
-	t.Run("should not return if unknown type", func(t *testing.T) {
-		v, ok := GetSchemaVersionForIntegration("unknown", schema.V0mimir1)
-		require.Falsef(t, ok, "returned an unexpected unknown version %v", v)
-	})
-
-	t.Run("should not return if version does not exist for type", func(t *testing.T) {
-		v, ok := GetSchemaVersionForIntegration(alertmanager.Type, schema.V0mimir1)
-		require.Falsef(t, ok, "returned an unexpected unknown version %v", v)
-	})
-
-	t.Run("should return correct version for type alias", func(t *testing.T) {
-		for _, plugin := range GetSchemaForAllIntegrations() {
-			for _, version := range plugin.Versions {
-				if version.TypeAlias == "" {
-					continue
-				}
-				for _, other := range plugin.Versions {
-					if version.Version == other.Version {
-						continue
-					}
-					actual, ok := GetSchemaVersionForIntegration(version.TypeAlias, other.Version)
-					require.Truef(t, ok, "version %s of type alias %s not found", version.Version, version.TypeAlias)
-					assert.Equal(t, other, actual)
-				}
-			}
-		}
 	})
 }
 
@@ -264,6 +223,54 @@ func TestValidateSchema(t *testing.T) {
 			assert.NoError(t, schema.ValidateTypeSchema(s))
 		})
 	}
+}
+
+func TestIsAliasType(t *testing.T) {
+	for _, plugin := range GetSchemaForAllIntegrations() {
+		for _, version := range plugin.Versions {
+			if version.TypeAlias == "" {
+				continue
+			}
+			t.Run(string(version.TypeAlias), func(t *testing.T) {
+				require.Truef(t, IsAliasType(version.TypeAlias), "type %s should be alias type", plugin.Type)
+			})
+		}
+		if plugin.Type == line.Type {
+			continue
+		}
+		assert.Falsef(t, IsAliasType(plugin.Type), "type %s should not be alias", plugin.Type)
+	}
+	t.Run("unknown type", func(t *testing.T) {
+		assert.False(t, IsAliasType("unknown"))
+	})
+}
+
+func TestOriginalTypeForAlias(t *testing.T) {
+	for _, plugin := range GetSchemaForAllIntegrations() {
+		tt, ok := OriginalTypeForAlias(plugin.Type)
+		assert.Equal(t, plugin.Type, tt)
+		assert.Truef(t, ok, "type %s should be alias type", plugin.Type)
+		tt, ok = OriginalTypeForAlias(changeCase(plugin.Type))
+		assert.Equal(t, plugin.Type, tt)
+		assert.Truef(t, ok, "type %s should be alias type", changeCase(plugin.Type))
+		for _, version := range plugin.Versions {
+			if version.TypeAlias == "" {
+				continue
+			}
+			t.Run(string(version.TypeAlias), func(t *testing.T) {
+				tt, ok := OriginalTypeForAlias(version.TypeAlias)
+				assert.Truef(t, ok, "type %s should be alias type", plugin.Type)
+				assert.Equal(t, plugin.Type, tt)
+				tt, ok = OriginalTypeForAlias(changeCase(version.TypeAlias))
+				require.Truef(t, ok, "type %s should be alias type", changeCase(version.TypeAlias))
+				require.Equal(t, plugin.Type, tt)
+			})
+		}
+	}
+	t.Run("unknown type", func(t *testing.T) {
+		_, ok := OriginalTypeForAlias("unknown")
+		assert.False(t, ok)
+	})
 }
 
 func TestV0IntegrationsSecrets(t *testing.T) {
@@ -326,4 +333,12 @@ func getSecrets(m map[string]any, parent string) []string {
 		}
 	}
 	return result
+}
+
+func changeCase(integrationType schema.IntegrationType) schema.IntegrationType {
+	otherCase := strings.ToUpper(string(integrationType))
+	if otherCase == string(integrationType) {
+		otherCase = strings.ToLower(string(integrationType))
+	}
+	return schema.IntegrationType(otherCase)
 }
