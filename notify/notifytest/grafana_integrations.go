@@ -1,9 +1,12 @@
 package notifytest
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 
 	"github.com/grafana/alerting/http"
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/receivers/alertmanager"
 	alertmanagerv1 "github.com/grafana/alerting/receivers/alertmanager/v1"
 	"github.com/grafana/alerting/receivers/dingding"
@@ -231,4 +234,38 @@ type NotifierConfigTest struct {
 	Config                      string
 	Secrets                     string
 	CommonHTTPConfigUnsupported bool
+}
+
+func (n NotifierConfigTest) GetRawNotifierConfig(name string) *models.IntegrationConfig {
+	if name == "" {
+		name = string(n.NotifierType)
+	}
+	secrets := make(map[string]string)
+	if n.Secrets != "" {
+		err := json.Unmarshal([]byte(n.Secrets), &secrets)
+		if err != nil {
+			panic(err)
+		}
+		for key, value := range secrets {
+			secrets[key] = base64.StdEncoding.EncodeToString([]byte(value))
+		}
+	}
+
+	config := []byte(n.Config)
+	if !n.CommonHTTPConfigUnsupported {
+		var err error
+		config, err = mergeSettings([]byte(n.Config), []byte(FullValidHTTPConfigForTesting))
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return &models.IntegrationConfig{
+		UID:                   fmt.Sprintf("%s-uid", name),
+		Name:                  name,
+		Type:                  string(n.NotifierType),
+		DisableResolveMessage: true,
+		Settings:              config,
+		SecureSettings:        secrets,
+	}
 }

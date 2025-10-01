@@ -2,15 +2,12 @@ package notify
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/prometheus/alertmanager/types"
 
-	"github.com/grafana/alerting/notify/notifytest"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
@@ -117,38 +114,4 @@ func MergeSettings(a []byte, b []byte) ([]byte, error) {
 	}
 
 	return json.Marshal(origSettings)
-}
-
-func GetRawNotifierConfig(n notifytest.NotifierConfigTest, name string) *GrafanaIntegrationConfig {
-	if name == "" {
-		name = string(n.NotifierType)
-	}
-	secrets := make(map[string]string)
-	if n.Secrets != "" {
-		err := json.Unmarshal([]byte(n.Secrets), &secrets)
-		if err != nil {
-			panic(err)
-		}
-		for key, value := range secrets {
-			secrets[key] = base64.StdEncoding.EncodeToString([]byte(value))
-		}
-	}
-
-	config := []byte(n.Config)
-	if !n.CommonHTTPConfigUnsupported {
-		var err error
-		config, err = MergeSettings([]byte(n.Config), []byte(notifytest.FullValidHTTPConfigForTesting))
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	return &GrafanaIntegrationConfig{
-		UID:                   fmt.Sprintf("%s-uid", name),
-		Name:                  name,
-		Type:                  string(n.NotifierType),
-		DisableResolveMessage: true,
-		Settings:              config,
-		SecureSettings:        secrets,
-	}
 }
