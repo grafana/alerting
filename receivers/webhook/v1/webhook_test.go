@@ -1130,7 +1130,7 @@ func TestNotify_ExtraData(t *testing.T) {
 	ctx := notify.WithGroupKey(context.Background(), "alertname")
 	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
 	ctx = notify.WithReceiverName(ctx, "my_receiver")
-	ctx = context.WithValue(ctx, ExtraDataKey, extraDataSlice)
+	ctx = context.WithValue(ctx, receivers.ExtraDataKey, extraDataSlice)
 
 	// Call Notify
 	ok, err := pn.Notify(ctx, alerts...)
