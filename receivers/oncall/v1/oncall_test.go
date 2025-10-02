@@ -603,7 +603,7 @@ func TestNotify_ExtraData(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify that extra data is present in the alerts
-	require.Len(t, oncallMsg.ExtendedData.Alerts, 2)
+	require.Len(t, oncallMsg.Alerts, 2)
 
 	// Check first alert's extra data
 	require.JSONEq(t, string(extraData1), string(oncallMsg.ExtendedData.Alerts[0].ExtraData))
