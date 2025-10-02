@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -212,4 +213,15 @@ func TruncateInBytes(s string, n int) (string, bool) {
 	}
 
 	return string(truncatedRunes) + truncationMarker, true
+}
+
+type extraDataKey int
+
+const (
+	ExtraDataKey extraDataKey = iota
+)
+
+func GetExtraDataFromContext(ctx context.Context) ([]json.RawMessage, bool) {
+	v, ok := ctx.Value(ExtraDataKey).([]json.RawMessage)
+	return v, ok
 }

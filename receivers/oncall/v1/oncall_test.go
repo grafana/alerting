@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -535,4 +536,78 @@ func TestNotify(t *testing.T) {
 			require.Equal(t, c.expHeaders, webhookSender.Webhook.HTTPHeader)
 		})
 	}
+}
+
+func TestNotify_ExtraData(t *testing.T) {
+	tmpl := templates.ForTests(t)
+
+	externalURL, err := url.Parse("http://localhost")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+
+	orgID := int64(1)
+
+	// Setup OnCall notifier
+	settings := Config{
+		URL:        "http://localhost/test",
+		HTTPMethod: http.MethodPost,
+		Title:      templates.DefaultMessageTitleEmbed,
+		Message:    templates.DefaultMessageEmbed,
+	}
+
+	webhookSender := receivers.MockNotificationService()
+	pn := &Notifier{
+		Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+		ns:       webhookSender,
+		tmpl:     tmpl,
+		settings: settings,
+		images:   &images.UnavailableProvider{},
+		orgID:    orgID,
+	}
+
+	// Create test alerts
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
+			},
+		},
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+				Annotations: model.LabelSet{"ann1": "annv2", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
+			},
+		},
+	}
+
+	// Create extra data that will be passed via context
+	extraData1 := json.RawMessage(`{"customField": "customValue1", "priority": "high"}`)
+	extraData2 := json.RawMessage(`{"customField": "customValue2", "priority": "medium"}`)
+	extraDataSlice := []json.RawMessage{extraData1, extraData2}
+
+	// Create context with extra data
+	ctx := notify.WithGroupKey(context.Background(), "alertname")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+	ctx = notify.WithReceiverName(ctx, "my_receiver")
+	ctx = context.WithValue(ctx, receivers.ExtraDataKey, extraDataSlice)
+
+	// Call Notify
+	ok, err := pn.Notify(ctx, alerts...)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	// Parse the oncall body to verify extra data was included
+	var oncallMsg oncallMessage
+	err = json.Unmarshal([]byte(webhookSender.Webhook.Body), &oncallMsg)
+	require.NoError(t, err)
+
+	// Verify that extra data is present in the alerts
+	require.Len(t, oncallMsg.Alerts, 2)
+
+	// Check first alert's extra data
+	require.JSONEq(t, string(extraData1), string(oncallMsg.ExtendedData.Alerts[0].ExtraData))
+
+	// Check second alert's extra data
+	require.JSONEq(t, string(extraData2), string(oncallMsg.ExtendedData.Alerts[1].ExtraData))
 }
