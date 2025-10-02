@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prometheus/alertmanager/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -308,6 +309,41 @@ func TestV0IntegrationsSecrets(t *testing.T) {
 			require.ElementsMatch(t, expectedSecrets, secrets)
 		})
 	})
+}
+
+func TestIntegrationTypeFromMimirType(t *testing.T) {
+	r, err := notifytest.GetMimirReceiverWithAllIntegrations()
+	require.NoError(t, err)
+	actual, err := IntegrationTypeFromMimirType(r.EmailConfigs)
+	require.NoError(t, err)
+	require.Equal(t, email.Type, actual)
+
+	actual, err = IntegrationTypeFromMimirType(config.WebexConfig{})
+	require.NoError(t, err)
+	require.Equal(t, webex.Type, actual)
+
+	actual, err = IntegrationTypeFromMimirType(&config.WebhookConfig{})
+	require.NoError(t, err)
+	require.Equal(t, webhook.Type, actual)
+
+	t.Run("error on unknown type", func(t *testing.T) {
+		_, err = IntegrationTypeFromMimirType(1)
+		require.Error(t, err)
+		_, err = IntegrationTypeFromMimirType(nil)
+		require.Error(t, err)
+		_, err = IntegrationTypeFromMimirType(struct{}{})
+		require.Error(t, err)
+	})
+
+	// This test ensures that all known integrations' secrets are listed in the schema definition.
+	notifytest.ForEachIntegrationType(t, func(configType reflect.Type) {
+		name := configType.Name()
+		expected := strings.ToLower(strings.TrimSuffix(name, "Config"))
+		actual, err := IntegrationTypeFromMimirTypeReflect(configType)
+		require.NoError(t, err)
+		require.Equal(t, schema.IntegrationType(expected), actual)
+	})
+
 }
 
 func unique(slice []string) []string {

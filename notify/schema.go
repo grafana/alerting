@@ -1,7 +1,9 @@
 package notify
 
 import (
+	"errors"
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -216,4 +218,27 @@ func IntegrationTypeFromString(s string) (schema.IntegrationType, error) {
 		}
 	}
 	return "", fmt.Errorf("%w: %s", ErrUnknownIntegrationType, s)
+}
+
+func IntegrationTypeFromMimirType(t any) (schema.IntegrationType, error) {
+	var configType = reflect.TypeOf(t)
+	return IntegrationTypeFromMimirTypeReflect(configType)
+}
+
+// IntegrationTypeFromMimirTypeReflect returns a valid integration type from a reflect.Type.
+// Can be type of ConfigReceiver fields, e.g EmailConfigs or type a particular configuration
+func IntegrationTypeFromMimirTypeReflect(t reflect.Type) (schema.IntegrationType, error) {
+	if t == nil {
+		return "", errors.New("nil type")
+	}
+	if t.Kind() == reflect.Struct {
+		return IntegrationTypeFromString(strings.ToLower(strings.TrimSuffix(t.Name(), "Config")))
+	}
+	if t.Kind() == reflect.Ptr {
+		return IntegrationTypeFromMimirTypeReflect(t.Elem())
+	}
+	if t.Kind() == reflect.Slice {
+		return IntegrationTypeFromMimirTypeReflect(t.Elem())
+	}
+	return "", errors.New("not a struct or slice")
 }

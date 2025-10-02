@@ -2,6 +2,7 @@ package notify
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 
 	"github.com/prometheus/alertmanager/config"
@@ -9,6 +10,8 @@ import (
 
 	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/notify/notifytest"
+	"github.com/grafana/alerting/receivers/email"
 )
 
 func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
@@ -134,4 +137,16 @@ func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 	require.Len(t, actual, 2)
 	require.Equal(t, PostableAPIReceiverToAPIReceiver(receivers[0]), actual[0])
 	require.Equal(t, PostableAPIReceiverToAPIReceiver(receivers[1]), actual[1])
+}
+
+func TestConfigReceiverToIntegrations(t *testing.T) {
+	r, err := notifytest.GetMimirReceiverWithAllIntegrations()
+	require.NoError(t, err)
+	actual, err := ConfigReceiverToIntegrations(r)
+	require.NoError(t, err)
+	require.Len(t, actual, len(notifytest.AllValidMimirConfigs))
+	idx := slices.IndexFunc(actual, func(e MimirIntegrationConfig) bool {
+		return e.Type == email.Type
+	})
+	require.IsType(t, config.EmailConfig{}, actual[idx].Config)
 }

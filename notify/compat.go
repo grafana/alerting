@@ -2,6 +2,8 @@ package notify
 
 import (
 	"encoding/json"
+	"reflect"
+	"slices"
 
 	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/models"
@@ -64,4 +66,36 @@ func PostableAPITemplatesToTemplateDefinitions(ts []definition.PostableApiTempla
 		defs = append(defs, PostableAPITemplateToTemplateDefinition(t))
 	}
 	return defs
+}
+
+// ConfigReceiverToIntegrations converts a ConfigReceiver to a list of MimirIntegrationConfig
+func ConfigReceiverToIntegrations(receiver ConfigReceiver) ([]MimirIntegrationConfig, error) {
+	result := make([]MimirIntegrationConfig, 0)
+	receiverVal := reflect.ValueOf(&receiver).Elem()
+	receiverType := receiverVal.Type()
+	for i := 0; i < receiverType.NumField(); i++ {
+		integrationField := receiverType.Field(i)
+		if integrationField.Type.Kind() != reflect.Slice {
+			continue
+		}
+		sliceType := integrationField.Type
+		elemType := sliceType.Elem()
+		sliceVal := receiverVal.Field(i)
+		if sliceVal.Len() == 0 {
+			continue
+		}
+		iType, err := IntegrationTypeFromMimirTypeReflect(elemType)
+		if err != nil {
+			return nil, err
+		}
+		slices.Grow(result, sliceVal.Len())
+		for j := 0; j < sliceVal.Len(); j++ {
+			elem := sliceVal.Index(j).Elem().Interface()
+			result = append(result, MimirIntegrationConfig{
+				Type:   iType,
+				Config: elem,
+			})
+		}
+	}
+	return result, nil
 }

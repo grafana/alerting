@@ -15,8 +15,10 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
+	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/receivers/schema"
 
 	"github.com/grafana/alerting/receivers"
 	alertmanager "github.com/grafana/alerting/receivers/alertmanager/v1"
@@ -573,3 +575,25 @@ func (e IntegrationValidationError) Error() string {
 }
 
 func (e IntegrationValidationError) Unwrap() error { return e.Err }
+
+type MimirIntegrationConfig struct {
+	Type   schema.IntegrationType
+	Config any
+}
+
+func (c MimirIntegrationConfig) ConfigJSON() ([]byte, error) {
+	return definition.MarshalJSONWithSecrets(c.Config)
+}
+
+func (c MimirIntegrationConfig) ConfigMap() (map[string]any, error) {
+	data, err := c.ConfigJSON()
+	if err != nil {
+		return nil, err
+	}
+	var result map[string]any
+	err = json.Unmarshal(data, &result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
