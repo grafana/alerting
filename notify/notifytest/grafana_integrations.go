@@ -58,10 +58,11 @@ import (
 
 var AllKnownV1ConfigsForTesting = map[schema.IntegrationType]NotifierConfigTest{
 	alertmanager.Type: {
-		NotifierType: alertmanager.Type,
-		Version:      schema.V1,
-		Config:       alertmanagerv1.FullValidConfigForTesting,
-		Secrets:      alertmanagerv1.FullValidSecretsForTesting,
+		NotifierType:                alertmanager.Type,
+		Version:                     schema.V1,
+		Config:                      alertmanagerv1.FullValidConfigForTesting,
+		Secrets:                     alertmanagerv1.FullValidSecretsForTesting,
+		CommonHTTPConfigUnsupported: true,
 	},
 	dingding.Type: {
 		NotifierType: dingding.Type,
@@ -74,9 +75,10 @@ var AllKnownV1ConfigsForTesting = map[schema.IntegrationType]NotifierConfigTest{
 		Config:       discordv1.FullValidConfigForTesting,
 	},
 	email.Type: {
-		NotifierType: email.Type,
-		Version:      schema.V1,
-		Config:       emailv1.FullValidConfigForTesting,
+		NotifierType:                email.Type,
+		Version:                     schema.V1,
+		Config:                      emailv1.FullValidConfigForTesting,
+		CommonHTTPConfigUnsupported: true,
 	},
 	googlechat.Type: {
 		NotifierType: googlechat.Type,
@@ -103,10 +105,11 @@ var AllKnownV1ConfigsForTesting = map[schema.IntegrationType]NotifierConfigTest{
 		Secrets:      linev1.FullValidSecretsForTesting,
 	},
 	mqtt.Type: {
-		NotifierType: mqtt.Type,
-		Version:      schema.V1,
-		Config:       mqttv1.FullValidConfigForTesting,
-		Secrets:      mqttv1.FullValidSecretsForTesting,
+		NotifierType:                mqtt.Type,
+		Version:                     schema.V1,
+		Config:                      mqttv1.FullValidConfigForTesting,
+		Secrets:                     mqttv1.FullValidSecretsForTesting,
+		CommonHTTPConfigUnsupported: true,
 	},
 	oncall.Type: {
 		NotifierType: oncall.Type,
@@ -139,15 +142,17 @@ var AllKnownV1ConfigsForTesting = map[schema.IntegrationType]NotifierConfigTest{
 		Secrets:      sensugov1.FullValidSecretsForTesting,
 	},
 	slack.Type: {
-		NotifierType: slack.Type,
-		Version:      schema.V1,
-		Config:       slackv1.FullValidConfigForTesting,
-		Secrets:      slackv1.FullValidSecretsForTesting,
+		NotifierType:                slack.Type,
+		Version:                     schema.V1,
+		Config:                      slackv1.FullValidConfigForTesting,
+		Secrets:                     slackv1.FullValidSecretsForTesting,
+		CommonHTTPConfigUnsupported: true,
 	},
 	sns.Type: {
-		NotifierType: sns.Type,
-		Version:      schema.V1,
-		Config:       snsv1.FullValidConfigForTesting,
+		NotifierType:                sns.Type,
+		Version:                     schema.V1,
+		Config:                      snsv1.FullValidConfigForTesting,
+		CommonHTTPConfigUnsupported: true,
 	},
 	teams.Type: {
 		NotifierType: teams.Type,
