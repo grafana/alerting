@@ -288,7 +288,11 @@ func TestV0IntegrationsSecrets(t *testing.T) {
 				version, ok = iSchema.GetVersion(schema.V0mimir1)
 				require.Truef(t, ok, "mimir version for %s not found", integrationType)
 			}
-			expectedSecrets := version.GetSecretFieldsPaths()
+			expectedSecretPaths := version.GetSecretFieldsPaths()
+			expectedSecrets := make([]string, 0, len(expectedSecretPaths))
+			for _, path := range expectedSecretPaths {
+				expectedSecrets = append(expectedSecrets, path.String())
+			}
 			var secrets []string
 			for option := range maps.Keys(notifytest.ValidMimirHTTPConfigs) {
 				cfg, err := notifytest.GetMimirIntegrationForType(configType, option)
@@ -301,7 +305,6 @@ func TestV0IntegrationsSecrets(t *testing.T) {
 				secrets = append(secrets, getSecrets(m, "")...)
 			}
 			secrets = unique(secrets)
-			t.Log(secrets)
 			require.ElementsMatch(t, expectedSecrets, secrets)
 		})
 	})
