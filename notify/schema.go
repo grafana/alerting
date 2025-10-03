@@ -143,6 +143,15 @@ func GetSchemaForIntegration(integrationType schema.IntegrationType) (schema.Int
 	return schema.IntegrationTypeSchema{}, false
 }
 
+// GetSchemaVersionForIntegration returns the schema version for a specific integration type and version.
+func GetSchemaVersionForIntegration(integrationType schema.IntegrationType, version schema.Version) (schema.IntegrationSchemaVersion, bool) {
+	sch, ok := GetSchemaForIntegration(integrationType)
+	if !ok {
+		return schema.IntegrationSchemaVersion{}, false
+	}
+	return sch.GetVersion(version)
+}
+
 // IsAliasType returns true if the integration type is an alias.
 func IsAliasType(integrationType schema.IntegrationType) bool {
 	initSchemaOnce.Do(initSchemas)
