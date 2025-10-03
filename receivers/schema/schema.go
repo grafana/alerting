@@ -58,7 +58,7 @@ func (p IntegrationTypeSchema) GetAllTypes() []IntegrationType {
 // GetVersionByTypeAlias retrieves a specific version of the schema by its type alias. Returns the version and a boolean indicating success.
 func (p IntegrationTypeSchema) GetVersionByTypeAlias(alias IntegrationType) (IntegrationSchemaVersion, bool) {
 	for _, version := range p.Versions {
-		if version.TypeAlias == alias {
+		if strings.EqualFold(string(version.TypeAlias), string(alias)) {
 			return version, true
 		}
 	}
@@ -68,7 +68,7 @@ func (p IntegrationTypeSchema) GetVersionByTypeAlias(alias IntegrationType) (Int
 // GetVersion retrieves a specific version of the notifier plugin by its version string. Returns the version and a boolean indicating success.
 func (p IntegrationTypeSchema) GetVersion(v Version) (IntegrationSchemaVersion, bool) {
 	for _, version := range p.Versions {
-		if version.Version == v {
+		if strings.EqualFold(string(version.Version), string(v)) {
 			return version, true
 		}
 	}

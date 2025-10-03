@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIntegrationSchemaVersionGetSecretFieldsPaths(t *testing.T) {
@@ -244,4 +245,67 @@ func TestIntegrationSchemaVersionGetField(t *testing.T) {
 			assert.Equal(t, testCase.expected, f)
 		})
 	}
+}
+
+func TestVersionFromString(t *testing.T) {
+	_, err := VersionFromString("1.0.0")
+	assert.Error(t, err)
+	v, err := VersionFromString("v1")
+	assert.NoError(t, err)
+	assert.Equal(t, V1, v)
+	v, err = VersionFromString("V0MIMIR1")
+	assert.NoError(t, err)
+	assert.Equal(t, V0mimir1, v)
+}
+
+func TestIntegrationTypeSchemaGetVersion(t *testing.T) {
+	v := IntegrationTypeSchema{
+		Versions: []IntegrationSchemaVersion{
+			{
+				Version: V1,
+			},
+			{
+				Version: V0mimir1,
+			},
+		},
+	}
+	_, ok := v.GetVersion("v1")
+	require.True(t, ok)
+	_, ok = v.GetVersion("v0MIMIR1")
+	require.True(t, ok)
+}
+
+func TestIntegrationTypeSchemaGetVersionByTypeAlias(t *testing.T) {
+	v := IntegrationTypeSchema{
+		Versions: []IntegrationSchemaVersion{
+			{
+				Version:   V1,
+				TypeAlias: "test",
+			},
+			{
+				Version:   V0mimir1,
+				TypeAlias: "test2",
+			},
+		},
+	}
+	_, ok := v.GetVersionByTypeAlias("TEST")
+	require.True(t, ok)
+	_, ok = v.GetVersionByTypeAlias("test2")
+	require.True(t, ok)
+}
+
+func TestIntegrationTypeSchemaGetAllTypes(t *testing.T) {
+	v := IntegrationTypeSchema{
+		Type: "test",
+		Versions: []IntegrationSchemaVersion{
+			{
+				Version:   V1,
+				TypeAlias: "TEST",
+			},
+			{
+				Version: V0mimir1,
+			},
+		},
+	}
+	assert.ElementsMatch(t, []IntegrationType{"test", "TEST"}, v.GetAllTypes())
 }
