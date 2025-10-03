@@ -111,6 +111,9 @@ func (v IntegrationSchemaVersion) GetTypeSchema() IntegrationTypeSchema {
 
 // Type returns the type of the integration schema version.
 func (v IntegrationSchemaVersion) Type() IntegrationType {
+	if v.typeSchema == nil {
+		panic("type schema not set")
+	}
 	return v.typeSchema.Type
 }
 
