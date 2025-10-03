@@ -76,6 +76,7 @@ func initSchemas() {
 	aliases := make(map[schema.IntegrationType]schema.IntegrationType)
 	for _, sch := range all {
 		if _, ok := allSch[sch.Type]; ok {
+			// This panic will happen only if a new schema type or alias with duplicate name are defined. Should never happen.
 			panic(fmt.Sprintf("duplicate schema type %s", sch.Type))
 		}
 		allSch[sch.Type] = sch
@@ -84,9 +85,11 @@ func initSchemas() {
 				continue
 			}
 			if _, ok := aliases[t]; ok {
+				// This panic will happen only if a new schema type or alias with duplicate name are defined. Should never happen.
 				panic(fmt.Sprintf("duplicate alias %s", t))
 			}
 			if _, ok := allSch[t]; ok {
+				// This panic will happen only if a new schema type or alias with duplicate name are defined. Should never happen.
 				panic(fmt.Sprintf("duplicate schema type %s", t))
 			}
 			aliases[t] = sch.Type
