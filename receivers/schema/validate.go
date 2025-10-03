@@ -37,7 +37,7 @@ func ValidateTypeSchema(schema IntegrationTypeSchema) error {
 func ValidateSchemaVersion(version IntegrationSchemaVersion) error {
 	if version.Version == "" {
 		return errors.New("version is required")
-	} else if version.Version != V1 && version.Version != V0mimir1 && version.Version != V0mimir2 {
+	} else if !IsValidVersion(version.Version) {
 		return errors.New("invalid version")
 	}
 	if version.Version != V1 && version.CanCreate {

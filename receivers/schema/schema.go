@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -16,6 +17,23 @@ const (
 	V0mimir2 Version = "v0mimir2"
 	V1       Version = "v1"
 )
+
+func IsValidVersion(v Version) bool {
+	_, err := VersionFromString(string(v))
+	return err == nil
+}
+
+func VersionFromString(v string) (Version, error) {
+	if v == "" {
+		return "", fmt.Errorf("version cannot be empty")
+	}
+	for _, version := range []Version{V0mimir1, V0mimir2, V1} {
+		if strings.EqualFold(string(version), v) {
+			return version, nil
+		}
+	}
+	return "", fmt.Errorf("invalid version: %s", v)
+}
 
 // ElementType is the type of element that can be rendered in the frontend.
 type ElementType string
