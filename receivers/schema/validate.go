@@ -18,17 +18,17 @@ func ValidateTypeSchema(schema IntegrationTypeSchema) error {
 	if len(schema.Versions) == 0 {
 		return errors.New("at least one version is required")
 	}
-	found := false
+	seen := map[Version]struct{}{}
 	for i := range schema.Versions {
+		if _, ok := seen[schema.Versions[i].Version]; ok {
+			return fmt.Errorf("duplicate version: %s", schema.Versions[i].Version)
+		}
+		seen[schema.Versions[i].Version] = struct{}{}
 		if err := ValidateSchemaVersion(schema.Versions[i]); err != nil {
 			return fmt.Errorf("invalid version [%d]: %w", i, err)
 		}
-		if schema.Versions[i].Version == schema.CurrentVersion {
-			found = true
-			break
-		}
 	}
-	if !found {
+	if _, ok := seen[schema.CurrentVersion]; !ok {
 		return errors.New("current version not found")
 	}
 	return nil
