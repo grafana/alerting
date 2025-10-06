@@ -72,6 +72,22 @@ func TestIntegrationSchemaVersionGetSecretFieldsPaths(t *testing.T) {
 										Secure:       true,
 									},
 									{
+										PropertyName: "non-secured",
+										Secure:       false,
+										SubformOptions: []Field{
+											{
+												PropertyName: "field",
+											},
+											{
+												PropertyName: "child",
+												Secure:       true,
+											},
+										},
+									},
+									{
+										PropertyName: "field",
+									},
+									{
 										PropertyName: "secured2",
 										Secure:       true,
 									},
@@ -83,6 +99,7 @@ func TestIntegrationSchemaVersionGetSecretFieldsPaths(t *testing.T) {
 			},
 			expected: []IntegrationFieldPath{
 				{"test", "child", "secured"},
+				{"test", "child", "non-secured", "child"},
 				{"test", "child", "secured2"},
 			},
 		},
