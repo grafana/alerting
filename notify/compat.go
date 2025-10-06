@@ -109,7 +109,13 @@ func ConfigReceiverToIntegrations(receiver ConfigReceiver) ([]MimirIntegrationCo
 		}
 		result = slices.Grow(result, len(result)+sliceVal.Len())
 		for j := 0; j < sliceVal.Len(); j++ {
-			elem := sliceVal.Index(j).Elem().Interface()
+			var elem any
+			item := sliceVal.Index(j)
+			if elemType.Kind() == reflect.Ptr {
+				elem = item.Elem().Interface()
+			} else {
+				elem = item.Interface()
+			}
 			result = append(result, MimirIntegrationConfig{
 				Schema: version,
 				Config: elem,
