@@ -2,11 +2,13 @@ package notify
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"slices"
 
 	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -85,14 +87,31 @@ func ConfigReceiverToIntegrations(receiver ConfigReceiver) ([]MimirIntegrationCo
 			continue
 		}
 		iType, err := IntegrationTypeFromMimirTypeReflect(elemType)
+		sch, ok := GetSchemaForIntegration(iType)
+		if !ok {
+			return nil, fmt.Errorf("cannot find schema by integration type %s", iType)
+		}
+		var version schema.IntegrationSchemaVersion
+		if sch.Type == iType {
+			version, ok = sch.GetVersion(schema.V0mimir1)
+			if !ok {
+				return nil, fmt.Errorf(" integration type %s does not have version %s", iType, schema.V0mimir1)
+			}
+		} else {
+			version, ok = sch.GetVersionByTypeAlias(iType)
+			if !ok {
+				return nil, fmt.Errorf("cannot find schema version by integration type alias %s", iType)
+			}
+		}
+
 		if err != nil {
 			return nil, err
 		}
-		slices.Grow(result, sliceVal.Len())
+		result = slices.Grow(result, len(result)+sliceVal.Len())
 		for j := 0; j < sliceVal.Len(); j++ {
 			elem := sliceVal.Index(j).Elem().Interface()
 			result = append(result, MimirIntegrationConfig{
-				Type:   iType,
+				Schema: version,
 				Config: elem,
 			})
 		}

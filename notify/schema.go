@@ -220,6 +220,9 @@ func IntegrationTypeFromString(s string) (schema.IntegrationType, error) {
 	return "", fmt.Errorf("%w: %s", ErrUnknownIntegrationType, s)
 }
 
+// IntegrationTypeFromMimirType returns a valid integration type from a type.
+// The argument could be a slice of configurations, e.g. Receiver.EmailConfigs or a struct or a pointer of config type, e.g. config.EmailConfig
+// The returning type could be alias or original type.
 func IntegrationTypeFromMimirType(t any) (schema.IntegrationType, error) {
 	var configType = reflect.TypeOf(t)
 	return IntegrationTypeFromMimirTypeReflect(configType)

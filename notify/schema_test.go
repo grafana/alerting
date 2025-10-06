@@ -31,6 +31,8 @@ import (
 	"github.com/grafana/alerting/receivers/slack"
 	"github.com/grafana/alerting/receivers/sns"
 	"github.com/grafana/alerting/receivers/teams"
+	teamsV0Mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
+	teamsV0Mimir2 "github.com/grafana/alerting/receivers/teams/v0mimir2"
 	"github.com/grafana/alerting/receivers/telegram"
 	"github.com/grafana/alerting/receivers/threema"
 	"github.com/grafana/alerting/receivers/victorops"
@@ -318,13 +320,13 @@ func TestIntegrationTypeFromMimirType(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, email.Type, actual)
 
-	actual, err = IntegrationTypeFromMimirType(config.WebexConfig{})
+	actual, err = IntegrationTypeFromMimirType(config.MSTeamsConfig{})
 	require.NoError(t, err)
-	require.Equal(t, webex.Type, actual)
+	require.Equal(t, teamsV0Mimir1.Schema.TypeAlias, actual)
 
-	actual, err = IntegrationTypeFromMimirType(&config.WebhookConfig{})
+	actual, err = IntegrationTypeFromMimirType(&config.MSTeamsV2Config{})
 	require.NoError(t, err)
-	require.Equal(t, webhook.Type, actual)
+	require.Equal(t, teamsV0Mimir2.Schema.TypeAlias, actual)
 
 	t.Run("error on unknown type", func(t *testing.T) {
 		_, err = IntegrationTypeFromMimirType(1)
@@ -343,7 +345,6 @@ func TestIntegrationTypeFromMimirType(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, schema.IntegrationType(expected), actual)
 	})
-
 }
 
 func unique(slice []string) []string {
