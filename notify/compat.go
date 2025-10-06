@@ -87,6 +87,10 @@ func ConfigReceiverToIntegrations(receiver ConfigReceiver) ([]MimirIntegrationCo
 			continue
 		}
 		iType, err := IntegrationTypeFromMimirTypeReflect(elemType)
+		if err != nil {
+			return nil, err
+		}
+
 		sch, ok := GetSchemaForIntegration(iType)
 		if !ok {
 			return nil, fmt.Errorf("cannot find schema by integration type %s", iType)
@@ -102,10 +106,6 @@ func ConfigReceiverToIntegrations(receiver ConfigReceiver) ([]MimirIntegrationCo
 			if !ok {
 				return nil, fmt.Errorf("cannot find schema version by integration type alias %s", iType)
 			}
-		}
-
-		if err != nil {
-			return nil, err
 		}
 		result = slices.Grow(result, len(result)+sliceVal.Len())
 		for j := 0; j < sliceVal.Len(); j++ {
