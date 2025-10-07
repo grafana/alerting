@@ -2,13 +2,19 @@ package notify
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 
 	"github.com/prometheus/alertmanager/config"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/notify/notifytest"
+	"github.com/grafana/alerting/receivers/email"
+	"github.com/grafana/alerting/receivers/schema"
+	"github.com/grafana/alerting/receivers/teams"
 )
 
 func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
@@ -134,4 +140,41 @@ func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 	require.Len(t, actual, 2)
 	require.Equal(t, PostableAPIReceiverToAPIReceiver(receivers[0]), actual[0])
 	require.Equal(t, PostableAPIReceiverToAPIReceiver(receivers[1]), actual[1])
+}
+
+func TestConfigReceiverToMimirIntegrations(t *testing.T) {
+	r, err := notifytest.GetMimirReceiverWithAllIntegrations()
+	require.NoError(t, err)
+	actual, err := ConfigReceiverToMimirIntegrations(r)
+	require.NoError(t, err)
+	require.Len(t, actual, len(notifytest.AllValidMimirConfigs))
+	idx := slices.IndexFunc(actual, func(e MimirIntegrationConfig) bool {
+		return e.Schema.Type() == email.Type
+	})
+	require.IsType(t, config.EmailConfig{}, actual[idx].Config)
+
+	t.Run("correctly maps teams versions", func(t *testing.T) {
+		found := 0
+		for _, ic := range actual {
+			if ic.Schema.Type() != teams.Type {
+				continue
+			}
+			switch ic.Schema.Version {
+			case schema.V0mimir1:
+				found++
+				require.IsType(t, config.MSTeamsConfig{}, ic.Config)
+			case schema.V0mimir2:
+				found++
+				require.IsType(t, config.MSTeamsV2Config{}, ic.Config)
+			default:
+				require.Fail(t, "unexpected version for msteams integration")
+			}
+		}
+		assert.Equal(t, 2, found, "expected 2 teams integrations")
+	})
+	t.Run("should not fail if empty", func(t *testing.T) {
+		actual, err = ConfigReceiverToMimirIntegrations(ConfigReceiver{Name: "empty"})
+		require.NoError(t, err)
+		require.Empty(t, actual)
+	})
 }

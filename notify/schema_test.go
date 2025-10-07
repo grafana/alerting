@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prometheus/alertmanager/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -30,6 +31,8 @@ import (
 	"github.com/grafana/alerting/receivers/slack"
 	"github.com/grafana/alerting/receivers/sns"
 	"github.com/grafana/alerting/receivers/teams"
+	teamsV0Mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
+	teamsV0Mimir2 "github.com/grafana/alerting/receivers/teams/v0mimir2"
 	"github.com/grafana/alerting/receivers/telegram"
 	"github.com/grafana/alerting/receivers/threema"
 	"github.com/grafana/alerting/receivers/victorops"
@@ -307,6 +310,40 @@ func TestV0IntegrationsSecrets(t *testing.T) {
 			secrets = unique(secrets)
 			require.ElementsMatch(t, expectedSecrets, secrets)
 		})
+	})
+}
+
+func TestIntegrationTypeFromMimirType(t *testing.T) {
+	r, err := notifytest.GetMimirReceiverWithAllIntegrations()
+	require.NoError(t, err)
+	actual, err := IntegrationTypeFromMimirType(r.EmailConfigs)
+	require.NoError(t, err)
+	require.Equal(t, email.Type, actual)
+
+	actual, err = IntegrationTypeFromMimirType(config.MSTeamsConfig{})
+	require.NoError(t, err)
+	require.Equal(t, teamsV0Mimir1.Schema.TypeAlias, actual)
+
+	actual, err = IntegrationTypeFromMimirType(&config.MSTeamsV2Config{})
+	require.NoError(t, err)
+	require.Equal(t, teamsV0Mimir2.Schema.TypeAlias, actual)
+
+	t.Run("error on unknown type", func(t *testing.T) {
+		_, err = IntegrationTypeFromMimirType(1)
+		require.Error(t, err)
+		_, err = IntegrationTypeFromMimirType(nil)
+		require.Error(t, err)
+		_, err = IntegrationTypeFromMimirType(struct{}{})
+		require.Error(t, err)
+	})
+
+	// This test ensures that all known integrations' secrets are listed in the schema definition.
+	notifytest.ForEachIntegrationType(t, func(configType reflect.Type) {
+		name := configType.Name()
+		expected := strings.ToLower(strings.TrimSuffix(name, "Config"))
+		actual, err := IntegrationTypeFromMimirTypeReflect(configType)
+		require.NoError(t, err)
+		require.Equal(t, schema.IntegrationType(expected), actual)
 	})
 }
 
