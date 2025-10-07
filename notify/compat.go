@@ -70,8 +70,8 @@ func PostableAPITemplatesToTemplateDefinitions(ts []definition.PostableApiTempla
 	return defs
 }
 
-// ConfigReceiverToIntegrations converts a ConfigReceiver to a list of MimirIntegrationConfig
-func ConfigReceiverToIntegrations(receiver ConfigReceiver) ([]MimirIntegrationConfig, error) {
+// ConfigReceiverToMimirIntegrations converts a ConfigReceiver to a list of MimirIntegrationConfig
+func ConfigReceiverToMimirIntegrations(receiver ConfigReceiver) ([]MimirIntegrationConfig, error) {
 	result := make([]MimirIntegrationConfig, 0)
 	receiverVal := reflect.ValueOf(&receiver).Elem()
 	receiverType := receiverVal.Type()
@@ -107,7 +107,7 @@ func ConfigReceiverToIntegrations(receiver ConfigReceiver) ([]MimirIntegrationCo
 				return nil, fmt.Errorf("cannot find schema version by integration type alias %s", iType)
 			}
 		}
-		result = slices.Grow(result, len(result)+sliceVal.Len())
+		result = slices.Grow(result, sliceVal.Len())
 		for j := 0; j < sliceVal.Len(); j++ {
 			var elem any
 			item := sliceVal.Index(j)

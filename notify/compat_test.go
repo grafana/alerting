@@ -142,10 +142,10 @@ func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 	require.Equal(t, PostableAPIReceiverToAPIReceiver(receivers[1]), actual[1])
 }
 
-func TestConfigReceiverToIntegrations(t *testing.T) {
+func TestConfigReceiverToMimirIntegrations(t *testing.T) {
 	r, err := notifytest.GetMimirReceiverWithAllIntegrations()
 	require.NoError(t, err)
-	actual, err := ConfigReceiverToIntegrations(r)
+	actual, err := ConfigReceiverToMimirIntegrations(r)
 	require.NoError(t, err)
 	require.Len(t, actual, len(notifytest.AllValidMimirConfigs))
 	idx := slices.IndexFunc(actual, func(e MimirIntegrationConfig) bool {
@@ -173,7 +173,7 @@ func TestConfigReceiverToIntegrations(t *testing.T) {
 		assert.Equal(t, 2, found, "expected 2 teams integrations")
 	})
 	t.Run("should not fail if empty", func(t *testing.T) {
-		actual, err = ConfigReceiverToIntegrations(ConfigReceiver{Name: "empty"})
+		actual, err = ConfigReceiverToMimirIntegrations(ConfigReceiver{Name: "empty"})
 		require.NoError(t, err)
 		require.Empty(t, actual)
 	})
