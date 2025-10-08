@@ -254,9 +254,11 @@ func TestMerge(t *testing.T) {
 				p.TimeIntervals = append(p.TimeIntervals, config.TimeInterval{
 					Name: "mti-1",
 				})
-				p.MuteTimeIntervals = append(p.MuteTimeIntervals, config.MuteTimeInterval{
-					Name: "ti-1",
-				})
+				p.MuteTimeIntervals = []config.MuteTimeInterval{
+					{
+						Name: "ti-1",
+					},
+				}
 				p.Route.Routes = append(p.Route.Routes, &Route{
 					Matchers: config.Matchers{
 						{
@@ -271,12 +273,15 @@ func TestMerge(t *testing.T) {
 			}),
 			expected: MergeResult{
 				Config: *load(t, fullMergedConfig, func(p *PostableApiAlertingConfig) {
-					p.TimeIntervals = append(p.TimeIntervals, config.TimeInterval{
+					// remove mti2 that we replaced with ti-1
+					expected := p.TimeIntervals[:len(p.TimeIntervals)-1]
+					expected = append(expected, config.TimeInterval{
 						Name: "mti-1_mimir-12345",
 					})
-					p.MuteTimeIntervals = append(p.MuteTimeIntervals, config.MuteTimeInterval{
+					expected = append(expected, config.TimeInterval{
 						Name: "ti-1_mimir-12345",
 					})
+					p.TimeIntervals = expected
 					p.Route.Routes[0].Routes = append(p.Route.Routes[0].Routes, &Route{
 						Matchers: config.Matchers{
 							{
@@ -451,6 +456,316 @@ func TestCheckIfMatchersUsed(t *testing.T) {
 			actual, err := checkIfMatchersUsed(m, []*Route{tc.route})
 			require.NoError(t, err)
 			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestMergeReceivers(t *testing.T) {
+	r := func(name string) *PostableApiReceiver {
+		return &PostableApiReceiver{
+			Receiver: config.Receiver{
+				Name: name,
+			},
+		}
+	}
+
+	suffix := "-dupe"
+
+	r1 := r("r1")
+	r2 := r("r2")
+	r2s := r("r2" + suffix)
+	r3 := r("r3")
+
+	testCases := []struct {
+		name            string
+		existing        []*PostableApiReceiver
+		incoming        []*PostableApiReceiver
+		expected        []*PostableApiReceiver
+		expectedRenames map[string]string
+	}{
+		{
+			name: "should append copies of incoming to existing",
+			existing: []*PostableApiReceiver{
+				r2,
+			},
+			incoming: []*PostableApiReceiver{
+				r1,
+				r3,
+			},
+			expected: []*PostableApiReceiver{
+				r2,
+				r1,
+				r3,
+			},
+			expectedRenames: map[string]string{},
+		},
+		{
+			name: "should rename incoming if there is existing",
+			existing: []*PostableApiReceiver{
+				r2,
+			},
+			incoming: []*PostableApiReceiver{
+				r("r2"),
+			},
+			expected: []*PostableApiReceiver{
+				r2,
+				r("r2" + suffix),
+			},
+			expectedRenames: map[string]string{
+				"r2": "r2" + suffix,
+			},
+		},
+		{
+			name: "should rename incoming if there is existing after dedup",
+			existing: []*PostableApiReceiver{
+				r2,
+				r2s,
+			},
+			incoming: []*PostableApiReceiver{
+				r("r2"),
+			},
+			expected: []*PostableApiReceiver{
+				r2,
+				r2s,
+				r("r2" + suffix + "_01"),
+			},
+			expectedRenames: map[string]string{
+				"r2": "r2" + suffix + "_01",
+			},
+		},
+		{
+			name: "should keep names unique across both sets",
+			existing: []*PostableApiReceiver{
+				r2,
+				r2s,
+			},
+			incoming: []*PostableApiReceiver{
+				r("r2"),
+				r("r2" + suffix + "_01"),
+			},
+			expected: []*PostableApiReceiver{
+				r2,
+				r2s,
+				r("r2" + suffix + "_02"),
+				r("r2" + suffix + "_01"),
+			},
+			expectedRenames: map[string]string{
+				"r2": "r2" + suffix + "_02",
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var existingNames, incomingNames []string
+			for _, r := range tc.existing {
+				existingNames = append(existingNames, r.Name)
+			}
+			for _, r := range tc.incoming {
+				incomingNames = append(incomingNames, r.Name)
+			}
+
+			actual, actualRenames := MergeReceivers(tc.existing, tc.incoming, suffix)
+			require.Len(t, actual, len(tc.expected))
+			assert.EqualValues(t, tc.expectedRenames, actualRenames)
+			for i := range tc.expected {
+				assert.EqualValues(t, tc.expected[i], actual[i])
+				if i < len(tc.existing) {
+					assert.Same(t, tc.existing[i], actual[i])
+				} else {
+					idx := i - len(tc.existing)
+					assert.NotSame(t, tc.incoming[idx], actual[i])
+				}
+			}
+
+			t.Run("items of the lists should not be changed", func(t *testing.T) {
+				var names []string
+				for _, r := range tc.existing {
+					names = append(names, r.Name)
+				}
+				assert.Equal(t, existingNames, names)
+				names = nil
+				for _, r := range tc.incoming {
+					names = append(names, r.Name)
+				}
+				assert.Equal(t, incomingNames, names)
+			})
+		})
+	}
+}
+
+func TestMergeTimeIntervals(t *testing.T) {
+	ti := func(name string) config.TimeInterval {
+		return config.TimeInterval{
+			Name: name,
+		}
+	}
+	mti := func(name string) config.MuteTimeInterval {
+		return config.MuteTimeInterval{
+			Name: name,
+		}
+	}
+
+	suffix := "-dupe"
+
+	testCases := []struct {
+		name                  string
+		existingMuteIntervals []config.MuteTimeInterval
+		existingTimeIntervals []config.TimeInterval
+		incomingMuteIntervals []config.MuteTimeInterval
+		incomingTimeIntervals []config.TimeInterval
+		expected              []config.TimeInterval
+		expectedRenames       map[string]string
+	}{
+		{
+			name: "should append copies of incoming to existing time intervals",
+			existingMuteIntervals: []config.MuteTimeInterval{
+				mti("mti1"),
+			},
+			existingTimeIntervals: []config.TimeInterval{
+				ti("ti2"),
+			},
+			incomingTimeIntervals: []config.TimeInterval{
+				ti("ti4"),
+			},
+			incomingMuteIntervals: []config.MuteTimeInterval{
+				mti("mti3"),
+			},
+			expected: []config.TimeInterval{
+				ti("ti2"),
+				ti("ti4"),
+				ti("mti3"),
+			},
+			expectedRenames: map[string]string{},
+		},
+		{
+			name: "should rename incoming if there is existing",
+			existingMuteIntervals: []config.MuteTimeInterval{
+				mti("mti1"),
+			},
+			existingTimeIntervals: []config.TimeInterval{
+				ti("ti2"),
+			},
+			incomingTimeIntervals: []config.TimeInterval{
+				ti("mti1"),
+			},
+			incomingMuteIntervals: []config.MuteTimeInterval{
+				mti("ti2"),
+			},
+			expected: []config.TimeInterval{
+				ti("ti2"),
+				ti("mti1" + suffix),
+				ti("ti2" + suffix),
+			},
+			expectedRenames: map[string]string{
+				"ti2":  "ti2" + suffix,
+				"mti1": "mti1" + suffix,
+			},
+		},
+		{
+			name: "should rename incoming if there is existing after dedup",
+			existingMuteIntervals: []config.MuteTimeInterval{
+				mti("ti1"),
+			},
+			existingTimeIntervals: []config.TimeInterval{
+				ti("ti1" + suffix),
+			},
+			incomingTimeIntervals: []config.TimeInterval{
+				ti("ti1" + suffix),
+			},
+			incomingMuteIntervals: []config.MuteTimeInterval{
+				mti("ti1"),
+			},
+			expected: []config.TimeInterval{
+				ti("ti1" + suffix),
+				ti("ti1" + suffix + suffix),
+				ti("ti1" + suffix + "_01"),
+			},
+			expectedRenames: map[string]string{
+				"ti1" + suffix: "ti1" + suffix + suffix,
+				"ti1":          "ti1" + suffix + "_01",
+			},
+		},
+		{
+			name: "should rename dupe among incoming",
+			existingTimeIntervals: []config.TimeInterval{
+				ti("ti2"),
+			},
+			incomingTimeIntervals: []config.TimeInterval{
+				ti("ti2"),
+			},
+			incomingMuteIntervals: []config.MuteTimeInterval{
+				mti("ti2"),
+			},
+			expected: []config.TimeInterval{ // mute intervals have precedence over time intervals in the case of duplicates (see https://github.com/grafana/alerting/blob/85dab908dcb43f7718a638b4c3cf9c214f7e48da/notify/grafana_alertmanager.go#L676-L685)
+				ti("ti2"),
+				ti("ti2" + suffix),
+				ti("ti2" + suffix + "_01"),
+			},
+			expectedRenames: map[string]string{
+				"ti2": "ti2" + suffix + "_01",
+			},
+		},
+		{
+			name: "should ensure uniqueness across existing and incoming",
+			existingMuteIntervals: []config.MuteTimeInterval{
+				mti("ti1"),
+			},
+			existingTimeIntervals: []config.TimeInterval{
+				ti("ti1" + suffix),
+			},
+			incomingTimeIntervals: []config.TimeInterval{
+				ti("ti1" + suffix + "_01"),
+			},
+			incomingMuteIntervals: []config.MuteTimeInterval{
+				mti("ti1"),
+			},
+			expected: []config.TimeInterval{
+				ti("ti1" + suffix),
+				ti("ti1" + suffix + "_01"),
+				ti("ti1" + suffix + "_02"),
+			},
+			expectedRenames: map[string]string{
+				"ti1": "ti1" + suffix + "_02",
+			},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var existingNames, incomingNames []string
+			for _, r := range tc.existingMuteIntervals {
+				existingNames = append(existingNames, r.Name)
+			}
+			for _, r := range tc.existingTimeIntervals {
+				existingNames = append(existingNames, r.Name)
+			}
+			for _, r := range tc.incomingTimeIntervals {
+				incomingNames = append(incomingNames, r.Name)
+			}
+			for _, r := range tc.incomingMuteIntervals {
+				incomingNames = append(incomingNames, r.Name)
+			}
+
+			actualTimeIntervals, actualRenames := MergeTimeIntervals(tc.existingMuteIntervals, tc.existingTimeIntervals, tc.incomingMuteIntervals, tc.incomingTimeIntervals, suffix)
+			assert.Equal(t, tc.expected, actualTimeIntervals)
+			assert.EqualValues(t, tc.expectedRenames, actualRenames)
+
+			// check that existing and incoming lists are not changed
+			var names []string
+			for _, r := range tc.existingMuteIntervals {
+				names = append(names, r.Name)
+			}
+			for _, r := range tc.existingTimeIntervals {
+				names = append(names, r.Name)
+			}
+			assert.Equal(t, existingNames, names)
+			names = nil
+			for _, r := range tc.incomingTimeIntervals {
+				names = append(names, r.Name)
+			}
+			for _, r := range tc.incomingMuteIntervals {
+				names = append(names, r.Name)
+			}
+			assert.Equal(t, incomingNames, names)
 		})
 	}
 }
@@ -643,11 +958,6 @@ mute_time_intervals:
         - times:
             - start_time: "00:00"
               end_time: "12:00"
-    - name: mti-2
-      time_intervals:
-        - times:
-            - start_time: "00:00"
-              end_time: "12:00"
 time_intervals:
     - name: ti-1
       time_intervals:
@@ -662,6 +972,11 @@ time_intervals:
           - wednesday
           - thursday
           - friday
+    - name: mti-2
+      time_intervals:
+        - times:
+            - start_time: "00:00"
+              end_time: "12:00"
 receivers:
     - name: grafana-default-email
       grafana_managed_receiver_configs:
