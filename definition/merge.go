@@ -190,43 +190,48 @@ func MergeTimeIntervals(
 	incomingTimeIntervals []config.TimeInterval,
 	suffix string,
 ) ([]config.TimeInterval, map[string]string) {
-	usedNames := make(map[string]int, len(existingMuteIntervals)+len(incomingTimeIntervals)+len(incomingMuteIntervals)+len(existingTimeIntervals))
+	// combine all incoming intervals into a single list
+	incomingAll := make([]config.TimeInterval, 0, len(incomingTimeIntervals)+len(incomingMuteIntervals))
+	incomingAll = append(incomingAll, incomingTimeIntervals...)
+	for _, interval := range incomingMuteIntervals {
+		incomingAll = append(incomingAll, config.TimeInterval(interval))
+	}
+	usedNames := createIndexTimeIntervals(existingMuteIntervals, existingTimeIntervals, incomingAll)
+	result := make([]config.TimeInterval, 0, len(existingTimeIntervals)+len(incomingMuteIntervals)+len(incomingTimeIntervals))
+	result = append(result, existingTimeIntervals...)
+	renames := make(map[string]string)
+	for idx, interval := range incomingAll {
+		curName := interval.Name
+		if i, ok := usedNames[curName]; ok && i != idx { // if the name is already used by another interval, append a suffix.
+			newName := getUniqueName(curName, suffix, usedNames)
+			renames[curName] = newName
+			usedNames[newName] = idx
+			interval.Name = newName
+		}
+		result = append(result, interval)
+	}
+	return result, renames
+}
+
+func createIndexTimeIntervals(
+	existingMuteIntervals []config.MuteTimeInterval,
+	existingTimeIntervals []config.TimeInterval,
+	incomingTimeIntervals []config.TimeInterval,
+) map[string]int {
+	// usedNames is a map of existing interval names where value is the index of the interval that holds the name in the incoming list.
+	usedNames := make(map[string]int, len(existingMuteIntervals)+len(existingTimeIntervals)+len(incomingTimeIntervals))
 	for _, r := range existingMuteIntervals {
 		usedNames[r.Name] = -1
 	}
 	for _, r := range existingTimeIntervals {
 		usedNames[r.Name] = -1
 	}
-	result := make([]config.TimeInterval, 0, len(existingTimeIntervals)+len(incomingMuteIntervals)+len(incomingTimeIntervals))
-	result = append(result, existingTimeIntervals...)
-	for _, interval := range incomingTimeIntervals {
-		result = append(result, interval)
-		if _, ok := usedNames[interval.Name]; ok {
-			continue
-		}
-		usedNames[interval.Name] = len(result) - 1
-	}
-	for _, interval := range incomingMuteIntervals {
-		result = append(result, config.TimeInterval(interval))
-		if _, ok := usedNames[interval.Name]; ok {
-			continue
-		}
-		usedNames[interval.Name] = len(result) - 1
-	}
-	renames := make(map[string]string)
-	for idx := range result {
-		if idx < len(existingTimeIntervals) {
-			continue
-		}
-		curName := result[idx].Name
-		if i, ok := usedNames[curName]; ok && i != idx {
-			newName := getUniqueName(curName, suffix, usedNames)
-			renames[curName] = newName
-			result[idx].Name = newName
-			usedNames[newName] = idx
+	for idx, r := range incomingTimeIntervals {
+		if _, ok := usedNames[r.Name]; !ok {
+			usedNames[r.Name] = idx
 		}
 	}
-	return result, renames
+	return usedNames
 }
 
 func mergeRoutes(a, b Route, matcher config.Matchers) *Route {
@@ -327,15 +332,7 @@ func mergeInhibitRules(a, b []config.InhibitRule, matcher config.Matchers) []con
 func MergeReceivers(existing, incoming []*PostableApiReceiver, suffix string) ([]*PostableApiReceiver, map[string]string) {
 	result := make([]*PostableApiReceiver, 0, len(existing)+len(incoming))
 	result = append(result, existing...)
-	usedNames := make(map[string]int, len(existing)+len(incoming))
-	for _, e := range existing {
-		usedNames[e.Name] = -1
-	}
-	for idx, i := range incoming {
-		if _, ok := usedNames[i.Name]; !ok {
-			usedNames[i.Name] = idx
-		}
-	}
+	usedNames := createIndexReceivers(existing, incoming)
 	renames := make(map[string]string)
 	for idx, r := range incoming {
 		if r == nil {
@@ -351,6 +348,19 @@ func MergeReceivers(existing, incoming []*PostableApiReceiver, suffix string) ([
 		result = append(result, &cpy)
 	}
 	return result, renames
+}
+
+func createIndexReceivers(existing, incoming []*PostableApiReceiver) map[string]int {
+	usedNames := make(map[string]int, len(existing)+len(incoming))
+	for _, e := range existing {
+		usedNames[e.Name] = -1
+	}
+	for idx, i := range incoming {
+		if _, ok := usedNames[i.Name]; !ok {
+			usedNames[i.Name] = idx
+		}
+	}
+	return usedNames
 }
 
 func getUniqueName[T any](name string, suffix string, usedNames map[string]T) string {
