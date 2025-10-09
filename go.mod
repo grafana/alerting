@@ -6,7 +6,7 @@ toolchain go1.24.4
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.1
-	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
+	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
 	github.com/at-wat/mqtt-go v0.19.4
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/benbjohnson/clock v1.3.5
