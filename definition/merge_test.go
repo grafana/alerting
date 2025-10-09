@@ -714,15 +714,17 @@ func TestMergeTimeIntervals(t *testing.T) {
 				ti("ti1" + suffix),
 			},
 			incomingTimeIntervals: []config.TimeInterval{
-				ti("ti1" + suffix + "_01"),
+				ti("ti1"),
+				ti("ti2"),
 			},
 			incomingMuteIntervals: []config.MuteTimeInterval{
-				mti("ti1"),
+				mti("ti1" + suffix + "_01"),
 			},
 			expected: []config.TimeInterval{
 				ti("ti1" + suffix),
-				ti("ti1" + suffix + "_01"),
 				ti("ti1" + suffix + "_02"),
+				ti("ti2"),
+				ti("ti1" + suffix + "_01"),
 			},
 			expectedRenames: map[string]string{
 				"ti1": "ti1" + suffix + "_02",
