@@ -39,9 +39,11 @@ func TestNewConfig(t *testing.T) {
 			settings: `{ "url": "http://localhost" }`,
 			secrets:  map[string][]byte{},
 			expectedConfig: Config{
-				Title:   templates.DefaultMessageTitleEmbed,
-				Message: templates.DefaultMessageEmbed,
-				URL:     "http://localhost",
+				Title:           templates.DefaultMessageTitleEmbed,
+				Message:         templates.DefaultMessageEmbed,
+				URL:             "http://localhost",
+				HideOpenButton:  false,
+				HideVersionInfo: false,
 			},
 		},
 		{
@@ -51,9 +53,11 @@ func TestNewConfig(t *testing.T) {
 				"url": []byte("http://localhost"),
 			},
 			expectedConfig: Config{
-				Title:   templates.DefaultMessageTitleEmbed,
-				Message: templates.DefaultMessageEmbed,
-				URL:     "http://localhost",
+				Title:           templates.DefaultMessageTitleEmbed,
+				Message:         templates.DefaultMessageEmbed,
+				URL:             "http://localhost",
+				HideOpenButton:  false,
+				HideVersionInfo: false,
 			},
 		},
 		{
@@ -63,18 +67,22 @@ func TestNewConfig(t *testing.T) {
 				"url": []byte("http://test"),
 			},
 			expectedConfig: Config{
-				Title:   templates.DefaultMessageTitleEmbed,
-				Message: templates.DefaultMessageEmbed,
-				URL:     "http://test",
+				Title:           templates.DefaultMessageTitleEmbed,
+				Message:         templates.DefaultMessageEmbed,
+				URL:             "http://test",
+				HideOpenButton:  false,
+				HideVersionInfo: false,
 			},
 		},
 		{
 			name:     "All empty fields = minimal valid configuration",
 			settings: `{"url": "http://localhost", "title": "", "message": "", "avatar_url" : "", "use_discord_username": null}`,
 			expectedConfig: Config{
-				Title:   templates.DefaultMessageTitleEmbed,
-				Message: templates.DefaultMessageEmbed,
-				URL:     "http://localhost",
+				Title:           templates.DefaultMessageTitleEmbed,
+				Message:         templates.DefaultMessageEmbed,
+				URL:             "http://localhost",
+				HideOpenButton:  false,
+				HideVersionInfo: false,
 			},
 		},
 		{
@@ -82,9 +90,11 @@ func TestNewConfig(t *testing.T) {
 			settings: FullValidConfigForTesting,
 			secrets:  receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
-				Title:   "test-title",
-				Message: "test-message",
-				URL:     "http://localhost/url-secret",
+				Title:           "test-title",
+				Message:         "test-message",
+				URL:             "http://localhost/url-secret",
+				HideOpenButton:  true,
+				HideVersionInfo: true,
 			},
 		},
 	}
