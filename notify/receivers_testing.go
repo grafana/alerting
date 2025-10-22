@@ -13,7 +13,7 @@ import (
 	"github.com/grafana/alerting/notify/nfstatus"
 )
 
-func (am *GrafanaAlertmanager) TestIntegration(ctx context.Context, receiverName string, integrationConfig models.IntegrationConfig, alert TestReceiversConfigAlertParams) error {
+func (am *GrafanaAlertmanager) TestIntegration(ctx context.Context, receiverName string, integrationConfig models.IntegrationConfig, alert models.TestReceiversConfigAlertParams) error {
 	am.reloadConfigMtx.RLock()
 	templates := am.templates
 	am.reloadConfigMtx.RUnlock()
@@ -24,7 +24,7 @@ func (am *GrafanaAlertmanager) TestIntegration(ctx context.Context, receiverName
 func TestIntegration(ctx context.Context,
 	receiverName string,
 	integrationConfig models.IntegrationConfig,
-	testAlert TestReceiversConfigAlertParams,
+	testAlert models.TestReceiversConfigAlertParams,
 	buildIntegrationsFunc func(*APIReceiver, TemplatesProvider) ([]*nfstatus.Integration, error),
 	tmplProvider TemplatesProvider,
 ) error {
