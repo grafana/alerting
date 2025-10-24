@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -43,6 +44,19 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
+			name:     "Minimal valid configuration from secure settings",
+			settings: `{}`,
+			secrets: map[string][]byte{
+				"url": []byte("http://localhost"),
+			},
+			expectedConfig: Config{
+				URL:         "http://localhost",
+				MessageType: defaultDingdingMsgType,
+				Title:       templates.DefaultMessageTitleEmbed,
+				Message:     templates.DefaultMessageEmbed,
+			},
+		},
+		{
 			name:     "All empty fields = minimal valid configuration",
 			settings: `{"url": "http://localhost", "message": "", "title": "", "msgType": ""}`,
 			expectedConfig: Config{
@@ -65,7 +79,7 @@ func TestNewConfig(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			actual, err := NewConfig(json.RawMessage(c.settings))
+			actual, err := NewConfig(json.RawMessage(c.settings), receiversTesting.DecryptForTesting(c.secrets))
 
 			if c.expectedInitError != "" {
 				require.ErrorContains(t, err, c.expectedInitError)
