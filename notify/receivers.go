@@ -79,13 +79,8 @@ type APIReceiver struct {
 }
 
 type TestReceiversConfigBodyParams struct {
-	Alert     *TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
-	Receivers []*APIReceiver                  `yaml:"receivers,omitempty" json:"receivers,omitempty"`
-}
-
-type TestReceiversConfigAlertParams struct {
-	Annotations model.LabelSet `yaml:"annotations,omitempty" json:"annotations,omitempty"`
-	Labels      model.LabelSet `yaml:"labels,omitempty" json:"labels,omitempty"`
+	Alert     *models.TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
+	Receivers []*APIReceiver                         `yaml:"receivers,omitempty" json:"receivers,omitempty"`
 }
 
 type IntegrationTimeoutError struct {
@@ -105,7 +100,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 	return TestReceivers(ctx, c, am.buildReceiverIntegrations, templates)
 }
 
-func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time) types.Alert {
+func newTestAlert(c *models.TestReceiversConfigAlertParams, startsAt, updatedAt time.Time) types.Alert {
 	var (
 		defaultAnnotations = model.LabelSet{
 			"summary":          "Notification test",
@@ -126,19 +121,19 @@ func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time
 		UpdatedAt: updatedAt,
 	}
 
-	if c.Alert != nil {
-		if c.Alert.Annotations != nil {
-			for k, v := range c.Alert.Annotations {
-				alert.Annotations[k] = v
-			}
-		}
-		if c.Alert.Labels != nil {
-			for k, v := range c.Alert.Labels {
-				alert.Labels[k] = v
-			}
+	if c == nil {
+		return alert
+	}
+	if c.Annotations != nil {
+		for k, v := range c.Annotations {
+			alert.Annotations[k] = v
 		}
 	}
-
+	if c.Labels != nil {
+		for k, v := range c.Labels {
+			alert.Labels[k] = v
+		}
+	}
 	return alert
 }
 
