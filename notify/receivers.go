@@ -281,7 +281,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 		}
 		result.AlertmanagerConfigs = append(result.AlertmanagerConfigs, notifierConfig)
 	case "dingding":
-		cfg, err := dingding.NewConfig(receiver.Settings)
+		cfg, err := dingding.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
 		}
