@@ -120,4 +120,39 @@ func TestNotify(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("should not modify the original alerts", func(t *testing.T) {
+		getAlerts := func() []*types.Alert {
+			return []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"__alert_rule_uid__": "rule uid", "alertname": "alert1"},
+						Annotations: model.LabelSet{"__alertImageToken__": "test-image-1"},
+					},
+				},
+			}
+		}
+
+		sn := &Notifier{
+			Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+			images:   imageProvider,
+			settings: singleURLConfig,
+		}
+		alerts := getAlerts()
+
+		origSendHTTPRequest := receivers.SendHTTPRequest
+		t.Cleanup(func() {
+			receivers.SendHTTPRequest = origSendHTTPRequest
+		})
+		receivers.SendHTTPRequest = func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg, _ log.Logger) ([]byte, error) {
+			return nil, nil
+		}
+
+		ctx := notify.WithGroupKey(context.Background(), "alertname")
+		ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+
+		_, err := sn.Notify(context.Background(), alerts...)
+		require.NoError(t, err)
+		require.EqualValues(t, getAlerts(), alerts)
+	})
 }
