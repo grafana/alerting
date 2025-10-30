@@ -48,17 +48,6 @@ func TestNotify(t *testing.T) {
 				},
 			},
 		}, {
-			name:     "Default config with one alert with image URL",
-			settings: singleURLConfig,
-			alerts: []*types.Alert{
-				{
-					Alert: model.Alert{
-						Labels:      model.LabelSet{"__alert_rule_uid__": "rule uid", "alertname": "alert1"},
-						Annotations: model.LabelSet{"__alertImageToken__": "test-image-1"},
-					},
-				},
-			},
-		}, {
 			name:     "Default config with one alert with empty receiver name",
 			settings: singleURLConfig,
 			alerts: []*types.Alert{
@@ -120,4 +109,46 @@ func TestNotify(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("images should not modify the original alerts", func(t *testing.T) {
+		getAlerts := func() []*types.Alert {
+			return []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"__alert_rule_uid__": "rule uid", "alertname": "alert1"},
+						Annotations: model.LabelSet{"__alertImageToken__": "test-image-1"},
+					},
+				},
+			}
+		}
+
+		sn := &Notifier{
+			Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+			images:   imageProvider,
+			settings: singleURLConfig,
+		}
+		alerts := getAlerts()
+
+		origSendHTTPRequest := receivers.SendHTTPRequest
+		t.Cleanup(func() {
+			receivers.SendHTTPRequest = origSendHTTPRequest
+		})
+		var body []byte
+		receivers.SendHTTPRequest = func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg, _ log.Logger) ([]byte, error) {
+			body = cfg.Body
+			return nil, nil
+		}
+
+		ctx := notify.WithGroupKey(context.Background(), "alertname")
+		ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+
+		_, err := sn.Notify(ctx, alerts...)
+		require.NoError(t, err)
+		require.EqualValues(t, getAlerts(), alerts)
+		expectedAlerts := getAlerts()
+		expectedAlerts[0].Annotations["image"] = "https://www.example.com/test-image-1.jpg"
+		expectedBody, err := json.Marshal(expectedAlerts)
+		require.NoError(t, err)
+		require.JSONEq(t, string(expectedBody), string(body))
+	})
 }
