@@ -151,7 +151,7 @@ func TestNotify(t *testing.T) {
 		ctx := notify.WithGroupKey(context.Background(), "alertname")
 		ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
 
-		_, err := sn.Notify(context.Background(), alerts...)
+		_, err := sn.Notify(ctx, alerts...)
 		require.NoError(t, err)
 		require.EqualValues(t, getAlerts(), alerts)
 	})
