@@ -134,7 +134,22 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logge
 	fields := &issueFields{
 		Summary: summary,
 		Labels:  make([]string, 0, len(n.conf.Labels)+1),
-		Fields:  n.conf.Fields,
+		Fields:  nil, // Will be processed below
+	}
+
+	// Process custom fields through templating
+	if n.conf.Fields != nil {
+		processedFields := make(map[string]any)
+		for key, value := range n.conf.Fields {
+			if strValue, ok := value.(string); ok {
+				// Apply templating to string values
+				processedFields[key] = renderOrDefault(fmt.Sprintf("fields.%s", key), strValue, strValue)
+			} else {
+				// Keep non-string values as-is
+				processedFields[key] = value
+			}
+		}
+		fields.Fields = processedFields
 	}
 
 	issueDescriptionString := renderOrDefault("description", n.conf.Description, DefaultDescription)

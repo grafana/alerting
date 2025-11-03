@@ -285,6 +285,143 @@ func TestPrepareIssueRequestBody(t *testing.T) {
 	          }
 	        }`,
 		},
+		{
+			name: "Custom fields with template values",
+			conf: Config{
+				URL:         v2,
+				Project:     "PROJ",
+				IssueType:   "Bug",
+				Summary:     "Test Summary",
+				Description: "Test Description",
+				Fields: map[string]any{
+					"customfield_12345": "{{ .CommonLabels.severity }}",
+					"customfield_67890": "Alert: {{ .CommonLabels.alertname }}",
+					"customfield_11111": 42,
+					"customfield_22222": true,
+					"customfield_33333": "{{ .CommonAnnotations.ann1 }}",
+				},
+			},
+			expPayload: `{
+	          "fields": {
+	            "customfield_11111": 42,
+	            "customfield_12345": "critical",
+	            "customfield_22222": true,
+	            "customfield_33333": "annv1",
+	            "customfield_67890": "Alert: alert1",
+	            "description": "Test Description",
+	            "issuetype": {
+	              "name": "Bug"
+	            },
+	            "labels": [
+	              "ALERT{test_group}"
+	            ],
+	            "project": {
+	              "key": "PROJ"
+	            },
+	            "summary": "Test Summary"
+	          }
+	        }`,
+		},
+		{
+			name: "Custom fields with invalid template fallback",
+			conf: Config{
+				URL:         v2,
+				Project:     "PROJ",
+				IssueType:   "Bug",
+				Summary:     "Test Summary",
+				Description: "Test Description",
+				Fields: map[string]any{
+					"customfield_12345": "{{ .CommonLabels.nonexistent }}",
+					"customfield_67890": "{{ invalid template syntax",
+					"customfield_11111": 123,
+					"customfield_22222": "Static text",
+				},
+			},
+			expPayload: `{
+	          "fields": {
+	            "customfield_11111": 123,
+	            "customfield_12345": "",
+	            "customfield_22222": "Static text",
+	            "customfield_67890": "",
+	            "description": "Test Description",
+	            "issuetype": {
+	              "name": "Bug"
+	            },
+	            "labels": [
+	              "ALERT{test_group}"
+	            ],
+	            "project": {
+	              "key": "PROJ"
+	            },
+	            "summary": "Test Summary"
+	          }
+	        }`,
+		},
+		{
+			name: "No custom fields",
+			conf: Config{
+				URL:         v2,
+				Project:     "PROJ",
+				IssueType:   "Bug",
+				Summary:     "Test Summary",
+				Description: "Test Description",
+				Fields:      nil,
+			},
+			expPayload: `{
+	          "fields": {
+	            "description": "Test Description",
+	            "issuetype": {
+	              "name": "Bug"
+	            },
+	            "labels": [
+	              "ALERT{test_group}"
+	            ],
+	            "project": {
+	              "key": "PROJ"
+	            },
+	            "summary": "Test Summary"
+	          }
+	        }`,
+		},
+		{
+			name: "Custom fields with complex template expressions",
+			conf: Config{
+				URL:         v2,
+				Project:     "PROJ",
+				IssueType:   "Bug",
+				Summary:     "Test Summary",
+				Description: "Test Description",
+				Fields: map[string]any{
+					"customfield_status": "{{ if eq .Status \"firing\" }}ACTIVE{{ else }}RESOLVED{{ end }}",
+					"customfield_count":  "Alert count: {{ len .Alerts }}",
+					"customfield_nested": map[string]any{
+						"id":   "{{ .CommonAnnotations.project }}",
+						"name": "nested field",
+					},
+				},
+			},
+			expPayload: `{
+	          "fields": {
+	            "customfield_count": "Alert count: 1",
+	            "customfield_nested": {
+	              "id": "{{ .CommonAnnotations.project }}",
+	              "name": "nested field"
+	            },
+	            "customfield_status": "ACTIVE",
+	            "description": "Test Description",
+	            "issuetype": {
+	              "name": "Bug"
+	            },
+	            "labels": [
+	              "ALERT{test_group}"
+	            ],
+	            "project": {
+	              "key": "PROJ"
+	            },
+	            "summary": "Test Summary"
+	          }
+	        }`,
+		},
 	}
 
 	for _, tt := range tests {
