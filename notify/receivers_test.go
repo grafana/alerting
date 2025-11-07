@@ -526,7 +526,7 @@ func TestHTTPConfig(t *testing.T) {
 
 				integration := integrations[0]
 
-				alert := newTestAlert(TestReceiversConfigBodyParams{}, time.Now(), time.Now())
+				alert := newTestAlert(nil, time.Now(), time.Now())
 
 				ctx := context.Background()
 				ctx = notify.WithGroupKey(ctx, fmt.Sprintf("%s-%s-%d", integration.Name(), alert.Labels.Fingerprint(), time.Now().Unix()))

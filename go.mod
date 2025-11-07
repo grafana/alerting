@@ -6,8 +6,8 @@ toolchain go1.24.4
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.1
-	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
-	github.com/at-wat/mqtt-go v0.19.4
+	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b
+	github.com/at-wat/mqtt-go v0.19.6
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/benbjohnson/clock v1.3.5
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
@@ -22,7 +22,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.4
 	github.com/modern-go/reflect2 v1.0.2
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/alertmanager v0.25.0
+	github.com/prometheus/alertmanager v0.25.1
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/common v0.64.0
 	github.com/stretchr/testify v1.10.0
