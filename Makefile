@@ -25,16 +25,6 @@ mod-check:
 	GO111MODULE=on go mod tidy
 	@git diff --exit-code -- go.sum go.mod
 
-.PHONY: drone
-drone: .drone/drone.yml
-
-# Drone.
-.drone/drone.yml: .drone/drone.jsonnet
-	drone jsonnet --source $< --target $@.tmp --stream --format=false
-	drone sign --save grafana/alerting $@.tmp
-	drone lint --trusted $@.tmp
-	mv $@.tmp $@
-
 # Tools needed to run linting.
 .tools:
 	mkdir -p .tools/
@@ -46,4 +36,4 @@ drone: .drone/drone.yml
 	GOPATH=$(CURDIR)/.tools go install github.com/fatih/faillint@v1.10.0
 
 .tools/bin/golangci-lint: .tools
-	GOPATH=$(CURDIR)/.tools go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+	GOPATH=$(CURDIR)/.tools go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.0.2

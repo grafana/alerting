@@ -6,6 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-kit/log"
+	alertingModels "github.com/grafana/alerting/models"
+	"github.com/prometheus/alertmanager/notify"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +36,7 @@ func (f *fakeResolvedSender) SendResolved() bool {
 func TestIntegration(t *testing.T) {
 	notifier := &fakeNotifier{}
 	rs := &fakeResolvedSender{}
-	integration := NewIntegration(notifier, rs, "foo", 42, "bar")
+	integration := NewIntegration(notifier, rs, "foo", 42, "bar", nil, log.NewNopLogger())
 
 	// Check wrapped functions work as expected.
 	assert.Equal(t, "foo", integration.Name())
@@ -75,4 +80,58 @@ func TestIntegration(t *testing.T) {
 	assert.NotEqual(t, time.Time{}, lastAttempt)
 	assert.NotEqual(t, model.Duration(0), lastDuration)
 	assert.Equal(t, "An error", lastError.Error())
+}
+
+type mockNotificationHistorian struct {
+	mock.Mock
+}
+
+func (m *mockNotificationHistorian) Record(ctx context.Context, nhe NotificationHistoryEntry) {
+	m.Called(ctx, nhe)
+}
+
+func TestIntegrationWithNotificationHistorian(t *testing.T) {
+	notifier := &fakeNotifier{retry: true, err: errors.New("notification error")}
+	notificationHistorian := &mockNotificationHistorian{}
+	integration := NewIntegration(notifier, &fakeResolvedSender{}, "foo", 42, "bar", notificationHistorian, log.NewNopLogger())
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:       model.LabelSet{"alertname": "Alert1", alertingModels.RuleUIDLabel: "testRuleUID"},
+				Annotations:  model.LabelSet{"foo": "bar"},
+				StartsAt:     time.Now(),
+				EndsAt:       time.Now().Add(5 * time.Minute),
+				GeneratorURL: "http://localhost/test",
+			},
+		},
+	}
+
+	testReceiverName := "testReceiverName"
+	testGroupLabels := model.LabelSet{"key1": "value1"}
+	testPipelineTime := time.Date(2025, time.July, 15, 16, 55, 0, 0, time.UTC)
+	ctx := notify.WithReceiverName(context.Background(), testReceiverName)
+	ctx = notify.WithGroupLabels(ctx, testGroupLabels)
+	ctx = notify.WithNow(ctx, testPipelineTime)
+
+	notificationHistorian.On("Record", mock.Anything, mock.Anything).Once()
+
+	_, err := integration.Notify(ctx, alerts...)
+	assert.Error(t, err)
+	assert.Eventually(t, func() bool {
+		// use a separate testing.T instance to avoid failing the main test
+		return notificationHistorian.AssertExpectations(&testing.T{})
+	}, 1*time.Second, 10*time.Millisecond)
+
+	actual := notificationHistorian.Calls[0].Arguments.Get(1).(NotificationHistoryEntry)
+	actual.Duration = 0 // Zero out duration to make comparison easier.
+	expected := NotificationHistoryEntry{
+		Alerts:          alerts,
+		Retry:           notifier.retry,
+		NotificationErr: notifier.err,
+		Duration:        0,
+		ReceiverName:    testReceiverName,
+		GroupLabels:     testGroupLabels,
+		PipelineTime:    testPipelineTime,
+	}
+	assert.Equal(t, expected, actual)
 }

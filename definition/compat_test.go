@@ -61,12 +61,12 @@ func TestLoadCompat(t *testing.T) {
 		{
 			name:   "no Discord url",
 			input:  []byte(fmt.Sprintf(missingValuesTemplate, "discord_configs")),
-			expErr: "no discord webhook URL provided",
+			expErr: "one of webhook_url or webhook_url_file must be configured",
 		},
 		{
 			name:   "no MSTeams url",
 			input:  []byte(fmt.Sprintf(missingValuesTemplate, "msteams_configs")),
-			expErr: "no msteams webhook URL provided",
+			expErr: "one of webhook_url or webhook_url_file must be configured",
 		},
 		{
 			name:   "no smarthost",
@@ -81,7 +81,7 @@ func TestLoadCompat(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			c, err := LoadCompat([]byte(test.input))
+			c, err := LoadCompat(test.input)
 			if test.expErr != "" {
 				require.Error(t, err)
 				require.Equal(t, test.expErr, err.Error())
@@ -292,7 +292,6 @@ receivers:
       - send_resolved: false
         routing_key: test
         to: test
-        webhook_url_file: test
 `
 
 const testConfigWithComplexRoutes = `
