@@ -396,6 +396,7 @@ func TestNotify(t *testing.T) {
 	groupKey, _ := notify.ExtractGroupKey(ctx)
 	tmpl := templates.ForTests(t)
 	baseURL := "https://jira.example.com/2"
+	baseURLv3 := "https://jira.example.com/3"
 
 	t.Run("when firing", func(t *testing.T) {
 		alert := &types.Alert{
@@ -426,8 +427,8 @@ func TestNotify(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search/jql":
-					return cmd.Validation(mustMarshal(issueSearchResult{}), 200)
+				case baseURL + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResultV2{}), 200)
 				case baseURL + "/issue":
 					return cmd.Validation(nil, 201)
 				default:
@@ -446,7 +447,7 @@ func TestNotify(t *testing.T) {
 			assert.Equal(t, cfg.User, searchRequest.User)
 			assert.Equal(t, cfg.Password, searchRequest.Password)
 			assert.JSONEq(t, string(mustMarshal(getSearchJql(cfg, groupKey.Hash(), true))), searchRequest.Body)
-			assert.Equal(t, baseURL+"/search/jql", searchRequest.URL)
+			assert.Equal(t, baseURL+"/search", searchRequest.URL)
 			assert.Equal(t, "POST", searchRequest.HTTPMethod)
 
 			submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
@@ -462,8 +463,8 @@ func TestNotify(t *testing.T) {
 			issueKey := "TEST-1"
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search/jql":
-					return cmd.Validation(mustMarshal(issueSearchResult{
+				case baseURL + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResultV2{
 						Issues: []issue{
 							{
 								Key: issueKey,
@@ -500,6 +501,74 @@ func TestNotify(t *testing.T) {
 			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
 		})
 
+		// v3 variants
+		t.Run("v3: creates a new issue if no existing (uses /search/jql)", func(t *testing.T) {
+			u3, _ := url.Parse(baseURLv3)
+			cfg3 := cfg
+			cfg3.URL = u3
+
+			mock := receivers.NewMockWebhookSender()
+			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
+				switch cmd.URL {
+				case baseURLv3 + "/search/jql":
+					// v3 response shape
+					return cmd.Validation(mustMarshal(issueSearchResultV3{}), 200)
+				case baseURLv3 + "/issue":
+					return cmd.Validation(nil, 201)
+				default:
+					t.Fatalf("unexpected url: %s", cmd.URL)
+					return nil
+				}
+			}
+
+			n := New(cfg3, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
+			retry, err := n.Notify(ctx, alert)
+			require.NoError(t, err)
+			require.False(t, retry)
+			require.Len(t, mock.Calls, 2)
+
+			searchRequest := mock.Calls[0].Args[2].(*receivers.SendWebhookSettings)
+			assert.Equal(t, baseURLv3+"/search/jql", searchRequest.URL)
+			assert.Equal(t, "POST", searchRequest.HTTPMethod)
+
+			submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
+			assert.Equal(t, baseURLv3+"/issue", submitRequest.URL)
+			assert.Equal(t, "POST", submitRequest.HTTPMethod)
+		})
+
+		t.Run("v3: updates existing issue if firing (uses /search/jql)", func(t *testing.T) {
+			u3, _ := url.Parse(baseURLv3)
+			cfg3 := cfg
+			cfg3.URL = u3
+
+			mock := receivers.NewMockWebhookSender()
+			issueKey := "TEST-1"
+			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
+				switch cmd.URL {
+				case baseURLv3 + "/search/jql":
+					return cmd.Validation(mustMarshal(issueSearchResultV3{Issues: []issue{{
+						Key:    issueKey,
+						Fields: &issueFields{Status: &issueStatus{StatusCategory: keyValue{Key: "blah"}}},
+					}}}), 200)
+				case baseURLv3 + "/issue/" + issueKey:
+					return cmd.Validation(nil, 201)
+				default:
+					t.Fatalf("unexpected url: %s", cmd.URL)
+					return nil
+				}
+			}
+
+			n := New(cfg3, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
+			retry, err := n.Notify(ctx, alert)
+			require.NoError(t, err)
+			require.False(t, retry)
+			assert.Len(t, mock.Calls, 2)
+
+			submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
+			assert.Equal(t, baseURLv3+"/issue/"+issueKey, submitRequest.URL)
+			assert.Equal(t, "PUT", submitRequest.HTTPMethod)
+		})
+
 		t.Run("reopen the issue if it's status is done", func(t *testing.T) {
 			cfg := cfg
 			cfg.ReopenTransition = "quickly"
@@ -519,8 +588,8 @@ func TestNotify(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search/jql":
-					return cmd.Validation(mustMarshal(issueSearchResult{
+				case baseURL + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResultV2{
 						Issues: []issue{
 							{
 								Key: issueKey,
@@ -644,8 +713,8 @@ func TestNotify(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search/jql":
-					return cmd.Validation(mustMarshal(issueSearchResult{}), 200)
+				case baseURL + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResultV2{}), 200)
 				default:
 					t.Fatalf("unexpected url: %s", cmd.URL)
 					return nil
@@ -671,8 +740,8 @@ func TestNotify(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search/jql":
-					return cmd.Validation(mustMarshal(issueSearchResult{
+				case baseURL + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResultV2{
 						Issues: []issue{
 							{
 								Key: issueKey,
@@ -722,8 +791,8 @@ func TestNotify(t *testing.T) {
 			mock := receivers.NewMockWebhookSender()
 			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
 				switch cmd.URL {
-				case baseURL + "/search/jql":
-					return cmd.Validation(mustMarshal(issueSearchResult{
+				case baseURL + "/search":
+					return cmd.Validation(mustMarshal(issueSearchResultV2{
 						Issues: []issue{
 							{
 								Key: issueKey,
@@ -815,6 +884,29 @@ func TestNotify(t *testing.T) {
 				assert.Equal(t, "GET", transitionsSearchRequest.HTTPMethod)
 			})
 		})
+		t.Run("v3: does nothing if issue is not found (uses /search/jql)", func(t *testing.T) {
+			u3, _ := url.Parse(baseURLv3)
+			cfg3 := cfg
+			cfg3.URL = u3
+
+			mock := receivers.NewMockWebhookSender()
+			mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
+				switch cmd.URL {
+				case baseURLv3 + "/search/jql":
+					return cmd.Validation(mustMarshal(issueSearchResultV3{}), 200)
+				default:
+					t.Fatalf("unexpected url: %s", cmd.URL)
+					return nil
+				}
+			}
+
+			n := New(cfg3, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
+			retry, err := n.Notify(ctx, alert)
+			require.NoError(t, err)
+			require.False(t, retry)
+			require.Len(t, mock.Calls, 1)
+		})
+
 	})
 }
 
