@@ -13,9 +13,11 @@ import (
 const Version = schema.V1
 
 type Config struct {
-	URL     string `json:"url,omitempty" yaml:"url,omitempty"`
-	Title   string `json:"title,omitempty" yaml:"title,omitempty"`
-	Message string `json:"message,omitempty" yaml:"message,omitempty"`
+	URL             string `json:"url,omitempty" yaml:"url,omitempty"`
+	Title           string `json:"title,omitempty" yaml:"title,omitempty"`
+	Message         string `json:"message,omitempty" yaml:"message,omitempty"`
+	HideOpenButton  bool   `json:"hide_open_button,omitempty" yaml:"hide_open_button,omitempty"`
+	HideVersionInfo bool   `json:"hide_version_info,omitempty" yaml:"hide_version_info,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
@@ -64,6 +66,18 @@ var Schema = schema.IntegrationSchemaVersion{
 			Element:      schema.ElementTypeTextArea,
 			Placeholder:  templates.DefaultMessageEmbed,
 			PropertyName: "message",
+		},
+		{
+			Label:        "HideOpenButton",
+			Description:  "Hide open URL button",
+			Element:      schema.ElementTypeCheckbox,
+			PropertyName: "hide_open_button",
+		},
+		{
+			Label:        "HideVersionInfo",
+			Description:  "Hide version info",
+			Element:      schema.ElementTypeCheckbox,
+			PropertyName: "hide_version_info",
 		},
 	},
 }

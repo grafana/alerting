@@ -485,6 +485,94 @@ func TestNotify(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Hide open button",
+			settings: Config{
+				Title:          templates.DefaultMessageTitleEmbed,
+				Message:        templates.DefaultMessageEmbed,
+				URL:            "http://localhost",
+				HideOpenButton: true,
+			}, // URL in settings = googlechat url
+			externalURL: "", // external URL = URL of grafana from configuration
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: &outerStruct{
+				PreviewText:  "[FIRING:1]  (val1)",
+				FallbackText: "[FIRING:1]  (val1)",
+				Cards: []card{
+					{
+						Header: header{
+							Title: "[FIRING:1]  (val1)",
+						},
+						Sections: []section{
+							{
+								Widgets: []widget{
+									textParagraphWidget{
+										Text: text{
+											Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\n",
+										},
+									},
+
+									textParagraphWidget{
+										Text: text{
+											// RFC822 only has the minute, hence it works in most cases.
+											Text: "Grafana v" + appVersion + " | " + constNow.Format(time.RFC822),
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Hide version info",
+			settings: Config{
+				Title:           templates.DefaultMessageTitleEmbed,
+				Message:         templates.DefaultMessageEmbed,
+				URL:             "http://localhost",
+				HideOpenButton:  true,
+				HideVersionInfo: true,
+			}, // URL in settings = googlechat url
+			externalURL: "", // external URL = URL of grafana from configuration
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: &outerStruct{
+				PreviewText:  "[FIRING:1]  (val1)",
+				FallbackText: "[FIRING:1]  (val1)",
+				Cards: []card{
+					{
+						Header: header{
+							Title: "[FIRING:1]  (val1)",
+						},
+						Sections: []section{
+							{
+								Widgets: []widget{
+									textParagraphWidget{
+										Text: text{
+											Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\n",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
