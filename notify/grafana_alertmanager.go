@@ -711,6 +711,11 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		return err
 	}
 
+	if pos := am.opts.Peer.Position(); pos != 0 {
+		waitTime := time.Duration(pos) * am.opts.PeerTimeout
+		am.checkRepeatIntervals(waitTime, cfg.RoutingTree)
+	}
+
 	// Now, let's put together our notification pipeline
 	routingStage := make(notify.RoutingStage, len(integrationsMap))
 
@@ -767,6 +772,17 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 	am.config = cfg.Raw
 
 	return nil
+}
+
+// checkRepeatIntervals logs a warning if pos * peer_timeout > repeat_interval for any route.
+// If the time we wait before trying to send a notification is greater than the repeat interval, we risk sending duplicate notifications.
+func (am *GrafanaAlertmanager) checkRepeatIntervals(waitTime time.Duration, route *Route) {
+	if route.RepeatInterval != nil && time.Duration(*route.RepeatInterval) < waitTime {
+		level.Warn(am.logger).Log("Route's repeat_interval is shorter than the waiting period for the current peer. This can lead to duplicate notifications", "repeat_interval", *route.RepeatInterval, "wait_time_for_peer", waitTime)
+	}
+	for _, r := range route.Routes {
+		am.checkRepeatIntervals(waitTime, r)
+	}
 }
 
 func (am *GrafanaAlertmanager) setInhibitionRulesMetrics(r []InhibitRule) {
