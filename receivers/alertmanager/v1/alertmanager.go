@@ -43,8 +43,11 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	for _, a := range as {
 		clone := &types.Alert{
 			Alert: model.Alert{
-				Labels:      maps.Clone(a.Labels),
-				Annotations: maps.Clone(a.Annotations),
+				Labels:       maps.Clone(a.Labels),
+				Annotations:  maps.Clone(a.Annotations),
+				StartsAt:     a.StartsAt,
+				EndsAt:       a.EndsAt,
+				GeneratorURL: a.GeneratorURL,
 			},
 			UpdatedAt: a.UpdatedAt,
 			Timeout:   a.Timeout,

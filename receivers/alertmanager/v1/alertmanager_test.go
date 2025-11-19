@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/notify"
@@ -150,5 +151,39 @@ func TestNotify(t *testing.T) {
 		expectedBody, err := json.Marshal(expectedAlerts)
 		require.NoError(t, err)
 		require.JSONEq(t, string(expectedBody), string(body))
+	})
+
+	t.Run("preserves generator URL and timestamps", func(t *testing.T) {
+		start := time.Now().Add(-10 * time.Minute).UTC().Truncate(time.Millisecond)
+		end := time.Now().Add(10 * time.Minute).UTC().Truncate(time.Millisecond)
+		genURL := "https://example.com/gen/abc123"
+		alerts := []*types.Alert{
+			{
+				Alert: model.Alert{
+					Labels:       model.LabelSet{"alertname": "timed"},
+					Annotations:  model.LabelSet{"note": "has times"},
+					StartsAt:     start,
+					EndsAt:       end,
+					GeneratorURL: genURL,
+				},
+			},
+		}
+		orig := receivers.SendHTTPRequest
+		t.Cleanup(func() { receivers.SendHTTPRequest = orig })
+		var body []byte
+		receivers.SendHTTPRequest = func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg, _ log.Logger) ([]byte, error) {
+			body = cfg.Body
+			return nil, nil
+		}
+		sn := &Notifier{Base: receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()), images: imageProvider, settings: singleURLConfig}
+		ok, err := sn.Notify(context.Background(), alerts...)
+		require.NoError(t, err)
+		require.True(t, ok)
+		var sent []*types.Alert
+		require.NoError(t, json.Unmarshal(body, &sent))
+		require.Len(t, sent, 1)
+		require.Equal(t, start, sent[0].StartsAt)
+		require.Equal(t, end, sent[0].EndsAt)
+		require.Equal(t, genURL, sent[0].GeneratorURL)
 	})
 }
