@@ -18,11 +18,9 @@ import (
 )
 
 func TestNotify(t *testing.T) {
-	tmpl := templates.ForTests(t)
-
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 
 	cases := []struct {
 		name         string
@@ -134,11 +132,9 @@ func TestNotify(t *testing.T) {
 }
 
 func TestTruncatedNotify(t *testing.T) {
-	tmpl := templates.ForTests(t)
-
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 	title := "[FIRING:1]  (val1)\n"
 	cases := []struct {
 		name         string

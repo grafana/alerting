@@ -13,13 +13,12 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 // Notifier is responsible for sending alert notifications to WeCom.
 type Notifier struct {
 	*receivers.Base
-	tmpl        *templates.Template
+	tmpl        receivers.TemplatesProvider
 	ns          receivers.WebhookSender
 	settings    Config
 	tok         *accessToken
@@ -27,7 +26,7 @@ type Notifier struct {
 	group       singleflight.Group
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		tmpl:     template,
@@ -42,7 +41,10 @@ func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, w.tmpl, as, l, &tmplErr)
+	tmpl, _, err := w.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	if err != nil {
+		return false, fmt.Errorf("failed to create new renderer: %w", err)
+	}
 
 	bodyMsg := map[string]interface{}{
 		"msgtype": w.settings.MsgType,

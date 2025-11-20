@@ -14,7 +14,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 // Notifier is responsible for sending
@@ -23,7 +22,7 @@ type Notifier struct {
 	*receivers.Base
 	ns         receivers.WebhookSender
 	images     images.Provider
-	tmpl       *templates.Template
+	tmpl       receivers.TemplatesProvider
 	settings   Config
 	appVersion string
 }
@@ -33,7 +32,7 @@ var (
 	timeNow = time.Now
 )
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger, appVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:       receivers.NewBase(meta, logger),
 		ns:         sender,
@@ -50,7 +49,10 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, gcn.tmpl, as, l, &tmplErr)
+	tmpl, _, err := gcn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	if err != nil {
+		return false, fmt.Errorf("failed to create new renderer: %w", err)
+	}
 
 	var widgets []widget
 
@@ -66,7 +68,7 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	}
 
 	if !gcn.settings.HideOpenButton {
-		ruleURL := receivers.JoinURLPath(gcn.tmpl.ExternalURL.String(), "/alerting/list", l)
+		ruleURL := receivers.JoinURLPath(gcn.tmpl.GetExternalURL().String(), "/alerting/list", l)
 		if gcn.isURLAbsolute(ruleURL, l) {
 			// Add a button widget (link to Grafana).
 			widgets = append(widgets, buttonWidget{

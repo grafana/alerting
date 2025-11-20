@@ -14,7 +14,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 var (
@@ -28,11 +27,11 @@ type Notifier struct {
 	*receivers.Base
 	images   images.Provider
 	ns       receivers.WebhookSender
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		images:   images,
@@ -52,7 +51,11 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	data.Set("from", tn.settings.GatewayID)
 	data.Set("to", tn.settings.RecipientID)
 	data.Set("secret", tn.settings.APISecret)
-	data.Set("text", tn.buildMessage(ctx, l, as...))
+	msg, err := tn.buildMessage(ctx, l, as...)
+	if err != nil {
+		return false, err
+	}
+	data.Set("text", msg)
 
 	cmd := &receivers.SendWebhookSettings{
 		URL:        APIURL,
@@ -74,15 +77,18 @@ func (tn *Notifier) SendResolved() bool {
 	return !tn.GetDisableResolveMessage()
 }
 
-func (tn *Notifier) buildMessage(ctx context.Context, l log.Logger, as ...*types.Alert) string {
+func (tn *Notifier) buildMessage(ctx context.Context, l log.Logger, as ...*types.Alert) (string, error) {
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+	tmpl, _, err := tn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	if err != nil {
+		return "", err
+	}
 
 	message := fmt.Sprintf("%s%s\n\n*Message:*\n%s\n*URL:* %s\n",
 		selectEmoji(as...),
 		tmpl(tn.settings.Title),
 		tmpl(tn.settings.Description),
-		path.Join(tn.tmpl.ExternalURL.String(), "/alerting/list"),
+		path.Join(tn.tmpl.GetExternalURL().String(), "/alerting/list"),
 	)
 
 	if tmplErr != nil {
@@ -97,7 +103,7 @@ func (tn *Notifier) buildMessage(ctx context.Context, l log.Logger, as ...*types
 			return nil
 		}, as...)
 
-	return message
+	return message, err
 }
 
 func selectEmoji(as ...*types.Alert) string {

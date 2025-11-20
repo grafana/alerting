@@ -203,13 +203,26 @@ Labels:
 {{- end -}}
 `
 
-func ForTests(t *testing.T) *Template {
+type Option func(t *Template)
+
+func WithExternalURL(externalURL *url.URL) Option {
+	return func(t *Template) {
+		t.ExternalURL = externalURL
+	}
+}
+
+func ForTests(t *testing.T, opts ...Option) *Provider {
 	tmpl, err := fromContent(append(defaultTemplatesPerKind(GrafanaKind), TemplateForTestsString), defaultOptionsPerKind(GrafanaKind, "grafana")...)
 	require.NoError(t, err)
 	externalURL, err := url.Parse("http://test.com")
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
-	return tmpl
+	for _, opt := range opts {
+		opt(tmpl)
+	}
+	return &Provider{
+		t: tmpl,
+	}
 }
 
 var DefaultTemplateName = "__default__"

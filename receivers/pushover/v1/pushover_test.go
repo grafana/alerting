@@ -26,13 +26,11 @@ import (
 )
 
 func TestNotify(t *testing.T) {
-	tmpl := templates.ForTests(t)
-
 	images := images2.NewFakeProviderWithFile(t, 2)
 
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 
 	cases := []struct {
 		name        string

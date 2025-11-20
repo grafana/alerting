@@ -2,7 +2,6 @@ package v1
 
 import (
 	"context"
-	"net/url"
 	"testing"
 
 	"github.com/prometheus/alertmanager/types"
@@ -13,14 +12,12 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
 
 func TestNotify(t *testing.T) {
-	tmpl := templates.ForTests(t)
-	externalURL, err := url.Parse("http://localhost/base")
-	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(receiversTesting.ParseURLUnsafe("http://localhost/base")))
 
 	settings := Config{
 		SingleEmail: false,

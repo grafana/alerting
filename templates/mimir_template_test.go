@@ -158,7 +158,7 @@ func Test_loadTemplates(t *testing.T) {
 
 			call := fmt.Sprintf(`{{ template "%s" . }}`, c.invoke)
 
-			data := templateDataForTests(t, tmpl)
+			data := templateDataForTests(t, tmpl.Template())
 			res, err := tmpl.ExecuteTextString(call, data)
 			if c.expErr != "" {
 				assert.Contains(t, err.Error(), c.expErr)

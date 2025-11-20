@@ -22,11 +22,9 @@ import (
 )
 
 func TestNotify(t *testing.T) {
-	tmpl := templates.ForTests(t)
-
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 
 	hostname, err := os.Hostname()
 	require.NoError(t, err)

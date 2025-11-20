@@ -66,7 +66,7 @@ type ClusterPeer interface {
 }
 
 type TemplatesProvider interface {
-	GetTemplate(kind templates.Kind) (*templates.Template, error)
+	GetTemplate(kind templates.Kind) (*templates.Provider, error)
 }
 
 type GrafanaAlertmanager struct {
@@ -612,7 +612,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 	if err != nil {
 		return nil, err
 	}
-	txt, err := newTmpl.Text()
+	txt, err := newTmpl.Template().Text()
 	if err != nil {
 		return nil, err
 	}
@@ -624,7 +624,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 	ctx = notify.WithReceiverName(ctx, DefaultReceiverName)
 	ctx = notify.WithGroupLabels(ctx, labels)
 
-	promTmplData := notify.GetTemplateData(ctx, newTmpl, alerts, logger)
+	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template(), alerts, logger)
 	data := templates.ExtendData(promTmplData, logger)
 
 	// Iterate over each definition in the template and evaluate it.

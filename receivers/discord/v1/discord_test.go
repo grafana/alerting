@@ -29,11 +29,9 @@ import (
 )
 
 func TestNotify(t *testing.T) {
-	tmpl := templates.ForTests(t)
-
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 	appVersion := fmt.Sprintf("%d.0.0", rand.Uint32())
 
 	cases := []struct {
@@ -405,11 +403,9 @@ func TestNotify_WithImages(t *testing.T) {
 		"test-token-url":    &imageWithURL,
 		"test-token-no-url": &imageWithoutURL,
 	}), log.NewNopLogger())
-	tmpl := templates.ForTests(t)
-
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 	appVersion := fmt.Sprintf("%d.0.0", rand.Uint32())
 
 	cases := []struct {
