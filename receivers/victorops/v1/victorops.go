@@ -57,7 +57,7 @@ func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
-	tmpl, _ := vn.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, _ := vn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 
 	messageType := buildMessageType(l, tmpl, vn.settings.MessageType, as...)
 

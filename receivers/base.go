@@ -52,7 +52,7 @@ func NewBase(cfg Metadata, logger log.Logger) *Base {
 }
 
 type TemplatesProvider interface {
-	TmplText(ctx context.Context, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *templates.ExtendedData)
+	NewRenderer(ctx context.Context, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *templates.ExtendedData)
 	GetExternalURL() *url.URL
 	ExecuteTextString(templateName string, data any) (string, error)
 }

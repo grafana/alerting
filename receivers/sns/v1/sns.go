@@ -42,7 +42,7 @@ func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvid
 func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := s.GetLogger(ctx)
 	var tmplErr error
-	tmpl, _ := s.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, _ := s.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 
 	level.Info(l).Log("msg", "Sending notification")
 

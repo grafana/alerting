@@ -49,7 +49,7 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
-	tmpl, _ := gcn.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, _ := gcn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 
 	var widgets []widget
 

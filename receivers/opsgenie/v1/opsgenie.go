@@ -117,7 +117,7 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 	ruleURL := receivers.JoinURLPath(on.tmpl.GetExternalURL().String(), "/alerting/list", l)
 
 	var tmplErr error
-	tmpl, data := on.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, data := on.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 
 	message, truncated := receivers.TruncateInRunes(tmpl(on.settings.Message), opsGenieMaxMessageLenRunes)
 	if truncated {

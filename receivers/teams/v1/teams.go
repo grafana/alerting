@@ -249,7 +249,7 @@ func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvid
 func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := tn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, _ := tn.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, _ := tn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 
 	card := NewAdaptiveCard()
 	card.AppendItem(AdaptiveCardTextBlockItem{

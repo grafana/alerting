@@ -75,7 +75,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	as, numTruncated := truncateAlerts(n.settings.MaxAlerts, as)
 	var tmplErr error
-	tmpl, data := n.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, data := n.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 	data.TruncatedAlerts = &numTruncated
 
 	// Augment our Alert data with ImageURLs if available.

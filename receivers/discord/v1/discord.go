@@ -107,7 +107,7 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 	}
 
 	var tmplErr error
-	tmpl, _ := d.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, _ := d.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 
 	msg.Content = tmpl(d.settings.Message)
 	if tmplErr != nil {

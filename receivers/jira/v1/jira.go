@@ -100,7 +100,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logger, groupID string, as ...*types.Alert) issue {
 	var tmplErr error
-	tmpl, _ := n.tmpl.TmplText(ctx, as, logger, &tmplErr)
+	tmpl, _ := n.tmpl.NewRenderer(ctx, as, logger, &tmplErr)
 
 	renderOrDefault := func(fieldName, template, fallback string) string {
 		defer func() {

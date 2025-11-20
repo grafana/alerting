@@ -120,7 +120,7 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 	}
 
 	var tmplErr error
-	tmpl, data := pn.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, data := pn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 
 	details := make(map[string]string, len(pn.settings.Details))
 	for k, v := range pn.settings.Details {

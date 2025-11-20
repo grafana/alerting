@@ -47,7 +47,7 @@ type webexMessage struct {
 func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := wn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, data := wn.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, data := wn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 
 	message, truncated := receivers.TruncateInBytes(tmpl(wn.settings.Message), 4096)
 	if truncated {

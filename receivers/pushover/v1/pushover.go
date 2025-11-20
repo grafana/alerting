@@ -101,7 +101,7 @@ func (pn *Notifier) genPushoverBody(ctx context.Context, l log.Logger, as ...*ty
 	}
 
 	var tmplErr error
-	tmpl, _ := pn.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, _ := pn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 
 	if err := w.WriteField("user", tmpl(pn.settings.UserKey)); err != nil {
 		return nil, b, fmt.Errorf("failed to write the user: %w", err)

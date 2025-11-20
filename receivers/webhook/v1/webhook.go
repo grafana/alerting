@@ -66,7 +66,7 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 
 	as, numTruncated := truncateAlerts(wn.settings.MaxAlerts, as)
 	var tmplErr error
-	tmpl, data := wn.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, data := wn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 	data.TruncatedAlerts = &numTruncated
 
 	// Fail early if we can't template the URL.

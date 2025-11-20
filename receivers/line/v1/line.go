@@ -77,7 +77,7 @@ func (ln *Notifier) SendResolved() bool {
 
 func (ln *Notifier) buildLineMessage(ctx context.Context, l log.Logger, as ...*types.Alert) (string, error) {
 	var tmplErr error
-	tmpl, _ := ln.tmpl.TmplText(ctx, as, l, &tmplErr)
+	tmpl, _ := ln.tmpl.NewRenderer(ctx, as, l, &tmplErr)
 
 	body := fmt.Sprintf(
 		"%s\n%s",

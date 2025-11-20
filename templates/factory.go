@@ -159,7 +159,7 @@ func (p Provider) Template() *Template {
 	return p.t
 }
 
-func (p Provider) TmplText(ctx context.Context, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
+func (p Provider) NewRenderer(ctx context.Context, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
 	return TmplText(ctx, p.t, alerts, l, tmplErr)
 }
 
