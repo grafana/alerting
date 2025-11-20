@@ -111,7 +111,7 @@ func NewFactory(t []TemplateDefinition, logger log.Logger, externalURL string, o
 func NewCachedFactory(factory *Factory) *CachedFactory {
 	return &CachedFactory{
 		factory: factory,
-		m:       make(map[Kind]*Template, len(validKinds)),
+		m:       make(map[Kind]*Provider, len(validKinds)),
 	}
 }
 
@@ -121,7 +121,7 @@ func NewCachedFactory(factory *Factory) *CachedFactory {
 // Access is synchronized using a mutex to ensure thread-safety.
 type CachedFactory struct {
 	factory *Factory
-	m       map[Kind]*Template
+	m       map[Kind]*Provider
 	mtx     sync.Mutex
 }
 
@@ -133,22 +133,14 @@ func (cf *CachedFactory) GetTemplate(kind Kind) (*Provider, error) {
 	cf.mtx.Lock()
 	defer cf.mtx.Unlock()
 	if t, ok := cf.m[kind]; ok {
-		pl, err := t.Clone()
-		if err != nil {
-			return nil, err
-		}
-		return &Provider{pl}, nil
+		return t, nil
 	}
 	t, err := cf.factory.GetTemplate(kind)
 	if err != nil {
 		return nil, err
 	}
-	cf.m[kind] = t.t
-	pl, err := t.t.Clone()
-	if err != nil {
-		return nil, err
-	}
-	return &Provider{pl}, nil
+	cf.m[kind] = t
+	return t, nil
 }
 
 type Provider struct {
@@ -160,7 +152,11 @@ func (p Provider) Template() *Template {
 }
 
 func (p Provider) NewRenderer(ctx context.Context, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData, error) {
-	tmplFn, data := TmplText(ctx, p.t, alerts, l, tmplErr)
+	clone, err := p.t.Clone()
+	if err != nil {
+		return nil, nil, err
+	}
+	tmplFn, data := TmplText(ctx, clone, alerts, l, tmplErr)
 	return tmplFn, data, nil
 }
 
