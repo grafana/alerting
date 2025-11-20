@@ -107,7 +107,10 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 	}
 
 	var tmplErr error
-	tmpl, _ := d.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	tmpl, _, err := d.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	if err != nil {
+		return false, fmt.Errorf("failed to create new renderer: %w", err)
+	}
 
 	msg.Content = tmpl(d.settings.Message)
 	if tmplErr != nil {

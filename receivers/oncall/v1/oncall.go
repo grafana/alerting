@@ -75,7 +75,10 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	as, numTruncated := truncateAlerts(n.settings.MaxAlerts, as)
 	var tmplErr error
-	tmpl, data := n.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	tmpl, data, err := n.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	if err != nil {
+		return false, fmt.Errorf("failed to create new renderer: %w", err)
+	}
 	data.TruncatedAlerts = &numTruncated
 
 	// Augment our Alert data with ImageURLs if available.

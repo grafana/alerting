@@ -159,8 +159,9 @@ func (p Provider) Template() *Template {
 	return p.t
 }
 
-func (p Provider) NewRenderer(ctx context.Context, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
-	return TmplText(ctx, p.t, alerts, l, tmplErr)
+func (p Provider) NewRenderer(ctx context.Context, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData, error) {
+	tmplFn, data := TmplText(ctx, p.t, alerts, l, tmplErr)
+	return tmplFn, data, nil
 }
 
 func (p Provider) GetExternalURL() *url.URL {

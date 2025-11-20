@@ -77,7 +77,10 @@ func (ln *Notifier) SendResolved() bool {
 
 func (ln *Notifier) buildLineMessage(ctx context.Context, l log.Logger, as ...*types.Alert) (string, error) {
 	var tmplErr error
-	tmpl, _ := ln.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	tmpl, _, err := ln.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	if err != nil {
+		return "", fmt.Errorf("failed to create new renderer: %w", err)
+	}
 
 	body := fmt.Sprintf(
 		"%s\n%s",

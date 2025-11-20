@@ -225,7 +225,10 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 				return nil
 			}
 			var tmplErr error
-			tmpl, _ := sn.tmpl.NewRenderer(ctx, alerts, l, &tmplErr)
+			tmpl, _, err := sn.tmpl.NewRenderer(ctx, alerts, l, &tmplErr)
+			if err != nil {
+				return fmt.Errorf("failed to create new renderer: %w", err)
+			}
 			imageMessage := &slackMessage{
 				Channel:   channelID,
 				Username:  m.Username,
@@ -278,7 +281,10 @@ func commonAlertGeneratorURL(_ context.Context, alerts templates.ExtendedAlerts)
 
 func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert, l log.Logger) (*slackMessage, *templates.ExtendedData, error) {
 	var tmplErr error
-	tmpl, data := sn.tmpl.NewRenderer(ctx, alerts, l, &tmplErr)
+	tmpl, data, err := sn.tmpl.NewRenderer(ctx, alerts, l, &tmplErr)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create new renderer: %w", err)
+	}
 	ruleURL := receivers.JoinURLPath(sn.tmpl.GetExternalURL().String(), "/alerting/list", l)
 
 	// If all alerts have the same GeneratorURL, use that.

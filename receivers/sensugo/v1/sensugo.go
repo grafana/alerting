@@ -47,7 +47,10 @@ func (sn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	level.Debug(l).Log("msg", "sending Sensu Go result")
 
 	var tmplErr error
-	tmpl, _ := sn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	tmpl, _, err := sn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	if err != nil {
+		return false, fmt.Errorf("failed to create new renderer: %w", err)
+	}
 
 	// Sensu Go alerts require an entity and a check. We set it to the user-specified
 	// value (optional), else we fallback and use the grafana rule anme  and ruleID.

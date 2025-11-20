@@ -120,7 +120,10 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 	}
 
 	var tmplErr error
-	tmpl, data := pn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	tmpl, data, err := pn.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create new renderer: %w", err)
+	}
 
 	details := make(map[string]string, len(pn.settings.Details))
 	for k, v := range pn.settings.Details {

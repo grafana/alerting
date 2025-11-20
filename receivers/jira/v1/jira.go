@@ -88,7 +88,10 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		level.Debug(logger).Log("msg", "updating existing issue", "issue_key", existingIssue.Key)
 	}
 
-	requestBody := n.prepareIssueRequestBody(ctx, logger, key.Hash(), as...)
+	requestBody, prepErr := n.prepareIssueRequestBody(ctx, logger, key.Hash(), as...)
+	if prepErr != nil {
+		return false, prepErr
+	}
 
 	_, shouldRetry, err = n.doAPIRequest(ctx, method, path, requestBody, l)
 	if err != nil {
@@ -98,9 +101,12 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	return n.transitionIssue(ctx, logger, existingIssue, alerts.HasFiring())
 }
 
-func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logger, groupID string, as ...*types.Alert) issue {
+func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logger, groupID string, as ...*types.Alert) (issue, error) {
 	var tmplErr error
-	tmpl, _ := n.tmpl.NewRenderer(ctx, as, logger, &tmplErr)
+	tmpl, _, err := n.tmpl.NewRenderer(ctx, as, logger, &tmplErr)
+	if err != nil {
+		return issue{}, fmt.Errorf("failed to create new renderer: %w", err)
+	}
 
 	renderOrDefault := func(fieldName, template, fallback string) string {
 		defer func() {
@@ -187,7 +193,7 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logge
 		fields.Labels = append(fields.Labels, fmt.Sprintf("ALERT{%s}", groupID))
 	}
 
-	return issue{Fields: fields}
+	return issue{Fields: fields}, nil
 }
 
 func (n *Notifier) prepareDescription(desc string, logger log.Logger) any {

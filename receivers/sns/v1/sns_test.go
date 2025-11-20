@@ -47,7 +47,8 @@ func TestCreatePublishInput(t *testing.T) {
 			},
 		}
 		var tmplErr error
-		tmplFn, _ := tmpl.NewRenderer(context.Background(), alerts, log.NewNopLogger(), &tmplErr)
+		tmplFn, _, err := tmpl.NewRenderer(context.Background(), alerts, log.NewNopLogger(), &tmplErr)
+		require.NoError(t, err)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
@@ -85,7 +86,8 @@ func TestCreatePublishInput(t *testing.T) {
 		}
 
 		var tmplErr error
-		tmplFn, _ := tmpl.NewRenderer(context.Background(), alerts, log.NewNopLogger(), &tmplErr)
+		tmplFn, _, err := tmpl.NewRenderer(context.Background(), alerts, log.NewNopLogger(), &tmplErr)
+		require.NoError(t, err)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
@@ -124,7 +126,8 @@ func TestCreatePublishInput(t *testing.T) {
 		}
 
 		var tmplErr error
-		tmplFn, _ := tmpl.NewRenderer(context.Background(), alerts, log.NewNopLogger(), &tmplErr)
+		tmplFn, _, err := tmpl.NewRenderer(context.Background(), alerts, log.NewNopLogger(), &tmplErr)
+		require.NoError(t, err)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)

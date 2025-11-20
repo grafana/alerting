@@ -149,7 +149,8 @@ func TestFactoryNewTemplate(t *testing.T) {
 			assert.NoError(t, err)
 			require.NotNil(t, templ)
 			var tmplErr error
-			tmpl, _ := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+			tmpl, _, err := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+			require.NoError(t, err)
 			result := tmpl(tc.template)
 			if tc.err != "" {
 				assert.ErrorContains(t, tmplErr, tc.err)
@@ -167,7 +168,8 @@ func TestFactoryNewTemplate(t *testing.T) {
 			templ, err := f.GetTemplate(kind)
 			require.NoError(t, err)
 			var tmplErr error
-			tmpl, _ := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+			tmpl, _, err := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+			require.NoError(t, err)
 			result := tmpl(`{{ template "factory_test" . }}`)
 			require.NoError(t, tmplErr)
 			require.Equal(t, fmt.Sprintf(`TEST %s KIND`, kind), result)
@@ -186,14 +188,16 @@ func TestFactoryNewTemplate(t *testing.T) {
 		templ, err := f.GetTemplate(GrafanaKind)
 		require.NoError(t, err)
 		var tmplErr error
-		tmpl, _ := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+		tmpl, _, err := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+		require.NoError(t, err)
 		result := tmpl(`{{ template "factory_test" . }}`)
 		require.NoError(t, tmplErr)
 		require.Equal(t, `TEST Grafana KIND`, result)
 		templ, err = f.GetTemplate(MimirKind)
 		require.NoError(t, err)
 		require.NotNil(t, templ)
-		tmpl, _ = templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+		tmpl, _, err = templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+		require.NoError(t, err)
 		_ = tmpl(`{{ template "factory_test" . }}`)
 		require.ErrorContains(t, tmplErr, `template "factory_test" not defined`)
 	})
@@ -208,7 +212,8 @@ func TestFactoryWithTemplate(t *testing.T) {
 	templ, err := f.GetTemplate(kind)
 	require.NoError(t, err)
 	var tmplErr error
-	tmpl, _ := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+	tmpl, _, err := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+	require.NoError(t, err)
 	result := tmpl(`{{ template "factory_test" . }}`)
 	require.NoError(t, tmplErr)
 	assert.Equal(t, `TEST`, result)
@@ -219,7 +224,8 @@ func TestFactoryWithTemplate(t *testing.T) {
 		templ, err := f2.GetTemplate(kind)
 		require.NoError(t, err)
 		var tmplErr error
-		tmpl, _ := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+		tmpl, _, err := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+		require.NoError(t, err)
 		result := tmpl(`{{ template "factory_test2" . }}`)
 		require.NoError(t, tmplErr)
 		require.Equal(t, `TEST2`, result)
@@ -231,7 +237,8 @@ func TestFactoryWithTemplate(t *testing.T) {
 		templ, err := f2.GetTemplate(kind)
 		require.NoError(t, err)
 		var tmplErr error
-		tmpl, _ := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+		tmpl, _, err := templ.NewRenderer(context.Background(), as, log.NewNopLogger(), &tmplErr)
+		require.NoError(t, err)
 		result := tmpl(`{{ template "factory_test" . }}`)
 		require.NoError(t, tmplErr)
 		require.Equal(t, `TEST2`, result)

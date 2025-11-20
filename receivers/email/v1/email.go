@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"path"
 
@@ -38,7 +39,10 @@ func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvid
 func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
 	l := en.GetLogger(ctx)
 	var tmplErr error
-	tmpl, data := en.tmpl.NewRenderer(ctx, alerts, l, &tmplErr)
+	tmpl, data, err := en.tmpl.NewRenderer(ctx, alerts, l, &tmplErr)
+	if err != nil {
+		return false, fmt.Errorf("failed to create new renderer: %w", err)
+	}
 
 	subject := tmpl(en.settings.Subject)
 	alertPageURL := en.tmpl.GetExternalURL().String()

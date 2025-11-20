@@ -41,7 +41,10 @@ func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
-	tmpl, _ := w.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	tmpl, _, err := w.tmpl.NewRenderer(ctx, as, l, &tmplErr)
+	if err != nil {
+		return false, fmt.Errorf("failed to create new renderer: %w", err)
+	}
 
 	bodyMsg := map[string]interface{}{
 		"msgtype": w.settings.MsgType,
