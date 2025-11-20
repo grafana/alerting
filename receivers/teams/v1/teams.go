@@ -18,7 +18,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 const (
@@ -231,13 +230,13 @@ func (i AdaptiveCardOpenURLActionItem) MarshalJSON() ([]byte, error) {
 
 type Notifier struct {
 	*receivers.Base
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	ns       receivers.WebhookSender
 	images   images.Provider
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		ns:       sender,
@@ -250,7 +249,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := tn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+	tmpl, _ := tn.tmpl.TmplText(ctx, as, l, &tmplErr)
 
 	card := NewAdaptiveCard()
 	card.AppendItem(AdaptiveCardTextBlockItem{
@@ -287,7 +286,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		Actions: []AdaptiveCardActionItem{
 			AdaptiveCardOpenURLActionItem{
 				Title: "View URL",
-				URL:   receivers.JoinURLPath(tn.tmpl.ExternalURL.String(), "/alerting/list", l),
+				URL:   receivers.JoinURLPath(tn.tmpl.GetExternalURL().String(), "/alerting/list", l),
 			},
 		},
 	})

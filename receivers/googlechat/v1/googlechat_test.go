@@ -577,11 +577,9 @@ func TestNotify(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			tmpl := templates.ForTests(t)
-
 			externalURL, err := url.Parse(c.externalURL)
 			require.NoError(t, err)
-			tmpl.ExternalURL = externalURL
+			tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 
 			webhookSender := receivers.MockNotificationService()
 			imageProvider := &images.UnavailableProvider{}

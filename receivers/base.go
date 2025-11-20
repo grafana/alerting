@@ -3,9 +3,13 @@ package receivers
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/alertmanager/types"
+
+	"github.com/grafana/alerting/templates"
 )
 
 // Base is the base implementation of a notifier. It contains the common fields across all notifier types.
@@ -45,4 +49,10 @@ func NewBase(cfg Metadata, logger log.Logger) *Base {
 		DisableResolveMessage: cfg.DisableResolveMessage,
 		logger:                logger,
 	}
+}
+
+type TemplatesProvider interface {
+	TmplText(ctx context.Context, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *templates.ExtendedData)
+	GetExternalURL() *url.URL
+	ExecuteTextString(templateName string, data any) (string, error)
 }

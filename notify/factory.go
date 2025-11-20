@@ -68,7 +68,7 @@ var NoWrap WrapNotifierFunc = func(_ string, notifier notify.Notifier) notify.No
 // It returns a slice of Integration objects, one for each notification channel, along with any errors that occurred.
 func BuildGrafanaReceiverIntegrations(
 	receiver GrafanaReceiverConfig,
-	tmpl *templates.Template,
+	tmpl receivers.TemplatesProvider,
 	img images.Provider,
 	logger log.Logger,
 	emailSender receivers.EmailSender,
@@ -239,7 +239,7 @@ func BuildPrometheusReceiverIntegrations(
 				errs.Add(err)
 				return
 			}
-			tmpl = t
+			tmpl = t.Template()
 		})
 		add = func(name string, i int, rs notify.ResolvedSender, f func(l log.Logger) (notify.Notifier, error)) {
 			initOnce()

@@ -25,11 +25,10 @@ import (
 )
 
 func TestNotify(t *testing.T) {
-	tmpl := templates.ForTests(t)
 	provider := images.NewFakeProviderWithFile(t, 2)
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 	image1Name := "test-image-1.jpg"
 	image2Name := "test-image-2.jpg"
 

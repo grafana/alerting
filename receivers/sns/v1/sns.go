@@ -18,7 +18,6 @@ import (
 	"github.com/go-kit/log"
 
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 const subjectSizeLimit = 100
@@ -27,11 +26,11 @@ const subjectSizeLimit = 100
 // alert notifications to Amazon SNS.
 type Notifier struct {
 	*receivers.Base
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		tmpl:     template,
@@ -43,7 +42,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, logg
 func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := s.GetLogger(ctx)
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, s.tmpl, as, l, &tmplErr)
+	tmpl, _ := s.tmpl.TmplText(ctx, as, l, &tmplErr)
 
 	level.Info(l).Log("msg", "Sending notification")
 

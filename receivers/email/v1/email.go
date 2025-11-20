@@ -12,7 +12,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 // Notifier is responsible for sending
@@ -21,11 +20,11 @@ type Notifier struct {
 	*receivers.Base
 	ns       receivers.EmailSender
 	images   images.Provider
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.EmailSender, images images.Provider, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.EmailSender, images images.Provider, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		ns:       sender,
@@ -39,12 +38,12 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
 	l := en.GetLogger(ctx)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, en.tmpl, alerts, l, &tmplErr)
+	tmpl, data := en.tmpl.TmplText(ctx, alerts, l, &tmplErr)
 
 	subject := tmpl(en.settings.Subject)
-	alertPageURL := en.tmpl.ExternalURL.String()
-	ruleURL := en.tmpl.ExternalURL.String()
-	u, err := url.Parse(en.tmpl.ExternalURL.String())
+	alertPageURL := en.tmpl.GetExternalURL().String()
+	ruleURL := en.tmpl.GetExternalURL().String()
+	u, err := url.Parse(en.tmpl.GetExternalURL().String())
 	if err == nil {
 		basePath := u.Path
 		u.Path = path.Join(basePath, "/alerting/list")
@@ -52,7 +51,7 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 		u.RawQuery = "alertState=firing&view=state"
 		alertPageURL = u.String()
 	} else {
-		level.Debug(l).Log("msg", "failed to parse external URL", "url", en.tmpl.ExternalURL.String(), "err", err.Error())
+		level.Debug(l).Log("msg", "failed to parse external URL", "url", en.tmpl.GetExternalURL().String(), "err", err.Error())
 	}
 
 	seenContent := make(map[string]string)

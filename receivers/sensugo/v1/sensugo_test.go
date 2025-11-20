@@ -24,11 +24,9 @@ func TestNotify(t *testing.T) {
 	constNow := time.Now()
 	defer mockTimeNow(constNow)()
 
-	tmpl := templates.ForTests(t)
-
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 
 	images := images2.NewFakeProvider(2)
 

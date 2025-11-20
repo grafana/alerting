@@ -13,7 +13,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 // Notifier is responsible for sending alert notifications as webex messages.
@@ -21,12 +20,12 @@ type Notifier struct {
 	*receivers.Base
 	ns       receivers.WebhookSender
 	images   images.Provider
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	orgID    int64
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger, orgID int64) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger, orgID int64) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		orgID:    orgID,
@@ -48,7 +47,7 @@ type webexMessage struct {
 func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := wn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, l, &tmplErr)
+	tmpl, data := wn.tmpl.TmplText(ctx, as, l, &tmplErr)
 
 	message, truncated := receivers.TruncateInBytes(tmpl(wn.settings.Message), 4096)
 	if truncated {

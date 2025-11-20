@@ -12,7 +12,6 @@ import (
 	"github.com/go-kit/log"
 
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 var (
@@ -29,11 +28,11 @@ const lineMaxMessageLenRunes = 1000
 type Notifier struct {
 	*receivers.Base
 	ns       receivers.WebhookSender
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		ns:       sender,
@@ -78,7 +77,7 @@ func (ln *Notifier) SendResolved() bool {
 
 func (ln *Notifier) buildLineMessage(ctx context.Context, l log.Logger, as ...*types.Alert) (string, error) {
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, ln.tmpl, as, l, &tmplErr)
+	tmpl, _ := ln.tmpl.TmplText(ctx, as, l, &tmplErr)
 
 	body := fmt.Sprintf(
 		"%s\n%s",

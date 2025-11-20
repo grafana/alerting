@@ -16,7 +16,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 // https://help.victorops.com/knowledge-base/incident-fields-glossary/ - 20480 characters.
@@ -34,14 +33,14 @@ type Notifier struct {
 	*receivers.Base
 	images     images.Provider
 	ns         receivers.WebhookSender
-	tmpl       *templates.Template
+	tmpl       receivers.TemplatesProvider
 	settings   Config
 	appVersion string
 }
 
 // New creates an instance of VictoropsNotifier that
 // handles posting notifications to Victorops REST API
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger, appVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:       receivers.NewBase(meta, logger),
 		images:     images,
@@ -58,7 +57,7 @@ func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, vn.tmpl, as, l, &tmplErr)
+	tmpl, _ := vn.tmpl.TmplText(ctx, as, l, &tmplErr)
 
 	messageType := buildMessageType(l, tmpl, vn.settings.MessageType, as...)
 
@@ -95,7 +94,7 @@ func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 			return nil
 		}, as...)
 
-	ruleURL := receivers.JoinURLPath(vn.tmpl.ExternalURL.String(), "/alerting/list", l)
+	ruleURL := receivers.JoinURLPath(vn.tmpl.GetExternalURL().String(), "/alerting/list", l)
 	bodyJSON["alert_url"] = ruleURL
 
 	u := tmpl(vn.settings.URL)

@@ -12,18 +12,17 @@ import (
 	"github.com/go-kit/log"
 
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 // Notifier is responsible for sending alert notifications to ding ding.
 type Notifier struct {
 	*receivers.Base
 	ns       receivers.WebhookSender
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		ns:       sender,
@@ -37,10 +36,10 @@ func (dd *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	l := dd.GetLogger(ctx)
 	level.Info(l).Log("msg", "sending dingding")
 
-	dingDingURL := buildDingDingURL(dd.tmpl.ExternalURL, l)
+	dingDingURL := buildDingDingURL(dd.tmpl.GetExternalURL(), l)
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, dd.tmpl, as, l, &tmplErr)
+	tmpl, _ := dd.tmpl.TmplText(ctx, as, l, &tmplErr)
 
 	message := tmpl(dd.settings.Message)
 	title := tmpl(dd.settings.Title)

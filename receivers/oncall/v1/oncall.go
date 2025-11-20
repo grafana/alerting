@@ -23,14 +23,14 @@ type Notifier struct {
 	*receivers.Base
 	ns       receivers.WebhookSender
 	images   images.Provider
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	orgID    int64
 	settings Config
 }
 
 // New is the constructor for
 // the WebHook notifier.
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger, orgID int64) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger, orgID int64) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		orgID:    orgID,
@@ -75,7 +75,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	as, numTruncated := truncateAlerts(n.settings.MaxAlerts, as)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, n.tmpl, as, l, &tmplErr)
+	tmpl, data := n.tmpl.TmplText(ctx, as, l, &tmplErr)
 	data.TruncatedAlerts = &numTruncated
 
 	// Augment our Alert data with ImageURLs if available.

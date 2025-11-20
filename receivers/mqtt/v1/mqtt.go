@@ -33,12 +33,12 @@ type message struct {
 
 type Notifier struct {
 	*receivers.Base
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	settings Config
 	client   client
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, logger log.Logger, cli client) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, logger log.Logger, cli client) *Notifier {
 	if cli == nil {
 		cli = &mqttClient{}
 	}
@@ -123,7 +123,7 @@ func (n *Notifier) buildMessage(ctx context.Context, l log.Logger, as ...*types.
 	}
 
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, n.tmpl, as, l, &tmplErr)
+	tmpl, data := n.tmpl.TmplText(ctx, as, l, &tmplErr)
 	messageText := tmpl(n.settings.Message)
 	if tmplErr != nil {
 		level.Warn(l).Log("msg", "Failed to template MQTT message", "err", tmplErr.Error())

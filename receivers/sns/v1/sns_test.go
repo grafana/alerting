@@ -17,11 +17,9 @@ import (
 )
 
 func TestCreatePublishInput(t *testing.T) {
-	tmpl := templates.ForTests(t)
-
 	externalURL, err := url.Parse("http://localhost/base")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 
 	t.Run("with templated subject and body", func(t *testing.T) {
 		settings := Config{
@@ -49,7 +47,7 @@ func TestCreatePublishInput(t *testing.T) {
 			},
 		}
 		var tmplErr error
-		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
+		tmplFn, _ := tmpl.TmplText(context.Background(), alerts, log.NewNopLogger(), &tmplErr)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
@@ -87,7 +85,7 @@ func TestCreatePublishInput(t *testing.T) {
 		}
 
 		var tmplErr error
-		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
+		tmplFn, _ := tmpl.TmplText(context.Background(), alerts, log.NewNopLogger(), &tmplErr)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
@@ -126,7 +124,7 @@ func TestCreatePublishInput(t *testing.T) {
 		}
 
 		var tmplErr error
-		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
+		tmplFn, _ := tmpl.TmplText(context.Background(), alerts, log.NewNopLogger(), &tmplErr)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)

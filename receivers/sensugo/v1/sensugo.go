@@ -15,7 +15,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 var (
@@ -27,12 +26,12 @@ type Notifier struct {
 	*receivers.Base
 	images   images.Provider
 	ns       receivers.WebhookSender
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	settings Config
 }
 
 // New is the constructor for the SensuGo notifier
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		images:   images,
@@ -48,7 +47,7 @@ func (sn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	level.Debug(l).Log("msg", "sending Sensu Go result")
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, sn.tmpl, as, l, &tmplErr)
+	tmpl, _ := sn.tmpl.TmplText(ctx, as, l, &tmplErr)
 
 	// Sensu Go alerts require an entity and a check. We set it to the user-specified
 	// value (optional), else we fallback and use the grafana rule anme  and ruleID.
@@ -93,7 +92,7 @@ func (sn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 			return nil
 		}, as...)
 
-	ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", l)
+	ruleURL := receivers.JoinURLPath(sn.tmpl.GetExternalURL().String(), "/alerting/list", l)
 	labels["ruleURL"] = ruleURL
 
 	bodyMsgType := map[string]interface{}{

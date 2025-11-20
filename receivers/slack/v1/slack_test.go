@@ -890,10 +890,9 @@ func (s *slackRequestRecorder) recordCompleteFileUpload(_ context.Context, r *ht
 }
 
 func setupSlackForTests(t *testing.T, settings Config) (*Notifier, *slackRequestRecorder, error) {
-	tmpl := templates.ForTests(t)
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 
 	images := images.NewTokenProvider(images.NewFakeTokenStoreFromImages(map[string]*images.Image{
 		"image-on-disk": {

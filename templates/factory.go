@@ -1,12 +1,14 @@
 package templates
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"sync"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/prometheus/alertmanager/types"
 )
 
 // Factory is a factory that can be used to create templates of specific kind.
@@ -17,7 +19,7 @@ type Factory struct {
 }
 
 // GetTemplate creates a new template of the given kind. If Kind is not known, GrafanaKind automatically assumed
-func (tp *Factory) GetTemplate(kind Kind) (*Template, error) {
+func (tp *Factory) GetTemplate(kind Kind) (*Provider, error) {
 	if err := ValidateKind(kind); err != nil {
 		return nil, err
 	}
@@ -34,7 +36,7 @@ func (tp *Factory) GetTemplate(kind Kind) (*Template, error) {
 		t.ExternalURL = new(url.URL)
 		*t.ExternalURL = *tp.externalURL
 	}
-	return t, nil
+	return &Provider{t}, nil
 }
 
 // WithTemplate creates a new factory that has the provided TemplateDefinition. If definition with the same name already exists for this kind, it is replaced.
@@ -127,16 +129,44 @@ func (cf *CachedFactory) Factory() *Factory {
 	return cf.factory
 }
 
-func (cf *CachedFactory) GetTemplate(kind Kind) (*Template, error) {
+func (cf *CachedFactory) GetTemplate(kind Kind) (*Provider, error) {
 	cf.mtx.Lock()
 	defer cf.mtx.Unlock()
 	if t, ok := cf.m[kind]; ok {
-		return t.Clone()
+		pl, err := t.Clone()
+		if err != nil {
+			return nil, err
+		}
+		return &Provider{pl}, nil
 	}
 	t, err := cf.factory.GetTemplate(kind)
 	if err != nil {
 		return nil, err
 	}
-	cf.m[kind] = t
-	return t.Clone()
+	cf.m[kind] = t.t
+	pl, err := t.t.Clone()
+	if err != nil {
+		return nil, err
+	}
+	return &Provider{pl}, nil
+}
+
+type Provider struct {
+	t *Template
+}
+
+func (p Provider) Template() *Template {
+	return p.t
+}
+
+func (p Provider) TmplText(ctx context.Context, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
+	return TmplText(ctx, p.t, alerts, l, tmplErr)
+}
+
+func (p Provider) GetExternalURL() *url.URL {
+	return p.t.ExternalURL
+}
+
+func (p Provider) ExecuteTextString(templateName string, data any) (string, error) {
+	return p.t.ExecuteTextString(templateName, data)
 }

@@ -19,7 +19,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 const (
@@ -42,14 +41,14 @@ var (
 // alert notifications to pagerduty
 type Notifier struct {
 	*receivers.Base
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	ns       receivers.WebhookSender
 	images   images.Provider
 	settings Config
 }
 
 // New is the constructor for the PagerDuty notifier
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		ns:       sender,
@@ -121,7 +120,7 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 	}
 
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, pn.tmpl, as, l, &tmplErr)
+	tmpl, data := pn.tmpl.TmplText(ctx, as, l, &tmplErr)
 
 	details := make(map[string]string, len(pn.settings.Details))
 	for k, v := range pn.settings.Details {
@@ -145,7 +144,7 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 		EventAction: eventType,
 		DedupKey:    key.Hash(),
 		Links: []pagerDutyLink{{
-			HRef: pn.tmpl.ExternalURL.String(),
+			HRef: pn.tmpl.GetExternalURL().String(),
 			Text: "External URL",
 		}},
 		Payload: pagerDutyPayload{

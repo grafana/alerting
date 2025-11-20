@@ -20,7 +20,6 @@ import (
 	"github.com/go-kit/log"
 
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 const (
@@ -38,13 +37,13 @@ const (
 //	https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/#api-rest-api-3-search-jql-post
 type Notifier struct {
 	*receivers.Base
-	tmpl    *templates.Template
+	tmpl    receivers.TemplatesProvider
 	ns      receivers.WebhookSender
 	conf    Config
 	retrier *notify.Retrier
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:    receivers.NewBase(meta, logger),
 		ns:      sender,
@@ -101,7 +100,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logger, groupID string, as ...*types.Alert) issue {
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, n.tmpl, as, logger, &tmplErr)
+	tmpl, _ := n.tmpl.TmplText(ctx, as, logger, &tmplErr)
 
 	renderOrDefault := func(fieldName, template, fallback string) string {
 		defer func() {

@@ -85,12 +85,10 @@ func (m *mockMQTTClient) Disconnect(ctx context.Context) error {
 // revive:enable:unused-parameter
 
 func TestNotify(t *testing.T) {
-	tmpl := templates.ForTests(t)
-	require.NotNil(t, tmpl)
-
 	externalURL, err := url.Parse("http://localhost/base")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
+	require.NotNil(t, tmpl)
 
 	cases := []struct {
 		name        string

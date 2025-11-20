@@ -14,7 +14,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 var (
@@ -34,12 +33,12 @@ type Notifier struct {
 	*receivers.Base
 	images   images.Provider
 	ns       receivers.WebhookSender
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	settings Config
 }
 
 // New is the constructor for the Telegram notifier
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		tmpl:     template,
@@ -113,7 +112,7 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert,
 		}
 	}()
 
-	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+	tmpl, _ := tn.tmpl.TmplText(ctx, as, l, &tmplErr)
 	// Telegram supports 4096 chars max
 	messageText, truncated := receivers.TruncateInRunes(tmpl(tn.settings.Message), telegramMaxMessageLenRunes)
 	if truncated {

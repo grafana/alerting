@@ -19,7 +19,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 // Constants and models are set according to the official documentation https://discord.com/developers/docs/resources/webhook#execute-webhook-jsonform-params
@@ -73,7 +72,7 @@ type Notifier struct {
 	*receivers.Base
 	ns         receivers.WebhookSender
 	images     images.Provider
-	tmpl       *templates.Template
+	tmpl       receivers.TemplatesProvider
 	settings   Config
 	appVersion string
 }
@@ -86,7 +85,7 @@ type discordAttachment struct {
 	state     model.AlertStatus
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger, appVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:       receivers.NewBase(meta, logger),
 		ns:         sender,
@@ -108,7 +107,7 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 	}
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, d.tmpl, as, l, &tmplErr)
+	tmpl, _ := d.tmpl.TmplText(ctx, as, l, &tmplErr)
 
 	msg.Content = tmpl(d.settings.Message)
 	if tmplErr != nil {
@@ -154,7 +153,7 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 	color, _ := strconv.ParseInt(strings.TrimLeft(receivers.GetAlertStatusColor(alerts.Status()), "#"), 16, 0)
 	linkEmbed.Color = color
 
-	ruleURL := receivers.JoinURLPath(d.tmpl.ExternalURL.String(), "/alerting/list", l)
+	ruleURL := receivers.JoinURLPath(d.tmpl.GetExternalURL().String(), "/alerting/list", l)
 	linkEmbed.URL = ruleURL
 
 	embeds := []discordLinkEmbed{linkEmbed}

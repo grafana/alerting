@@ -73,7 +73,7 @@ const slackMaxTitleLenRunes = 1024
 // alert notification to Slack.
 type Notifier struct {
 	*receivers.Base
-	tmpl                 *templates.Template
+	tmpl                 receivers.TemplatesProvider
 	images               images.Provider
 	webhookSender        receivers.WebhookSender
 	sendMessageFn        sendMessageFunc
@@ -100,7 +100,7 @@ func endpointURL(s Config, apiMethod string) (string, error) {
 	return u.String(), nil
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger, appVersion string) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger, appVersion string) *Notifier {
 	return &Notifier{
 		Base:                 receivers.NewBase(meta, logger),
 		settings:             cfg,
@@ -225,7 +225,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 				return nil
 			}
 			var tmplErr error
-			tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
+			tmpl, _ := sn.tmpl.TmplText(ctx, alerts, l, &tmplErr)
 			imageMessage := &slackMessage{
 				Channel:   channelID,
 				Username:  m.Username,
@@ -278,8 +278,8 @@ func commonAlertGeneratorURL(_ context.Context, alerts templates.ExtendedAlerts)
 
 func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert, l log.Logger) (*slackMessage, *templates.ExtendedData, error) {
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
-	ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", l)
+	tmpl, data := sn.tmpl.TmplText(ctx, alerts, l, &tmplErr)
+	ruleURL := receivers.JoinURLPath(sn.tmpl.GetExternalURL().String(), "/alerting/list", l)
 
 	// If all alerts have the same GeneratorURL, use that.
 	if commonGeneratorURL := commonAlertGeneratorURL(ctx, data.Alerts); commonGeneratorURL != "" {

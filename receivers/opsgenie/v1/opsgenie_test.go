@@ -20,11 +20,9 @@ import (
 )
 
 func TestNotify(t *testing.T) {
-	tmpl := templates.ForTests(t)
-
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 
 	ctx := notify.WithGroupKey(context.Background(), "alertname")
 	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})

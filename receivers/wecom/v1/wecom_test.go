@@ -24,11 +24,9 @@ import (
 )
 
 func TestNotify_GroupRobot(t *testing.T) {
-	tmpl := templates.ForTests(t)
-
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 
 	cases := []struct {
 		name        string
@@ -232,11 +230,9 @@ func TestNotify_GroupRobot(t *testing.T) {
 }
 
 func TestNotify_ApiApp(t *testing.T) {
-	tmpl := templates.ForTests(t)
-
 	externalURL, err := url.Parse("http://localhost")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tmpl := templates.ForTests(t, templates.WithExternalURL(externalURL))
 
 	tests := []struct {
 		name         string

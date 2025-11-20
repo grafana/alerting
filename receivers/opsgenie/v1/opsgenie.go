@@ -39,13 +39,13 @@ var (
 // 3. All alerts in the aggregation group are resolved.
 type Notifier struct {
 	*receivers.Base
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	ns       receivers.WebhookSender
 	images   images.Provider
 	settings Config
 }
 
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		ns:       sender,
@@ -114,10 +114,10 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 		return data, apiURL, err
 	}
 
-	ruleURL := receivers.JoinURLPath(on.tmpl.ExternalURL.String(), "/alerting/list", l)
+	ruleURL := receivers.JoinURLPath(on.tmpl.GetExternalURL().String(), "/alerting/list", l)
 
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, on.tmpl, as, l, &tmplErr)
+	tmpl, data := on.tmpl.TmplText(ctx, as, l, &tmplErr)
 
 	message, truncated := receivers.TruncateInRunes(tmpl(on.settings.Message), opsGenieMaxMessageLenRunes)
 	if truncated {

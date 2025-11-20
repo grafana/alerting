@@ -18,7 +18,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/templates"
 )
 
 const (
@@ -40,14 +39,14 @@ var (
 // alert notifications to Pushover
 type Notifier struct {
 	*receivers.Base
-	tmpl     *templates.Template
+	tmpl     receivers.TemplatesProvider
 	images   images.Provider
 	ns       receivers.WebhookSender
 	settings Config
 }
 
 // New is the constructor for the pushover notifier
-func New(cfg Config, meta receivers.Metadata, template *templates.Template, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
+func New(cfg Config, meta receivers.Metadata, template receivers.TemplatesProvider, sender receivers.WebhookSender, images images.Provider, logger log.Logger) *Notifier {
 	return &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		ns:       sender,
@@ -102,7 +101,7 @@ func (pn *Notifier) genPushoverBody(ctx context.Context, l log.Logger, as ...*ty
 	}
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, pn.tmpl, as, l, &tmplErr)
+	tmpl, _ := pn.tmpl.TmplText(ctx, as, l, &tmplErr)
 
 	if err := w.WriteField("user", tmpl(pn.settings.UserKey)); err != nil {
 		return nil, b, fmt.Errorf("failed to write the user: %w", err)
@@ -127,7 +126,7 @@ func (pn *Notifier) genPushoverBody(ctx context.Context, l log.Logger, as ...*ty
 		message = "(no details)"
 	}
 
-	supplementaryURL := receivers.JoinURLPath(pn.tmpl.ExternalURL.String(), "/alerting/list", l)
+	supplementaryURL := receivers.JoinURLPath(pn.tmpl.GetExternalURL().String(), "/alerting/list", l)
 	supplementaryURL, truncated = receivers.TruncateInRunes(supplementaryURL, pushoverMaxURLLenRunes)
 	if truncated {
 		level.Warn(l).Log("msg", "Truncated URL", "incident", key, "max_runes", pushoverMaxURLLenRunes)
