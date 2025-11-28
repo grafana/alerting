@@ -293,6 +293,10 @@ func commonAlertGeneratorURL(_ context.Context, alerts templates.ExtendedAlerts)
 func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert, l log.Logger) (*slackMessage, *templates.ExtendedData, error) {
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
+
+	// TODO: Figure out how to make ruleURL work with Block Kit
+	// The ruleURL is just '?orgId=1' locally for me, so Attachments just not display the link at all.
+
 	// ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", l)
 	//
 	// // If all alerts have the same GeneratorURL, use that.
@@ -322,7 +326,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 			Type: "section",
 			Text: &blockText{
 				Type: "mrkdwn",
-				Text: title,
+				Text: "*" + title + "*",
 			},
 		},
 		{
@@ -346,6 +350,9 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 				},
 			},
 		},
+	}
+	if blocks[0].Text.Text == "**" {
+		blocks[0].Text.Text = ""
 	}
 
 	mentionsBuilder := strings.Builder{}
