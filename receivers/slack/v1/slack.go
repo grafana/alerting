@@ -114,21 +114,44 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // slackMessage is the slackMessage for sending a slack notification.
 type slackMessage struct {
-	Channel     string                   `json:"channel,omitempty"`
-	Text        string                   `json:"text,omitempty"`
-	Username    string                   `json:"username,omitempty"`
-	IconEmoji   string                   `json:"icon_emoji,omitempty"`
-	IconURL     string                   `json:"icon_url,omitempty"`
-	Attachments []attachment             `json:"attachments"`
-	Blocks      []map[string]interface{} `json:"blocks,omitempty"`
-	ThreadTs    string                   `json:"thread_ts,omitempty"`
+	Channel     string       `json:"channel,omitempty"`
+	Text        string       `json:"text,omitempty"`
+	Username    string       `json:"username,omitempty"`
+	IconEmoji   string       `json:"icon_emoji,omitempty"`
+	IconURL     string       `json:"icon_url,omitempty"`
+	Attachments []attachment `json:"attachments"`
+	Blocks      []block      `json:"blocks,omitempty"`
+	ThreadTs    string       `json:"thread_ts,omitempty"`
+}
+
+type block struct {
+	Type     string      `json:"type"`
+	Text     *blockText  `json:"text,omitempty"`
+	Elements []blockElem `json:"elements,omitempty"`
+	ImageURL string      `json:"image_url,omitempty"`
+	AltText  string      `json:"alt_text,omitempty"`
+}
+
+// BlockText represents the text object in a block.
+type blockText struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+// BlockElem represents an element in a context block.
+type blockElem struct {
+	Type     string `json:"type"`
+	Text     string `json:"text,omitempty"`
+	ImageURL string `json:"image_url,omitempty"`
+	AltText  string `json:"alt_text,omitempty"`
 }
 
 // attachment is used to display a richly-formatted message block.
 type attachment struct {
-	Fallback string                   `json:"fallback"`
-	Color    string                   `json:"color,omitempty"`
-	Blocks   []map[string]interface{} `json:"blocks,omitempty"`
+	Fallback string  `json:"fallback"`
+	Color    string  `json:"color,omitempty"`
+	Blocks   []block `json:"blocks,omitempty"`
+	Ts       int64   `json:"ts,omitempty"`
 }
 
 // generic api response from slack
@@ -224,13 +247,14 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 					{
 						Color:    tmpl(templates.DefaultMessageColor),
 						Fallback: text,
-						Blocks: []map[string]interface{}{
+						Blocks: []block{
 							{
-								"type":      "image",
-								"image_url": image.URL,
-								"alt_text":  title,
+								Type:     "image",
+								ImageURL: image.URL,
+								AltText:  title,
 							},
 						},
+						Ts: time.Now().Unix(),
 					},
 				},
 			}
@@ -268,14 +292,15 @@ func commonAlertGeneratorURL(_ context.Context, alerts templates.ExtendedAlerts)
 func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert, l log.Logger) (*slackMessage, *templates.ExtendedData, error) {
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
-	ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", l)
-
-	// If all alerts have the same GeneratorURL, use that.
-	if commonGeneratorURL := commonAlertGeneratorURL(ctx, data.Alerts); commonGeneratorURL != "" {
-		ruleURL = commonGeneratorURL
-	}
+	// ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", l)
+	//
+	// // If all alerts have the same GeneratorURL, use that.
+	// if commonGeneratorURL := commonAlertGeneratorURL(ctx, data.Alerts); commonGeneratorURL != "" {
+	// 	ruleURL = commonGeneratorURL
+	// }
 
 	title, truncated := receivers.TruncateInRunes(tmpl(sn.settings.Title), slackMaxTitleLenRunes)
+	text := tmpl(sn.settings.Text)
 	if truncated {
 		key, err := notify.ExtractGroupKey(ctx)
 		if err != nil {
@@ -291,32 +316,32 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 		tmplErr = nil
 	}
 
-	blocks := []map[string]interface{}{
+	blocks := []block{
 		{
-			"type": "section",
-			"text": map[string]interface{}{
-				"type": "mrkdwn",
-				"text": title,
+			Type: "section",
+			Text: &blockText{
+				Type: "mrkdwn",
+				Text: title,
 			},
 		},
 		{
-			"type": "section",
-			"text": map[string]interface{}{
-				"type": "mrkdwn",
-				"text": tmpl(sn.settings.Text),
+			Type: "section",
+			Text: &blockText{
+				Type: "mrkdwn",
+				Text: text,
 			},
 		},
 		{
-			"type": "context",
-			"elements": []map[string]interface{}{
+			Type: "context",
+			Elements: []blockElem{
 				{
-					"type":      "image",
-					"image_url": footerIconURL,
-					"alt_text":  "Grafana v" + sn.appVersion,
+					Type:     "image",
+					ImageURL: footerIconURL,
+					AltText:  "Grafana v" + sn.appVersion,
 				},
 				{
-					"type": "plain_text",
-					"text": "Grafana v" + sn.appVersion,
+					Type: "plain_text",
+					Text: "Grafana v" + sn.appVersion,
 				},
 			},
 		},
@@ -350,12 +375,12 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 
 	if mentionsBuilder.Len() > 0 {
 		// Use markdown-formatted pretext for any mentions.
-		blocks = append([]map[string]interface{}{
+		blocks = append([]block{
 			{
-				"type": "section",
-				"text": map[string]interface{}{
-					"type": "mrkdwn",
-					"text": mentionsBuilder.String(),
+				Type: "section",
+				Text: &blockText{
+					Type: "mrkdwn",
+					Text: mentionsBuilder.String(),
 				},
 			},
 		}, blocks...)
@@ -365,10 +390,10 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 		// Incoming webhooks cannot upload files, instead share images via their URL
 		_ = images.WithStoredImages(ctx, l, sn.images, func(_ int, image images.Image) error {
 			if image.HasURL() {
-				blocks = append(blocks, map[string]interface{}{
-					"type":      "image",
-					"image_url": image.URL,
-					"alt_text":  title,
+				blocks = append(blocks, block{
+					Type:     "image",
+					ImageURL: image.URL,
+					AltText:  title,
 				})
 				return images.ErrImagesDone
 			}
@@ -386,6 +411,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 				Color:    tmpl(sn.settings.Color),
 				Blocks:   blocks,
 				Fallback: title,
+				Ts:       time.Now().Unix(),
 			},
 		},
 	}

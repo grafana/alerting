@@ -64,14 +64,45 @@ func TestNotify_IncomingWebhook(t *testing.T) {
 			IconEmoji: ":emoji:",
 			Attachments: []attachment{
 				{
-					Title:      "[FIRING:1]  (val1)",
-					TitleLink:  "http://localhost/alerting/list",
-					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
-					Fallback:   "[FIRING:1]  (val1)",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "#D63232",
+					Blocks: []block{
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "[FIRING:1]  (val1)",
+							},
+						},
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+							},
+						},
+						{
+							Type: "context",
+							Elements: []blockElem{
+								{
+									Type:     "image",
+									ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+									AltText:  "Grafana v" + appVersion,
+								},
+								{
+									Type: "plain_text",
+									Text: "Grafana v" + appVersion,
+								},
+							},
+						},
+					},
+
+					// Title:      "[FIRING:1]  (val1)",
+					// TitleLink:  "http://localhost/alerting/list",
+					// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+					Fallback: "[FIRING:1]  (val1)",
+					// Fields:     nil,
+					// Footer:     "Grafana v" + appVersion,
+					// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color: "#D63232",
 				},
 			},
 		},
@@ -104,15 +135,51 @@ func TestNotify_IncomingWebhook(t *testing.T) {
 			IconEmoji: ":emoji:",
 			Attachments: []attachment{
 				{
-					Title:      "[FIRING:1]  (val1)",
-					TitleLink:  "http://localhost/alerting/list",
-					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
-					Fallback:   "[FIRING:1]  (val1)",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "#D63232",
-					ImageURL:   "https://www.example.com/test.png",
+					Blocks: []block{
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "[FIRING:1]  (val1)",
+							},
+						},
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+							},
+						},
+						{
+							Type: "context",
+							Elements: []blockElem{
+								{
+									Type:     "image",
+									ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+									AltText:  "Grafana v" + appVersion,
+								},
+								{
+									Type: "plain_text",
+									Text: "Grafana v" + appVersion,
+								},
+							},
+						},
+						{
+							Type:     "image",
+							ImageURL: "https://www.example.com/test.png",
+							AltText:  "[FIRING:1]  (val1)",
+						},
+					},
+
+					// Title:      "[FIRING:1]  (val1)",
+					// TitleLink:  "http://localhost/alerting/list",
+					// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					Fallback: "[FIRING:1]  (val1)",
+					// Fields:     nil,
+					// Footer:     "Grafana v" + appVersion,
+					// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color: "#D63232",
+					// ImageURL:   "https://www.example.com/test.png",
 				},
 			},
 		},
@@ -145,14 +212,44 @@ func TestNotify_IncomingWebhook(t *testing.T) {
 			IconEmoji: ":emoji:",
 			Attachments: []attachment{
 				{
-					Title:      "[FIRING:1]  (val1)",
-					TitleLink:  "http://localhost/alerting/list",
-					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
-					Fallback:   "[FIRING:1]  (val1)",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "#D63232",
+					Blocks: []block{
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "[FIRING:1]  (val1)",
+							},
+						},
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+							},
+						},
+						{
+							Type: "context",
+							Elements: []blockElem{
+								{
+									Type:     "image",
+									ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+									AltText:  "Grafana v" + appVersion,
+								},
+								{
+									Type: "plain_text",
+									Text: "Grafana v" + appVersion,
+								},
+							},
+						},
+					},
+					// Title:      "[FIRING:1]  (val1)",
+					// TitleLink:  "http://localhost/alerting/list",
+					// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					Fallback: "[FIRING:1]  (val1)",
+					// Fields:     nil,
+					// Footer:     "Grafana v" + appVersion,
+					// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color: "#D63232",
 				},
 			},
 		},
@@ -236,14 +333,45 @@ func TestNotify_PostMessage(t *testing.T) {
 			IconEmoji: ":emoji:",
 			Attachments: []attachment{
 				{
-					Title:      "[FIRING:1]  (val1)",
-					TitleLink:  "http://localhost/alerting/list",
-					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
-					Fallback:   "[FIRING:1]  (val1)",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "#D63232",
+					Blocks: []block{
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "[FIRING:1]  (val1)",
+							},
+						},
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+							},
+						},
+						{
+							Type: "context",
+							Elements: []blockElem{
+								{
+									Type:     "image",
+									ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+									AltText:  "Grafana v" + appVersion,
+								},
+								{
+									Type: "plain_text",
+									Text: "Grafana v" + appVersion,
+								},
+							},
+						},
+					},
+
+					// Title:      "[FIRING:1]  (val1)",
+					// TitleLink:  "http://localhost/alerting/list",
+					// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					Fallback: "[FIRING:1]  (val1)",
+					// Fields:     nil,
+					// Footer:     "Grafana v" + appVersion,
+					// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color: "#D63232",
 				},
 			},
 		},
@@ -277,14 +405,44 @@ func TestNotify_PostMessage(t *testing.T) {
 			IconEmoji: ":emoji:",
 			Attachments: []attachment{
 				{
-					Title:      "[FIRING:1]  (val1)",
-					TitleLink:  "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
-					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
-					Fallback:   "[FIRING:1]  (val1)",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "#D63232",
+					Blocks: []block{
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "[FIRING:1]  (val1)",
+							},
+						},
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+							},
+						},
+						{
+							Type: "context",
+							Elements: []blockElem{
+								{
+									Type:     "image",
+									ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+									AltText:  "Grafana v" + appVersion,
+								},
+								{
+									Type: "plain_text",
+									Text: "Grafana v" + appVersion,
+								},
+							},
+						},
+					},
+					// Title:      "[FIRING:1]  (val1)",
+					// TitleLink:  "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
+					// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					Fallback: "[FIRING:1]  (val1)",
+					// Fields:     nil,
+					// Footer:     "Grafana v" + appVersion,
+					// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color: "#D63232",
 				},
 			},
 		},
@@ -324,14 +482,45 @@ func TestNotify_PostMessage(t *testing.T) {
 			IconEmoji: ":emoji:",
 			Attachments: []attachment{
 				{
-					Title:      "2 firing, 0 resolved",
-					TitleLink:  "http://localhost/alerting/list",
-					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-1234567test2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
-					Fallback:   "2 firing, 0 resolved",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "#D63232",
+					Blocks: []block{
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "2 firing, 0 resolved",
+							},
+						},
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-1234567test2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+							},
+						},
+						{
+							Type: "context",
+							Elements: []blockElem{
+								{
+									Type:     "image",
+									ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+									AltText:  "Grafana v" + appVersion,
+								},
+								{
+									Type: "plain_text",
+									Text: "Grafana v" + appVersion,
+								},
+							},
+						},
+					},
+
+					// Title:      "2 firing, 0 resolved",
+					// TitleLink:  "http://localhost/alerting/list",
+					// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-1234567test2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+					Fallback: "2 firing, 0 resolved",
+					// Fields:     nil,
+					// Footer:     "Grafana v" + appVersion,
+					// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color: "#D63232",
 				},
 			},
 		},
@@ -371,14 +560,45 @@ func TestNotify_PostMessage(t *testing.T) {
 			IconEmoji: ":emoji:",
 			Attachments: []attachment{
 				{
-					Title:      "2 firing, 0 resolved",
-					TitleLink:  "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
-					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
-					Fallback:   "2 firing, 0 resolved",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "#D63232",
+					Blocks: []block{
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "2 firing, 0 resolved",
+							},
+						},
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+							},
+						},
+						{
+							Type: "context",
+							Elements: []blockElem{
+								{
+									Type:     "image",
+									ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+									AltText:  "Grafana v" + appVersion,
+								},
+								{
+									Type: "plain_text",
+									Text: "Grafana v" + appVersion,
+								},
+							},
+						},
+					},
+
+					// Title:      "2 firing, 0 resolved",
+					// TitleLink:  "http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test",
+					// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSource: http://localhost/alerting/f23a674b-bb6b-46df-8723-12345678test\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+					Fallback: "2 firing, 0 resolved",
+					// Fields:     nil,
+					// Footer:     "Grafana v" + appVersion,
+					// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color: "#D63232",
 				},
 			},
 		},
@@ -416,14 +636,45 @@ func TestNotify_PostMessage(t *testing.T) {
 			IconEmoji: ":emoji:",
 			Attachments: []attachment{
 				{
-					Title:      "2 firing, 0 resolved",
-					TitleLink:  "http://localhost/alerting/list",
-					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
-					Fallback:   "2 firing, 0 resolved",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "#D63232",
+					Blocks: []block{
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "2 firing, 0 resolved",
+							},
+						},
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+							},
+						},
+						{
+							Type: "context",
+							Elements: []blockElem{
+								{
+									Type:     "image",
+									ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+									AltText:  "Grafana v" + appVersion,
+								},
+								{
+									Type: "plain_text",
+									Text: "Grafana v" + appVersion,
+								},
+							},
+						},
+					},
+
+					// Title:      "2 firing, 0 resolved",
+					// TitleLink:  "http://localhost/alerting/list",
+					// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+					Fallback: "2 firing, 0 resolved",
+					// Fields:     nil,
+					// Footer:     "Grafana v" + appVersion,
+					// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color: "#D63232",
 				},
 			},
 		},
@@ -456,14 +707,45 @@ func TestNotify_PostMessage(t *testing.T) {
 			IconEmoji: "",
 			Attachments: []attachment{
 				{
-					Title:      "",
-					TitleLink:  "http://localhost/alerting/list",
-					Text:       "",
-					Fallback:   "",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "",
+					Blocks: []block{
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "",
+							},
+						},
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "",
+							},
+						},
+						{
+							Type: "context",
+							Elements: []blockElem{
+								{
+									Type:     "image",
+									ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+									AltText:  "Grafana v" + appVersion,
+								},
+								{
+									Type: "plain_text",
+									Text: "Grafana v" + appVersion,
+								},
+							},
+						},
+					},
+
+					// Title:      "",
+					// TitleLink:  "http://localhost/alerting/list",
+					// Text:       "",
+					Fallback: "",
+					// Fields:     nil,
+					// Footer:     "Grafana v" + appVersion,
+					// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color: "",
 				},
 			},
 		},
@@ -496,14 +778,45 @@ func TestNotify_PostMessage(t *testing.T) {
 			IconEmoji: ":emoji:",
 			Attachments: []attachment{
 				{
-					Title:      "[FIRING:1]  (val1)",
-					TitleLink:  "http://localhost/alerting/list",
-					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
-					Fallback:   "[FIRING:1]  (val1)",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "#D63232",
+					Blocks: []block{
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "[FIRING:1]  (val1)",
+							},
+						},
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+							},
+						},
+						{
+							Type: "context",
+							Elements: []blockElem{
+								{
+									Type:     "image",
+									ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+									AltText:  "Grafana v" + appVersion,
+								},
+								{
+									Type: "plain_text",
+									Text: "Grafana v" + appVersion,
+								},
+							},
+						},
+					},
+
+					// Title:      "[FIRING:1]  (val1)",
+					// TitleLink:  "http://localhost/alerting/list",
+					// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+					Fallback: "[FIRING:1]  (val1)",
+					// Fields:     nil,
+					// Footer:     "Grafana v" + appVersion,
+					// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color: "#D63232",
 				},
 			},
 		},
@@ -536,14 +849,44 @@ func TestNotify_PostMessage(t *testing.T) {
 			IconEmoji: ":emoji:",
 			Attachments: []attachment{
 				{
-					Title:      "[FIRING:1]  (val1)",
-					TitleLink:  "http://localhost/alerting/list",
-					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
-					Fallback:   "[FIRING:1]  (val1)",
-					Fields:     nil,
-					Footer:     "Grafana v" + appVersion,
-					FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-					Color:      "#33a2ff",
+					Blocks: []block{
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "[FIRING:1]  (val1)",
+							},
+						},
+						{
+							Type: "section",
+							Text: &blockText{
+								Type: "mrkdwn",
+								Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+							},
+						},
+						{
+							Type: "context",
+							Elements: []blockElem{
+								{
+									Type:     "image",
+									ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+									AltText:  "Grafana v" + appVersion,
+								},
+								{
+									Type: "plain_text",
+									Text: "Grafana v" + appVersion,
+								},
+							},
+						},
+					},
+					// Title:      "[FIRING:1]  (val1)",
+					// TitleLink:  "http://localhost/alerting/list",
+					// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+					Fallback: "[FIRING:1]  (val1)",
+					// Fields:     nil,
+					// Footer:     "Grafana v" + appVersion,
+					// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+					Color: "#33a2ff",
 				},
 			},
 		},
@@ -626,14 +969,44 @@ func TestNotify_PostMessageWithImage(t *testing.T) {
 				IconEmoji: ":emoji:",
 				Attachments: []attachment{
 					{
-						Title:      "[FIRING:1]  (val1)",
-						TitleLink:  "http://localhost/alerting/list",
-						Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
-						Fallback:   "[FIRING:1]  (val1)",
-						Fields:     nil,
-						Footer:     "Grafana v" + appVersion,
-						FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-						Color:      "#D63232",
+						Blocks: []block{
+							{
+								Type: "section",
+								Text: &blockText{
+									Type: "mrkdwn",
+									Text: "[FIRING:1]  (val1)",
+								},
+							},
+							{
+								Type: "section",
+								Text: &blockText{
+									Type: "mrkdwn",
+									Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+								},
+							},
+							{
+								Type: "context",
+								Elements: []blockElem{
+									{
+										Type:     "image",
+										ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+										AltText:  "Grafana v" + appVersion,
+									},
+									{
+										Type: "plain_text",
+										Text: "Grafana v" + appVersion,
+									},
+								},
+							},
+						},
+						// Title:      "[FIRING:1]  (val1)",
+						// TitleLink:  "http://localhost/alerting/list",
+						// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+						Fallback: "[FIRING:1]  (val1)",
+						// Fields:     nil,
+						// Footer:     "Grafana v" + appVersion,
+						// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+						Color: "#D63232",
 					},
 				},
 			},
@@ -769,14 +1142,44 @@ func TestNotify_PostMessageWithImageURL(t *testing.T) {
 				IconEmoji: ":emoji:",
 				Attachments: []attachment{
 					{
-						Title:      "[FIRING:1]  (val1)",
-						TitleLink:  "http://localhost/alerting/list",
-						Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
-						Fallback:   "[FIRING:1]  (val1)",
-						Fields:     nil,
-						Footer:     "Grafana v" + appVersion,
-						FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-						Color:      "#D63232",
+						Blocks: []block{
+							{
+								Type: "section",
+								Text: &blockText{
+									Type: "mrkdwn",
+									Text: "[FIRING:1]  (val1)",
+								},
+							},
+							{
+								Type: "section",
+								Text: &blockText{
+									Type: "mrkdwn",
+									Text: "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+								},
+							},
+							{
+								Type: "context",
+								Elements: []blockElem{
+									{
+										Type:     "image",
+										ImageURL: "https://grafana.com/static/assets/img/fav32.png",
+										AltText:  "Grafana v" + appVersion,
+									},
+									{
+										Type: "plain_text",
+										Text: "Grafana v" + appVersion,
+									},
+								},
+							},
+						},
+						// Title:      "[FIRING:1]  (val1)",
+						// TitleLink:  "http://localhost/alerting/list",
+						// Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+						Fallback: "[FIRING:1]  (val1)",
+						// Fields:     nil,
+						// Footer:     "Grafana v" + appVersion,
+						// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+						Color: "#D63232",
 					},
 				},
 			},
@@ -786,15 +1189,27 @@ func TestNotify_PostMessageWithImageURL(t *testing.T) {
 				IconEmoji: ":emoji:",
 				Attachments: []attachment{
 					{
-						Title:      "*Firing*: alert1",
-						TitleLink:  "http://localhost/alerting/list",
-						Text:       "*Labels*: lbl1=val1",
-						Fallback:   "*Labels*: lbl1=val1",
-						Fields:     nil,
-						Footer:     "Grafana v" + appVersion,
-						FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
-						ImageURL:   "http://localhost/test-image",
-						Color:      "#D63232",
+						Blocks: []block{
+							{
+								Type:     "image",
+								ImageURL: "http://localhost/test-image",
+								AltText:  "*Firing*: alert1",
+								Text: &blockText{
+									Type: "mrkdwn",
+									Text: "[FIRING:1]  (val1)",
+								},
+							},
+						},
+
+						// Title:      "*Firing*: alert1",
+						// TitleLink:  "http://localhost/alerting/list",
+						// Text:       "*Labels*: lbl1=val1",
+						Fallback: "*Labels*: lbl1=val1",
+						// Fields:     nil,
+						// Footer:     "Grafana v" + appVersion,
+						// FooterIcon: "https://grafana.com/static/assets/img/fav32.png",
+						// ImageURL:   "http://localhost/test-image",
+						Color: "#D63232",
 					},
 				},
 			},
