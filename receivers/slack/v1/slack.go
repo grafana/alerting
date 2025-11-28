@@ -243,10 +243,11 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 				IconEmoji: m.IconEmoji,
 				IconURL:   m.IconURL,
 				ThreadTs:  slackResp.Ts,
+				Text:      text,
 				Attachments: []attachment{
 					{
-						Color:    tmpl(templates.DefaultMessageColor),
-						Fallback: text,
+						Color: tmpl(templates.DefaultMessageColor),
+						// Fallback: text,
 						Blocks: []block{
 							{
 								Type:     "image",
@@ -254,7 +255,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 								AltText:  title,
 							},
 						},
-						Ts: time.Now().Unix(),
+						// Ts: time.Now().Unix(),
 					},
 				},
 			}
@@ -373,9 +374,23 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 		}
 	}
 
+	req := &slackMessage{
+		Channel:   tmpl(sn.settings.Recipient),
+		Username:  tmpl(sn.settings.Username),
+		IconEmoji: tmpl(sn.settings.IconEmoji),
+		IconURL:   tmpl(sn.settings.IconURL),
+		Attachments: []attachment{
+			{
+				Color:  tmpl(sn.settings.Color),
+				Blocks: blocks,
+			},
+		},
+		Text: text,
+	}
+
 	if mentionsBuilder.Len() > 0 {
 		// Use markdown-formatted pretext for any mentions.
-		blocks = append([]block{
+		req.Blocks = []block{
 			{
 				Type: "section",
 				Text: &blockText{
@@ -383,14 +398,14 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 					Text: mentionsBuilder.String(),
 				},
 			},
-		}, blocks...)
+		}
 	}
 
 	if isIncomingWebhook(sn.settings) {
 		// Incoming webhooks cannot upload files, instead share images via their URL
 		_ = images.WithStoredImages(ctx, l, sn.images, func(_ int, image images.Image) error {
 			if image.HasURL() {
-				blocks = append(blocks, block{
+				req.Attachments[0].Blocks = append(req.Attachments[0].Blocks, block{
 					Type:     "image",
 					ImageURL: image.URL,
 					AltText:  title,
@@ -399,21 +414,6 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 			}
 			return nil
 		}, alerts...)
-	}
-
-	req := &slackMessage{
-		Channel:   tmpl(sn.settings.Recipient),
-		Username:  tmpl(sn.settings.Username),
-		IconEmoji: tmpl(sn.settings.IconEmoji),
-		IconURL:   tmpl(sn.settings.IconURL),
-		Attachments: []attachment{
-			{
-				Color:    tmpl(sn.settings.Color),
-				Blocks:   blocks,
-				Fallback: title,
-				Ts:       time.Now().Unix(),
-			},
-		},
 	}
 
 	if tmplErr != nil {
