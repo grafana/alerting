@@ -168,7 +168,7 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 		Alerts:        entryAlerts,
 		Retry:         nhe.Retry,
 		Error:         notificationErrStr,
-		Duration:      nhe.Duration.Milliseconds(),
+		Duration:      int64(nhe.Duration),
 		PipelineTime:  nhe.PipelineTime,
 	}
 
