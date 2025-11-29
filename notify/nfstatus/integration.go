@@ -2,18 +2,25 @@ package nfstatus
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"time"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/grafana/alerting/receivers"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 )
 
+type NotificationHistoryAlert struct {
+	*types.Alert
+	ExtraData json.RawMessage
+}
+
 type NotificationHistoryEntry struct {
-	Alerts          []*types.Alert
+	Alerts          []NotificationHistoryAlert
 	Retry           bool
 	NotificationErr error
 	Duration        time.Duration
@@ -143,8 +150,21 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 		return
 	}
 
+	// Don't log/return because extra data is optional.
+	extraData, _ := receivers.GetExtraDataFromContext(ctx)
+
+	entryAlerts := make([]NotificationHistoryAlert, len(alerts))
+	for i := range alerts {
+		entryAlerts[i] = NotificationHistoryAlert{
+			Alert: alerts[i],
+		}
+		if i < len(extraData) {
+			entryAlerts[i].ExtraData = extraData[i]
+		}
+	}
+
 	n.notificationHistorian.Record(ctx, NotificationHistoryEntry{
-		Alerts:          alerts,
+		Alerts:          entryAlerts,
 		Retry:           retry,
 		NotificationErr: err,
 		Duration:        duration,
