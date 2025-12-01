@@ -116,6 +116,7 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 	ctx := notify.WithReceiverName(context.Background(), testReceiverName)
 	ctx = notify.WithGroupLabels(ctx, testGroupLabels)
 	ctx = notify.WithNow(ctx, testPipelineTime)
+	ctx = notify.WithGroupKey(ctx, "testGroupKey")
 
 	// Add extra data.
 	ctx = context.WithValue(ctx, receivers.ExtraDataKey, []json.RawMessage{
@@ -138,6 +139,7 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 			Alert:     alerts[0],
 			ExtraData: json.RawMessage([]byte(`{"foo":"bar"}`)),
 		}},
+		GroupKey:        "testGroupKey",
 		Retry:           notifier.retry,
 		NotificationErr: notifier.err,
 		Duration:        0,
@@ -163,6 +165,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 				ReceiverName: "test-receiver",
 				GroupLabels:  model.LabelSet{"foo": "bar"},
 				PipelineTime: now,
+				GroupKey:     "test-group-key",
 			},
 			wantErr: false,
 		},
@@ -172,6 +175,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 				ReceiverName: "test-receiver",
 				GroupLabels:  model.LabelSet{},
 				PipelineTime: now,
+				GroupKey:     "test-group-key",
 			},
 			wantErr: false,
 		},
@@ -181,6 +185,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 				ReceiverName: "",
 				GroupLabels:  model.LabelSet{"foo": "bar"},
 				PipelineTime: now,
+				GroupKey:     "test-group-key",
 			},
 			wantErr:           true,
 			expectedErrSubstr: []string{"missing receiver name"},
@@ -191,6 +196,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 				ReceiverName: "test-receiver",
 				GroupLabels:  nil,
 				PipelineTime: now,
+				GroupKey:     "test-group-key",
 			},
 			wantErr:           true,
 			expectedErrSubstr: []string{"missing group labels"},
@@ -201,6 +207,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 				ReceiverName: "test-receiver",
 				GroupLabels:  model.LabelSet{"foo": "bar"},
 				PipelineTime: time.Time{},
+				GroupKey:     "test-group-key",
 			},
 			wantErr:           true,
 			expectedErrSubstr: []string{"missing pipeline time"},
@@ -211,6 +218,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 				ReceiverName: "test-receiver",
 				GroupLabels:  model.LabelSet{"foo": "bar"},
 				PipelineTime: now,
+				GroupKey:     "",
 			},
 			wantErr:           true,
 			expectedErrSubstr: []string{"missing group key"},
@@ -221,6 +229,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 				ReceiverName: "",
 				GroupLabels:  nil,
 				PipelineTime: time.Time{},
+				GroupKey:     "",
 			},
 			wantErr: true,
 			expectedErrSubstr: []string{

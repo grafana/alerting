@@ -23,6 +23,7 @@ type NotificationHistoryAlert struct {
 
 type NotificationHistoryEntry struct {
 	Alerts          []NotificationHistoryAlert
+	GroupKey        string
 	Retry           bool
 	NotificationErr error
 	Duration        time.Duration
@@ -42,6 +43,9 @@ func (e NotificationHistoryEntry) Validate() error {
 	}
 	if e.PipelineTime.IsZero() {
 		errs = append(errs, errors.New("missing pipeline time"))
+	}
+	if e.GroupKey == "" {
+		errs = append(errs, errors.New("missing group key"))
 	}
 
 	return errors.Join(errs...)
@@ -157,6 +161,7 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 	receiverName, _ := notify.ReceiverName(ctx)
 	groupLabels, _ := notify.GroupLabels(ctx)
 	pipelineTime, _ := notify.Now(ctx)
+	groupKey, _ := notify.GroupKey(ctx)
 
 	// Don't log/return because extra data is optional.
 	extraData, _ := receivers.GetExtraDataFromContext(ctx)
@@ -173,6 +178,7 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 
 	entry := NotificationHistoryEntry{
 		Alerts:          entryAlerts,
+		GroupKey:        groupKey,
 		Retry:           retry,
 		NotificationErr: err,
 		Duration:        duration,

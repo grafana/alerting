@@ -11,11 +11,6 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	alertingInstrument "github.com/grafana/alerting/http/instrument"
-	"github.com/grafana/alerting/http/instrument/instrumenttest"
-	alertingModels "github.com/grafana/alerting/models"
-	"github.com/grafana/alerting/notify/historian/lokiclient"
-	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/dskit/instrument"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -23,12 +18,19 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
+
+	alertingInstrument "github.com/grafana/alerting/http/instrument"
+	"github.com/grafana/alerting/http/instrument/instrumenttest"
+	alertingModels "github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/notify/historian/lokiclient"
+	"github.com/grafana/alerting/notify/nfstatus"
 )
 
 const testReceiverName = "testReceiverName"
 
 var (
 	testGroupLabels  = model.LabelSet{"foo": "bar"}
+	testGroupKey     = "testGroupKey"
 	testPipelineTime = time.Date(2025, time.July, 15, 16, 55, 0, 0, time.UTC)
 	testNow          = time.Now()
 	testAlerts       = []nfstatus.NotificationHistoryAlert{{
@@ -67,7 +69,7 @@ func TestRecord(t *testing.T) {
 						Values: []lokiclient.Sample{
 							{
 								T: testNow,
-								V: "{\"schemaVersion\":1,\"receiver\":\"testReceiverName\",\"status\":\"resolved\",\"groupLabels\":{\"foo\":\"bar\"},\"alerts\":[{\"status\":\"resolved\",\"labels\":{\"__alert_rule_uid__\":\"testRuleUID\",\"alertname\":\"Alert1\"},\"annotations\":{\"__private__\":\"baz\",\"foo\":\"bar\"},\"startsAt\":\"2025-07-15T16:55:00Z\",\"endsAt\":\"2025-07-15T16:55:00Z\",\"enrichments\":{\"things\":[\"foo\",\"bar\"]}}],\"retry\":false,\"duration\":1000000000,\"pipelineTime\":\"2025-07-15T16:55:00Z\"}",
+								V: "{\"schemaVersion\":1,\"receiver\":\"testReceiverName\",\"groupKey\":\"testGroupKey\",\"status\":\"resolved\",\"groupLabels\":{\"foo\":\"bar\"},\"alerts\":[{\"status\":\"resolved\",\"labels\":{\"__alert_rule_uid__\":\"testRuleUID\",\"alertname\":\"Alert1\"},\"annotations\":{\"__private__\":\"baz\",\"foo\":\"bar\"},\"startsAt\":\"2025-07-15T16:55:00Z\",\"endsAt\":\"2025-07-15T16:55:00Z\",\"enrichments\":{\"things\":[\"foo\",\"bar\"]}}],\"retry\":false,\"duration\":1000000000,\"pipelineTime\":\"2025-07-15T16:55:00Z\"}",
 							},
 						},
 					},
@@ -87,7 +89,7 @@ func TestRecord(t *testing.T) {
 						Values: []lokiclient.Sample{
 							{
 								T: testNow,
-								V: "{\"schemaVersion\":1,\"receiver\":\"testReceiverName\",\"status\":\"resolved\",\"groupLabels\":{\"foo\":\"bar\"},\"alerts\":[{\"status\":\"resolved\",\"labels\":{\"__alert_rule_uid__\":\"testRuleUID\",\"alertname\":\"Alert1\"},\"annotations\":{\"__private__\":\"baz\",\"foo\":\"bar\"},\"startsAt\":\"2025-07-15T16:55:00Z\",\"endsAt\":\"2025-07-15T16:55:00Z\",\"enrichments\":{\"things\":[\"foo\",\"bar\"]}}],\"retry\":true,\"error\":\"test notification error\",\"duration\":1000000000,\"pipelineTime\":\"2025-07-15T16:55:00Z\"}",
+								V: "{\"schemaVersion\":1,\"receiver\":\"testReceiverName\",\"groupKey\":\"testGroupKey\",\"status\":\"resolved\",\"groupLabels\":{\"foo\":\"bar\"},\"alerts\":[{\"status\":\"resolved\",\"labels\":{\"__alert_rule_uid__\":\"testRuleUID\",\"alertname\":\"Alert1\"},\"annotations\":{\"__private__\":\"baz\",\"foo\":\"bar\"},\"startsAt\":\"2025-07-15T16:55:00Z\",\"endsAt\":\"2025-07-15T16:55:00Z\",\"enrichments\":{\"things\":[\"foo\",\"bar\"]}}],\"retry\":true,\"error\":\"test notification error\",\"duration\":1000000000,\"pipelineTime\":\"2025-07-15T16:55:00Z\"}",
 							},
 						},
 					},
@@ -103,6 +105,7 @@ func TestRecord(t *testing.T) {
 				h := createTestNotificationHistorian(req, writesTotal, writesFailed)
 				h.Record(context.Background(), nfstatus.NotificationHistoryEntry{
 					Alerts:          testAlerts,
+					GroupKey:        testGroupKey,
 					Retry:           tc.retry,
 					NotificationErr: tc.notificationErr,
 					Duration:        time.Second,
@@ -141,6 +144,7 @@ func TestRecord(t *testing.T) {
 
 		nhe := nfstatus.NotificationHistoryEntry{
 			Alerts:          testAlerts,
+			GroupKey:        testGroupKey,
 			Retry:           false,
 			NotificationErr: nil,
 			Duration:        time.Second,
