@@ -8,15 +8,16 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	alertingInstrument "github.com/grafana/alerting/http/instrument"
-	alertingModels "github.com/grafana/alerting/models"
-	"github.com/grafana/alerting/notify/historian/lokiclient"
-	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/dskit/instrument"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
 	prometheusModel "github.com/prometheus/common/model"
 	"go.opentelemetry.io/otel/trace"
+
+	alertingInstrument "github.com/grafana/alerting/http/instrument"
+	alertingModels "github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/notify/historian/lokiclient"
+	"github.com/grafana/alerting/notify/nfstatus"
 )
 
 const (
@@ -30,6 +31,7 @@ const (
 type NotificationHistoryLokiEntry struct {
 	SchemaVersion int                                 `json:"schemaVersion"`
 	Receiver      string                              `json:"receiver"`
+	GroupKey      string                              `json:"groupKey"`
 	Status        string                              `json:"status"`
 	GroupLabels   map[string]string                   `json:"groupLabels"`
 	Alerts        []NotificationHistoryLokiEntryAlert `json:"alerts"`
@@ -126,6 +128,7 @@ func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryE
 		stream, err := h.prepareStream(nfstatus.NotificationHistoryEntry{
 			Alerts:          ruleUIDToAlerts[ruleUID],
 			Retry:           nhe.Retry,
+			GroupKey:        nhe.GroupKey,
 			NotificationErr: nhe.NotificationErr,
 			Duration:        nhe.Duration,
 			ReceiverName:    nhe.ReceiverName,
@@ -171,6 +174,7 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 		SchemaVersion: 1,
 		Receiver:      nhe.ReceiverName,
 		Status:        string(types.Alerts(as...).StatusAt(now)),
+		GroupKey:      nhe.GroupKey,
 		GroupLabels:   prepareLabels(nhe.GroupLabels),
 		Alerts:        entryAlerts,
 		Retry:         nhe.Retry,
