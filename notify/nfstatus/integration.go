@@ -3,15 +3,17 @@ package nfstatus
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"time"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/grafana/alerting/receivers"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/receivers"
 )
 
 type NotificationHistoryAlert struct {
@@ -27,6 +29,22 @@ type NotificationHistoryEntry struct {
 	ReceiverName    string
 	GroupLabels     model.LabelSet
 	PipelineTime    time.Time
+}
+
+func (e NotificationHistoryEntry) Validate() error {
+	var errs []error
+
+	if e.ReceiverName == "" {
+		errs = append(errs, errors.New("missing receiver name"))
+	}
+	if e.GroupLabels == nil {
+		errs = append(errs, errors.New("missing group labels"))
+	}
+	if e.PipelineTime.IsZero() {
+		errs = append(errs, errors.New("missing pipeline time"))
+	}
+
+	return errors.Join(errs...)
 }
 
 type NotificationHistorian interface {
@@ -134,21 +152,11 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 	if n.notificationHistorian == nil {
 		return
 	}
-	receiverName, ok := notify.ReceiverName(ctx)
-	if !ok {
-		level.Warn(n.logger).Log("msg", "failed to get receiver name from context, skipping notification history write")
-		return
-	}
-	groupLabels, ok := notify.GroupLabels(ctx)
-	if !ok {
-		level.Warn(n.logger).Log("msg", "failed to get group labels from context, skipping notification history write")
-		return
-	}
-	pipelineTime, ok := notify.Now(ctx)
-	if !ok {
-		level.Warn(n.logger).Log("msg", "failed to get pipeline time from context, skipping notification history write")
-		return
-	}
+
+	// Extract context values
+	receiverName, _ := notify.ReceiverName(ctx)
+	groupLabels, _ := notify.GroupLabels(ctx)
+	pipelineTime, _ := notify.Now(ctx)
 
 	// Don't log/return because extra data is optional.
 	extraData, _ := receivers.GetExtraDataFromContext(ctx)
@@ -163,7 +171,7 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 		}
 	}
 
-	n.notificationHistorian.Record(ctx, NotificationHistoryEntry{
+	entry := NotificationHistoryEntry{
 		Alerts:          entryAlerts,
 		Retry:           retry,
 		NotificationErr: err,
@@ -171,7 +179,14 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 		ReceiverName:    receiverName,
 		GroupLabels:     groupLabels,
 		PipelineTime:    pipelineTime,
-	})
+	}
+
+	if validationErr := entry.Validate(); validationErr != nil {
+		level.Warn(n.logger).Log("msg", "failed to validate notification history entry, skipping notification history write", "error", validationErr)
+		return
+	}
+
+	n.notificationHistorian.Record(ctx, entry)
 }
 
 // GetReport returns information about the last notification attempt.
