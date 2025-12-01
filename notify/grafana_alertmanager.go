@@ -160,31 +160,6 @@ type Limits struct {
 	MaxSilenceSizeBytes int
 }
 
-type DispatchTimer int
-
-func (t DispatchTimer) String() string {
-	switch t {
-	case DispatchTimerSync:
-		return "sync"
-	default:
-		return "default"
-	}
-}
-
-func (t *DispatchTimer) FromString(s string) {
-	var v DispatchTimer
-	switch s {
-	case "sync":
-		v = DispatchTimerSync
-	}
-	(*t) = v
-}
-
-const (
-	_ DispatchTimer = iota
-	DispatchTimerSync
-)
-
 type GrafanaAlertmanagerOpts struct {
 	ExternalURL        string
 	AlertStoreCallback mem.AlertStoreCallback
