@@ -45,6 +45,7 @@ type NotificationHistoryLokiEntryAlert struct {
 	Annotations map[string]string `json:"annotations"`
 	StartsAt    time.Time         `json:"startsAt"`
 	EndsAt      time.Time         `json:"endsAt"`
+	ExtraData   json.RawMessage   `json:"enrichments,omitempty"`
 }
 
 type remoteLokiClient interface {
@@ -111,7 +112,7 @@ func (h *NotificationHistorian) Record(ctx context.Context, nhe nfstatus.Notific
 
 func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryEntry) ([]lokiclient.Stream, error) {
 	// group alerts by rule UID. each rule UID will be a separate stream.
-	ruleUIDToAlerts := make(map[prometheusModel.LabelValue][]*types.Alert)
+	ruleUIDToAlerts := make(map[prometheusModel.LabelValue][]nfstatus.NotificationHistoryAlert)
 	for _, alert := range nhe.Alerts {
 		ruleUID, ok := alert.Labels[alertingModels.RuleUIDLabel]
 		if !ok {
@@ -152,6 +153,7 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 			Status:      string(alert.StatusAt(now)),
 			StartsAt:    alert.StartsAt,
 			EndsAt:      alert.EndsAt,
+			ExtraData:   alert.ExtraData,
 		}
 	}
 
@@ -160,10 +162,15 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 		notificationErrStr = nhe.NotificationErr.Error()
 	}
 
+	as := make([]*types.Alert, len(nhe.Alerts))
+	for i := range nhe.Alerts {
+		as[i] = nhe.Alerts[i].Alert
+	}
+
 	entry := NotificationHistoryLokiEntry{
 		SchemaVersion: 1,
 		Receiver:      nhe.ReceiverName,
-		Status:        string(types.Alerts(nhe.Alerts...).StatusAt(now)),
+		Status:        string(types.Alerts(as...).StatusAt(now)),
 		GroupLabels:   prepareLabels(nhe.GroupLabels),
 		Alerts:        entryAlerts,
 		Retry:         nhe.Retry,

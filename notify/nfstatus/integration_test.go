@@ -2,12 +2,14 @@ package nfstatus
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/go-kit/log"
 	alertingModels "github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/receivers"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/stretchr/testify/mock"
 
@@ -113,6 +115,11 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 	ctx = notify.WithGroupLabels(ctx, testGroupLabels)
 	ctx = notify.WithNow(ctx, testPipelineTime)
 
+	// Add extra data.
+	ctx = context.WithValue(ctx, receivers.ExtraDataKey, []json.RawMessage{
+		json.RawMessage([]byte(`{"foo":"bar"}`)),
+	})
+
 	notificationHistorian.On("Record", mock.Anything, mock.Anything).Once()
 
 	_, err := integration.Notify(ctx, alerts...)
@@ -125,7 +132,10 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 	actual := notificationHistorian.Calls[0].Arguments.Get(1).(NotificationHistoryEntry)
 	actual.Duration = 0 // Zero out duration to make comparison easier.
 	expected := NotificationHistoryEntry{
-		Alerts:          alerts,
+		Alerts: []NotificationHistoryAlert{{
+			Alert:     alerts[0],
+			ExtraData: json.RawMessage([]byte(`{"foo":"bar"}`)),
+		}},
 		Retry:           notifier.retry,
 		NotificationErr: notifier.err,
 		Duration:        0,
