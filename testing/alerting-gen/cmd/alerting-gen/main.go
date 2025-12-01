@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	auth "alerting-gen/pkg/auth"
-	gen "alerting-gen/pkg/generate"
+	auth "github.com/grafana/alerting/testing/alerting-gen/pkg/auth"
+	gen "github.com/grafana/alerting/testing/alerting-gen/pkg/generate"
 
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"

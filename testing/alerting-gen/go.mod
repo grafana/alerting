@@ -1,4 +1,4 @@
-module alerting-gen
+module github.com/grafana/alerting/testing/alerting-gen
 
 go 1.24.0
 
