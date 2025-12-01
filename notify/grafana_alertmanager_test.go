@@ -29,12 +29,10 @@ import (
 
 type withOptsFn func(opts *GrafanaAlertmanagerOpts)
 
-func setupAMTest(t *testing.T, withOpts ...withOptsFn) (*GrafanaAlertmanager, *prometheus.Registry) {
+func testOpts(t *testing.T, reg prometheus.Registerer) GrafanaAlertmanagerOpts {
 	t.Helper()
 
-	reg := prometheus.NewPedanticRegistry()
-
-	opts := GrafanaAlertmanagerOpts{
+	return GrafanaAlertmanagerOpts{
 		Silences: newFakeMaintanenceOptions(t),
 		Nflog:    newFakeMaintanenceOptions(t),
 
@@ -47,6 +45,14 @@ func setupAMTest(t *testing.T, withOpts ...withOptsFn) (*GrafanaAlertmanager, *p
 		ImageProvider: images.NewFakeProvider(1),
 		Decrypter:     NoopDecrypt,
 	}
+}
+
+func setupAMTest(t *testing.T, withOpts ...withOptsFn) (*GrafanaAlertmanager, *prometheus.Registry) {
+	t.Helper()
+
+	reg := prometheus.NewPedanticRegistry()
+
+	opts := testOpts(t, reg)
 	for _, fn := range withOpts {
 		fn(&opts)
 	}
@@ -635,7 +641,8 @@ func TestSilenceCleanup(t *testing.T) {
 	dt := func(t time.Time) strfmt.DateTime { return strfmt.DateTime(t) }
 
 	makeSilence := func(comment string, createdBy string,
-		startsAt, endsAt strfmt.DateTime, matchers amv2.Matchers) *PostableSilence {
+		startsAt, endsAt strfmt.DateTime, matchers amv2.Matchers,
+	) *PostableSilence {
 		return &PostableSilence{
 			ID: "",
 			Silence: amv2.Silence{
@@ -853,5 +860,13 @@ func TestStatusForTestReceivers(t *testing.T) {
 			},
 		}, time.Now())
 		require.Equal(t, http.StatusOK, status)
+	})
+}
+
+func Test_GrafanaAlertmanagerOpts_Validate(t *testing.T) {
+	t.Run("if SyncDispatchTimer, flushlog should not be nil", func(t *testing.T) {
+		testOpts := testOpts(t, prometheus.NewRegistry())
+		testOpts.DispatchTimer = DispatchTimerSync
+		require.NotNil(t, testOpts.Validate())
 	})
 }

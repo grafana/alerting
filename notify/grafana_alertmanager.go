@@ -198,10 +198,8 @@ func (c *GrafanaAlertmanagerOpts) Validate() error {
 	}
 
 	// only validate flush log options if using sync'ed dispatcher timer
-	if c.DispatchTimer == DispatchTimerSync {
-		if c.FlushLog == nil {
-			return errors.New("flush log maintenance options must be present")
-		}
+	if c.DispatchTimer == DispatchTimerSync && c.FlushLog == nil {
+		return errors.New("flush log maintenance options must be present")
 	}
 
 	if c.EmailSender == nil {
