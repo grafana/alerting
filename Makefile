@@ -13,10 +13,10 @@ test:
 
 .PHONY: lint
 lint: .tools/bin/misspell .tools/bin/faillint .tools/bin/golangci-lint
-	./.tools/bin/misspell -error README.md CONTRIBUTING.md LICENSE
+	misspell -error README.md CONTRIBUTING.md LICENSE
 
 	# Configured via .golangci.yml.
-	./.tools/bin/golangci-lint run
+	golangci-lint run
 
 .PHONY: mod-check
 mod-check:

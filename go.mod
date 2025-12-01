@@ -159,7 +159,12 @@ replace github.com/go-xorm/core v0.6.3 => xorm.io/core v0.6.3
 
 replace gopkg.in/ldap.v3 v3.1.3 => github.com/go-ldap/ldap/v3 v3.1.3
 
-// Super weird hack to force all genproto modules to the same version to avoid
+// Workaround for ambiguous genproto imports. Google split the monolithic
+// google.golang.org/genproto module into separate googleapis/api and googleapis/rpc
+// modules, but some transitive dependencies (notably github.com/gogo/status via dskit)
+// still reference the old monolithic module, causing build failures.
+// These replace directives force all dependencies to use compatible versions from
+// the same snapshot. Remove once upstream dependencies (dskit -> gogo/status) are updated.
 replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20251124214823-79d6a2a48846
 
 replace google.golang.org/genproto/googleapis/rpc => google.golang.org/genproto/googleapis/rpc v0.0.0-20251124214823-79d6a2a48846
