@@ -1,5 +1,6 @@
 # Put tools at the root of the folder.
 PATH := $(CURDIR)/.tools/bin:$(PATH)
+SHELL := /usr/bin/env bash
 
 .PHONY: clean
 clean:

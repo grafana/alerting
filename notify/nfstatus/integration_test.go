@@ -2,14 +2,17 @@ package nfstatus
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/go-kit/log"
-	alertingModels "github.com/grafana/alerting/models"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/stretchr/testify/mock"
+
+	alertingModels "github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/receivers"
 
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -22,6 +25,7 @@ type fakeNotifier struct {
 }
 
 func (f *fakeNotifier) Notify(_ context.Context, _ ...*types.Alert) (bool, error) {
+	time.Sleep(10 * time.Millisecond)
 	return f.retry, f.err
 }
 
@@ -112,6 +116,12 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 	ctx := notify.WithReceiverName(context.Background(), testReceiverName)
 	ctx = notify.WithGroupLabels(ctx, testGroupLabels)
 	ctx = notify.WithNow(ctx, testPipelineTime)
+	ctx = notify.WithGroupKey(ctx, "testGroupKey")
+
+	// Add extra data.
+	ctx = context.WithValue(ctx, receivers.ExtraDataKey, []json.RawMessage{
+		json.RawMessage([]byte(`{"foo":"bar"}`)),
+	})
 
 	notificationHistorian.On("Record", mock.Anything, mock.Anything).Once()
 
@@ -125,7 +135,11 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 	actual := notificationHistorian.Calls[0].Arguments.Get(1).(NotificationHistoryEntry)
 	actual.Duration = 0 // Zero out duration to make comparison easier.
 	expected := NotificationHistoryEntry{
-		Alerts:          alerts,
+		Alerts: []NotificationHistoryAlert{{
+			Alert:     alerts[0],
+			ExtraData: json.RawMessage([]byte(`{"foo":"bar"}`)),
+		}},
+		GroupKey:        "testGroupKey",
 		Retry:           notifier.retry,
 		NotificationErr: notifier.err,
 		Duration:        0,
@@ -134,4 +148,111 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 		PipelineTime:    testPipelineTime,
 	}
 	assert.Equal(t, expected, actual)
+}
+
+func TestNotificationHistoryEntry_Validate(t *testing.T) {
+	now := time.Now()
+
+	tests := []struct {
+		name              string
+		entry             NotificationHistoryEntry
+		wantErr           bool
+		expectedErrSubstr []string
+	}{
+		{
+			name: "valid entry passes validation",
+			entry: NotificationHistoryEntry{
+				ReceiverName: "test-receiver",
+				GroupLabels:  model.LabelSet{"foo": "bar"},
+				PipelineTime: now,
+				GroupKey:     "test-group-key",
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty group labels is valid",
+			entry: NotificationHistoryEntry{
+				ReceiverName: "test-receiver",
+				GroupLabels:  model.LabelSet{},
+				PipelineTime: now,
+				GroupKey:     "test-group-key",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing receiver name",
+			entry: NotificationHistoryEntry{
+				ReceiverName: "",
+				GroupLabels:  model.LabelSet{"foo": "bar"},
+				PipelineTime: now,
+				GroupKey:     "test-group-key",
+			},
+			wantErr:           true,
+			expectedErrSubstr: []string{"missing receiver name"},
+		},
+		{
+			name: "missing group labels",
+			entry: NotificationHistoryEntry{
+				ReceiverName: "test-receiver",
+				GroupLabels:  nil,
+				PipelineTime: now,
+				GroupKey:     "test-group-key",
+			},
+			wantErr:           true,
+			expectedErrSubstr: []string{"missing group labels"},
+		},
+		{
+			name: "missing pipeline time",
+			entry: NotificationHistoryEntry{
+				ReceiverName: "test-receiver",
+				GroupLabels:  model.LabelSet{"foo": "bar"},
+				PipelineTime: time.Time{},
+				GroupKey:     "test-group-key",
+			},
+			wantErr:           true,
+			expectedErrSubstr: []string{"missing pipeline time"},
+		},
+		{
+			name: "missing group key",
+			entry: NotificationHistoryEntry{
+				ReceiverName: "test-receiver",
+				GroupLabels:  model.LabelSet{"foo": "bar"},
+				PipelineTime: now,
+				GroupKey:     "",
+			},
+			wantErr:           true,
+			expectedErrSubstr: []string{"missing group key"},
+		},
+		{
+			name: "multiple validation errors are joined",
+			entry: NotificationHistoryEntry{
+				ReceiverName: "",
+				GroupLabels:  nil,
+				PipelineTime: time.Time{},
+				GroupKey:     "",
+			},
+			wantErr: true,
+			expectedErrSubstr: []string{
+				"missing receiver name",
+				"missing group labels",
+				"missing pipeline time",
+				"missing group key",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.entry.Validate()
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				for _, substr := range tt.expectedErrSubstr {
+					assert.Contains(t, err.Error(), substr)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
