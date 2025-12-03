@@ -45,9 +45,8 @@ type TmplFuncs struct {
 // Inline - a template function to do inline template processing.
 // A simplified copy of the same function in the gomplate.
 //
-// Can be called 2 ways:
-// {{ tmpl.Inline "name" "inline template" }} - named template with default context
-// {{ tmpl.Inline "inline template" $foo }} - unnamed (single-use) template with given context
+// Example:
+// {{ tmpl.Inline "inline template" $foo }} - (single-use) template with given context
 func (t *TmplFuncs) Inline(args ...any) (string, error) {
 	in, ctx, err := parseArgs(args...)
 	if err != nil {
