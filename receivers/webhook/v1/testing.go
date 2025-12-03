@@ -32,6 +32,7 @@ var FullValidConfigForTesting = fmt.Sprintf(`{
 
 // FullValidSecretsForTesting is a string representation of JSON object that contains all fields that can be overridden from secrets
 var FullValidSecretsForTesting = fmt.Sprintf(`{
+    "url": "http://localhost/url-secret",
 	"username": "test-secret-user",
 	"password": "test-secret-pass",
 	"tlsConfig.clientCertificate": %q,
