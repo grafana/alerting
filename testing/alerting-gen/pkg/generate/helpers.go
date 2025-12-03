@@ -31,7 +31,7 @@ func buildQuery(dsUID, refID string) *models.AlertQuery {
 		Model:             model,
 		QueryType:         "",
 		RefID:             refID,
-		RelativeTimeRange: &models.RelativeTimeRange{From: models.Duration(0), To: models.Duration(0)},
+		RelativeTimeRange: nil,
 	}
 }
 

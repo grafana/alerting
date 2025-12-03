@@ -79,6 +79,7 @@ func NewAlertingRuleGenerator(queryDs string) *rapid.Generator[*models.Provision
 
 // NewRecordingRuleGenerator returns a rapid generator for recording rules
 func NewRecordingRuleGenerator(queryDS, writeDS string) *rapid.Generator[*models.ProvisionedAlertRule] {
+	zeroDur := strfmt.Duration(0)
 	return rapid.Custom(func(t *rapid.T) *models.ProvisionedAlertRule {
 		// local refID scoped to this rule
 		refID := "A"
@@ -114,6 +115,7 @@ func NewRecordingRuleGenerator(queryDS, writeDS string) *rapid.Generator[*models
 				TargetDatasourceUID: writeDS,
 			},
 			OrgID: &orgID,
+			For:   &zeroDur,
 		}
 	})
 }

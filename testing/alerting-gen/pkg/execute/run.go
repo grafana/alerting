@@ -2,7 +2,6 @@ package execute
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -10,8 +9,6 @@ import (
 
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	runtimeclient "github.com/go-openapi/runtime/client"
-	"github.com/grafana/alerting/testing/alerting-gen/pkg/auth"
 	gen "github.com/grafana/alerting/testing/alerting-gen/pkg/generate"
 	api "github.com/grafana/grafana-openapi-client-go/client"
 	"github.com/grafana/grafana-openapi-client-go/client/provisioning"
@@ -19,23 +16,23 @@ import (
 )
 
 type Config struct {
-	NumAlerting     int
-	NumRecording    int
-	QueryDS         string
-	WriteDS         string
-	RulesPerGroup   int
-	GroupsPerFolder int
-	Seed            int64
+	NumAlerting     int    `json:"alertRuleCount"`
+	NumRecording    int    `json:"recordingRuleCount"`
+	QueryDS         string `json:"queryDatasourceUID"`
+	WriteDS         string `json:"writeDatasourceUID"`
+	RulesPerGroup   int    `json:"rulesPerGroup"`
+	GroupsPerFolder int    `json:"groupsPerFolder"`
+	Seed            int64  `json:"seed"`
 	UploadOptions
 }
 
 type UploadOptions struct {
-	GrafanaURL    string
-	Username      string
-	Password      string
-	Token         string
-	OrgID         int64
-	FolderUIDsCSV string
+	GrafanaURL    string `json:"grafanaURL"`
+	Username      string `json:"username,omitempty"`
+	Password      string `json:"password,omitempty"`
+	Token         string `json:"token,omitempty"`
+	OrgID         int64  `json:"orgID"`
+	FolderUIDsCSV string `json:"folderUIDs"`
 }
 
 func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
@@ -135,22 +132,14 @@ func newGrafanaClient(baseURL, username, password, token string, orgID int64) (*
 		WithBasePath("/api").
 		WithSchemes([]string{u.Scheme})
 	cfg.OrgID = orgID
-	// Build auth RoundTripper chain (bearer preferred over basic)
-	var authRT http.RoundTripper
 	if token != "" {
-		authRT = auth.NewBearerTokenRoundTripper(token, nil)
+		cfg.APIKey = token
 	} else {
-		authRT = auth.NewBasicAuthRoundTripper(username, password, nil)
+		cfg.BasicAuth = url.UserPassword(username, password)
 	}
-	// Custom HTTP client with our auth RoundTripper.
-	hc := &http.Client{Transport: authRT, Timeout: 30 * time.Second}
-	host := u.Host
-	basePath := "/api"
-	schemes := []string{u.Scheme}
-	transport := runtimeclient.NewWithClient(host, basePath, schemes, hc)
 	// Only need OrgID from config; host/basePath/schemes already carried by transport.
 	cfg.OrgID = orgID
-	cli := api.New(transport, cfg, nil)
+	cli := api.NewHTTPClientWithConfig(nil, cfg)
 	cli = cli.WithRetries(2, 2*time.Second)
 	return cli, nil
 }
