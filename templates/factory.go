@@ -131,12 +131,12 @@ func (cf *CachedFactory) GetTemplate(kind Kind) (*Template, error) {
 	cf.mtx.Lock()
 	defer cf.mtx.Unlock()
 	if t, ok := cf.m[kind]; ok {
-		return t.Clone()
+		return t, nil
 	}
 	t, err := cf.factory.GetTemplate(kind)
 	if err != nil {
 		return nil, err
 	}
 	cf.m[kind] = t
-	return t.Clone()
+	return t, nil
 }
