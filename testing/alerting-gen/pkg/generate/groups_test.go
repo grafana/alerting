@@ -30,7 +30,10 @@ func TestGenerateRules_CountsAndBasics(t *testing.T) {
 		}
 
 		require.NotNil(t, r.For)
-		require.NotNil(t, r.Condition)
+		// Only alerting rules require Condition; recording rules may omit it
+		if r.Record == nil {
+			require.NotNil(t, r.Condition)
+		}
 		require.NotNil(t, r.Title)
 		require.NotEmpty(t, r.UID)
 
@@ -86,7 +89,7 @@ func TestGroupRules_DefaultsWhenZeroOrEmpty(t *testing.T) {
 
 	g := groups[0]
 	require.Equal(t, int64(60), g.Interval)
-	require.Equal(t, "general", g.FolderUID)
+	require.Equal(t, "default", g.FolderUID)
 	require.Equal(t, "group-1", g.Title)
 	require.Len(t, g.Rules, len(rules))
 

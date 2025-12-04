@@ -3,6 +3,8 @@ package generate
 import (
 	"fmt"
 
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	models "github.com/grafana/grafana-openapi-client-go/models"
 	"pgregory.net/rapid"
 )
@@ -65,8 +67,11 @@ func GroupRules(rules []*models.ProvisionedAlertRule, rulesPerGroup, groupsPerFo
 }
 
 // GenerateGroups produces provisioning groups by combining rule generation and grouping.
-func GenerateGroups(cfg Config) ([]*models.AlertRuleGroup, error) {
+func GenerateGroups(cfg Config, logger kitlog.Logger) ([]*models.AlertRuleGroup, error) {
+	level.Debug(logger).Log("msg", "starting to generate rules")
 	rules := GenerateRules(cfg.QueryDS, cfg.WriteDS, cfg.NumAlerting, cfg.NumRecording, cfg.Seed)
+	level.Debug(logger).Log("msg", "generated rules", "count", len(rules))
 	groups := GroupRules(rules, cfg.RulesPerGroup, cfg.GroupsPerFolder, cfg.FolderUIDs)
+	level.Debug(logger).Log("msg", "grouped rules into groups", "count", len(groups))
 	return groups, nil
 }
