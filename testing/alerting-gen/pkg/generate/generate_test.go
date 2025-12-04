@@ -1,8 +1,10 @@
 package generate
 
 import (
+	"io"
 	"testing"
 
+	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 )
@@ -70,8 +72,8 @@ func TestRecordingRuleGenerator_Properties(t *testing.T) {
 		require.NotNil(t, rule.For, "Recording rules still require For pointer")
 		require.Equal(t, int64(0), int64(*rule.For), "Recording rules For expected 0")
 
-		require.NotNil(t, rule.ExecErrState)
-		require.NotNil(t, rule.NoDataState)
+		// Recording rules may not set ExecErrState/NoDataState
+		// (alerting rules cover these properties).
 
 		require.NotNil(t, rule.OrgID)
 		require.Equal(t, int64(1), *rule.OrgID, "OrgID must be 1 for now")
@@ -92,7 +94,8 @@ func TestGenerateGroups_SetsFolderAndGroup(t *testing.T) {
 		Seed:            1234,
 		FolderUIDs:      []string{"f1", "f2"},
 	}
-	groups, err := GenerateGroups(cfg)
+	logger := kitlog.NewLogfmtLogger(io.Discard)
+	groups, err := GenerateGroups(cfg, logger)
 	require.NoError(t, err)
 	require.NotEmpty(t, groups)
 	for _, g := range groups {

@@ -72,16 +72,18 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		GroupsPerFolder: cfg.GroupsPerFolder,
 		Seed:            cfg.Seed,
 		FolderUIDs:      folderUIDs,
-	})
+	}, logger)
 	if err != nil {
 		return nil, fmt.Errorf("generate: %w", err)
 	}
+	level.Info(logger).Log("msg", "generated alert rule groups", "count", len(groups))
 
 	// If Grafana URL is provided, send via provisioning API as well
 	if cfg.GrafanaURL != "" {
 		if err := sendViaProvisioning(cfg, groups, logger); err != nil {
 			return groups, fmt.Errorf("sending via provisioning: %w", err)
 		}
+		level.Info(logger).Log("msg", "successfully sent alert rule groups via provisioning API", "count", len(groups))
 	}
 	return groups, nil
 }
