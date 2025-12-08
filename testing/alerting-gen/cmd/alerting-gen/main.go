@@ -49,6 +49,10 @@ func parseFlags() CLIOptions {
 
 func run(cfg CLIOptions) error {
 	groups, err := execute.Run(cfg.Config, cfg.Debug)
+	if err != nil {
+		return err
+	}
+
 	// Print the same models we would send
 	b, err := json.MarshalIndent(groups, "", "  ")
 	if err != nil {

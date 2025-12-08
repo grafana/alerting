@@ -83,7 +83,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 	// If Grafana URL is provided, send via provisioning API as well
 	if cfg.GrafanaURL != "" {
 		if err := sendViaProvisioning(cfg, groups, logger); err != nil {
-			return groups, fmt.Errorf("sending via provisioning: %w", err)
+			return groups, fmt.Errorf("failed to send rule group via provisioning: %w", err)
 		}
 	}
 	return groups, nil
@@ -113,7 +113,7 @@ func sendViaProvisioning(cfg Config, groups []*models.AlertRuleGroup, logger kit
 			WithGroup(g.Title).
 			WithBody(body)
 		if _, err := cli.Provisioning.PutAlertRuleGroup(params); err != nil {
-			return fmt.Errorf("put rule group %q in folder %q: %w", g.Title, g.FolderUID, err)
+			return fmt.Errorf("PUT rule group %q in folder %q: %w", g.Title, g.FolderUID, err)
 		}
 		level.Debug(logger).Log("msg", "PUT alert rule group OK", "folder", g.FolderUID, "group", g.Title)
 	}
