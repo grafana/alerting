@@ -2,7 +2,6 @@ package execute
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -10,8 +9,6 @@ import (
 
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	runtimeclient "github.com/go-openapi/runtime/client"
-	"github.com/grafana/alerting/testing/alerting-gen/pkg/auth"
 	gen "github.com/grafana/alerting/testing/alerting-gen/pkg/generate"
 	api "github.com/grafana/grafana-openapi-client-go/client"
 	"github.com/grafana/grafana-openapi-client-go/client/provisioning"
@@ -92,7 +89,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 // sendViaProvisioning maps the generated export groups into provisioned group payloads
 // and pushes them to Grafana using the provisioning API.
 func sendViaProvisioning(cfg Config, groups []*models.AlertRuleGroup, logger kitlog.Logger) error {
-	// Build client from URL and auth inputs
+	// Build client from URL and auth inputs.
 	cli, err := newGrafanaClient(cfg.GrafanaURL, cfg.Username, cfg.Password, cfg.Token, cfg.OrgID)
 	if err != nil {
 		return err
@@ -129,30 +126,27 @@ func newGrafanaClient(baseURL, username, password, token string, orgID int64) (*
 	if err != nil {
 		return nil, fmt.Errorf("invalid grafana URL: %w", err)
 	}
-	// Prepare transport config once (host/base path/schemes)
+
+	// Build transport config with authentication.
 	cfg := api.DefaultTransportConfig().
 		WithHost(u.Host).
 		WithBasePath("/api").
 		WithSchemes([]string{u.Scheme})
-	cfg.OrgID = orgID
-	// Build auth RoundTripper chain (bearer preferred over basic)
-	var authRT http.RoundTripper
+
+	// Set authentication method.
 	if token != "" {
-		authRT = auth.NewBearerTokenRoundTripper(token, nil)
-	} else {
-		authRT = auth.NewBasicAuthRoundTripper(username, password, nil)
+		cfg.APIKey = token
+	} else if username != "" && password != "" {
+		cfg.BasicAuth = url.UserPassword(username, password)
 	}
-	// Custom HTTP client with our auth RoundTripper.
-	hc := &http.Client{Transport: authRT, Timeout: 30 * time.Second}
-	host := u.Host
-	basePath := "/api"
-	schemes := []string{u.Scheme}
-	transport := runtimeclient.NewWithClient(host, basePath, schemes, hc)
-	// Only need OrgID from config; host/basePath/schemes already carried by transport.
+
+	// Set org ID (only works with BasicAuth, not APIKey since tokens are org-scoped).
 	cfg.OrgID = orgID
-	cli := api.New(transport, cfg, nil)
-	cli = cli.WithRetries(2, 2*time.Second)
-	return cli, nil
+
+	// Create client with retries.
+	client := api.NewHTTPClientWithConfig(nil, cfg)
+	client = client.WithRetries(2, 2*time.Second)
+	return client, nil
 }
 
 func parseCSV(s string) []string {

@@ -1,0 +1,403 @@
+[
+  {
+    "folderUid": "fgt95q",
+    "interval": 60,
+    "rules": [
+      {
+        "annotations": {
+          "dashboard": "https://grafana.net/h8m/2qdo",
+          "priority": "P1",
+          "summary": "⍠ɑໆ~\"ୗࡹ̇⃞*Ⱥ𖽾\u0000‌҈\u0006@ƻ (~=\""
+        },
+        "condition": "A",
+        "data": [
+          {
+            "datasourceUid": "__expr__",
+            "model": {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "expression": "1 == 1",
+              "refId": "A",
+              "type": "math"
+            },
+            "refId": "A",
+            "relativeTimeRange": {}
+          }
+        ],
+        "execErrState": "OK",
+        "folderUID": "fgt95q",
+        "for": "0s",
+        "labels": {
+          "env": "a03960116w0"
+        },
+        "missingSeriesEvalsToResolve": 1,
+        "noDataState": "Alerting",
+        "orgID": 1,
+        "ruleGroup": "group-1",
+        "title": "Qls42b27",
+        "uid": "02-1gpv0xR03",
+        "updated": "0001-01-01T00:00:00.000Z"
+      },
+      {
+        "annotations": {
+          "runbook_url": "https://example.com/08j",
+          "summary": "⃢aaⲹ A~0Aᾟ𒑩$˒a\u001a=a$aⅪCʱ\u0007:\ta"
+        },
+        "condition": "A",
+        "data": [
+          {
+            "datasourceUid": "__expr__",
+            "model": {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "expression": "1 == 1",
+              "refId": "A",
+              "type": "math"
+            },
+            "refId": "A",
+            "relativeTimeRange": {}
+          }
+        ],
+        "execErrState": "Error",
+        "folderUID": "fgt95q",
+        "for": "10m0s",
+        "isPaused": true,
+        "keep_firing_for": "10m0s",
+        "labels": {
+          "env": "f24r",
+          "region": "o35-3",
+          "service": "yk1",
+          "team": "azw787"
+        },
+        "missingSeriesEvalsToResolve": 2,
+        "noDataState": "OK",
+        "orgID": 1,
+        "ruleGroup": "group-1",
+        "title": "ZPzoUG00h0770",
+        "uid": "iR-0z0440",
+        "updated": "0001-01-01T00:00:00.000Z"
+      },
+      {
+        "annotations": {
+          "description": "+AA˄ʱ?0@⌊\tۥA.󠁿/|⁄ו¥;",
+          "priority": "P1",
+          "summary": "++𞤐߀𖽔b\"a~།؂⃠"
+        },
+        "condition": "A",
+        "data": [
+          {
+            "datasourceUid": "__expr__",
+            "model": {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "expression": "1 == 1",
+              "refId": "A",
+              "type": "math"
+            },
+            "refId": "A",
+            "relativeTimeRange": {}
+          }
+        ],
+        "execErrState": "Error",
+        "folderUID": "fgt95q",
+        "for": "10m0s",
+        "isPaused": true,
+        "keep_firing_for": "20m0s",
+        "labels": {
+          "env": "b-7y0-"
+        },
+        "noDataState": "Alerting",
+        "orgID": 1,
+        "ruleGroup": "group-1",
+        "title": "DFzr-aBx-5V",
+        "uid": "1642zQ--",
+        "updated": "0001-01-01T00:00:00.000Z"
+      },
+      {
+        "annotations": {
+          "summary": "̍ 𒐏h@˺(؄N? aⅮA$⃝ा,�~̀(᪡\u003c𐅣\\﻿{|\u0001\u001b؋㚝"
+        },
+        "condition": "A",
+        "data": [
+          {
+            "datasourceUid": "__expr__",
+            "model": {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "expression": "1 == 1",
+              "refId": "A",
+              "type": "math"
+            },
+            "refId": "A",
+            "relativeTimeRange": {}
+          }
+        ],
+        "execErrState": "OK",
+        "folderUID": "fgt95q",
+        "for": "30s",
+        "labels": {
+          "env": "xtq6zm522e2",
+          "region": "fy6v255-o8j",
+          "service": "y7ed-9f6ez-",
+          "team": "t-a5fd48nq2"
+        },
+        "noDataState": "OK",
+        "orgID": 1,
+        "ruleGroup": "group-1",
+        "title": "C-A062",
+        "uid": "-D50-024-2",
+        "updated": "0001-01-01T00:00:00.000Z"
+      },
+      {
+        "annotations": {
+          "priority": "P2",
+          "runbook_url": "https://grafana.net/czbk",
+          "summary": "a-¤*/?7@𑥂A\u0026\u003c"
+        },
+        "condition": "A",
+        "data": [
+          {
+            "datasourceUid": "__expr__",
+            "model": {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "expression": "1 == 1",
+              "refId": "A",
+              "type": "math"
+            },
+            "refId": "A",
+            "relativeTimeRange": {}
+          }
+        ],
+        "execErrState": "Alerting",
+        "folderUID": "fgt95q",
+        "for": "0s",
+        "labels": {
+          "env": "dyq3p1ae1c8",
+          "region": "z38bhfz-4h-",
+          "service": "njp1",
+          "team": "e09"
+        },
+        "noDataState": "Alerting",
+        "orgID": 1,
+        "ruleGroup": "group-1",
+        "title": "AQzd-0O",
+        "uid": "3E2zt-B21",
+        "updated": "0001-01-01T00:00:00.000Z"
+      }
+    ],
+    "title": "group-1"
+  },
+  {
+    "folderUid": "fgt95q",
+    "interval": 60,
+    "rules": [
+      {
+        "annotations": {
+          "owner": "k606",
+          "summary": "\u001b\u001bǈ*aAa؂a, 𝕆$𐅖"
+        },
+        "condition": "A",
+        "data": [
+          {
+            "datasourceUid": "__expr__",
+            "model": {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "expression": "1 == 1",
+              "refId": "A",
+              "type": "math"
+            },
+            "refId": "A",
+            "relativeTimeRange": {}
+          }
+        ],
+        "execErrState": "Error",
+        "folderUID": "fgt95q",
+        "for": "5m0s",
+        "isPaused": true,
+        "labels": {
+          "env": "a-04",
+          "region": "q0b"
+        },
+        "missingSeriesEvalsToResolve": 1,
+        "noDataState": "NoData",
+        "orgID": 1,
+        "ruleGroup": "group-2",
+        "title": "ph-xa",
+        "uid": "fw8Jad--",
+        "updated": "0001-01-01T00:00:00.000Z"
+      },
+      {
+        "annotations": {
+          "dashboard": "https://runbooks.local/-ry/9f2",
+          "summary": "ᛮ꙲Ԛ𛉗⟉$\tA𑱡\r৶⦘ᾟ!𖽣{ ₓ₣?`"
+        },
+        "condition": "A",
+        "data": [
+          {
+            "datasourceUid": "__expr__",
+            "model": {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "expression": "1 == 1",
+              "refId": "A",
+              "type": "math"
+            },
+            "refId": "A",
+            "relativeTimeRange": {}
+          }
+        ],
+        "execErrState": "Alerting",
+        "folderUID": "fgt95q",
+        "for": "5m0s",
+        "isPaused": true,
+        "keep_firing_for": "5m0s",
+        "labels": {
+          "service": "g200l"
+        },
+        "noDataState": "OK",
+        "orgID": 1,
+        "ruleGroup": "group-2",
+        "title": "r0-5-18cd",
+        "uid": "zQ3cvQG13J",
+        "updated": "0001-01-01T00:00:00.000Z"
+      },
+      {
+        "annotations": {
+          "description": "$aAA?A⅟\u0000\u003c;$\u001ba̅A|=א~﻿\u0026a\u0002ꜵᾙaˎ|𑁋,‮󠀰",
+          "runbook_url": "https://grafana.net/3-jziiag51/ko95vzjd-r",
+          "summary": "﹇1ʎِأ!9𐼠 ,�A𲎯\u003c𐞌𑋹٠a🄌"
+        },
+        "condition": "A",
+        "data": [
+          {
+            "datasourceUid": "__expr__",
+            "model": {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "expression": "1 == 1",
+              "refId": "A",
+              "type": "math"
+            },
+            "refId": "A",
+            "relativeTimeRange": {}
+          }
+        ],
+        "execErrState": "Alerting",
+        "folderUID": "fgt95q",
+        "for": "10m0s",
+        "isPaused": true,
+        "keep_firing_for": "10m0s",
+        "labels": {
+          "region": "b2k",
+          "service": "e6590",
+          "team": "b020-r-j4"
+        },
+        "missingSeriesEvalsToResolve": 2,
+        "noDataState": "NoData",
+        "orgID": 1,
+        "ruleGroup": "group-2",
+        "title": "zwzuA",
+        "uid": "-q--cs45Bv",
+        "updated": "0001-01-01T00:00:00.000Z"
+      },
+      {
+        "annotations": {
+          "description": "*Aʵמ́ȓA𓐼a/\u003c' ‮",
+          "summary": "⃤꙱᪾G{🄌ǋ༼~~"
+        },
+        "condition": "A",
+        "data": [
+          {
+            "datasourceUid": "__expr__",
+            "model": {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "expression": "1 == 1",
+              "refId": "A",
+              "type": "math"
+            },
+            "refId": "A",
+            "relativeTimeRange": {}
+          }
+        ],
+        "execErrState": "Alerting",
+        "folderUID": "fgt95q",
+        "for": "30s",
+        "keep_firing_for": "30s",
+        "labels": {
+          "env": "aju0",
+          "region": "r63ar15v-",
+          "service": "t221t-5e634",
+          "team": "j68u2-836w0"
+        },
+        "missingSeriesEvalsToResolve": 5,
+        "noDataState": "NoData",
+        "orgID": 1,
+        "ruleGroup": "group-2",
+        "title": "TDc1_",
+        "uid": "0qdzG-5m90z1QR",
+        "updated": "0001-01-01T00:00:00.000Z"
+      },
+      {
+        "annotations": {
+          "dashboard": "https://example.com/73z/58-/70-6n",
+          "owner": "xid_",
+          "runbook_url": "https://example.com/y-pyyr051",
+          "summary": "𑿝\r\u003c⃢;⃠=ǅba￡𝟛ʳ\t/#|‮﮸̕aǅ\t₵(‮ ̶\u000bº^`Ⅴᾊ˖*¤\u001bꮁ꭪𝂐_Ⱥ) Ⅳ𒑣\t\r҉\u0000!/۩a\\\u001b[\u0000"
+        },
+        "condition": "A",
+        "data": [
+          {
+            "datasourceUid": "__expr__",
+            "model": {
+              "datasource": {
+                "type": "__expr__",
+                "uid": "__expr__"
+              },
+              "expression": "1 == 1",
+              "refId": "A",
+              "type": "math"
+            },
+            "refId": "A",
+            "relativeTimeRange": {}
+          }
+        ],
+        "execErrState": "Error",
+        "folderUID": "fgt95q",
+        "for": "0s",
+        "labels": {
+          "env": "dw0-",
+          "region": "a9zpkf"
+        },
+        "missingSeriesEvalsToResolve": 5,
+        "noDataState": "OK",
+        "orgID": 1,
+        "ruleGroup": "group-2",
+        "title": "BF20-3-KO0Q91--DF5E01",
+        "uid": "6m0OH6Q0-1zaoEV2",
+        "updated": "0001-01-01T00:00:00.000Z"
+      }
+    ],
+    "title": "group-2"
+  }
+]
