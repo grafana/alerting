@@ -39,10 +39,7 @@ func GroupRules(rules []*models.ProvisionedAlertRule, rulesPerGroup, groupsPerFo
 	groups := make([]*models.AlertRuleGroup, 0)
 	groupIdx := 0
 	for i := 0; i < len(rules); i += rulesPerGroup {
-		end := i + rulesPerGroup
-		if end > len(rules) {
-			end = len(rules)
-		}
+		end := min(i+rulesPerGroup, len(rules))
 		name := fmt.Sprintf("group-%d", groupIdx+1)
 		folderUID := folderUIDs[(groupIdx/groupsPerFolder)%len(folderUIDs)]
 
