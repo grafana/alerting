@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/alertmanager/template"
 
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 type TestTemplatesConfigBodyParams struct {
@@ -69,34 +70,6 @@ const (
 	MaxTemplateOutputSize  = 1024 * 1024 // 1MB
 )
 
-var ErrTemplateOutputTooLarge = errors.New("template output exceeds maximum size")
-
-// limitedWriter wraps a buffer and limits the total bytes written.
-type limitedWriter struct {
-	buf       *bytes.Buffer
-	remaining int
-}
-
-func newLimitedWriter(maxSize int) *limitedWriter {
-	return &limitedWriter{
-		buf:       &bytes.Buffer{},
-		remaining: maxSize,
-	}
-}
-
-func (w *limitedWriter) Write(p []byte) (n int, err error) {
-	if len(p) > w.remaining {
-		return 0, ErrTemplateOutputTooLarge
-	}
-	n, err = w.buf.Write(p)
-	w.remaining -= n
-	return n, err
-}
-
-func (w *limitedWriter) String() string {
-	return w.buf.String()
-}
-
 // TemplateScope is the scope used to interpolate the template when testing.
 type TemplateScope string
 
@@ -145,24 +118,28 @@ func (am *GrafanaAlertmanager) GetTemplate(kind templates.Kind) (*template.Templ
 // other more specific scopes, such as ".Alerts" or ".Alert".
 // If none of the more specific scopes work either, the original error is returned.
 func testTemplateScopes(newTextTmpl *tmpltext.Template, def string, data *templates.ExtendedData) (string, TemplateScope, error) {
-	buf := newLimitedWriter(MaxTemplateOutputSize)
-	defaultErr := newTextTmpl.ExecuteTemplate(buf, def, data)
+	var buf bytes.Buffer
+	defaultErr := newTextTmpl.ExecuteTemplate(utils.NewLimitedWriter(&buf, MaxTemplateOutputSize), def, data)
 	if defaultErr == nil {
 		return buf.String(), rootScope, nil
 	}
-
+	if errors.Is(defaultErr, utils.ErrWriteLimitExceeded) {
+		return "", rootScope, templates.ErrTemplateOutputTooLarge
+	}
 	// Before returning this error, we try others scopes to see if the error is due to the template being intended
 	// to be used with a specific scope, such as ".Alerts" or ".Alert". If none of these scopes work, we return
 	// the original error.
 	// This is a fairly brute force approach, but it's the best we can do without heuristics or asking the
 	// caller to provide the correct scope.
 	for _, scope := range []TemplateScope{alertsScope, alertScope} {
-		buf := newLimitedWriter(MaxTemplateOutputSize)
-		err := newTextTmpl.ExecuteTemplate(buf, def, scope.Data(data))
+		var buf bytes.Buffer
+		err := newTextTmpl.ExecuteTemplate(utils.NewLimitedWriter(&buf, MaxTemplateOutputSize), def, scope.Data(data))
 		if err == nil {
 			return buf.String(), scope, nil
 		}
+		if errors.Is(err, utils.ErrWriteLimitExceeded) {
+			return "", rootScope, templates.ErrTemplateOutputTooLarge
+		}
 	}
-
 	return "", rootScope, defaultErr
 }
