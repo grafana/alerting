@@ -23,7 +23,7 @@ func buildQuery(dsUID, refID string) *models.AlertQuery {
 			"refId":      refID,
 			"type":       "query",
 			"datasource": map[string]any{"uid": dsUID},
-			"expr":       "rate(http_requests_total[5m])",
+			"expr":       "vector(1)",
 		}
 	}
 	return &models.AlertQuery{
