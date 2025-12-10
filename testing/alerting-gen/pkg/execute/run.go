@@ -83,6 +83,12 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		}
 	}
 
+	// Default write-ds to query-ds if not explicitly provided
+	if cfg.WriteDS == "" && cfg.QueryDS != "" {
+		cfg.WriteDS = cfg.QueryDS
+		level.Debug(logger).Log("msg", "Using same data source for write-ds", "uid", cfg.WriteDS)
+	}
+
 	var folderUIDs []string
 	// If num-folders is set, create folders dynamically
 	if cfg.NumFolders > 0 {

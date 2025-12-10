@@ -30,8 +30,8 @@ func parseFlags() CLIOptions {
 	var cfg CLIOptions
 	flag.IntVar(&cfg.NumAlerting, "alerts", 0, "number of alerting rules to generate")
 	flag.IntVar(&cfg.NumRecording, "recordings", 0, "number of recording rules to generate")
-	flag.StringVar(&cfg.QueryDS, "query-ds", "__expr__", "datasource UID to query from (e.g., __expr__ or prom UID)")
-	flag.StringVar(&cfg.WriteDS, "write-ds", "", "datasource UID to write recording rules to (e.g., prom UID)")
+	flag.StringVar(&cfg.QueryDS, "query-ds", "grafanacloud-prom", "Data source UID to query from")
+	flag.StringVar(&cfg.WriteDS, "write-ds", "", "Data source UID to write recording rules to (defaults to same as query-ds)")
 	flag.IntVar(&cfg.RulesPerGroup, "rules-per-group", 5, "number of rules per group")
 	flag.IntVar(&cfg.GroupsPerFolder, "groups-per-folder", 2, "number of groups per folder")
 	flag.Int64Var(&cfg.Seed, "seed", time.Now().UnixNano(), "seed for deterministic generation")
@@ -61,8 +61,6 @@ func run(cfg CLIOptions) error {
 		return err
 	}
 	if cfg.OutPath == "" {
-		fmt.Println(string(b))
-		fmt.Fprintf(os.Stderr, "seed=%d\n", cfg.Seed)
 		return nil
 	}
 	return os.WriteFile(cfg.OutPath, b, 0o644)
