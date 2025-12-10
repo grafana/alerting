@@ -71,7 +71,7 @@ func genMetricName() *rapid.Generator[string] {
 	})
 }
 
-func randomUID() *rapid.Generator[string] {
+func RandomUID() *rapid.Generator[string] {
 	return rapid.StringMatching(`[A-Za-z0-9\-_]{8,16}`)
 }
 

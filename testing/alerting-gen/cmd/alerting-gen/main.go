@@ -28,7 +28,7 @@ func main() {
 
 func parseFlags() CLIOptions {
 	var cfg CLIOptions
-	flag.IntVar(&cfg.NumAlerting, "alerts", 10, "number of alerting rules to generate")
+	flag.IntVar(&cfg.NumAlerting, "alerts", 0, "number of alerting rules to generate")
 	flag.IntVar(&cfg.NumRecording, "recordings", 0, "number of recording rules to generate")
 	flag.StringVar(&cfg.QueryDS, "query-ds", "__expr__", "datasource UID to query from (e.g., __expr__ or prom UID)")
 	flag.StringVar(&cfg.WriteDS, "write-ds", "", "datasource UID to write recording rules to (e.g., prom UID)")
@@ -42,6 +42,8 @@ func parseFlags() CLIOptions {
 	flag.StringVar(&cfg.Token, "token", "", "Grafana service account token (alternative to username/password; takes precedence if set)")
 	flag.Int64Var(&cfg.OrgID, "org-id", 1, "Grafana organization ID (optional; API keys are org-scoped)")
 	flag.StringVar(&cfg.FolderUIDsCSV, "folder-uids", "default", "Comma-separated list of folder UIDs to distribute groups across (defaults to 'general')")
+	flag.IntVar(&cfg.NumFolders, "num-folders", 0, "Number of folders to create")
+	flag.BoolVar(&cfg.Nuke, "nuke", false, "Delete all alerting-gen created folders (can be used alone or with other flags to start fresh)")
 	flag.BoolVar(&cfg.Debug, "debug", false, "enable debug logging")
 	flag.Parse()
 	return cfg
