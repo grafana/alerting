@@ -1,10 +1,12 @@
 package execute
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	kitlog "github.com/go-kit/log"
@@ -36,6 +38,7 @@ type UploadOptions struct {
 	FolderUIDsCSV string
 	NumFolders    int
 	Nuke          bool
+	Concurrency   int
 }
 
 func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
@@ -131,32 +134,75 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 // sendViaProvisioning maps the generated export groups into provisioned group payloads
 // and pushes them to Grafana using the provisioning API.
 func sendViaProvisioning(cfg Config, groups []*models.AlertRuleGroup, logger kitlog.Logger) error {
-	// Build client from URL and auth inputs.
-	cli, err := newGrafanaClient(cfg.GrafanaURL, cfg.Username, cfg.Password, cfg.Token, cfg.OrgID)
-	if err != nil {
-		return err
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var wg sync.WaitGroup
+	workers := max(cfg.Concurrency, 1)
+	wg.Add(workers)
+	gCh := make(chan *models.AlertRuleGroup)
+	var workerErr error
+
+	for i := range workers {
+		go func(i int) {
+			level.Debug(logger).Log("msg", "Initializing worker", "number", i)
+			defer func() {
+				level.Debug(logger).Log("msg", "Terminating worker", "number", i)
+				wg.Done()
+			}()
+
+			// Build client from URL and auth inputs.
+			cli, err := newGrafanaClient(cfg.GrafanaURL, cfg.Username, cfg.Password, cfg.Token, cfg.OrgID)
+			if err != nil {
+				workerErr = err
+				return
+			}
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case g, ok := <-gCh:
+					if !ok {
+						return
+					}
+
+					body := &models.AlertRuleGroup{
+						FolderUID: g.FolderUID,
+						Interval:  g.Interval,
+						Rules:     g.Rules,
+						Title:     g.Title,
+					}
+					params := provisioning.NewPutAlertRuleGroupParams().
+						WithFolderUID(g.FolderUID).
+						WithGroup(g.Title).
+						WithBody(body)
+					if _, err = cli.Provisioning.PutAlertRuleGroup(params); err != nil {
+						cancel()
+						return
+					}
+					level.Debug(logger).Log("msg", "Alert rule group created", "folder", g.FolderUID, "group", g.Title)
+				}
+			}
+		}(i)
 	}
 
-	level.Info(logger).Log("msg", "sending alert rule groups", "count", len(groups), "url", cfg.GrafanaURL, "orgID", cfg.OrgID, "user", cfg.Username)
+	// Producer goroutine.
+	go func() {
+		defer close(gCh)
+		for _, g := range groups {
+			select {
+			case <-ctx.Done():
+				return
+			case gCh <- g:
+			}
+		}
+	}()
 
-	for _, g := range groups {
-		level.Debug(logger).Log("msg", "PUT alert rule group", "folder", g.FolderUID, "group", g.Title, "rules", len(g.Rules))
-		body := &models.AlertRuleGroup{
-			FolderUID: g.FolderUID,
-			Interval:  g.Interval,
-			Rules:     g.Rules,
-			Title:     g.Title,
-		}
-		params := provisioning.NewPutAlertRuleGroupParams().
-			WithFolderUID(g.FolderUID).
-			WithGroup(g.Title).
-			WithBody(body)
-		if _, err := cli.Provisioning.PutAlertRuleGroup(params); err != nil {
-			return fmt.Errorf("failed to PUT rule group %q in folder %q: %w", g.Title, g.FolderUID, err)
-		}
-		level.Debug(logger).Log("msg", "PUT alert rule group OK", "folder", g.FolderUID, "group", g.Title)
-	}
-	return nil
+	// Wait for all workers to finish.
+	wg.Wait()
+
+	return workerErr
 }
 
 // newGrafanaClient creates a configured Grafana HTTP API client for a given base URL and API key.
