@@ -15,6 +15,7 @@ type Config struct {
 	WriteDS         string
 	RulesPerGroup   int
 	GroupsPerFolder int
+	Interval        int64
 	Seed            int64
 	FolderUIDs      []string
 }

@@ -13,8 +13,9 @@ import (
 // Config holds CLI inputs
 
 type CLIOptions struct {
-	OutPath string
-	Debug   bool
+	OutPath          string
+	Debug            bool
+	IntervalDuration time.Duration
 	execute.Config
 }
 
@@ -34,6 +35,7 @@ func parseFlags() CLIOptions {
 	flag.StringVar(&cfg.WriteDS, "write-ds", "", "Data source UID to write recording rules to (defaults to same as query-ds)")
 	flag.IntVar(&cfg.RulesPerGroup, "rules-per-group", 5, "number of rules per group")
 	flag.IntVar(&cfg.GroupsPerFolder, "groups-per-folder", 2, "number of groups per folder")
+	flag.DurationVar(&cfg.IntervalDuration, "interval", 0, "evaluation interval (e.g., 1m, 5m, 20m; if not set, random 1-20m)")
 	flag.Int64Var(&cfg.Seed, "seed", time.Now().UnixNano(), "seed for deterministic generation")
 	flag.StringVar(&cfg.OutPath, "out", "", "output file path (defaults to stdout)")
 	flag.StringVar(&cfg.GrafanaURL, "grafana-url", "", "Grafana base URL (when set, will send generated rules via provisioning API)")
@@ -47,6 +49,12 @@ func parseFlags() CLIOptions {
 	flag.IntVar(&cfg.Concurrency, "c", 10, "Number of concurrent requests")
 	flag.BoolVar(&cfg.Debug, "debug", false, "enable debug logging")
 	flag.Parse()
+
+	// Convert interval duration to seconds.
+	if cfg.IntervalDuration > 0 {
+		cfg.Interval = int64(cfg.IntervalDuration.Seconds())
+	}
+
 	return cfg
 }
 
@@ -56,13 +64,14 @@ func run(cfg CLIOptions) error {
 		return err
 	}
 
+	if cfg.OutPath == "" {
+		return nil
+	}
+
 	// Print the same models we would send
 	b, err := json.MarshalIndent(groups, "", "  ")
 	if err != nil {
 		return err
-	}
-	if cfg.OutPath == "" {
-		return nil
 	}
 	return os.WriteFile(cfg.OutPath, b, 0o644)
 }

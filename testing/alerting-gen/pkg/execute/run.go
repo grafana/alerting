@@ -25,6 +25,7 @@ type Config struct {
 	WriteDS         string
 	RulesPerGroup   int
 	GroupsPerFolder int
+	Interval        int64
 	Seed            int64
 	UploadOptions
 }
@@ -115,6 +116,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		WriteDS:         cfg.WriteDS,
 		RulesPerGroup:   cfg.RulesPerGroup,
 		GroupsPerFolder: cfg.GroupsPerFolder,
+		Interval:        cfg.Interval,
 		Seed:            cfg.Seed,
 		FolderUIDs:      folderUIDs,
 	})
@@ -155,6 +157,7 @@ func sendViaProvisioning(cfg Config, groups []*models.AlertRuleGroup, logger kit
 			cli, err := newGrafanaClient(cfg.GrafanaURL, cfg.Username, cfg.Password, cfg.Token, cfg.OrgID)
 			if err != nil {
 				workerErr = err
+				cancel()
 				return
 			}
 
@@ -178,6 +181,7 @@ func sendViaProvisioning(cfg Config, groups []*models.AlertRuleGroup, logger kit
 						WithGroup(g.Title).
 						WithBody(body)
 					if _, err = cli.Provisioning.PutAlertRuleGroup(params); err != nil {
+						workerErr = err
 						cancel()
 						return
 					}

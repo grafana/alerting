@@ -25,7 +25,7 @@ func GenerateRules(queryDS, writeDS string, numAlerting, numRecording int, seed 
 }
 
 // GroupRules partitions rules into AlertRuleGroups and attaches FolderUID and RuleGroup on each rule.
-func GroupRules(rules []*models.ProvisionedAlertRule, rulesPerGroup, groupsPerFolder int, folderUIDs []string) []*models.AlertRuleGroup {
+func GroupRules(rules []*models.ProvisionedAlertRule, rulesPerGroup, groupsPerFolder int, folderUIDs []string, interval, seed int64) []*models.AlertRuleGroup {
 	if rulesPerGroup <= 0 {
 		rulesPerGroup = len(rules)
 	}
@@ -43,6 +43,12 @@ func GroupRules(rules []*models.ProvisionedAlertRule, rulesPerGroup, groupsPerFo
 		name := fmt.Sprintf("group-%d", groupIdx+1)
 		folderUID := folderUIDs[(groupIdx/groupsPerFolder)%len(folderUIDs)]
 
+		// Use fixed interval if provided, otherwise generate random (1-20 minutes, divisible by 10)
+		groupEvalInterval := interval
+		if groupEvalInterval == 0 {
+			groupEvalInterval = rapid.Int64Range(6, 120).Example(int(seed)+groupIdx) * 10
+		}
+
 		slice := rules[i:end]
 		for _, r := range slice {
 			r.RuleGroup = strPtr(name)
@@ -51,7 +57,7 @@ func GroupRules(rules []*models.ProvisionedAlertRule, rulesPerGroup, groupsPerFo
 
 		g := &models.AlertRuleGroup{
 			FolderUID: folderUID,
-			Interval:  int64(60),
+			Interval:  groupEvalInterval,
 			Rules:     slice,
 			Title:     name,
 		}
@@ -64,6 +70,6 @@ func GroupRules(rules []*models.ProvisionedAlertRule, rulesPerGroup, groupsPerFo
 // GenerateGroups produces provisioning groups by combining rule generation and grouping.
 func GenerateGroups(cfg Config) ([]*models.AlertRuleGroup, error) {
 	rules := GenerateRules(cfg.QueryDS, cfg.WriteDS, cfg.NumAlerting, cfg.NumRecording, cfg.Seed)
-	groups := GroupRules(rules, cfg.RulesPerGroup, cfg.GroupsPerFolder, cfg.FolderUIDs)
+	groups := GroupRules(rules, cfg.RulesPerGroup, cfg.GroupsPerFolder, cfg.FolderUIDs, cfg.Interval, cfg.Seed)
 	return groups, nil
 }
