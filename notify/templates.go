@@ -3,6 +3,8 @@ package notify
 import (
 	"bytes"
 	"context"
+	"errors"
+
 	tmpltext "text/template"
 
 	"github.com/go-kit/log"
@@ -64,7 +66,36 @@ const (
 	DefaultReceiverName    = "TestReceiver"
 	DefaultGroupLabel      = "group_label"
 	DefaultGroupLabelValue = "group_label_value"
+	MaxTemplateOutputSize  = 1024 * 1024 // 1MB
 )
+
+var ErrTemplateOutputTooLarge = errors.New("template output exceeds maximum size")
+
+// limitedWriter wraps a buffer and limits the total bytes written.
+type limitedWriter struct {
+	buf       *bytes.Buffer
+	remaining int
+}
+
+func newLimitedWriter(maxSize int) *limitedWriter {
+	return &limitedWriter{
+		buf:       &bytes.Buffer{},
+		remaining: maxSize,
+	}
+}
+
+func (w *limitedWriter) Write(p []byte) (n int, err error) {
+	if len(p) > w.remaining {
+		return 0, ErrTemplateOutputTooLarge
+	}
+	n, err = w.buf.Write(p)
+	w.remaining -= n
+	return n, err
+}
+
+func (w *limitedWriter) String() string {
+	return w.buf.String()
+}
 
 // TemplateScope is the scope used to interpolate the template when testing.
 type TemplateScope string
@@ -114,8 +145,8 @@ func (am *GrafanaAlertmanager) GetTemplate(kind templates.Kind) (*template.Templ
 // other more specific scopes, such as ".Alerts" or ".Alert".
 // If none of the more specific scopes work either, the original error is returned.
 func testTemplateScopes(newTextTmpl *tmpltext.Template, def string, data *templates.ExtendedData) (string, TemplateScope, error) {
-	var buf bytes.Buffer
-	defaultErr := newTextTmpl.ExecuteTemplate(&buf, def, data)
+	buf := newLimitedWriter(MaxTemplateOutputSize)
+	defaultErr := newTextTmpl.ExecuteTemplate(buf, def, data)
 	if defaultErr == nil {
 		return buf.String(), rootScope, nil
 	}
@@ -126,8 +157,8 @@ func testTemplateScopes(newTextTmpl *tmpltext.Template, def string, data *templa
 	// This is a fairly brute force approach, but it's the best we can do without heuristics or asking the
 	// caller to provide the correct scope.
 	for _, scope := range []TemplateScope{alertsScope, alertScope} {
-		var buf bytes.Buffer
-		err := newTextTmpl.ExecuteTemplate(&buf, def, scope.Data(data))
+		buf := newLimitedWriter(MaxTemplateOutputSize)
+		err := newTextTmpl.ExecuteTemplate(buf, def, scope.Data(data))
 		if err == nil {
 			return buf.String(), scope, nil
 		}

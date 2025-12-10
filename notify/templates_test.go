@@ -350,6 +350,19 @@ func TestTemplateSpecialCases(t *testing.T) {
 			}},
 			Errors: nil,
 		},
+	}, {
+		name: "error on really big template",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "",
+			Template: fmt.Sprintf("{{- $spaces := printf \"%%%ds\" \"\" }}{{- range $i := (len $spaces) }}.{{- end }}", MaxTemplateOutputSize+1),
+		},
+		expected: TestTemplatesResults{
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  ExecutionError,
+				Error: ErrTemplateOutputTooLarge.Error(),
+			}},
+		},
 	},
 	}
 
