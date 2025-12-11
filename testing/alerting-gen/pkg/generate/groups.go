@@ -70,6 +70,6 @@ func GroupRules(rules []*models.ProvisionedAlertRule, rulesPerGroup, groupsPerFo
 // GenerateGroups produces provisioning groups by combining rule generation and grouping.
 func GenerateGroups(cfg Config) ([]*models.AlertRuleGroup, error) {
 	rules := GenerateRules(cfg.QueryDS, cfg.WriteDS, cfg.NumAlerting, cfg.NumRecording, cfg.Seed)
-	groups := GroupRules(rules, cfg.RulesPerGroup, cfg.GroupsPerFolder, cfg.FolderUIDs, cfg.Interval, cfg.Seed)
+	groups := GroupRules(rules, cfg.RulesPerGroup, cfg.GroupsPerFolder, cfg.FolderUIDs, cfg.EvalInterval, cfg.Seed)
 	return groups, nil
 }

@@ -25,7 +25,7 @@ type Config struct {
 	WriteDS         string
 	RulesPerGroup   int
 	GroupsPerFolder int
-	Interval        int64
+	EvalInterval    int64
 	Seed            int64
 	UploadOptions
 }
@@ -116,7 +116,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		WriteDS:         cfg.WriteDS,
 		RulesPerGroup:   cfg.RulesPerGroup,
 		GroupsPerFolder: cfg.GroupsPerFolder,
-		Interval:        cfg.Interval,
+		EvalInterval:    cfg.EvalInterval,
 		Seed:            cfg.Seed,
 		FolderUIDs:      folderUIDs,
 	})

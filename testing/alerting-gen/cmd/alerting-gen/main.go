@@ -13,9 +13,9 @@ import (
 // Config holds CLI inputs
 
 type CLIOptions struct {
-	OutPath          string
-	Debug            bool
-	IntervalDuration time.Duration
+	OutPath              string
+	Debug                bool
+	EvalIntervalDuration time.Duration
 	execute.Config
 }
 
@@ -35,7 +35,7 @@ func parseFlags() CLIOptions {
 	flag.StringVar(&cfg.WriteDS, "write-ds", "", "Data source UID to write recording rules to (defaults to same as query-ds)")
 	flag.IntVar(&cfg.RulesPerGroup, "rules-per-group", 5, "number of rules per group")
 	flag.IntVar(&cfg.GroupsPerFolder, "groups-per-folder", 2, "number of groups per folder")
-	flag.DurationVar(&cfg.IntervalDuration, "interval", 0, "evaluation interval (e.g., 1m, 5m, 20m; if not set, random 1-20m)")
+	flag.DurationVar(&cfg.EvalIntervalDuration, "eval-interval", 0, "evaluation interval (e.g., 1m, 5m, 20m; if not set, random 1-20m)")
 	flag.Int64Var(&cfg.Seed, "seed", time.Now().UnixNano(), "seed for deterministic generation")
 	flag.StringVar(&cfg.OutPath, "out", "", "output file path (defaults to stdout)")
 	flag.StringVar(&cfg.GrafanaURL, "grafana-url", "", "Grafana base URL (when set, will send generated rules via provisioning API)")
@@ -51,8 +51,8 @@ func parseFlags() CLIOptions {
 	flag.Parse()
 
 	// Convert interval duration to seconds.
-	if cfg.IntervalDuration > 0 {
-		cfg.Interval = int64(cfg.IntervalDuration.Seconds())
+	if cfg.EvalIntervalDuration > 0 {
+		cfg.EvalInterval = int64(cfg.EvalIntervalDuration.Seconds())
 	}
 
 	return cfg
