@@ -13,8 +13,9 @@ import (
 // Config holds CLI inputs
 
 type CLIOptions struct {
-	OutPath string
-	Debug   bool
+	OutPath              string
+	Debug                bool
+	EvalIntervalDuration time.Duration
 	execute.Config
 }
 
@@ -28,12 +29,13 @@ func main() {
 
 func parseFlags() CLIOptions {
 	var cfg CLIOptions
-	flag.IntVar(&cfg.NumAlerting, "alerts", 10, "number of alerting rules to generate")
+	flag.IntVar(&cfg.NumAlerting, "alerts", 0, "number of alerting rules to generate")
 	flag.IntVar(&cfg.NumRecording, "recordings", 0, "number of recording rules to generate")
-	flag.StringVar(&cfg.QueryDS, "query-ds", "__expr__", "datasource UID to query from (e.g., __expr__ or prom UID)")
-	flag.StringVar(&cfg.WriteDS, "write-ds", "", "datasource UID to write recording rules to (e.g., prom UID)")
+	flag.StringVar(&cfg.QueryDS, "query-ds", "grafanacloud-prom", "Data source UID to query from")
+	flag.StringVar(&cfg.WriteDS, "write-ds", "", "Data source UID to write recording rules to (defaults to same as query-ds)")
 	flag.IntVar(&cfg.RulesPerGroup, "rules-per-group", 5, "number of rules per group")
 	flag.IntVar(&cfg.GroupsPerFolder, "groups-per-folder", 2, "number of groups per folder")
+	flag.DurationVar(&cfg.EvalIntervalDuration, "eval-interval", 0, "evaluation interval (e.g., 1m, 5m, 20m; if not set, random 1-20m)")
 	flag.Int64Var(&cfg.Seed, "seed", time.Now().UnixNano(), "seed for deterministic generation")
 	flag.StringVar(&cfg.OutPath, "out", "", "output file path (defaults to stdout)")
 	flag.StringVar(&cfg.GrafanaURL, "grafana-url", "", "Grafana base URL (when set, will send generated rules via provisioning API)")
@@ -42,22 +44,34 @@ func parseFlags() CLIOptions {
 	flag.StringVar(&cfg.Token, "token", "", "Grafana service account token (alternative to username/password; takes precedence if set)")
 	flag.Int64Var(&cfg.OrgID, "org-id", 1, "Grafana organization ID (optional; API keys are org-scoped)")
 	flag.StringVar(&cfg.FolderUIDsCSV, "folder-uids", "default", "Comma-separated list of folder UIDs to distribute groups across (defaults to 'general')")
+	flag.IntVar(&cfg.NumFolders, "num-folders", 0, "Number of folders to create")
+	flag.BoolVar(&cfg.Nuke, "nuke", false, "Delete all alerting-gen created folders (can be used alone or with other flags to start fresh)")
+	flag.IntVar(&cfg.Concurrency, "c", 10, "Number of concurrent requests")
 	flag.BoolVar(&cfg.Debug, "debug", false, "enable debug logging")
 	flag.Parse()
+
+	// Convert interval duration to seconds.
+	if cfg.EvalIntervalDuration > 0 {
+		cfg.EvalInterval = int64(cfg.EvalIntervalDuration.Seconds())
+	}
+
 	return cfg
 }
 
 func run(cfg CLIOptions) error {
 	groups, err := execute.Run(cfg.Config, cfg.Debug)
-	// Print the same models we would send
-	b, err := json.MarshalIndent(groups, "", "  ")
 	if err != nil {
 		return err
 	}
+
 	if cfg.OutPath == "" {
-		fmt.Println(string(b))
-		fmt.Fprintf(os.Stderr, "seed=%d\n", cfg.Seed)
 		return nil
+	}
+
+	// Print the same models we would send.
+	b, err := json.MarshalIndent(groups, "", "  ")
+	if err != nil {
+		return err
 	}
 	return os.WriteFile(cfg.OutPath, b, 0o644)
 }
