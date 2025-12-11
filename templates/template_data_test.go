@@ -41,13 +41,18 @@ func TestTmplText(t *testing.T) {
 			},
 		},
 	}
-	tmpl, err := fromContent(defaultTemplatesPerKind(GrafanaKind), defaultOptionsPerKind(GrafanaKind, "grafana")...)
+	tm, err := fromContent(defaultTemplatesPerKind(GrafanaKind), defaultOptionsPerKind(GrafanaKind, "grafana")...)
 	require.NoError(t, err)
 
 	externalURL, err := url.Parse("http://localhost/grafana")
 	require.NoError(t, err)
-	tmpl.ExternalURL = externalURL
+	tm.ExternalURL = externalURL
 	l := log.NewNopLogger()
+
+	tmpl := &Template{
+		Template: tm,
+		limits:   DefaultLimits,
+	}
 
 	t.Run("should execute simple template successfully", func(t *testing.T) {
 		var tmplErr error
@@ -150,12 +155,10 @@ func TestTmplText(t *testing.T) {
 	})
 
 	t.Run("should reject template output exceeding size limit", func(t *testing.T) {
-		// Save original limit and restore after test
-		originalLimit := MaxTemplateOutputSize
-		defer func() { MaxTemplateOutputSize = originalLimit }()
-
-		// Set a small limit for testing (1 KB)
-		MaxTemplateOutputSize = 1024
+		tmpl := &Template{
+			Template: tm,
+			limits:   Limits{MaxTemplateOutputSize: 1024},
+		}
 
 		var tmplErr error
 		expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)

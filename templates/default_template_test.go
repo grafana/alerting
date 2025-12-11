@@ -138,9 +138,14 @@ func TestDefaultTemplateString(t *testing.T) {
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
 
+	tmp := &Template{
+		Template: tmpl,
+		limits:   DefaultLimits,
+	}
+
 	var tmplErr error
 	l := log.NewNopLogger()
-	expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+	expand, _ := TmplText(context.Background(), tmp, alerts, l, &tmplErr)
 
 	tmplDef, err := DefaultTemplate(nil)
 	require.NoError(t, err)
@@ -152,8 +157,13 @@ func TestDefaultTemplateString(t *testing.T) {
 	require.NoError(t, err)
 	tmplFromDefinition.ExternalURL = externalURL
 
+	tpl := &Template{
+		Template: tmplFromDefinition,
+		limits:   DefaultLimits,
+	}
+
 	var tmplDefErr error
-	expandFromDefinition, _ := TmplText(context.Background(), tmplFromDefinition, alerts, l, &tmplDefErr)
+	expandFromDefinition, _ := TmplText(context.Background(), tpl, alerts, l, &tmplDefErr)
 
 	cases := []struct {
 		templateString string

@@ -210,7 +210,10 @@ func ForTests(t *testing.T) *Template {
 	externalURL, err := url.Parse("http://test.com")
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
-	return tmpl
+	return &Template{
+		Template: tmpl,
+		limits:   DefaultLimits,
+	}
 }
 
 var DefaultTemplateName = "__default__"
