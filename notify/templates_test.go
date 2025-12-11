@@ -360,7 +360,7 @@ func TestTemplateSpecialCases(t *testing.T) {
 		expected: TestTemplatesResults{
 			Errors: []TestTemplatesErrorResult{{
 				Kind:  ExecutionError,
-				Error: ErrTemplateOutputTooLarge.Error(),
+				Error: templates.ErrTemplateOutputTooLarge.Error(),
 			}},
 		},
 	},
