@@ -15,7 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/models"
-	"github.com/grafana/alerting/utils"
 )
 
 func TestTmplText(t *testing.T) {
@@ -166,7 +165,7 @@ func TestTmplText(t *testing.T) {
 
 		result := expand(largeTemplate)
 		assert.Error(t, tmplErr)
-		assert.ErrorIs(t, tmplErr, utils.ErrWriteLimitExceeded)
+		assert.ErrorIs(t, tmplErr, ErrTemplateOutputTooLarge)
 		assert.NotEmpty(t, result) // Should contain partial output up to limit
 	})
 }
