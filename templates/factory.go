@@ -9,6 +9,10 @@ import (
 	"github.com/go-kit/log/level"
 )
 
+type Limits struct {
+	MaxTemplateOutputSize int64
+}
+
 // Factory is a factory that can be used to create templates of specific kind.
 type Factory struct {
 	templates   map[Kind][]TemplateDefinition
