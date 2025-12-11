@@ -43,9 +43,9 @@ type UploadOptions struct {
 }
 
 func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
-	// Initialize logger based on debug flag using go-kit/log
+	// Initialize logger based on debug flag using go-kit/log.
 	baseLogger := kitlog.NewLogfmtLogger(os.Stderr)
-	// Level filter
+	// Level filter.
 	var filtered kitlog.Logger
 	if debug {
 		filtered = level.NewFilter(baseLogger, level.AllowDebug())
@@ -54,7 +54,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 	}
 	logger := kitlog.With(filtered, "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
 
-	// Basic validation
+	// Basic validation.
 	if cfg.NumRecording > 0 && cfg.WriteDS == "" {
 		return nil, fmt.Errorf("write-ds is required when generating recording rules (set -write-ds to a Prometheus datasource UID)")
 	}
@@ -70,7 +70,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		}
 	}
 
-	// Handle --nuke flag
+	// Handle --nuke flag.
 	if cfg.Nuke {
 		if cfg.GrafanaURL == "" {
 			return nil, fmt.Errorf("grafana-url is required when using --nuke")
@@ -81,20 +81,20 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		}
 		level.Info(logger).Log("msg", "Nuke completed successfully")
 
-		// If no generation work to do, exit early
+		// If no generation work to do, exit early.
 		if cfg.NumAlerting == 0 && cfg.NumRecording == 0 {
 			return nil, nil
 		}
 	}
 
-	// Default write-ds to query-ds if not explicitly provided
+	// Default write-ds to query-ds if not explicitly provided.
 	if cfg.WriteDS == "" && cfg.QueryDS != "" {
 		cfg.WriteDS = cfg.QueryDS
 		level.Debug(logger).Log("msg", "Using same data source for write-ds", "uid", cfg.WriteDS)
 	}
 
 	var folderUIDs []string
-	// If num-folders is set, create folders dynamically
+	// If num-folders is set, create folders dynamically.
 	if cfg.NumFolders > 0 {
 		if cfg.GrafanaURL == "" {
 			return nil, fmt.Errorf("grafana-url is required when num-folders is set (folders need to be created via API)")
@@ -124,7 +124,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		return nil, fmt.Errorf("failed to generate groups: %w", err)
 	}
 
-	// If Grafana URL is provided, send via provisioning API as well
+	// If Grafana URL is provided, send via provisioning API as well.
 	if cfg.GrafanaURL != "" {
 		if err := sendViaProvisioning(cfg, groups, logger); err != nil {
 			return groups, fmt.Errorf("failed to send rule group via provisioning: %w", err)
@@ -253,21 +253,21 @@ func parseCSV(s string) []string {
 	return out
 }
 
-// nukeFolders deletes all alerting-gen created folders
+// nukeFolders deletes all alerting-gen created folders.
 func nukeFolders(cfg Config, logger kitlog.Logger) error {
 	cli, err := newGrafanaClient(cfg.GrafanaURL, cfg.Username, cfg.Password, cfg.Token, cfg.OrgID)
 	if err != nil {
 		return err
 	}
 
-	// List all folders
+	// List all folders.
 	params := folders.NewGetFoldersParams()
 	resp, err := cli.Folders.GetFolders(params)
 	if err != nil {
 		return fmt.Errorf("failed to list folders: %w", err)
 	}
 
-	// Filter folders with "Alerts Folder" in title (created by alerting-gen)
+	// Filter folders with "Alerts Folder" in title (created by alerting-gen).
 	var foldersToDelete []string
 	for _, folder := range resp.Payload {
 		if strings.Contains(folder.Title, "Alerts Folder") {
@@ -282,7 +282,7 @@ func nukeFolders(cfg Config, logger kitlog.Logger) error {
 
 	level.Info(logger).Log("msg", "Deleting folders", "count", len(foldersToDelete))
 
-	// Delete each folder
+	// Delete each folder.
 	forceDelete := true
 	for _, folderUID := range foldersToDelete {
 		level.Debug(logger).Log("msg", "Deleting folder", "uid", folderUID)
@@ -299,19 +299,19 @@ func nukeFolders(cfg Config, logger kitlog.Logger) error {
 	return nil
 }
 
-// createFolders creates N folders in Grafana and returns their UIDs
+// createFolders creates N folders in Grafana and returns their UIDs.
 func createFolders(cfg Config, numFolders int, seed int64, logger kitlog.Logger) ([]string, error) {
 	cli, err := newGrafanaClient(cfg.GrafanaURL, cfg.Username, cfg.Password, cfg.Token, cfg.OrgID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Generate random folder UIDs using the same approach as alert UIDs
+	// Generate random folder UIDs using the same approach as alert UIDs.
 	uidGen := gen.RandomUID()
 	folderUIDs := make([]string, 0, numFolders)
 
 	for i := range numFolders {
-		// Use seed + i to get deterministic but unique UIDs per folder
+		// Use seed + i to get deterministic but unique UIDs per folder.
 		folderUID := uidGen.Example(int(seed) + i)
 		folderTitle := fmt.Sprintf("Alerts Folder %d", i+1)
 

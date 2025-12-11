@@ -68,7 +68,7 @@ func run(cfg CLIOptions) error {
 		return nil
 	}
 
-	// Print the same models we would send
+	// Print the same models we would send.
 	b, err := json.MarshalIndent(groups, "", "  ")
 	if err != nil {
 		return err

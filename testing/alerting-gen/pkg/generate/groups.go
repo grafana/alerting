@@ -43,7 +43,7 @@ func GroupRules(rules []*models.ProvisionedAlertRule, rulesPerGroup, groupsPerFo
 		name := fmt.Sprintf("group-%d", groupIdx+1)
 		folderUID := folderUIDs[(groupIdx/groupsPerFolder)%len(folderUIDs)]
 
-		// Use fixed interval if provided, otherwise generate random (1-20 minutes, divisible by 10)
+		// Use fixed interval if provided, otherwise generate random (1-20 minutes, divisible by 10).
 		groupEvalInterval := interval
 		if groupEvalInterval == 0 {
 			groupEvalInterval = rapid.Int64Range(6, 120).Example(int(seed)+groupIdx) * 10
