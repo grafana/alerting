@@ -398,7 +398,7 @@ func executeTextString(tmpl *Template, text string, data *ExtendedData) (string,
 	}
 	var buf bytes.Buffer
 	err = textTmpl.Execute(utils.NewLimitedWriter(&buf, MaxTemplateOutputSize), data)
-	if errors.Is(utils.ErrWriteLimitExceeded, err) {
+	if errors.Is(err, utils.ErrWriteLimitExceeded) {
 		err = ErrTemplateOutputTooLarge
 	}
 	return buf.String(), err
