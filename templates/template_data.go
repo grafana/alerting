@@ -393,7 +393,7 @@ func executeTextString(tmpl *Template, text string, data *ExtendedData) (string,
 	if text == "" {
 		return "", nil
 	}
-	textTmpl, err := tmpl.Template.Text()
+	textTmpl, err := tmpl.Text()
 	if err != nil {
 		return "", err
 	}
