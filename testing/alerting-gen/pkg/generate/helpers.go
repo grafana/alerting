@@ -23,7 +23,7 @@ func buildQuery(dsUID, refID string) *models.AlertQuery {
 			"refId":      refID,
 			"type":       "query",
 			"datasource": map[string]any{"uid": dsUID},
-			"expr":       "rate(http_requests_total[5m])",
+			"expr":       "vector(1)",
 		}
 	}
 	return &models.AlertQuery{
@@ -31,7 +31,7 @@ func buildQuery(dsUID, refID string) *models.AlertQuery {
 		Model:             model,
 		QueryType:         "",
 		RefID:             refID,
-		RelativeTimeRange: &models.RelativeTimeRange{From: models.Duration(0), To: models.Duration(0)},
+		RelativeTimeRange: &models.RelativeTimeRange{From: models.Duration(600), To: models.Duration(0)},
 	}
 }
 
@@ -71,7 +71,7 @@ func genMetricName() *rapid.Generator[string] {
 	})
 }
 
-func randomUID() *rapid.Generator[string] {
+func RandomUID() *rapid.Generator[string] {
 	return rapid.StringMatching(`[A-Za-z0-9\-_]{8,16}`)
 }
 

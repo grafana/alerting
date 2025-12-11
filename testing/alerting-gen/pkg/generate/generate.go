@@ -15,6 +15,7 @@ type Config struct {
 	WriteDS         string
 	RulesPerGroup   int
 	GroupsPerFolder int
+	EvalInterval    int64
 	Seed            int64
 	FolderUIDs      []string
 }
@@ -39,7 +40,7 @@ func NewAlertingRuleGenerator(queryDs string) *rapid.Generator[*models.Provision
 			mult := rapid.IntRange(0, 5).Draw(t, "keep_mult")
 			keepDur = strfmt.Duration(time.Duration(forDur) * time.Duration(mult))
 		}
-		uid := randomUID().Draw(t, "uid")
+		uid := RandomUID().Draw(t, "uid")
 		labels := genLabels().Draw(t, "labels")
 		summary := genSummary().Draw(t, "summary")
 		extraAnns := genAdditionalAnnotations().Draw(t, "annotations")
@@ -84,7 +85,7 @@ func NewRecordingRuleGenerator(queryDS, writeDS string) *rapid.Generator[*models
 		refID := "A"
 		data := []*models.AlertQuery{buildQuery(queryDS, refID)}
 		title := genTitle().Draw(t, "title")
-		uid := randomUID().Draw(t, "uid")
+		uid := RandomUID().Draw(t, "uid")
 		metric := genMetricName().Draw(t, "metric")
 		summary := genSummary().Draw(t, "summary")
 		extraAnns := genAdditionalAnnotations().Draw(t, "annotations")
