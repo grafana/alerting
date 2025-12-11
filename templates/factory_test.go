@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"net/url"
 	"testing"
 	"time"
 
@@ -53,24 +54,20 @@ func TestNewFactory(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			factory, err := NewFactory(tc.templates, logger, externalURL, "grafana")
+			cfg, err := NewConfig("grafana", externalURL, DefaultLimits)
+			require.NoError(t, err)
+			factory, err := NewFactory(tc.templates, cfg, logger)
 			if tc.expectError != nil {
 				require.ErrorIs(t, err, ErrInvalidKind)
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, externalURL, factory.externalURL.String())
 			// Validate the templates map
 			for kind, expectedTemplates := range tc.expected {
 				require.ElementsMatch(t, expectedTemplates, factory.templates[kind])
 			}
 		})
 	}
-
-	t.Run("error if external URL is invalid", func(t *testing.T) {
-		_, err := NewFactory([]TemplateDefinition{{Name: "t1", Kind: GrafanaKind}}, logger, ":::", "grafana")
-		require.Error(t, err)
-	})
 }
 
 func TestFactoryNewTemplate(t *testing.T) {
@@ -111,7 +108,9 @@ func TestFactoryNewTemplate(t *testing.T) {
 			Template: fmt.Sprintf(`{{ define "factory_test" }}TEST %s KIND{{ end }}`, kind),
 		})
 	}
-	f, err := NewFactory(def, log.NewNopLogger(), "http://localhost", "grafana")
+	cfg, err := NewConfig("grafana", "http://localhost", DefaultLimits)
+	require.NoError(t, err)
+	f, err := NewFactory(def, cfg, log.NewNopLogger())
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -174,13 +173,15 @@ func TestFactoryNewTemplate(t *testing.T) {
 	})
 
 	t.Run("user-defined template only applies to the given kind", func(t *testing.T) {
+		cfg, err := NewConfig("grafana", "http://localhost", DefaultLimits)
+		require.NoError(t, err)
 		f, err := NewFactory([]TemplateDefinition{
 			{
 				Name:     "test",
 				Kind:     GrafanaKind,
 				Template: fmt.Sprintf(`{{ define "factory_test" }}TEST %s KIND{{ end }}`, GrafanaKind),
 			},
-		}, log.NewNopLogger(), "http://localhost", "grafana")
+		}, cfg, log.NewNopLogger())
 		require.NoError(t, err)
 		templ, err := f.GetTemplate(GrafanaKind)
 		require.NoError(t, err)
@@ -198,11 +199,117 @@ func TestFactoryNewTemplate(t *testing.T) {
 	})
 }
 
+func TestLimitsValidate(t *testing.T) {
+	tests := []struct {
+		name        string
+		limits      Limits
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid limits with positive MaxTemplateOutputSize",
+			limits: Limits{
+				MaxTemplateOutputSize: 1024,
+			},
+			expectError: false,
+		},
+		{
+			name: "valid limits with zero MaxTemplateOutputSize",
+			limits: Limits{
+				MaxTemplateOutputSize: 0,
+			},
+			expectError: false,
+		},
+		{
+			name:        "default limits are valid",
+			limits:      DefaultLimits,
+			expectError: false,
+		},
+		{
+			name: "invalid limits with negative MaxTemplateOutputSize",
+			limits: Limits{
+				MaxTemplateOutputSize: -1,
+			},
+			expectError: true,
+			errorMsg:    "maxTemplateOutputSize must be greater than or equal to 0",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.limits.Validate()
+			if tc.expectError {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, tc.errorMsg)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestConfigValidate(t *testing.T) {
+	u, _ := url.Parse("http://localhost:3000")
+	tests := []struct {
+		name        string
+		config      Config
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid config with external URL and valid limits",
+			config: Config{
+				OrgID:       "grafana",
+				ExternalURL: u,
+				Limits:      DefaultLimits,
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid config with nil ExternalURL",
+			config: Config{
+				OrgID:       "grafana",
+				ExternalURL: nil,
+				Limits:      DefaultLimits,
+			},
+			expectError: true,
+			errorMsg:    "externalURL must be set",
+		},
+		{
+			name: "invalid config with invalid limits",
+			config: Config{
+				OrgID:       "grafana",
+				ExternalURL: u,
+				Limits: Limits{
+					MaxTemplateOutputSize: -1,
+				},
+			},
+			expectError: true,
+			errorMsg:    "maxTemplateOutputSize must be greater than or equal to 0",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := tc.config
+			err := cfg.Validate()
+			if tc.expectError {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, tc.errorMsg)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestFactoryWithTemplate(t *testing.T) {
 	as := []*types.Alert{{}}
 	kind := GrafanaKind
 	initial := TemplateDefinition{Name: "test", Kind: kind, Template: `{{ define "factory_test" }}TEST{{ end }}`}
-	f, err := NewFactory([]TemplateDefinition{initial}, log.NewNopLogger(), "http://localhost", "grafana")
+	cfg, err := NewConfig("grafana", "http://localhost", DefaultLimits)
+	require.NoError(t, err)
+	f, err := NewFactory([]TemplateDefinition{initial}, cfg, log.NewNopLogger())
 	require.NoError(t, err)
 	templ, err := f.GetTemplate(kind)
 	require.NoError(t, err)
