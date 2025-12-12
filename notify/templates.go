@@ -3,12 +3,16 @@ package notify
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/url"
+
 	tmpltext "text/template"
 
 	"github.com/go-kit/log/level"
 
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
+
 	"github.com/prometheus/alertmanager/template"
 )
 
@@ -62,6 +66,7 @@ const (
 	DefaultReceiverName    = "TestReceiver"
 	DefaultGroupLabel      = "group_label"
 	DefaultGroupLabelValue = "group_label_value"
+	MaxTemplateOutputSize  = 1024 * 1024 // 1MB
 )
 
 // TemplateScope is the scope used to interpolate the template when testing.
@@ -157,11 +162,13 @@ func templateFromContent(tmpls []string, externalURL string, options ...template
 // If none of the more specific scopes work either, the original error is returned.
 func testTemplateScopes(newTextTmpl *tmpltext.Template, def string, data *templates.ExtendedData) (string, TemplateScope, error) {
 	var buf bytes.Buffer
-	defaultErr := newTextTmpl.ExecuteTemplate(&buf, def, data)
+	defaultErr := newTextTmpl.ExecuteTemplate(utils.NewLimitedWriter(&buf, MaxTemplateOutputSize), def, data)
 	if defaultErr == nil {
 		return buf.String(), rootScope, nil
 	}
-
+	if errors.Is(defaultErr, utils.ErrWriteLimitExceeded) {
+		return "", rootScope, templates.ErrTemplateOutputTooLarge
+	}
 	// Before returning this error, we try others scopes to see if the error is due to the template being intended
 	// to be used with a specific scope, such as ".Alerts" or ".Alert". If none of these scopes work, we return
 	// the original error.
@@ -169,11 +176,13 @@ func testTemplateScopes(newTextTmpl *tmpltext.Template, def string, data *templa
 	// caller to provide the correct scope.
 	for _, scope := range []TemplateScope{alertsScope, alertScope} {
 		var buf bytes.Buffer
-		err := newTextTmpl.ExecuteTemplate(&buf, def, scope.Data(data))
+		err := newTextTmpl.ExecuteTemplate(utils.NewLimitedWriter(&buf, MaxTemplateOutputSize), def, scope.Data(data))
 		if err == nil {
 			return buf.String(), scope, nil
 		}
+		if errors.Is(err, utils.ErrWriteLimitExceeded) {
+			return "", rootScope, templates.ErrTemplateOutputTooLarge
+		}
 	}
-
 	return "", rootScope, defaultErr
 }

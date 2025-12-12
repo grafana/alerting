@@ -2,6 +2,7 @@ package notify
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/grafana/alerting/templates"
@@ -265,6 +266,19 @@ func TestTemplateSpecialCases(t *testing.T) {
 				Scope: rootScope,
 			}},
 			Errors: nil,
+		},
+	}, {
+		name: "error on really big template",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "",
+			Template: fmt.Sprintf("{{- $spaces := printf \"%%%ds\" \"\" }}{{- range $i := (len $spaces) }}.{{- end }}", MaxTemplateOutputSize+1),
+		},
+		expected: TestTemplatesResults{
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  ExecutionError,
+				Error: templates.ErrTemplateOutputTooLarge.Error(),
+			}},
 		},
 	},
 	}
