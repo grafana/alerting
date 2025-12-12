@@ -130,7 +130,9 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 	var orgID = rand.Int63()
 	var version = fmt.Sprintf("Grafana v%d", rand.Uint32())
 	imageProvider := &images.URLProvider{}
-	tmpl, err := templates.NewFactory(nil, log.NewNopLogger(), "http://localhost", "grafana")
+	cfg, err := templates.NewConfig("grafana", "http://localhost", templates.DefaultLimits)
+	require.NoError(t, err)
+	tmpl, err := templates.NewFactory(nil, cfg, log.NewNopLogger())
 	require.NoError(t, err)
 	emailService := receivers.MockNotificationService()
 
@@ -234,7 +236,9 @@ func TestBuildPrometheusReceiverIntegrations(t *testing.T) {
 	require.NoError(t, err)
 	err = definition.ValidateAlertmanagerConfig(receiver)
 	require.NoError(t, err)
-	tmpl, err := templates.NewFactory(nil, log.NewNopLogger(), "http://localhost", "1")
+	cfg, err := templates.NewConfig("1", "http://localhost", templates.DefaultLimits)
+	require.NoError(t, err)
+	tmpl, err := templates.NewFactory(nil, cfg, log.NewNopLogger())
 	require.NoError(t, err)
 	integrations, err := BuildPrometheusReceiverIntegrations(receiver, tmpl, nil, log.NewNopLogger(), NoWrap, nil)
 	require.NoError(t, err)

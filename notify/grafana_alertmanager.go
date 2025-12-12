@@ -138,6 +138,11 @@ type (
 	Notifier         = notify.Notifier
 )
 
+type DynamicLimits struct {
+	Dispatcher DispatcherLimits
+	Templates  templates.Limits
+}
+
 //nolint:revive
 type NotifyReceiver = nfstatus.Receiver
 
@@ -149,7 +154,7 @@ type NotificationsConfiguration struct {
 	Templates         []templates.TemplateDefinition
 	Receivers         []*APIReceiver
 
-	DispatcherLimits DispatcherLimits
+	Limits DynamicLimits
 
 	Raw  []byte
 	Hash [16]byte
@@ -341,7 +346,11 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
 	}
 
-	am.templates, err = templates.NewFactory(nil, am.logger, am.ExternalURL(), fmt.Sprintf("%d", am.TenantID()))
+	cfg, err := templates.NewConfig(fmt.Sprintf("%d", am.TenantID()), am.ExternalURL(), templates.DefaultLimits)
+	if err != nil {
+		return nil, fmt.Errorf("unable to initialize the template provider component of alerting: %w", err)
+	}
+	am.templates, err = templates.NewFactory(nil, cfg, am.logger)
 	if err != nil {
 		return nil, err
 	}
@@ -670,7 +679,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 	ctx = notify.WithReceiverName(ctx, DefaultReceiverName)
 	ctx = notify.WithGroupLabels(ctx, labels)
 
-	promTmplData := notify.GetTemplateData(ctx, newTmpl, alerts, logger)
+	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template, alerts, logger)
 	data := templates.ExtendData(promTmplData, logger)
 
 	// Iterate over each definition in the template and evaluate it.
@@ -731,7 +740,11 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 // ApplyConfig applies a new configuration by re-initializing all components using the configuration provided.
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err error) {
-	factory, err := templates.NewFactory(cfg.Templates, am.logger, am.ExternalURL(), fmt.Sprintf("%d", am.TenantID()))
+	tmplCfg, err := templates.NewConfig(fmt.Sprintf("%d", am.TenantID()), am.ExternalURL(), cfg.Limits.Templates)
+	if err != nil {
+		return err
+	}
+	factory, err := templates.NewFactory(cfg.Templates, tmplCfg, am.logger)
 	if err != nil {
 		return err
 	}
@@ -785,7 +798,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		dispatchTimer = dispatch.NewSyncTimerFactory(am.flushLog, am.opts.Peer.Position)
 	}
 
-	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.DispatcherLimits, am.logger, am.dispatcherMetrics, dispatchTimer)
+	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.Limits.Dispatcher, am.logger, am.dispatcherMetrics, dispatchTimer)
 
 	// TODO: This has not been upstreamed yet. Should be aligned when https://github.com/prometheus/alertmanager/pull/3016 is merged.
 	var receivers []*nfstatus.Receiver

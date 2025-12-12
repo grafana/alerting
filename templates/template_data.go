@@ -30,14 +30,19 @@ import (
 
 type KV = template.KV
 type Data = template.Data
-type Template = template.Template
+type Template struct {
+	*template.Template
+	limits Limits
+}
 
 var (
 	// Provides current time. Can be overwritten in tests.
 	timeNow                   = time.Now
 	ErrInvalidKind            = errors.New("invalid template kind")
 	ErrTemplateOutputTooLarge = errors.New("template output exceeds maximum size")
-	MaxTemplateOutputSize     = int64(10 * 1024 * 1024) // TODO replace it to configuration
+	DefaultLimits             = Limits{
+		MaxTemplateOutputSize: 10 * 1024 * 1024,
+	}
 )
 
 // Kind represents the type or category of a template. It is used to differentiate between various template kinds.
@@ -159,7 +164,7 @@ func addFuncs(text *tmpltext.Template, html *tmplhtml.Template) {
 }
 
 // fromContent calls Parse on all provided template content and returns the resulting Template. Content equivalent to templates.FromGlobs.
-func fromContent(tmpls []string, options ...template.Option) (*Template, error) {
+func fromContent(tmpls []string, options ...template.Option) (*template.Template, error) {
 	t, err := template.New(options...)
 	if err != nil {
 		return nil, err
@@ -365,7 +370,7 @@ func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 }
 
 func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
-	promTmplData := notify.GetTemplateData(ctx, tmpl, alerts, l)
+	promTmplData := notify.GetTemplateData(ctx, tmpl.Template, alerts, l)
 	data := ExtendData(promTmplData, l)
 
 	if groupKey, err := notify.ExtractGroupKey(ctx); err == nil {
@@ -397,7 +402,7 @@ func executeTextString(tmpl *Template, text string, data *ExtendedData) (string,
 		return "", err
 	}
 	var buf bytes.Buffer
-	err = textTmpl.Execute(utils.NewLimitedWriter(&buf, MaxTemplateOutputSize), data)
+	err = textTmpl.Execute(utils.NewLimitedWriter(&buf, tmpl.limits.MaxTemplateOutputSize), data)
 	if errors.Is(err, utils.ErrWriteLimitExceeded) {
 		err = ErrTemplateOutputTooLarge
 	}
