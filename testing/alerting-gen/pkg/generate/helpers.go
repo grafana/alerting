@@ -1,12 +1,65 @@
 package generate
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/go-openapi/strfmt"
 	models "github.com/grafana/grafana-openapi-client-go/models"
 	"pgregory.net/rapid"
+)
+
+var (
+	adjectives = []string{
+		"Adorable", "Adventurous", "Agile", "Amazing", "Amicable", "Animated", "Artistic", "Astounding",
+		"Beloved", "Blissful", "Bold", "Bouncy", "Brave", "Breezy", "Bright", "Brilliant",
+		"Capable", "Charming", "Cheerful", "Clever", "Cosmic", "Courageous", "Creative", "Curious",
+		"Daring", "Dazzling", "Dedicated", "Delightful", "Determined", "Dynamic", "Dapper", "Dancing",
+		"Eager", "Eccentric", "Efficient", "Elegant", "Enchanted", "Energetic", "Enthusiastic", "Epic",
+		"Fabulous", "Fantastic", "Fearless", "Festive", "Fiery", "Flying", "Friendly", "Frosty",
+		"Gallant", "Gentle", "Gigantic", "Giggly", "Gleaming", "Glorious", "Graceful", "Grand",
+		"Happy", "Harmonious", "Heroic", "Hilarious", "Honest", "Hopeful", "Humble", "Hyper",
+		"Imaginative", "Incredible", "Inspired", "Intelligent", "Intrepid", "Inventive", "Jazzy", "Jolly",
+		"Jovial", "Joyful", "Jubilant", "Jumping", "Keen", "Kinetic", "Kind", "Kooky",
+		"Legendary", "Lively", "Loyal", "Lucky", "Luminous", "Lunar", "Majestic", "Marvelous",
+		"Merry", "Mighty", "Mirthful", "Modest", "Mystical", "Natural", "Neat", "Nimble",
+		"Noble", "Notable", "Optimistic", "Outstanding", "Peaceful", "Perfect", "Playful",
+		"Pleasant", "Powerful", "Precious", "Proud", "Quirky", "Radiant", "Rapid", "Reliable",
+		"Remarkable", "Resourceful", "Respected", "Roaring", "Robust", "Sailing", "Sensible", "Serene",
+		"Shining", "Silly", "Sincere", "Skillful", "Smiling", "Snappy", "Soaring", "Sparkling",
+		"Spectacular", "Speedy", "Spirited", "Splendid", "Stellar", "Strong", "Stunning", "Sunny",
+		"Supreme", "Swift", "Talented", "Tender", "Thriving", "Tidy", "Tremendous", "Trusty",
+		"Ultimate", "Unbeatable", "Unique", "United", "Upbeat", "Valiant", "Vibrant", "Victorious",
+		"Vigorous", "Vivacious", "Vivid", "Wacky", "Warm", "Whimsical", "Wise", "Witty",
+		"Wonderful", "Worthy", "Xenial", "Youthful", "Yummy", "Zany", "Zealous", "Zesty", "Zippy",
+	}
+
+	animals = []string{
+		"Albatross", "Alligator", "Alpaca", "Angelfish", "Antelope",
+		"Badger", "Barracuda", "Bat", "Bear", "Beaver", "Bee", "Bison", "Buffalo", "Butterfly",
+		"Camel", "Capybara", "Caribou", "Catfish", "Chameleon", "Cheetah", "Chickadee",
+		"Chipmunk", "Cockatoo", "Condor", "Cougar", "Coyote", "Crane",
+		"Crocodile", "Crow", "Deer", "Dingo", "Dolphin", "Donkey", "Dove", "Dragonfly",
+		"Duck", "Eagle", "Eel", "Elephant", "Elk", "Emu",
+		"Falcon", "Ferret", "Finch", "Firefly", "Flamingo", "Fox", "Frog",
+		"Gazelle", "Gecko", "Gerbil", "Gibbon", "Giraffe", "Gopher", "Gorilla", "Grasshopper", "Grizzly",
+		"Hamster", "Hare", "Hawk", "Hedgehog", "Heron", "Hippo", "Hummingbird",
+		"Iguana", "Impala", "Jackal", "Jaguar", "Jellyfish",
+		"Kangaroo", "Kingfisher", "Kiwi", "Koala", "Kookaburra",
+		"Ladybug", "Lemur", "Leopard", "Lion", "Lionfish", "Llama", "Lobster",
+		"Lynx", "Macaw", "Magpie", "Manatee", "Meerkat",
+		"Mongoose", "Moose", "Moth", "Narwhal", "Nightingale",
+		"Octopus", "Opossum", "Orangutan", "Ostrich", "Otter", "Owl", "Ox",
+		"Panda", "Panther", "Parrot", "Peacock", "Pelican", "Penguin", "Phoenix", "Porcupine",
+		"Puffin", "Quail", "Quokka", "Rabbit", "Raccoon", "Raven", "Reindeer", "Rhino",
+		"Roadrunner", "Salamander", "Salmon", "Seagull", "Seahorse", "Seal", "Shark",
+		"Sheep", "Sloth", "Snail", "Sparrow", "Squirrel",
+		"Starfish", "Stingray", "Stork", "Swallow", "Swan", "Swordfish",
+		"Tiger", "Toad", "Toucan", "Trout", "Tuna", "Turkey", "Turtle", "Unicorn",
+		"Vulture", "Wallaby", "Walrus", "Whale", "Wildcat", "Wolf",
+		"Woodpecker", "Wombat", "Yak", "Zebra",
+	}
 )
 
 // Helpers
@@ -24,6 +77,8 @@ func buildQuery(dsUID, refID string) *models.AlertQuery {
 			"type":       "query",
 			"datasource": map[string]any{"uid": dsUID},
 			"expr":       "vector(1)",
+			"instant":    true,
+			"range":      false,
 		}
 	}
 	return &models.AlertQuery{
@@ -36,11 +91,16 @@ func buildQuery(dsUID, refID string) *models.AlertQuery {
 }
 
 func genTitle() *rapid.Generator[string] {
-	return rapid.StringMatching(`[A-Za-z][A-Za-z0-9_\-]{3,20}`)
+	return rapid.Custom(func(t *rapid.T) string {
+		adj := rapid.SampledFrom(adjectives).Draw(t, "adjective")
+		animal := rapid.SampledFrom(animals).Draw(t, "animal")
+		uid := rapid.StringMatching(`[A-Za-z0-9]{5,10}`).Draw(t, "uid_suffix")
+		return fmt.Sprintf("%s %s [%s]", adj, animal, uid)
+	})
 }
 
 func genSummary() *rapid.Generator[string] {
-	return rapid.StringMatching(`.{10,60}`)
+	return rapid.StringMatching(`[A-Za-z0-9 .,!?-]{10,60}`)
 }
 
 func genDurationStr() *rapid.Generator[string] {
