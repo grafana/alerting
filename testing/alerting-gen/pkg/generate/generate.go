@@ -99,6 +99,8 @@ func NewRecordingRuleGenerator(queryDS, writeDS string) *rapid.Generator[*models
 		paused := rapid.Bool().Draw(t, "is_paused")
 		// TODO: make orgID configurable; assume 1 for now
 		orgID := int64(1)
+		// Recording rules require For field set to 0 for Grafana API
+		forDur := strfmt.Duration(0)
 
 		return &models.ProvisionedAlertRule{
 			Title:       strPtr(title),
@@ -106,6 +108,7 @@ func NewRecordingRuleGenerator(queryDS, writeDS string) *rapid.Generator[*models
 			RuleGroup:   nil,
 			FolderUID:   nil,
 			Data:        data,
+			For:         &forDur,
 			IsPaused:    paused,
 			Labels:      map[string]string{"rule_kind": "recording"},
 			Annotations: anns,

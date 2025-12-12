@@ -30,7 +30,6 @@ func TestGenerateRules_CountsAndBasics(t *testing.T) {
 		}
 
 		require.NotNil(t, r.For)
-		require.NotNil(t, r.Condition)
 		require.NotNil(t, r.Title)
 		require.NotEmpty(t, r.UID)
 
@@ -42,6 +41,7 @@ func TestGenerateRules_CountsAndBasics(t *testing.T) {
 			require.Equal(t, int64(0), int64(*r.For))
 		} else {
 			alerting++
+			require.NotNil(t, r.Condition)
 		}
 	}
 	require.Equal(t, numAlerting, alerting)
@@ -53,7 +53,7 @@ func TestGroupRules_PartitionAndFolderCycling(t *testing.T) {
 	rules := GenerateRules("__expr__", "prom", 3, 1, 100)
 	require.Len(t, rules, 4)
 
-	groups := GroupRules(rules, 2, 1, []string{"f1", "f2"})
+	groups := GroupRules(rules, 2, 1, []string{"f1", "f2"}, 0, 100)
 	require.Len(t, groups, 2)
 
 	// Group 1 in f1, group 2 in f2 when groupsPerFolder=1
@@ -81,12 +81,12 @@ func TestGroupRules_PartitionAndFolderCycling(t *testing.T) {
 func TestGroupRules_DefaultsWhenZeroOrEmpty(t *testing.T) {
 	// 5 rules; with defaults (rulesPerGroup<=0, groupsPerFolder<=0, empty folderUIDs)
 	rules := GenerateRules("__expr__", "prom", 5, 0, 7)
-	groups := GroupRules(rules, 0, 0, nil)
+	groups := GroupRules(rules, 0, 0, nil, 60, 7)
 	require.Len(t, groups, 1)
 
 	g := groups[0]
 	require.Equal(t, int64(60), g.Interval)
-	require.Equal(t, "general", g.FolderUID)
+	require.Equal(t, "default", g.FolderUID)
 	require.Equal(t, "group-1", g.Title)
 	require.Len(t, g.Rules, len(rules))
 
@@ -99,7 +99,7 @@ func TestGroupRules_MixedAlertingAndRecordingDistribution(t *testing.T) {
 	rules := GenerateRules("__expr__", "prom", 3, 2, 101)
 	require.Len(t, rules, 5)
 
-	groups := GroupRules(rules, 2, 1, []string{"f1", "f2"})
+	groups := GroupRules(rules, 2, 1, []string{"f1", "f2"}, 0, 101)
 	require.Len(t, groups, 3)
 
 	// Check per-group recording counts match expected [0,1,1]
@@ -128,7 +128,7 @@ func TestGroupRules_MixedAlertingAndRecordingDistribution(t *testing.T) {
 func TestGroupRules_NonEvenPartition(t *testing.T) {
 	// 5 rules, rulesPerGroup=2 -> groups of sizes 2,2,1
 	rules := GenerateRules("__expr__", "prom", 5, 0, 777)
-	groups := GroupRules(rules, 2, 1, []string{"f"})
+	groups := GroupRules(rules, 2, 1, []string{"f"}, 0, 777)
 	require.Len(t, groups, 3)
 	require.Len(t, groups[0].Rules, 2)
 	require.Len(t, groups[1].Rules, 2)
@@ -138,7 +138,7 @@ func TestGroupRules_NonEvenPartition(t *testing.T) {
 func TestGroupRules_GroupsPerFolderGreaterThanOne(t *testing.T) {
 	// 5 rules with rulesPerGroup=1 -> 5 groups
 	rules := GenerateRules("__expr__", "prom", 5, 0, 42)
-	groups := GroupRules(rules, 1, 2, []string{"f1", "f2"})
+	groups := GroupRules(rules, 1, 2, []string{"f1", "f2"}, 0, 42)
 	require.Len(t, groups, 5)
 	// Expect folder assignment: f1, f1, f2, f2, f1 (two groups per folder before cycling)
 	expected := []string{"f1", "f1", "f2", "f2", "f1"}
