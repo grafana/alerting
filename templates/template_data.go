@@ -1,8 +1,10 @@
 package templates
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	tmplhtml "html/template"
 	"net/url"
@@ -17,6 +19,8 @@ import (
 	"github.com/go-kit/log/level"
 
 	"github.com/grafana/alerting/templates/gomplate"
+	"github.com/grafana/alerting/utils"
+
 	"github.com/prometheus/alertmanager/asset"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
@@ -33,6 +37,9 @@ type Data = template.Data
 var (
 	// Provides current time. Can be overwritten in tests.
 	timeNow = time.Now
+
+	ErrTemplateOutputTooLarge = errors.New("template output exceeds maximum size")
+	MaxTemplateOutputSize     = int64(10 * 1024 * 1024) // TODO replace it to configuration
 )
 
 type TemplateDefinition struct {
@@ -382,9 +389,30 @@ func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l log.
 		if *tmplErr != nil {
 			return
 		}
-		s, *tmplErr = tmpl.ExecuteTextString(name, data)
+		s, *tmplErr = executeTextString(tmpl, name, data)
 		return s
 	}, data
+}
+
+// This is a copy of method ExecuteTextString of Template with addition of utils.LimitedWriter
+func executeTextString(tmpl *Template, text string, data *ExtendedData) (string, error) {
+	if text == "" {
+		return "", nil
+	}
+	textTmpl, err := tmpl.Text()
+	if err != nil {
+		return "", err
+	}
+	textTmpl, err = textTmpl.New("").Option("missingkey=zero").Parse(text)
+	if err != nil {
+		return "", err
+	}
+	var buf bytes.Buffer
+	err = textTmpl.Execute(utils.NewLimitedWriter(&buf, MaxTemplateOutputSize), data)
+	if errors.Is(err, utils.ErrWriteLimitExceeded) {
+		err = ErrTemplateOutputTooLarge
+	}
+	return buf.String(), err
 }
 
 // Firing returns the subset of alerts that are firing.
