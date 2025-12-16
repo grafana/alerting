@@ -103,6 +103,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Secure:       true,
 			Required:     true,
 			DependsOn:    "secret",
+			Protected:    true,
 		},
 		{
 			Label:        "Agent ID",

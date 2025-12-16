@@ -65,6 +65,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Placeholder:  "http://localhost:9093",
 			PropertyName: "url",
 			Required:     true,
+			Protected:    true,
 		},
 		{
 			Label:        "Basic Auth User",

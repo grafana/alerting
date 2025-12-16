@@ -183,6 +183,7 @@ type Field struct {
 	SelectOptions  []SelectOption `json:"selectOptions"`
 	ShowWhen       ShowWhen       `json:"showWhen"`
 	Required       bool           `json:"required"`
+	Protected      bool           `json:"protected,omitempty"`
 	ValidationRule string         `json:"validationRule"`
 	Secure         bool           `json:"secure"`
 	DependsOn      string         `json:"dependsOn"`
