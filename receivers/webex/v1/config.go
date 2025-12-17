@@ -63,6 +63,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Placeholder:  "https://api.ciscospark.com/v1/messages",
 			Description:  "API endpoint at which we'll send webhooks to.",
 			PropertyName: "api_url",
+			Protected:    true,
 		},
 		{
 			Label:        "Room ID",

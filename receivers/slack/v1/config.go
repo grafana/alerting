@@ -169,6 +169,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Secure:       true,
 			Required:     true,
 			DependsOn:    "token",
+			Protected:    true,
 		},
 		{ // New in 8.4.
 			Label:        "Endpoint URL",
@@ -177,6 +178,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Description:  "Optionally provide a custom Slack message API endpoint for non-webhook requests, default is https://slack.com/api/chat.postMessage",
 			Placeholder:  "Slack endpoint url",
 			PropertyName: "endpointUrl",
+			Protected:    true,
 		},
 		{
 			Label:        "Color",

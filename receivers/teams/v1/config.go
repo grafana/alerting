@@ -48,6 +48,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Placeholder:  "Teams incoming webhook url",
 			PropertyName: "url",
 			Required:     true,
+			Protected:    true,
 		},
 		{
 			Label:        "Title",

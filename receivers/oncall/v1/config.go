@@ -93,6 +93,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			InputType:    schema.InputTypeText,
 			PropertyName: "url",
 			Required:     true,
+			Protected:    true,
 		},
 		{
 			Label:   "HTTP Method",

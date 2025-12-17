@@ -52,6 +52,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Placeholder:  "http://sensu-api.local:8080",
 			PropertyName: "url",
 			Required:     true,
+			Protected:    true,
 		},
 		{
 			Label:        "API Key",
