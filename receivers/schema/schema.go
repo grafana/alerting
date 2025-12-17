@@ -146,6 +146,11 @@ func (v IntegrationSchemaVersion) IsSecureField(path IntegrationFieldPath) bool 
 	return ok && f.Secure
 }
 
+func (v IntegrationSchemaVersion) IsProtectedField(path IntegrationFieldPath) bool {
+	f, ok := v.GetField(path)
+	return ok && f.Protected
+}
+
 func (v IntegrationSchemaVersion) GetField(path IntegrationFieldPath) (Field, bool) {
 	for _, integrationField := range v.Options {
 		if strings.EqualFold(integrationField.PropertyName, path.Head()) {
