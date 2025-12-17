@@ -3,6 +3,7 @@ package v0mimir1
 const FullValidConfigForTesting = ` {
 	"url": "http://localhost/",
 	"http_config": {},
+	"timeout": 0,
 	"routing_key": "test-routing-secret-key",
 	"service_key": "test-service-secret-key",
 	"client": "Alertmanager",

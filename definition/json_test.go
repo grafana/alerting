@@ -178,7 +178,7 @@ func TestSecretTypeMarshaling(t *testing.T) {
 		{
 			name:           "empty alertmanager secret",
 			secret:         config.Secret(""),
-			expectStandard: maskedSecret,
+			expectStandard: `""`,
 			expectPlain:    `""`,
 		},
 		{
@@ -261,7 +261,7 @@ func TestSecretURLTypeMarshaling(t *testing.T) {
 		{
 			name:           "empty URL",
 			secretURL:      config.SecretURL{},
-			expectStandard: maskedSecret,
+			expectStandard: `""`,
 			expectPlain:    `null`,
 		},
 		{
@@ -285,7 +285,7 @@ func TestSecretURLTypeMarshaling(t *testing.T) {
 		{
 			name:           "pointer to empty URL",
 			secretURL:      &config.SecretURL{},
-			expectStandard: maskedSecret,
+			expectStandard: `""`,
 			expectPlain:    `null`,
 		},
 	}

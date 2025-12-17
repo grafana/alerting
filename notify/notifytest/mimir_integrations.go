@@ -189,8 +189,6 @@ var ValidMimirHTTPConfigs = map[MimirIntegrationHTTPConfigOption]string{
 			"oauth2": {
 				"client_id": "test-client-id",
 				"client_secret": "test-client-secret",
-				"client_secret_file": "",
-				"client_secret_ref": "",
 				"token_url": "https://localhost/auth/token",
 				"scopes": ["scope1", "scope2"],
 				"endpoint_params": {

@@ -941,8 +941,8 @@ github.com/grafana/loki/pkg/push v0.0.0-20250823105456-332df2b20000 h1:/5LKSYgLm
 github.com/grafana/loki/pkg/push v0.0.0-20250823105456-332df2b20000/go.mod h1:/ZklAgE1i4f3Z8uriXwESmCr1VLF8lBGaJspuaGuf78=
 github.com/grafana/otel-profiling-go v0.5.1 h1:stVPKAFZSa7eGiqbYuG25VcqYksR6iWvF3YH66t4qL8=
 github.com/grafana/otel-profiling-go v0.5.1/go.mod h1:ftN/t5A/4gQI19/8MoWurBEtC6gFw8Dns1sJZ9W4Tls=
-github.com/grafana/prometheus-alertmanager v0.25.1-0.20251217115921-b6cf30ac8082 h1:sADOpCL7Q2jYCBGRwy02p3gkGe2xzBg5X66E5MnqskM=
-github.com/grafana/prometheus-alertmanager v0.25.1-0.20251217115921-b6cf30ac8082/go.mod h1:7yAXc77EzvUBQfH7Bh9NyWnDYpmYqXbXMbWGvICZPHA=
+github.com/grafana/prometheus-alertmanager v0.25.1-0.20251217134909-7dd94de5afb5 h1:kF7p+db8jC6mGorUxy1ug2HtmkCwCjLlDQVSjnoKd50=
+github.com/grafana/prometheus-alertmanager v0.25.1-0.20251217134909-7dd94de5afb5/go.mod h1:7yAXc77EzvUBQfH7Bh9NyWnDYpmYqXbXMbWGvICZPHA=
 github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4/go.mod h1:FiyG127CGDf3tlThmgyCl78X/SZQqEOJBCDaAfeWzPs=
 github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0/go.mod h1:8NvIoxWQoOIhqOTXgfV/d3M/q6VIi02HzZEHgUlZvzk=
 github.com/grpc-ecosystem/grpc-gateway v1.9.5/go.mod h1:vNeuVxBJEsws4ogUvrchl83t/GYV9WGTSLVdBhOQFDY=
