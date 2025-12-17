@@ -19,6 +19,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 const (
@@ -102,7 +103,7 @@ func (pn *Notifier) genPushoverBody(ctx context.Context, l log.Logger, as ...*ty
 	}
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, pn.tmpl, as, l, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, pn.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 
 	if err := w.WriteField("user", tmpl(pn.settings.UserKey)); err != nil {
 		return nil, b, fmt.Errorf("failed to write the user: %w", err)

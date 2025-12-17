@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/go-kit/log"
+	"github.com/prometheus/common/promslog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -1196,14 +1196,14 @@ func TestInhibitRule_UTF8_In_Equals_Unmarshal_JSON(t *testing.T) {
 	require.EqualError(t, json.Unmarshal([]byte(s), &c), "invalid label name \"corge🙂\" in equal list")
 
 	// Change the mode to UTF-8 mode.
-	ff, err := featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureUTF8StrictMode)
+	ff, err := featurecontrol.NewFlags(promslog.NewNopLogger(), featurecontrol.FeatureUTF8StrictMode)
 	require.NoError(t, err)
-	compat.InitFromFlags(log.NewNopLogger(), ff)
+	compat.InitFromFlags(promslog.NewNopLogger(), ff)
 
 	// Restore the mode to classic at the end of the test.
-	ff, err = featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureClassicMode)
+	ff, err = featurecontrol.NewFlags(promslog.NewNopLogger(), featurecontrol.FeatureClassicMode)
 	require.NoError(t, err)
-	defer compat.InitFromFlags(log.NewNopLogger(), ff)
+	defer compat.InitFromFlags(promslog.NewNopLogger(), ff)
 
 	require.NoError(t, json.Unmarshal([]byte(s), &c))
 	require.Len(t, c.InhibitRules, 1)
@@ -1294,14 +1294,14 @@ func TestInhibitRule_UTF8_In_Equals_Unmarshal_YAML(t *testing.T) {
 	require.EqualError(t, yaml.Unmarshal([]byte(s), &c), "invalid label name \"corge🙂\" in equal list")
 
 	// Change the mode to UTF-8 mode.
-	ff, err := featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureUTF8StrictMode)
+	ff, err := featurecontrol.NewFlags(promslog.NewNopLogger(), featurecontrol.FeatureUTF8StrictMode)
 	require.NoError(t, err)
-	compat.InitFromFlags(log.NewNopLogger(), ff)
+	compat.InitFromFlags(promslog.NewNopLogger(), ff)
 
 	// Restore the mode to classic at the end of the test.
-	ff, err = featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureClassicMode)
+	ff, err = featurecontrol.NewFlags(promslog.NewNopLogger(), featurecontrol.FeatureClassicMode)
 	require.NoError(t, err)
-	defer compat.InitFromFlags(log.NewNopLogger(), ff)
+	defer compat.InitFromFlags(promslog.NewNopLogger(), ff)
 
 	require.NoError(t, yaml.Unmarshal([]byte(s), &c))
 	require.Len(t, c.InhibitRules, 1)

@@ -1,6 +1,7 @@
 package notify
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"sort"
@@ -70,7 +71,7 @@ func (am *GrafanaAlertmanager) GetAlerts(active, silenced, inhibited bool, filte
 			break
 		}
 
-		routes := am.route.Match(a.Labels)
+		routes := am.route.Match(a.Data.Labels)
 		receivers := make([]string, 0, len(routes))
 		for _, r := range routes {
 			receivers = append(receivers, r.RouteOpts.Receiver)
@@ -80,11 +81,11 @@ func (am *GrafanaAlertmanager) GetAlerts(active, silenced, inhibited bool, filte
 			continue
 		}
 
-		if !alertFilter(a, now) {
+		if !alertFilter(a.Data, now) {
 			continue
 		}
 
-		alert := v2.AlertToOpenAPIAlert(a, am.marker.Status(a.Fingerprint()), receivers)
+		alert := v2.AlertToOpenAPIAlert(a.Data, am.marker.Status(a.Data.Fingerprint()), receivers, []string{})
 
 		res = append(res, alert)
 	}
@@ -125,7 +126,7 @@ func (am *GrafanaAlertmanager) GetAlertGroups(active, silenced, inhibited bool, 
 	}(receiverFilter)
 
 	af := am.alertFilter(matchers, silenced, inhibited, active)
-	alertGroups, allReceivers := am.dispatcher.Groups(rf, af)
+	alertGroups, allReceivers, _ := am.dispatcher.Groups(context.Background(), rf, af)
 
 	res := make(AlertGroups, 0, len(alertGroups))
 
@@ -140,7 +141,7 @@ func (am *GrafanaAlertmanager) GetAlertGroups(active, silenced, inhibited bool, 
 			fp := alert.Fingerprint()
 			receivers := allReceivers[fp]
 			status := am.marker.Status(fp)
-			apiAlert := v2.AlertToOpenAPIAlert(alert, status, receivers)
+			apiAlert := v2.AlertToOpenAPIAlert(alert, status, receivers, []string{})
 			ag.Alerts = append(ag.Alerts, apiAlert)
 		}
 		res = append(res, ag)
@@ -156,8 +157,8 @@ func (am *GrafanaAlertmanager) alertFilter(matchers []*labels.Matcher, silenced,
 		}
 
 		// Set alert's current status based on its label set.
-		am.silencer.Mutes(a.Labels)
-		am.inhibitor.Mutes(a.Labels)
+		am.silencer.Mutes(context.Background(), a.Labels)
+		am.inhibitor.Mutes(context.Background(), a.Labels)
 
 		// Get alert's current status after seeing if it is suppressed.
 		status := am.marker.Status(a.Fingerprint())

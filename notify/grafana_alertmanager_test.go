@@ -25,6 +25,7 @@ import (
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/receivers"
+	"github.com/grafana/alerting/utils"
 )
 
 type withOptsFn func(opts *GrafanaAlertmanagerOpts)
@@ -311,7 +312,7 @@ func TestPutAlert(t *testing.T) {
 		t.Run(c.title, func(t *testing.T) {
 			r := prometheus.NewRegistry()
 			am.marker = types.NewMarker(r)
-			am.alerts, err = mem.NewAlerts(context.Background(), am.marker, 15*time.Minute, nil, am.logger, r)
+			am.alerts, err = mem.NewAlerts(context.Background(), am.marker, 15*time.Minute, nil, utils.SlogFromGoKit(am.logger), r)
 			require.NoError(t, err)
 
 			alerts := []*types.Alert{}
@@ -327,7 +328,7 @@ func TestPutAlert(t *testing.T) {
 			iter := am.alerts.GetPending()
 			defer iter.Close()
 			for a := range iter.Next() {
-				alerts = append(alerts, a)
+				alerts = append(alerts, a.Data)
 			}
 
 			// We take the "now" time from one of the UpdatedAt.
