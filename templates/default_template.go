@@ -44,6 +44,7 @@ Labels:
 {{ end }}{{ end }}{{ if gt (len .Alerts.Resolved) 0 }}**Resolved**
 {{ template "__text_alert_list" .Alerts.Resolved }}{{ end }}{{ end }}
 
+{{ define "slack.default.footer" }}Grafana{{ if .AppVersion }} v{{ .AppVersion }}{{ end }}{{ end }}
 
 {{ define "__teams_text_alert_list" }}{{ range . }}
 Value: {{ template "__text_values_list" . }}
@@ -160,6 +161,8 @@ Labels:
 
 {{ end }}{{ end }}{{ if gt (len .Alerts.Resolved) 0 }}**Resolved**
 {{ template "__text_alert_list" .Alerts.Resolved }}{{ end }}{{ end }}
+
+{{ define "slack.default.footer" }}Grafana{{ if .AppVersion }} v{{ .AppVersion }}{{ end }}{{ end }}
 
 {{ define "teams.default.message" }}{{ template "default.message" . }}{{ end }}
 
