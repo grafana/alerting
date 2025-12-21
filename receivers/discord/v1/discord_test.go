@@ -110,6 +110,39 @@ func TestNotify(t *testing.T) {
 			expMsgError: nil,
 		},
 		{
+			name: "Default config with one alert and a title that is too long",
+			settings: Config{
+				Title:              strings.Repeat("A", discordMaxTitleLen+1),
+				Message:            templates.DefaultMessageEmbed,
+				AvatarURL:          "",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: map[string]any{
+				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"embeds": []any{map[string]any{
+					"color": 1.4037554e+07,
+					"footer": map[string]any{
+						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+						"text":     "Grafana v" + appVersion,
+					},
+					"title": strings.Repeat("A", discordMaxTitleLen-1) + "…",
+					"url":   "http://localhost/alerting/list",
+					"type":  "rich",
+				}},
+				"username": "Grafana",
+			},
+			expMsgError: nil,
+		},
+		{
 			name: "Missing field in template",
 			settings: Config{
 				Title:              templates.DefaultMessageTitleEmbed,
@@ -638,6 +671,47 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 			},
 			expMsgError: nil,
 			expBytes:    imageWithoutURLContent.Content,
+		},
+		{
+			name: "Default config with one alert with very long alert name and image",
+			settings: Config{
+				Title:              templates.DefaultMessageTitleEmbed,
+				Message:            templates.DefaultMessageEmbed,
+				AvatarURL:          "",
+				WebhookURL:         "http://localhost",
+				UseDiscordUsername: false,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": model.LabelValue(strings.Repeat("B", discordMaxTitleLen+1)), "lbl1": "val1"},
+						Annotations: model.LabelSet{models.ImageTokenAnnotation: model.LabelValue("test-token-url")},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = " + strings.Repeat("B", discordMaxTitleLen+1) + "\n - lbl1 = val1\nAnnotations:\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3D" + strings.Repeat("B", discordMaxTitleLen+1) + "&matcher=lbl1%3Dval1\n",
+				"embeds": []interface{}{
+					map[string]interface{}{
+						"color": 1.4037554e+07,
+						"footer": map[string]interface{}{
+							"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+							"text":     "Grafana v" + appVersion,
+						},
+						"title": "[FIRING:1]  (val1)",
+						"url":   "http://localhost/alerting/list",
+						"type":  "rich",
+					},
+					map[string]interface{}{
+						"image": map[string]interface{}{
+							"url": imageWithURL.URL,
+						},
+						"title": strings.Repeat("B", discordMaxTitleLen-1) + "…",
+						"color": 1.4037554e+07,
+					}},
+				"username": "Grafana",
+			},
+			expMsgError: nil,
 		},
 	}
 
