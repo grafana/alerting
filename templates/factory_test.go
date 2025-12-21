@@ -100,7 +100,7 @@ func TestFactoryNewTemplate(t *testing.T) {
 		},
 	}
 
-	var def []TemplateDefinition
+	def := make([]TemplateDefinition, 0, len(validKinds))
 	for kind := range validKinds {
 		def = append(def, TemplateDefinition{
 			Name:     "test",
