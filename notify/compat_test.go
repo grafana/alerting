@@ -166,6 +166,8 @@ func TestConfigReceiverToMimirIntegrations(t *testing.T) {
 			case schema.V0mimir2:
 				found++
 				require.IsType(t, config.MSTeamsV2Config{}, ic.Config)
+			case schema.V1:
+				require.Fail(t, "unexpected V1 version for msteams integration")
 			default:
 				require.Fail(t, "unexpected version for msteams integration")
 			}

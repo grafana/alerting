@@ -180,6 +180,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			PropertyName: "api_url",
 			Description:  "Supported v2 or v3 APIs",
 			Required:     true,
+			Protected:    true,
 		},
 		{
 			Label:        "HTTP Basic Authentication - Username",

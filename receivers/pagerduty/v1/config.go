@@ -196,6 +196,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			InputType:    schema.InputTypeText,
 			Placeholder:  DefaultURL,
 			PropertyName: "url",
+			Protected:    true,
 		},
 	},
 }

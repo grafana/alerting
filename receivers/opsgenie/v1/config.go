@@ -148,6 +148,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Placeholder:  "https://api.opsgenie.com/v2/alerts",
 			PropertyName: "apiUrl",
 			Required:     true,
+			Protected:    true,
 		},
 		{
 			Label:        "Message",
