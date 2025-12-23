@@ -17,7 +17,7 @@ require (
 	github.com/golang/snappy v0.0.4
 	github.com/google/go-cmp v0.7.0
 	github.com/grafana/dskit v0.0.0-20250818234656-8ff9c6532e85
-	github.com/grafana/loki/pkg/push v0.0.0-20250823105456-332df2b20000
+	github.com/grafana/loki/pkg/push v0.4.0
 	github.com/json-iterator/go v1.1.12
 	github.com/matttproud/golang_protobuf_extensions v1.0.4
 	github.com/modern-go/reflect2 v1.0.2
