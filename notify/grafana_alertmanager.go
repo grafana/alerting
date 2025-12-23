@@ -289,7 +289,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 	go func() {
 		am.notificationLog.Maintenance(opts.Nflog.MaintenanceFrequency(), snapshotPlaceholder, am.stopc, func() (int64, error) {
 			if _, err := am.notificationLog.GC(); err != nil {
-				level.Error(am.logger).Log("notification log garbage collection", "err", err)
+				level.Error(am.logger).Log("msg", "notification log garbage collection", "err", err)
 			}
 
 			return opts.Nflog.MaintenanceFunc(am.notificationLog)
@@ -302,7 +302,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		am.silences.Maintenance(opts.Silences.MaintenanceFrequency(), snapshotPlaceholder, am.stopc, func() (int64, error) {
 			// Delete silences older than the retention period.
 			if _, err := am.silences.GC(); err != nil {
-				level.Error(am.logger).Log("silence garbage collection", "err", err)
+				level.Error(am.logger).Log("msg", "silence garbage collection", "err", err)
 				// Don't return here - we need to snapshot our state first.
 			}
 
@@ -330,7 +330,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		go func() {
 			am.flushLog.Maintenance(opts.FlushLog.MaintenanceFrequency(), snapshotPlaceholder, am.stopc, func() (int64, error) {
 				if _, err := am.flushLog.GC(); err != nil {
-					level.Error(am.logger).Log("flush log garbage collection", "err", err)
+					level.Error(am.logger).Log("msg", "flush log garbage collection", "err", err)
 				}
 
 				return opts.FlushLog.MaintenanceFunc(am.flushLog)
@@ -801,7 +801,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.Limits.Dispatcher, am.logger, am.dispatcherMetrics, dispatchTimer)
 
 	// TODO: This has not been upstreamed yet. Should be aligned when https://github.com/prometheus/alertmanager/pull/3016 is merged.
-	var receivers []*nfstatus.Receiver
+	receivers := make([]*nfstatus.Receiver, 0, len(integrationsMap))
 	activeReceivers := GetActiveReceiversMap(am.route)
 	for name := range integrationsMap {
 		stage := am.createReceiverStage(name, nfstatus.GetIntegrations(integrationsMap[name]), am.notificationLog)

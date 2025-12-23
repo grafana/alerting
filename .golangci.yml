@@ -6,9 +6,24 @@ output:
       colors: false
 linters:
   enable:
+    - asciicheck
+    - bodyclose
+    - dogsled
+    - errcheck
     - errorlint
+    - exhaustive
+    - forbidigo
+    - goprintffuncname
+    - govet
+    - ineffassign
+    - loggercheck
     - misspell
+    - nakedret
+    - prealloc
     - revive
+    - staticcheck
+    - unconvert
+    - unused
   settings:
     errcheck:
       exclude-functions:

@@ -239,7 +239,7 @@ func (c *HTTPLokiClient) RangeQuery(ctx context.Context, logQL string, start, en
 	result := QueryRes{}
 	err = json.Unmarshal(data, &result)
 	if err != nil {
-		fmt.Println(string(data))
+		level.Error(c.logger).Log("msg", "Failed to parse response", "err", err, "data", string(data))
 		return QueryRes{}, fmt.Errorf("error parsing request response: %w", err)
 	}
 
