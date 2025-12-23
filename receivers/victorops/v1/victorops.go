@@ -17,6 +17,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 // https://help.victorops.com/knowledge-base/incident-fields-glossary/ - 20480 characters.
@@ -58,7 +59,7 @@ func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, vn.tmpl, as, l, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, vn.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 
 	messageType := buildMessageType(l, tmpl, vn.settings.MessageType, as...)
 

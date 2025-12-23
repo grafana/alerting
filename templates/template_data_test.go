@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/utils"
 )
 
 func TestTmplText(t *testing.T) {
@@ -56,7 +57,7 @@ func TestTmplText(t *testing.T) {
 
 	t.Run("should execute simple template successfully", func(t *testing.T) {
 		var tmplErr error
-		expand, data := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+		expand, data := TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 
 		result := expand("{{ len .Alerts }}")
 		assert.NoError(t, tmplErr)
@@ -67,7 +68,7 @@ func TestTmplText(t *testing.T) {
 
 	t.Run("should execute multiple templates in sequence", func(t *testing.T) {
 		var tmplErr error
-		expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+		expand, _ := TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 
 		result1 := expand("{{ len .Alerts }}")
 		assert.NoError(t, tmplErr)
@@ -80,7 +81,7 @@ func TestTmplText(t *testing.T) {
 
 	t.Run("should propagate template parsing error", func(t *testing.T) {
 		var tmplErr error
-		expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+		expand, _ := TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 
 		// Invalid template syntax
 		result := expand("{{ .InvalidField }")
@@ -91,7 +92,7 @@ func TestTmplText(t *testing.T) {
 
 	t.Run("should not execute subsequent templates after error", func(t *testing.T) {
 		var tmplErr error
-		expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+		expand, _ := TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 
 		// First template with error
 		result1 := expand("{{ .InvalidField }")
@@ -106,7 +107,7 @@ func TestTmplText(t *testing.T) {
 
 	t.Run("should handle empty template string", func(t *testing.T) {
 		var tmplErr error
-		expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+		expand, _ := TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 
 		result := expand("")
 		assert.NoError(t, tmplErr)
@@ -115,7 +116,7 @@ func TestTmplText(t *testing.T) {
 
 	t.Run("should include extended data fields", func(t *testing.T) {
 		var tmplErr error
-		_, data := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+		_, data := TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 
 		assert.NotNil(t, data)
 		assert.Equal(t, "http://localhost/grafana", data.ExternalURL)
@@ -130,7 +131,7 @@ func TestTmplText(t *testing.T) {
 		ctx = notify.WithGroupKey(ctx, groupKey)
 
 		var tmplErr error
-		_, data := TmplText(ctx, tmpl, alerts, l, &tmplErr)
+		_, data := TmplText(ctx, tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 
 		assert.NotNil(t, data)
 		assert.Equal(t, groupKey, data.GroupKey)
@@ -138,7 +139,7 @@ func TestTmplText(t *testing.T) {
 
 	t.Run("should handle context without group key", func(t *testing.T) {
 		var tmplErr error
-		_, data := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+		_, data := TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 
 		assert.NotNil(t, data)
 		assert.Equal(t, "", data.GroupKey) // Should be empty when not in context
@@ -146,7 +147,7 @@ func TestTmplText(t *testing.T) {
 
 	t.Run("should allow template output under size limit", func(t *testing.T) {
 		var tmplErr error
-		expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+		expand, _ := TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 
 		// Small output should work
 		result := expand("{{ range .Alerts }}{{ .Labels.alertname }}{{ end }}")
@@ -161,7 +162,7 @@ func TestTmplText(t *testing.T) {
 		}
 
 		var tmplErr error
-		expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+		expand, _ := TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 
 		// Create a template that generates output larger than 1 KB by repeating a pattern
 		largeTemplate := `{{ range .Alerts }}` + strings.Repeat("X", 2000) + `{{ end }}`

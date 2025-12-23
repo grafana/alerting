@@ -2,6 +2,7 @@ package notify
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -38,7 +39,7 @@ func (am *GrafanaAlertmanager) ListSilences(filter []string) (GettableSilences, 
 		return nil, fmt.Errorf("%s: %w", ErrListSilencesBadPayload.Error(), err)
 	}
 
-	psils, _, err := am.silences.Query()
+	psils, _, err := am.silences.Query(context.Background())
 	if err != nil {
 		level.Error(am.logger).Log("msg", ErrGetSilencesInternal.Error(), "err", err)
 		return nil, fmt.Errorf("%s: %w", ErrGetSilencesInternal.Error(), err)
@@ -65,7 +66,7 @@ func (am *GrafanaAlertmanager) ListSilences(filter []string) (GettableSilences, 
 
 // GetSilence retrieves a silence by the provided silenceID. It returns ErrSilenceNotFound if the silence is not present.
 func (am *GrafanaAlertmanager) GetSilence(silenceID string) (GettableSilence, error) {
-	sils, _, err := am.silences.Query(silence.QIDs(silenceID))
+	sils, _, err := am.silences.Query(context.Background(), silence.QIDs(silenceID))
 	if err != nil {
 		return GettableSilence{}, fmt.Errorf("%s: %w", ErrGetSilencesInternal.Error(), err)
 	}
@@ -98,7 +99,7 @@ func (am *GrafanaAlertmanager) CreateSilence(ps *PostableSilence) (string, error
 		return "", err
 	}
 
-	if err := am.silences.Set(sil); err != nil {
+	if err := am.silences.Set(context.Background(), sil); err != nil {
 		level.Error(am.logger).Log("msg", "unable to save silence", "err", err)
 		return "", fmt.Errorf("unable to save silence: %s: %w", err.Error(), ErrCreateSilenceBadPayload)
 	}
@@ -145,7 +146,7 @@ func (am *GrafanaAlertmanager) validateSilence(sil *silencepb.Silence) error {
 
 // DeleteSilence looks for and expires the silence by the provided silenceID. It returns ErrSilenceNotFound if the silence is not present.
 func (am *GrafanaAlertmanager) DeleteSilence(silenceID string) error {
-	if err := am.silences.Expire(silenceID); err != nil {
+	if err := am.silences.Expire(context.Background(), silenceID); err != nil {
 		if errors.Is(err, silence.ErrNotFound) {
 			return ErrSilenceNotFound
 		}

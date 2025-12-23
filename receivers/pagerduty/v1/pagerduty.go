@@ -20,6 +20,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 const (
@@ -121,7 +122,7 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 	}
 
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, pn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, pn.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 
 	details := make(map[string]string, len(pn.settings.Details))
 	for k, v := range pn.settings.Details {

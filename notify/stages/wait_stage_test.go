@@ -8,6 +8,8 @@ import (
 	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/grafana/alerting/utils"
 )
 
 type mockPeer struct {
@@ -69,7 +71,7 @@ func TestWaitStageExec(t *testing.T) {
 				timeout: tc.timeout,
 			}
 
-			gotCtx, gotAlerts, gotErr := ws.Exec(ctx, logger, alerts...)
+			gotCtx, gotAlerts, gotErr := ws.Exec(ctx, utils.SlogFromGoKit(logger), alerts...)
 
 			assert.Equal(t, ctx, gotCtx)
 			if tc.expectedErr != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 // Notifier is responsible for sending alert notifications as webex messages.
@@ -48,7 +49,7 @@ type webexMessage struct {
 func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := wn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 
 	message, truncated := receivers.TruncateInBytes(tmpl(wn.settings.Message), 4096)
 	if truncated {

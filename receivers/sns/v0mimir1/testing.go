@@ -8,7 +8,9 @@ const FullValidConfigForTesting = ` {
 		"AccessKey": "secret-access-key",
 		"SecretKey": "secret-secret-key",
 		"Profile": "default",
-		"RoleARN": "arn:aws:iam::123456789012:role/role-name"
+		"RoleARN": "arn:aws:iam::123456789012:role/role-name",
+		"ServiceName": "",
+		"UseFIPSSTSEndpoint": false
 	},
 	"subject": "test subject",
 	"message": "test message",

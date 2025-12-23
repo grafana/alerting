@@ -19,6 +19,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 const (
@@ -250,7 +251,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := tn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 
 	card := NewAdaptiveCard()
 	card.AppendItem(AdaptiveCardTextBlockItem{

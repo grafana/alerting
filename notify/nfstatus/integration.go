@@ -71,7 +71,7 @@ func NewIntegration(notifier notify.Notifier, rs notify.ResolvedSender, name str
 
 	return &Integration{
 		status:      status,
-		integration: integration,
+		integration: &integration,
 	}
 }
 

@@ -20,6 +20,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 // Constants and models are set according to the official documentation https://discord.com/developers/docs/resources/webhook#execute-webhook-jsonform-params
@@ -115,7 +116,7 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 	}
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, d.tmpl, as, l, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, d.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 
 	msg.Content = tmpl(d.settings.Message)
 	if tmplErr != nil {

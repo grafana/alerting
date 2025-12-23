@@ -19,6 +19,7 @@ import (
 
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 const subjectSizeLimit = 100
@@ -43,7 +44,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, logg
 func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := s.GetLogger(ctx)
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, s.tmpl, as, l, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, s.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 
 	level.Info(l).Log("msg", "Sending notification")
 

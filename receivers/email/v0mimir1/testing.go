@@ -13,8 +13,9 @@ const FullValidConfigForTesting = `{
 	"headers": {
 		"Subject": "test subject"
 	},
+	"threading": {},
 	"tls_config": {
-		"insecure_skip_verify": false,     
+		"insecure_skip_verify": false,
 		"server_name": "test-server-name"
 	},
 	"send_resolved": true

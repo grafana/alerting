@@ -28,6 +28,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 const (
@@ -225,7 +226,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 				return nil
 			}
 			var tmplErr error
-			tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
+			tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 			imageMessage := &slackMessage{
 				Channel:   channelID,
 				Username:  m.Username,
@@ -278,7 +279,7 @@ func commonAlertGeneratorURL(_ context.Context, alerts templates.ExtendedAlerts)
 
 func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert, l log.Logger) (*slackMessage, *templates.ExtendedData, error) {
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, sn.tmpl, alerts, utils.SlogFromGoKit(l), &tmplErr)
 	ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", l)
 
 	// If all alerts have the same GeneratorURL, use that.

@@ -15,6 +15,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 // Notifier is responsible for sending
@@ -50,7 +51,7 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, gcn.tmpl, as, l, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, gcn.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 
 	var widgets []widget
 

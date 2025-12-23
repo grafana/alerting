@@ -58,6 +58,7 @@ import (
 	webhook "github.com/grafana/alerting/receivers/webhook/v1"
 	wecom "github.com/grafana/alerting/receivers/wecom/v1"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 type WrapNotifierFunc func(integrationName string, notifier notify.Notifier) notify.Notifier
@@ -257,46 +258,74 @@ func BuildPrometheusReceiverIntegrations(
 	)
 
 	for i, c := range nc.WebhookConfigs {
-		add("webhook", i, c, func(l log.Logger) (notify.Notifier, error) { return promWebhook.New(c, tmpl, l, httpOps...) })
+		add("webhook", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promWebhook.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.EmailConfigs {
-		add("email", i, c, func(l log.Logger) (notify.Notifier, error) { return promEmail.New(c, tmpl, l), nil })
+		add("email", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promEmail.New(c, tmpl, utils.SlogFromGoKit(l)), nil
+		})
 	}
 	for i, c := range nc.PagerdutyConfigs {
-		add("pagerduty", i, c, func(l log.Logger) (notify.Notifier, error) { return promPagerduty.New(c, tmpl, l, httpOps...) })
+		add("pagerduty", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promPagerduty.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.OpsGenieConfigs {
-		add("opsgenie", i, c, func(l log.Logger) (notify.Notifier, error) { return promOpsgenie.New(c, tmpl, l, httpOps...) })
+		add("opsgenie", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promOpsgenie.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.WechatConfigs {
-		add("wechat", i, c, func(l log.Logger) (notify.Notifier, error) { return promWechat.New(c, tmpl, l, httpOps...) })
+		add("wechat", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promWechat.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.SlackConfigs {
-		add("slack", i, c, func(l log.Logger) (notify.Notifier, error) { return promSlack.New(c, tmpl, l, httpOps...) })
+		add("slack", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promSlack.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.VictorOpsConfigs {
-		add("victorops", i, c, func(l log.Logger) (notify.Notifier, error) { return promVictorops.New(c, tmpl, l, httpOps...) })
+		add("victorops", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promVictorops.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.PushoverConfigs {
-		add("pushover", i, c, func(l log.Logger) (notify.Notifier, error) { return promPushover.New(c, tmpl, l, httpOps...) })
+		add("pushover", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promPushover.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.SNSConfigs {
-		add("sns", i, c, func(l log.Logger) (notify.Notifier, error) { return promSns.New(c, tmpl, l, httpOps...) })
+		add("sns", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promSns.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.TelegramConfigs {
-		add("telegram", i, c, func(l log.Logger) (notify.Notifier, error) { return promTelegram.New(c, tmpl, l, httpOps...) })
+		add("telegram", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promTelegram.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.DiscordConfigs {
-		add("discord", i, c, func(l log.Logger) (notify.Notifier, error) { return promDiscord.New(c, tmpl, l, httpOps...) })
+		add("discord", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promDiscord.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.WebexConfigs {
-		add("webex", i, c, func(l log.Logger) (notify.Notifier, error) { return promWebex.New(c, tmpl, l, httpOps...) })
+		add("webex", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promWebex.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.MSTeamsConfigs {
-		add("msteams", i, c, func(l log.Logger) (notify.Notifier, error) { return promMSTeams.New(c, tmpl, l, httpOps...) })
+		add("msteams", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promMSTeams.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	for i, c := range nc.MSTeamsV2Configs {
-		add("msteamsv2", i, c, func(l log.Logger) (notify.Notifier, error) { return promMSTeamsV2.New(c, tmpl, l, httpOps...) })
+		add("msteamsv2", i, c, func(l log.Logger) (notify.Notifier, error) {
+			return promMSTeamsV2.New(c, tmpl, utils.SlogFromGoKit(l), httpOps...)
+		})
 	}
 	// If we add support for more integrations, we need to add them to validation as well. See validation.allowedIntegrationNames field.
 	if errs.Len() > 0 {

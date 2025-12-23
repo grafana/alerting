@@ -15,6 +15,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 // Notifier is responsible for sending
@@ -75,7 +76,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	as, numTruncated := truncateAlerts(n.settings.MaxAlerts, as)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, n.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, n.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 	data.TruncatedAlerts = &numTruncated
 
 	// Augment our Alert data with ImageURLs if available.

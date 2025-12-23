@@ -15,6 +15,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 var (
@@ -76,7 +77,7 @@ func (tn *Notifier) SendResolved() bool {
 
 func (tn *Notifier) buildMessage(ctx context.Context, l log.Logger, as ...*types.Alert) string {
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 
 	message := fmt.Sprintf("%s%s\n\n*Message:*\n%s\n*URL:* %s\n",
 		selectEmoji(as...),

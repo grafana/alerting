@@ -21,7 +21,7 @@ import (
 	"github.com/prometheus/alertmanager/featurecontrol"
 	"github.com/prometheus/alertmanager/flushlog"
 	"github.com/prometheus/alertmanager/inhibit"
-	"github.com/prometheus/alertmanager/matchers/compat"
+	"github.com/prometheus/alertmanager/matcher/compat"
 	"github.com/prometheus/alertmanager/nflog"
 	"github.com/prometheus/alertmanager/nflog/nflogpb"
 	"github.com/prometheus/alertmanager/notify"
@@ -37,6 +37,7 @@ import (
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/notify/stages"
 	"github.com/grafana/alerting/receivers"
+	"github.com/grafana/alerting/utils"
 
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/templates"
@@ -57,7 +58,7 @@ func init() {
 	// This initializes the compat package in fallback mode. It parses first using the UTF-8 parser
 	// and then fallsback to the classic parser on error. UTF-8 is permitted in label names.
 	// This should be removed when the compat package is removed from Alertmanager.
-	compat.InitFromFlags(log.NewNopLogger(), featurecontrol.NoopFlags{})
+	compat.InitFromFlags(utils.SlogFromGoKit(log.NewNopLogger()), featurecontrol.NoopFlags{})
 }
 
 type ClusterPeer interface {
@@ -74,7 +75,7 @@ type GrafanaAlertmanager struct {
 	opts   GrafanaAlertmanagerOpts
 	logger log.Logger
 
-	marker types.Marker
+	marker *types.MemMarker
 	alerts *mem.Alerts
 	route  *dispatch.Route
 
@@ -273,7 +274,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 	am.notificationLog, err = nflog.New(nflog.Options{
 		SnapshotReader: strings.NewReader(opts.Nflog.InitialState()),
 		Retention:      opts.Nflog.Retention(),
-		Logger:         opts.Logger,
+		Logger:         utils.SlogFromGoKit(opts.Logger),
 		Metrics:        opts.Metrics.Registerer,
 	})
 	if err != nil {
@@ -317,7 +318,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		am.flushLog, err = flushlog.New(flushlog.Options{
 			SnapshotReader: strings.NewReader(opts.FlushLog.InitialState()),
 			Retention:      opts.FlushLog.Retention(),
-			Logger:         opts.Logger,
+			Logger:         utils.SlogFromGoKit(opts.Logger),
 			Metrics:        opts.Metrics.Registerer,
 		})
 		if err != nil {
@@ -341,7 +342,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 	}
 
 	// Initialize in-memory alerts
-	am.alerts, err = mem.NewAlerts(context.Background(), am.marker, memoryAlertsGCInterval, opts.AlertStoreCallback, am.logger, opts.Metrics.Registerer)
+	am.alerts, err = mem.NewAlerts(context.Background(), am.marker, memoryAlertsGCInterval, opts.AlertStoreCallback, utils.SlogFromGoKit(am.logger), opts.Metrics.Registerer)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
 	}
@@ -673,14 +674,14 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 	}
 
 	// Prepare the context.
-	alerts := OpenAPIAlertsToAlerts(c.Alerts)
+	alerts := OpenAPIAlertsToAlerts(ctx, c.Alerts)
 	labels := model.LabelSet{DefaultGroupLabel: DefaultGroupLabelValue}
 	ctx = notify.WithGroupKey(ctx, fmt.Sprintf("%s-%s-%d", DefaultReceiverName, labels.Fingerprint(), time.Now().Unix()))
 	ctx = notify.WithReceiverName(ctx, DefaultReceiverName)
 	ctx = notify.WithGroupLabels(ctx, labels)
 
-	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template, alerts, logger)
-	data := templates.ExtendData(promTmplData, logger)
+	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template, alerts, utils.SlogFromGoKit(logger))
+	data := templates.ExtendData(promTmplData, utils.SlogFromGoKit(logger))
 
 	// Iterate over each definition in the template and evaluate it.
 	var results TestTemplatesResults
@@ -780,15 +781,15 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		am.dispatcher.Stop()
 	}
 
-	am.inhibitor = inhibit.NewInhibitor(am.alerts, cfg.InhibitRules, am.marker, am.logger)
+	am.inhibitor = inhibit.NewInhibitor(am.alerts, cfg.InhibitRules, am.marker, utils.SlogFromGoKit(am.logger))
 	am.timeIntervals = am.buildTimeIntervals(cfg.TimeIntervals, cfg.MuteTimeIntervals)
-	am.silencer = silence.NewSilencer(am.silences, am.marker, am.logger)
+	am.silencer = silence.NewSilencer(am.silences, am.marker, utils.SlogFromGoKit(am.logger))
 
 	meshStage := notify.NewGossipSettleStage(am.opts.Peer)
 	inhibitionStage := notify.NewMuteStage(am.inhibitor, am.stageMetrics)
 	ti := timeinterval.NewIntervener(am.timeIntervals)
-	activeTimeStage := notify.NewTimeActiveStage(ti, am.stageMetrics)
-	timeMuteStage := notify.NewTimeMuteStage(ti, am.stageMetrics)
+	activeTimeStage := notify.NewTimeActiveStage(ti, am.marker, am.stageMetrics)
+	timeMuteStage := notify.NewTimeMuteStage(ti, am.marker, am.stageMetrics)
 	silencingStage := notify.NewMuteStage(am.silencer, am.stageMetrics)
 
 	am.route = dispatch.NewRoute(cfg.RoutingTree, nil)
@@ -798,7 +799,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		dispatchTimer = dispatch.NewSyncTimerFactory(am.flushLog, am.opts.Peer.Position)
 	}
 
-	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.Limits.Dispatcher, am.logger, am.dispatcherMetrics, dispatchTimer)
+	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, 30*time.Second, cfg.Limits.Dispatcher, utils.SlogFromGoKit(am.logger), am.dispatcherMetrics, dispatchTimer)
 
 	// TODO: This has not been upstreamed yet. Should be aligned when https://github.com/prometheus/alertmanager/pull/3016 is merged.
 	receivers := make([]*nfstatus.Receiver, 0, len(integrationsMap))
@@ -819,7 +820,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 	am.wg.Add(1)
 	go func() {
 		defer am.wg.Done()
-		am.dispatcher.Run()
+		am.dispatcher.Run(time.Now())
 	}()
 
 	am.wg.Add(1)
@@ -877,7 +878,7 @@ func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) err
 			a.EndsAt)
 	}
 
-	if err := am.alerts.Put(alerts...); err != nil {
+	if err := am.alerts.Put(context.Background(), alerts...); err != nil {
 		// Notification sending alert takes precedence over validation errors.
 		return err
 	}
@@ -981,7 +982,7 @@ func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*
 		var s notify.MultiStage
 		s = append(s, stages.NewWaitStage(am.opts.Peer, am.opts.PeerTimeout))
 		s = append(s, notify.NewDedupStage(integrations[i], notificationLog, recv))
-		s = append(s, notify.NewRetryStage(integrations[i], name, am.stageMetrics))
+		s = append(s, notify.NewRetryStage(*integrations[i], name, am.stageMetrics))
 		s = append(s, notify.NewSetNotifiesStage(notificationLog, recv))
 
 		fs = append(fs, s)

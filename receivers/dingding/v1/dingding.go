@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/alertmanager/types"
 
-	"github.com/go-kit/log"
-
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 // Notifier is responsible for sending alert notifications to ding ding.
@@ -40,7 +40,7 @@ func (dd *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	dingDingURL := buildDingDingURL(dd.tmpl.ExternalURL, l)
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, dd.tmpl, as, l, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, dd.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 
 	message := tmpl(dd.settings.Message)
 	title := tmpl(dd.settings.Title)

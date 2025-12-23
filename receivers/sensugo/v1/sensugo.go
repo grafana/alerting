@@ -16,6 +16,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 var (
@@ -48,7 +49,7 @@ func (sn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	level.Debug(l).Log("msg", "sending Sensu Go result")
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, sn.tmpl, as, l, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, sn.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 
 	// Sensu Go alerts require an entity and a check. We set it to the user-specified
 	// value (optional), else we fallback and use the grafana rule anme  and ruleID.
