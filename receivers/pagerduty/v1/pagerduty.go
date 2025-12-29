@@ -102,7 +102,7 @@ func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 			"Content-Type": "application/json",
 		},
 	}
-	if err := pn.ns.SendWebhook(ctx, l, cmd); err != nil {
+	if _, err := pn.ns.SendWebhook(ctx, l, cmd); err != nil {
 		return false, fmt.Errorf("send notification to Pagerduty: %w", err)
 	}
 

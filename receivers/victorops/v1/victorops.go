@@ -113,7 +113,7 @@ func (vn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		Body: string(b),
 	}
 
-	if err := vn.ns.SendWebhook(ctx, l, cmd); err != nil {
+	if _, err := vn.ns.SendWebhook(ctx, l, cmd); err != nil {
 		level.Error(l).Log("msg", "failed to send notification", "err", err)
 		return false, err
 	}

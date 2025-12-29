@@ -389,7 +389,7 @@ func (n *Notifier) doAPIRequest(ctx context.Context, method, path string, reques
 
 	var shouldRetry bool
 	var responseBody []byte
-	err = n.ns.SendWebhook(ctx, logger, &receivers.SendWebhookSettings{
+	_, err = n.ns.SendWebhook(ctx, logger, &receivers.SendWebhookSettings{
 		URL:         n.conf.URL.JoinPath(path).String(),
 		User:        n.conf.User,
 		Password:    n.conf.Password,
