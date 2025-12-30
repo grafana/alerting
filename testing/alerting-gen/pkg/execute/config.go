@@ -9,12 +9,12 @@ import (
 )
 
 type Config struct {
-	AlertRuleCount     int `json:"alertRuleCount"`
-	RecordingRuleCount int `json:"recordingRuleCount"`
+	AlertRuleCount     int
+	RecordingRuleCount int
 	QueryDS            string
 	WriteDS            string
-	RulesPerGroup      int `json:"rulesPerGroup"`
-	GroupsPerFolder    int `json:"groupsPerFolder"`
+	RulesPerGroup      int
+	GroupsPerFolder    int
 	EvalInterval       int64
 	Seed               int64
 	UploadOptions

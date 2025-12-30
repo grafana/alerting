@@ -244,74 +244,21 @@ func nukeFolders(cfg Config, logger kitlog.Logger) error {
 
 	level.Info(logger).Log("msg", "Deleting folders", "count", len(foldersToDelete))
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	var wg sync.WaitGroup
-	workers := max(cfg.Concurrency, 1)
-	wg.Add(workers)
-	folderCh := make(chan string)
-	var workerErr error
-
-	// Delete each folder concurrently.
+	// Delete each folder.
 	forceDelete := true
-	for i := range workers {
-		go func(i int) {
-			level.Debug(logger).Log("msg", "Initializing delete worker", "number", i)
-			defer func() {
-				level.Debug(logger).Log("msg", "Terminating delete worker", "number", i)
-				wg.Done()
-			}()
+	for _, folderUID := range foldersToDelete {
+		level.Debug(logger).Log("msg", "Deleting folder", "uid", folderUID)
+		deleteParams := folders.NewDeleteFolderParams().
+			WithFolderUID(folderUID).
+			WithForceDeleteRules(&forceDelete)
 
-			// Build client for this worker.
-			cli, err := newGrafanaClient(cfg.GrafanaURL, cfg.Username, cfg.Password, cfg.Token, cfg.OrgID)
-			if err != nil {
-				workerErr = err
-				cancel()
-				return
-			}
-
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case folderUID, ok := <-folderCh:
-					if !ok {
-						return
-					}
-
-					level.Debug(logger).Log("msg", "Deleting folder", "uid", folderUID)
-					deleteParams := folders.NewDeleteFolderParams().
-						WithFolderUID(folderUID).
-						WithForceDeleteRules(&forceDelete)
-
-					if _, err := cli.Folders.DeleteFolder(deleteParams); err != nil {
-						workerErr = fmt.Errorf("failed to delete folder %q: %w", folderUID, err)
-						cancel()
-						return
-					}
-					level.Debug(logger).Log("msg", "Folder deleted", "uid", folderUID)
-				}
-			}
-		}(i)
+		if _, err := cli.Folders.DeleteFolder(deleteParams); err != nil {
+			return fmt.Errorf("failed to delete folder %q: %w", folderUID, err)
+		}
+		level.Debug(logger).Log("msg", "Folder deleted", "uid", folderUID)
 	}
 
-	// Producer goroutine.
-	go func() {
-		defer close(folderCh)
-		for _, folderUID := range foldersToDelete {
-			select {
-			case <-ctx.Done():
-				return
-			case folderCh <- folderUID:
-			}
-		}
-	}()
-
-	// Wait for all workers to finish.
-	wg.Wait()
-
-	return workerErr
+	return nil
 }
 
 // createFolders creates N folders in Grafana and returns their UIDs.
