@@ -18,30 +18,6 @@ import (
 	"github.com/grafana/grafana-openapi-client-go/models"
 )
 
-type Config struct {
-	AlertRuleCount     int `json:"alertRuleCount"`
-	RecordingRuleCount int `json:"recordingRuleCount"`
-	QueryDS            string
-	WriteDS            string
-	RulesPerGroup      int `json:"rulesPerGroup"`
-	GroupsPerFolder    int `json:"groupsPerFolder"`
-	EvalInterval       int64
-	Seed               int64
-	UploadOptions
-}
-
-type UploadOptions struct {
-	GrafanaURL    string
-	Username      string
-	Password      string
-	Token         string
-	OrgID         int64
-	FolderUIDsCSV string
-	FolderCount   int
-	Nuke          bool
-	Concurrency   int
-}
-
 func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 	// Initialize logger based on debug flag using go-kit/log.
 	baseLogger := kitlog.NewLogfmtLogger(os.Stderr)
@@ -93,7 +69,6 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		level.Debug(logger).Log("msg", "Using same data source for write-ds", "uid", cfg.WriteDS)
 	}
 
-	var folderUIDs []string
 	// If num-folders is set, create folders dynamically.
 	if cfg.FolderCount > 0 {
 		if cfg.GrafanaURL == "" {
@@ -104,11 +79,10 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create folders: %w", err)
 		}
-		folderUIDs = createdUIDs
-		level.Info(logger).Log("msg", "folders created successfully", "count", len(folderUIDs))
-	} else {
-		folderUIDs = parseCSV(cfg.FolderUIDsCSV)
+		cfg.folderUIDs = createdUIDs
+		level.Info(logger).Log("msg", "folders created successfully", "count", len(cfg.folderUIDs))
 	}
+
 	groups, err := gen.GenerateGroups(gen.Config{
 		AlertRuleCount:     cfg.AlertRuleCount,
 		RecordingRuleCount: cfg.RecordingRuleCount,
@@ -118,7 +92,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		GroupsPerFolder:    cfg.GroupsPerFolder,
 		EvalInterval:       cfg.EvalInterval,
 		Seed:               cfg.Seed,
-		FolderUIDs:         folderUIDs,
+		FolderUIDs:         cfg.folderUIDs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate groups: %w", err)
@@ -239,18 +213,6 @@ func newGrafanaClient(baseURL, username, password, token string, orgID int64) (*
 	client := api.NewHTTPClientWithConfig(nil, cfg)
 	client = client.WithRetries(100, 1*time.Minute)
 	return client, nil
-}
-
-func parseCSV(s string) []string {
-	parts := strings.Split(s, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }
 
 // nukeFolders deletes all alerting-gen created folders.
