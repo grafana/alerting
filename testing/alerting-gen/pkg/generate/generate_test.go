@@ -80,14 +80,14 @@ func TestRecordingRuleGenerator_Properties(t *testing.T) {
 
 func TestGenerateGroups_SetsFolderAndGroup(t *testing.T) {
 	cfg := Config{
-		NumAlerting:     3,
-		NumRecording:    2,
-		QueryDS:         "__expr__",
-		WriteDS:         "prom",
-		RulesPerGroup:   2,
-		GroupsPerFolder: 2,
-		Seed:            1234,
-		FolderUIDs:      []string{"f1", "f2"},
+		AlertRuleCount:     3,
+		RecordingRuleCount: 2,
+		QueryDS:            "__expr__",
+		WriteDS:            "prom",
+		RulesPerGroup:      2,
+		GroupsPerFolder:    2,
+		Seed:               1234,
+		FolderUIDs:         []string{"f1", "f2"},
 	}
 	groups, err := GenerateGroups(cfg)
 	require.NoError(t, err)

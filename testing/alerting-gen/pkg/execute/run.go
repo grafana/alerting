@@ -19,14 +19,14 @@ import (
 )
 
 type Config struct {
-	NumAlerting     int
-	NumRecording    int
-	QueryDS         string
-	WriteDS         string
-	RulesPerGroup   int
-	GroupsPerFolder int
-	EvalInterval    int64
-	Seed            int64
+	AlertRuleCount     int `json:"alertRuleCount"`
+	RecordingRuleCount int `json:"recordingRuleCount"`
+	QueryDS            string
+	WriteDS            string
+	RulesPerGroup      int `json:"rulesPerGroup"`
+	GroupsPerFolder    int `json:"groupsPerFolder"`
+	EvalInterval       int64
+	Seed               int64
 	UploadOptions
 }
 
@@ -37,7 +37,7 @@ type UploadOptions struct {
 	Token         string
 	OrgID         int64
 	FolderUIDsCSV string
-	NumFolders    int
+	FolderCount   int
 	Nuke          bool
 	Concurrency   int
 }
@@ -55,7 +55,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 	logger := kitlog.With(filtered, "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
 
 	// Basic validation.
-	if cfg.NumRecording > 0 && cfg.WriteDS == "" {
+	if cfg.RecordingRuleCount > 0 && cfg.WriteDS == "" {
 		return nil, fmt.Errorf("write-ds is required when generating recording rules (set -write-ds to a Prometheus datasource UID)")
 	}
 	if cfg.GrafanaURL != "" {
@@ -82,7 +82,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		level.Info(logger).Log("msg", "Nuke completed successfully")
 
 		// If no generation work to do, exit early.
-		if cfg.NumAlerting == 0 && cfg.NumRecording == 0 {
+		if cfg.AlertRuleCount == 0 && cfg.RecordingRuleCount == 0 {
 			return nil, nil
 		}
 	}
@@ -95,12 +95,12 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 
 	var folderUIDs []string
 	// If num-folders is set, create folders dynamically.
-	if cfg.NumFolders > 0 {
+	if cfg.FolderCount > 0 {
 		if cfg.GrafanaURL == "" {
 			return nil, fmt.Errorf("grafana-url is required when num-folders is set (folders need to be created via API)")
 		}
-		level.Info(logger).Log("msg", "creating folders", "count", cfg.NumFolders)
-		createdUIDs, err := createFolders(cfg, cfg.NumFolders, cfg.Seed, logger)
+		level.Info(logger).Log("msg", "creating folders", "count", cfg.FolderCount)
+		createdUIDs, err := createFolders(cfg, cfg.FolderCount, cfg.Seed, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create folders: %w", err)
 		}
@@ -110,15 +110,15 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		folderUIDs = parseCSV(cfg.FolderUIDsCSV)
 	}
 	groups, err := gen.GenerateGroups(gen.Config{
-		NumAlerting:     cfg.NumAlerting,
-		NumRecording:    cfg.NumRecording,
-		QueryDS:         cfg.QueryDS,
-		WriteDS:         cfg.WriteDS,
-		RulesPerGroup:   cfg.RulesPerGroup,
-		GroupsPerFolder: cfg.GroupsPerFolder,
-		EvalInterval:    cfg.EvalInterval,
-		Seed:            cfg.Seed,
-		FolderUIDs:      folderUIDs,
+		AlertRuleCount:     cfg.AlertRuleCount,
+		RecordingRuleCount: cfg.RecordingRuleCount,
+		QueryDS:            cfg.QueryDS,
+		WriteDS:            cfg.WriteDS,
+		RulesPerGroup:      cfg.RulesPerGroup,
+		GroupsPerFolder:    cfg.GroupsPerFolder,
+		EvalInterval:       cfg.EvalInterval,
+		Seed:               cfg.Seed,
+		FolderUIDs:         folderUIDs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate groups: %w", err)
@@ -282,21 +282,74 @@ func nukeFolders(cfg Config, logger kitlog.Logger) error {
 
 	level.Info(logger).Log("msg", "Deleting folders", "count", len(foldersToDelete))
 
-	// Delete each folder.
-	forceDelete := true
-	for _, folderUID := range foldersToDelete {
-		level.Debug(logger).Log("msg", "Deleting folder", "uid", folderUID)
-		deleteParams := folders.NewDeleteFolderParams().
-			WithFolderUID(folderUID).
-			WithForceDeleteRules(&forceDelete)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-		if _, err := cli.Folders.DeleteFolder(deleteParams); err != nil {
-			return fmt.Errorf("failed to delete folder %q: %w", folderUID, err)
-		}
-		level.Debug(logger).Log("msg", "Folder deleted", "uid", folderUID)
+	var wg sync.WaitGroup
+	workers := max(cfg.Concurrency, 1)
+	wg.Add(workers)
+	folderCh := make(chan string)
+	var workerErr error
+
+	// Delete each folder concurrently.
+	forceDelete := true
+	for i := range workers {
+		go func(i int) {
+			level.Debug(logger).Log("msg", "Initializing delete worker", "number", i)
+			defer func() {
+				level.Debug(logger).Log("msg", "Terminating delete worker", "number", i)
+				wg.Done()
+			}()
+
+			// Build client for this worker.
+			cli, err := newGrafanaClient(cfg.GrafanaURL, cfg.Username, cfg.Password, cfg.Token, cfg.OrgID)
+			if err != nil {
+				workerErr = err
+				cancel()
+				return
+			}
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case folderUID, ok := <-folderCh:
+					if !ok {
+						return
+					}
+
+					level.Debug(logger).Log("msg", "Deleting folder", "uid", folderUID)
+					deleteParams := folders.NewDeleteFolderParams().
+						WithFolderUID(folderUID).
+						WithForceDeleteRules(&forceDelete)
+
+					if _, err := cli.Folders.DeleteFolder(deleteParams); err != nil {
+						workerErr = fmt.Errorf("failed to delete folder %q: %w", folderUID, err)
+						cancel()
+						return
+					}
+					level.Debug(logger).Log("msg", "Folder deleted", "uid", folderUID)
+				}
+			}
+		}(i)
 	}
 
-	return nil
+	// Producer goroutine.
+	go func() {
+		defer close(folderCh)
+		for _, folderUID := range foldersToDelete {
+			select {
+			case <-ctx.Done():
+				return
+			case folderCh <- folderUID:
+			}
+		}
+	}()
+
+	// Wait for all workers to finish.
+	wg.Wait()
+
+	return workerErr
 }
 
 // createFolders creates N folders in Grafana and returns their UIDs.
