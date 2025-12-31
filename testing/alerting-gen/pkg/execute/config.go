@@ -17,6 +17,7 @@ type Config struct {
 	GroupsPerFolder int
 	EvalInterval    int64
 	Seed            int64
+	DryRun          bool
 	UploadOptions
 }
 

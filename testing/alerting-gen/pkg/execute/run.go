@@ -34,27 +34,8 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 	}
 	logger := kitlog.With(filtered, "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
 
-	// Basic validation.
-	if cfg.NumRecording > 0 && cfg.WriteDS == "" {
-		return nil, fmt.Errorf("write-ds is required when generating recording rules (set -write-ds to a Prometheus datasource UID)")
-	}
-	if cfg.GrafanaURL != "" {
-		// If token provided, it takes precedence; else require username/password.
-		if cfg.Token == "" {
-			if cfg.Username == "" {
-				return nil, fmt.Errorf("username is required when grafana-url is set (or provide -token instead)")
-			}
-			if cfg.Password == "" {
-				return nil, fmt.Errorf("password is required when grafana-url is set (or provide -token instead)")
-			}
-		}
-	}
-
 	// Handle --nuke flag.
 	if cfg.Nuke {
-		if cfg.GrafanaURL == "" {
-			return nil, fmt.Errorf("grafana-url is required when using --nuke")
-		}
 		level.Info(logger).Log("msg", "Nuking all alerting-gen created folders")
 		if err := nukeFolders(cfg, logger); err != nil {
 			return nil, fmt.Errorf("failed to nuke folders: %w", err)
@@ -67,17 +48,8 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		}
 	}
 
-	// Default write-ds to query-ds if not explicitly provided.
-	if cfg.WriteDS == "" && cfg.QueryDS != "" {
-		cfg.WriteDS = cfg.QueryDS
-		level.Debug(logger).Log("msg", "Using same data source for write-ds", "uid", cfg.WriteDS)
-	}
-
-	// If num-folders is set, create folders dynamically.
-	if cfg.NumFolders > 0 {
-		if cfg.GrafanaURL == "" {
-			return nil, fmt.Errorf("grafana-url is required when num-folders is set (folders need to be created via API)")
-		}
+	// If num-folders is set and it's not a dry run, create folders dynamically.
+	if cfg.NumFolders > 0 && !cfg.DryRun {
 		level.Info(logger).Log("msg", "creating folders", "count", cfg.NumFolders)
 		createdUIDs, err := createFolders(cfg, cfg.NumFolders, cfg.Seed, logger)
 		if err != nil {
@@ -102,12 +74,13 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		return nil, fmt.Errorf("failed to generate groups: %w", err)
 	}
 
-	// If Grafana URL is provided, send via provisioning API as well.
-	if cfg.GrafanaURL != "" {
+	// If we need to create resources, use the provisioning API.
+	if !cfg.DryRun {
 		if err := sendViaProvisioning(cfg, groups, logger); err != nil {
 			return groups, fmt.Errorf("failed to send rule group via provisioning: %w", err)
 		}
 	}
+
 	return groups, nil
 }
 

@@ -45,6 +45,7 @@ func parseFlags() CLIOptions {
 	flag.StringVar(&cfg.FolderUIDsCSV, "folder-uids", "", "Comma-separated list of folder UIDs to distribute groups across")
 	flag.IntVar(&cfg.NumFolders, "num-folders", 0, "Number of folders to create")
 	flag.BoolVar(&cfg.Nuke, "nuke", false, "Delete all alerting-gen created folders (can be used alone or with other flags to start fresh)")
+	flag.BoolVar(&cfg.DryRun, "dry", false, "Print the output, don't create resources")
 	flag.IntVar(&cfg.Concurrency, "c", 10, "Number of concurrent requests")
 	flag.BoolVar(&cfg.Debug, "debug", false, "Enable debug logging")
 	flag.Parse()
