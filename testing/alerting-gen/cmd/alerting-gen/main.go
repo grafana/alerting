@@ -10,8 +10,7 @@ import (
 	"github.com/grafana/alerting/testing/alerting-gen/pkg/execute"
 )
 
-// Config holds CLI inputs
-
+// CLIOptions holds CLI inputs
 type CLIOptions struct {
 	OutPath              string
 	Debug                bool
@@ -43,7 +42,7 @@ func parseFlags() CLIOptions {
 	flag.StringVar(&cfg.Password, "password", "admin", "Grafana Admin password")
 	flag.StringVar(&cfg.Token, "token", "", "Grafana service account token (alternative to username/password; takes precedence if set)")
 	flag.Int64Var(&cfg.OrgID, "org-id", 1, "Grafana organization ID (optional; API keys are org-scoped)")
-	flag.StringVar(&cfg.FolderUIDsCSV, "folder-uids", "default", "Comma-separated list of folder UIDs to distribute groups across (defaults to 'general')")
+	flag.StringVar(&cfg.FolderUIDsCSV, "folder-uids", "", "Comma-separated list of folder UIDs to distribute groups across")
 	flag.IntVar(&cfg.NumFolders, "num-folders", 0, "Number of folders to create")
 	flag.BoolVar(&cfg.Nuke, "nuke", false, "Delete all alerting-gen created folders (can be used alone or with other flags to start fresh)")
 	flag.IntVar(&cfg.Concurrency, "c", 10, "Number of concurrent requests")
