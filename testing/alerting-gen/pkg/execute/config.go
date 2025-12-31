@@ -72,7 +72,7 @@ func (c *Config) Validate() error {
 		c.QueryDS = "grafanacloud-prom"
 	}
 	if c.WriteDS == "" {
-		c.WriteDS = "grafanacloud-prom"
+		c.WriteDS = c.QueryDS
 	}
 
 	// Validate Grafana credentials when URL is provided.

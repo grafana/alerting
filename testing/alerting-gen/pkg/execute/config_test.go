@@ -621,6 +621,73 @@ func TestConfig_Validate(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Query data source set, write data source not set",
+			config: Config{
+				NumAlerting: 10,
+				UploadOptions: UploadOptions{
+					NumFolders: 1,
+				},
+				QueryDS: "test-ds",
+			},
+			expectedConfig: Config{
+				NumAlerting:     10,
+				QueryDS:         "test-ds",
+				WriteDS:         "test-ds",
+				RulesPerGroup:   10,
+				GroupsPerFolder: 1,
+				UploadOptions: UploadOptions{
+					OrgID:       1,
+					NumFolders:  1,
+					Concurrency: 1,
+				},
+			},
+		},
+		{
+			name: "Write data source set, query data source not set",
+			config: Config{
+				NumAlerting: 10,
+				UploadOptions: UploadOptions{
+					NumFolders: 1,
+				},
+				WriteDS: "test-ds",
+			},
+			expectedConfig: Config{
+				NumAlerting:     10,
+				QueryDS:         "grafanacloud-prom",
+				WriteDS:         "test-ds",
+				RulesPerGroup:   10,
+				GroupsPerFolder: 1,
+				UploadOptions: UploadOptions{
+					OrgID:       1,
+					NumFolders:  1,
+					Concurrency: 1,
+				},
+			},
+		},
+		{
+			name: "Write and query data sources set",
+			config: Config{
+				NumAlerting: 10,
+				UploadOptions: UploadOptions{
+					NumFolders: 1,
+				},
+				QueryDS: "test-ds-query",
+				WriteDS: "test-ds-write",
+			},
+			expectedConfig: Config{
+				NumAlerting:     10,
+				QueryDS:         "test-ds-query",
+				WriteDS:         "test-ds-write",
+				RulesPerGroup:   10,
+				GroupsPerFolder: 1,
+				UploadOptions: UploadOptions{
+					OrgID:       1,
+					NumFolders:  1,
+					Concurrency: 1,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -31,8 +31,8 @@ func parseFlags() CLIOptions {
 	var cfg CLIOptions
 	flag.IntVar(&cfg.NumAlerting, "alerts", 0, "Number of alerting rules to generate")
 	flag.IntVar(&cfg.NumRecording, "recordings", 0, "Number of recording rules to generate")
-	flag.StringVar(&cfg.QueryDS, "query-ds", "grafanacloud-prom", "Data source UID to query from")
-	flag.StringVar(&cfg.WriteDS, "write-ds", "grafanacloud-prom", "Data source UID to write recording rules to (defaults to same as query-ds)")
+	flag.StringVar(&cfg.QueryDS, "query-ds", "", "Data source UID to query from")
+	flag.StringVar(&cfg.WriteDS, "write-ds", "", "Data source UID to write recording rules to (defaults to same as query-ds)")
 	flag.IntVar(&cfg.RulesPerGroup, "rules-per-group", 0, "Number of rules per group")
 	flag.IntVar(&cfg.GroupsPerFolder, "groups-per-folder", 0, "Number of groups per folder")
 	flag.DurationVar(&cfg.EvalIntervalDuration, "eval-interval", 0, "Evaluation interval (e.g., 1m, 5m, 20m; if not set, random 1-20m)")
