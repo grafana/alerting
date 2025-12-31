@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/grafana/alerting/testing/alerting-gen/pkg/config"
 	"github.com/grafana/alerting/testing/alerting-gen/pkg/execute"
 )
 
@@ -16,7 +17,7 @@ type CLIOptions struct {
 	OutPath              string
 	Debug                bool
 	EvalIntervalDuration time.Duration
-	execute.Config
+	config.Config
 }
 
 func main() {
@@ -29,8 +30,8 @@ func main() {
 
 func parseFlags() CLIOptions {
 	var cfg CLIOptions
-	flag.IntVar(&cfg.AlertRuleCount, "alerts", 0, "Number of alerting rules to generate")
-	flag.IntVar(&cfg.RecordingRuleCount, "recordings", 0, "Number of recording rules to generate")
+	flag.IntVar(&cfg.NumAlerting, "alerts", 0, "Number of alerting rules to generate")
+	flag.IntVar(&cfg.NumRecording, "recordings", 0, "Number of recording rules to generate")
 	flag.StringVar(&cfg.QueryDS, "query-ds", "grafanacloud-prom", "Data source UID to query from")
 	flag.StringVar(&cfg.WriteDS, "write-ds", "grafanacloud-prom", "Data source UID to write recording rules to (defaults to same as query-ds)")
 	flag.IntVar(&cfg.RulesPerGroup, "rules-per-group", 0, "Number of rules per group")
@@ -44,7 +45,7 @@ func parseFlags() CLIOptions {
 	flag.StringVar(&cfg.Token, "token", "", "Grafana service account token (alternative to username/password; takes precedence if set)")
 	flag.Int64Var(&cfg.OrgID, "org-id", 1, "Grafana organization ID (optional; API keys are org-scoped)")
 	flag.StringVar(&cfg.FolderUIDsCSV, "folder-uids", "default", "Comma-separated list of folder UIDs to distribute groups across (defaults to 'general')")
-	flag.IntVar(&cfg.FolderCount, "num-folders", 0, "Number of folders to create")
+	flag.IntVar(&cfg.NumFolders, "num-folders", 0, "Number of folders to create")
 	flag.BoolVar(&cfg.Nuke, "nuke", false, "Delete all alerting-gen created folders (can be used alone or with other flags to start fresh)")
 	flag.IntVar(&cfg.Concurrency, "c", 10, "Number of concurrent requests")
 	flag.BoolVar(&cfg.Debug, "debug", false, "Enable debug logging")
