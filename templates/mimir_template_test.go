@@ -25,7 +25,7 @@ func Test_withCustomFunctions(t *testing.T) {
 		expectError bool
 	}
 
-	cfg, err := NewConfig("test", "http://localhost", DefaultLimits)
+	cfg, err := NewConfig("test", "http://localhost", "", DefaultLimits)
 	require.NoError(t, err)
 	f, err := NewFactory(nil, cfg, log.NewNopLogger())
 	assert.NoError(t, err)
@@ -153,7 +153,7 @@ func Test_loadTemplates(t *testing.T) {
 					Kind:     MimirKind,
 				})
 			}
-			cfg, err := NewConfig("grafana", "http://localhost", DefaultLimits)
+			cfg, err := NewConfig("grafana", "http://localhost", "", DefaultLimits)
 			require.NoError(t, err)
 			f, err := NewFactory(def, cfg, log.NewNopLogger())
 			require.NoError(t, err)

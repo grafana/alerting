@@ -32,7 +32,8 @@ type KV = template.KV
 type Data = template.Data
 type Template struct {
 	*template.Template
-	limits Limits
+	limits     Limits
+	AppVersion string
 }
 
 var (
@@ -142,6 +143,7 @@ type ExtendedData struct {
 	CommonAnnotations KV `json:"commonAnnotations"`
 
 	ExternalURL string `json:"externalURL"`
+	AppVersion  string `json:"appVersion,omitempty"`
 
 	// Webhook-specific fields
 	GroupKey string `json:"groupKey"`
@@ -372,6 +374,7 @@ func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
 	promTmplData := notify.GetTemplateData(ctx, tmpl.Template, alerts, l)
 	data := ExtendData(promTmplData, l)
+	data.AppVersion = tmpl.AppVersion
 
 	if groupKey, err := notify.ExtractGroupKey(ctx); err == nil {
 		data.GroupKey = groupKey.String()
