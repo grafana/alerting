@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/go-kit/log/level"
-	amConfig "github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/common/model"
 
@@ -42,21 +41,19 @@ const (
 // APIURL of where the notification payload is sent. It is public to be overridable in integration tests.
 var APIURL = "https://slack.com/api/chat.postMessage"
 
-var (
-	slackClient = &http.Client{
-		Timeout: time.Second * 30,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				Renegotiation: tls.RenegotiateFreelyAsClient,
-			},
-			Proxy: http.ProxyFromEnvironment,
-			DialContext: (&net.Dialer{
-				Timeout: 30 * time.Second,
-			}).DialContext,
-			TLSHandshakeTimeout: 5 * time.Second,
+var slackClient = &http.Client{
+	Timeout: time.Second * 30,
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{
+			Renegotiation: tls.RenegotiateFreelyAsClient,
 		},
-	}
-)
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout: 30 * time.Second,
+		}).DialContext,
+		TLSHandshakeTimeout: 5 * time.Second,
+	},
+}
 
 type sendMessageFunc func(ctx context.Context, req *http.Request, logger log.Logger) (slackMessageResponse, error)
 
@@ -66,8 +63,8 @@ type uploadFileFunc func(ctx context.Context, req *http.Request, logger log.Logg
 
 type completeFileUploadFunc func(ctx context.Context, req *http.Request, logger log.Logger) error
 
-// https://api.slack.com/reference/messaging/attachments#legacy_fields - 1024, no units given, assuming runes or characters.
-const slackMaxTitleLenRunes = 1024
+// https://docs.slack.dev/reference/block-kit/blocks/section-block/ - 3000, no units given, assuming runes or characters.
+const slackMaxTitleLenRunes = 3000
 
 // Notifier is responsible for sending
 // alert notification to Slack.
@@ -117,30 +114,44 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 
 // slackMessage is the slackMessage for sending a slack notification.
 type slackMessage struct {
-	Channel     string                   `json:"channel,omitempty"`
-	Text        string                   `json:"text,omitempty"`
-	Username    string                   `json:"username,omitempty"`
-	IconEmoji   string                   `json:"icon_emoji,omitempty"`
-	IconURL     string                   `json:"icon_url,omitempty"`
-	Attachments []attachment             `json:"attachments"`
-	Blocks      []map[string]interface{} `json:"blocks,omitempty"`
-	ThreadTs    string                   `json:"thread_ts,omitempty"`
+	Channel     string       `json:"channel,omitempty"`
+	Text        string       `json:"text,omitempty"`
+	Username    string       `json:"username,omitempty"`
+	IconEmoji   string       `json:"icon_emoji,omitempty"`
+	IconURL     string       `json:"icon_url,omitempty"`
+	Attachments []attachment `json:"attachments"`
+	Blocks      []block      `json:"blocks,omitempty"`
+	ThreadTs    string       `json:"thread_ts,omitempty"`
+}
+
+type block struct {
+	Type     string      `json:"type"`
+	Text     *blockText  `json:"text,omitempty"`
+	Elements []blockElem `json:"elements,omitempty"`
+	ImageURL string      `json:"image_url,omitempty"`
+	AltText  string      `json:"alt_text,omitempty"`
+}
+
+// BlockText represents the text object in a block.
+type blockText struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+// BlockElem represents an element in a context block.
+type blockElem struct {
+	Type     string `json:"type"`
+	Text     string `json:"text,omitempty"`
+	ImageURL string `json:"image_url,omitempty"`
+	AltText  string `json:"alt_text,omitempty"`
 }
 
 // attachment is used to display a richly-formatted message block.
 type attachment struct {
-	Title      string                `json:"title,omitempty"`
-	TitleLink  string                `json:"title_link,omitempty"`
-	Text       string                `json:"text"`
-	ImageURL   string                `json:"image_url,omitempty"`
-	Fallback   string                `json:"fallback"`
-	Fields     []amConfig.SlackField `json:"fields,omitempty"`
-	Footer     string                `json:"footer"`
-	FooterIcon string                `json:"footer_icon"`
-	Color      string                `json:"color,omitempty"`
-	Ts         int64                 `json:"ts,omitempty"`
-	Pretext    string                `json:"pretext,omitempty"`
-	MrkdwnIn   []string              `json:"mrkdwn_in,omitempty"`
+	Fallback string  `json:"fallback"`
+	Color    string  `json:"color,omitempty"`
+	Blocks   []block `json:"blocks,omitempty"`
+	Ts       int64   `json:"ts,omitempty"`
 }
 
 // generic api response from slack
@@ -232,16 +243,19 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 				IconEmoji: m.IconEmoji,
 				IconURL:   m.IconURL,
 				ThreadTs:  slackResp.Ts,
+				Text:      text,
 				Attachments: []attachment{
 					{
-						Color:      tmpl(templates.DefaultMessageColor),
-						Title:      title,
-						Fallback:   text,
-						Footer:     "Grafana v" + sn.appVersion,
-						FooterIcon: footerIconURL,
-						Ts:         time.Now().Unix(),
-						ImageURL:   image.URL,
-						Text:       text,
+						Color: tmpl(templates.DefaultMessageColor),
+						// Fallback: text,
+						Blocks: []block{
+							{
+								Type:     "image",
+								ImageURL: image.URL,
+								AltText:  title,
+							},
+						},
+						// Ts: time.Now().Unix(),
 					},
 				},
 			}
@@ -279,14 +293,19 @@ func commonAlertGeneratorURL(_ context.Context, alerts templates.ExtendedAlerts)
 func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert, l log.Logger) (*slackMessage, *templates.ExtendedData, error) {
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
-	ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", l)
 
-	// If all alerts have the same GeneratorURL, use that.
-	if commonGeneratorURL := commonAlertGeneratorURL(ctx, data.Alerts); commonGeneratorURL != "" {
-		ruleURL = commonGeneratorURL
-	}
+	// TODO: Figure out how to make ruleURL work with Block Kit
+	// The ruleURL is just '?orgId=1' locally for me, so Attachments just not display the link at all.
+
+	// ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", l)
+	//
+	// // If all alerts have the same GeneratorURL, use that.
+	// if commonGeneratorURL := commonAlertGeneratorURL(ctx, data.Alerts); commonGeneratorURL != "" {
+	// 	ruleURL = commonGeneratorURL
+	// }
 
 	title, truncated := receivers.TruncateInRunes(tmpl(sn.settings.Title), slackMaxTitleLenRunes)
+	text := tmpl(sn.settings.Text)
 	if truncated {
 		key, err := notify.ExtractGroupKey(ctx)
 		if err != nil {
@@ -302,41 +321,38 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 		tmplErr = nil
 	}
 
-	req := &slackMessage{
-		Channel:   tmpl(sn.settings.Recipient),
-		Username:  tmpl(sn.settings.Username),
-		IconEmoji: tmpl(sn.settings.IconEmoji),
-		IconURL:   tmpl(sn.settings.IconURL),
-		// TODO: We should use the Block Kit API instead:
-		// https://api.slack.com/messaging/composing/layouts#when-to-use-attachments
-		Attachments: []attachment{
-			{
-				Color:      tmpl(sn.settings.Color),
-				Title:      title,
-				Fallback:   title,
-				Footer:     "Grafana v" + sn.appVersion,
-				FooterIcon: footerIconURL,
-				Ts:         time.Now().Unix(),
-				TitleLink:  ruleURL,
-				Text:       tmpl(sn.settings.Text),
-				Fields:     nil, // TODO. Should be a config.
+	blocks := []block{
+		{
+			Type: "section",
+			Text: &blockText{
+				Type: "mrkdwn",
+				Text: "*" + title + "*",
+			},
+		},
+		{
+			Type: "section",
+			Text: &blockText{
+				Type: "mrkdwn",
+				Text: text,
+			},
+		},
+		{
+			Type: "context",
+			Elements: []blockElem{
+				{
+					Type:     "image",
+					ImageURL: footerIconURL,
+					AltText:  "Grafana v" + sn.appVersion,
+				},
+				{
+					Type: "plain_text",
+					Text: "Grafana v" + sn.appVersion,
+				},
 			},
 		},
 	}
-
-	if isIncomingWebhook(sn.settings) {
-		// Incoming webhooks cannot upload files, instead share images via their URL
-		_ = images.WithStoredImages(ctx, l, sn.images, func(_ int, image images.Image) error {
-			if image.HasURL() {
-				req.Attachments[0].ImageURL = image.URL
-				return images.ErrImagesDone
-			}
-			return nil
-		}, alerts...)
-	}
-
-	if tmplErr != nil {
-		level.Warn(l).Log("msg", "failed to template Slack message", "err", tmplErr.Error())
+	if blocks[0].Text.Text == "**" {
+		blocks[0].Text.Text = ""
 	}
 
 	mentionsBuilder := strings.Builder{}
@@ -365,10 +381,50 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 		}
 	}
 
+	req := &slackMessage{
+		Channel:   tmpl(sn.settings.Recipient),
+		Username:  tmpl(sn.settings.Username),
+		IconEmoji: tmpl(sn.settings.IconEmoji),
+		IconURL:   tmpl(sn.settings.IconURL),
+		Attachments: []attachment{
+			{
+				Color:  tmpl(sn.settings.Color),
+				Blocks: blocks,
+			},
+		},
+		Text: text,
+	}
+
 	if mentionsBuilder.Len() > 0 {
 		// Use markdown-formatted pretext for any mentions.
-		req.Attachments[0].MrkdwnIn = []string{"pretext"}
-		req.Attachments[0].Pretext = mentionsBuilder.String()
+		req.Blocks = []block{
+			{
+				Type: "section",
+				Text: &blockText{
+					Type: "mrkdwn",
+					Text: mentionsBuilder.String(),
+				},
+			},
+		}
+	}
+
+	if isIncomingWebhook(sn.settings) {
+		// Incoming webhooks cannot upload files, instead share images via their URL
+		_ = images.WithStoredImages(ctx, l, sn.images, func(_ int, image images.Image) error {
+			if image.HasURL() {
+				req.Attachments[0].Blocks = append(req.Attachments[0].Blocks, block{
+					Type:     "image",
+					ImageURL: image.URL,
+					AltText:  title,
+				})
+				return images.ErrImagesDone
+			}
+			return nil
+		}, alerts...)
+	}
+
+	if tmplErr != nil {
+		level.Warn(l).Log("msg", "failed to template Slack message", "err", tmplErr.Error())
 	}
 
 	return req, data, nil
