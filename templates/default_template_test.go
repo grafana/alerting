@@ -17,6 +17,7 @@ import (
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/utils"
 )
 
 func TestDefaultTemplateString(t *testing.T) {
@@ -145,7 +146,7 @@ func TestDefaultTemplateString(t *testing.T) {
 
 	var tmplErr error
 	l := log.NewNopLogger()
-	expand, _ := TmplText(context.Background(), tmp, alerts, l, &tmplErr)
+	expand, _ := TmplText(context.Background(), tmp, alerts, utils.SlogFromGoKit(l), &tmplErr)
 
 	tmplDef, err := DefaultTemplate(nil)
 	require.NoError(t, err)
@@ -163,7 +164,7 @@ func TestDefaultTemplateString(t *testing.T) {
 	}
 
 	var tmplDefErr error
-	expandFromDefinition, _ := TmplText(context.Background(), tpl, alerts, l, &tmplDefErr)
+	expandFromDefinition, _ := TmplText(context.Background(), tpl, alerts, utils.SlogFromGoKit(l), &tmplDefErr)
 
 	cases := []struct {
 		templateString string

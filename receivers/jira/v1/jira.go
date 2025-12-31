@@ -21,6 +21,7 @@ import (
 
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 const (
@@ -101,7 +102,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logger, groupID string, as ...*types.Alert) issue {
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, n.tmpl, as, logger, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, n.tmpl, as, utils.SlogFromGoKit(logger), &tmplErr)
 
 	renderOrDefault := func(fieldName, template, fallback string) string {
 		defer func() {

@@ -15,6 +15,7 @@ import (
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 var (
@@ -113,7 +114,7 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert,
 		}
 	}()
 
-	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, utils.SlogFromGoKit(l), &tmplErr)
 	// Telegram supports 4096 chars max
 	messageText, truncated := receivers.TruncateInRunes(tmpl(tn.settings.Message), telegramMaxMessageLenRunes)
 	if truncated {

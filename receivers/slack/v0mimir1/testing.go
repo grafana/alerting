@@ -3,6 +3,7 @@ package v0mimir1
 const FullValidConfigForTesting = `{
 	"api_url": "http://localhost",
 	"http_config": {},
+	"timeout": 0,
 	"channel": "#alerts",
 	"username": "Alerting Team",
 	"color": "danger",

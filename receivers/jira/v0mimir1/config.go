@@ -41,7 +41,7 @@ var Schema = schema.IntegrationSchemaVersion{
 		{
 			Label:        "Summary",
 			Description:  "Issue summary template",
-			Placeholder:  config.DefaultJiraConfig.Summary,
+			Placeholder:  config.DefaultJiraConfig.Summary.Template,
 			Element:      schema.ElementTypeInput,
 			InputType:    schema.InputTypeText,
 			PropertyName: "summary",
@@ -49,7 +49,7 @@ var Schema = schema.IntegrationSchemaVersion{
 		{
 			Label:        "Description",
 			Description:  "Issue description template",
-			Placeholder:  config.DefaultJiraConfig.Description,
+			Placeholder:  config.DefaultJiraConfig.Description.Template,
 			Element:      schema.ElementTypeTextArea,
 			PropertyName: "description",
 		},

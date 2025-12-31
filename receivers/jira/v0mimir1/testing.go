@@ -4,8 +4,8 @@ const FullValidConfigForTesting = `{
 	"api_url": "http://localhost",
 	"project": "PROJ",
 	"issue_type": "Bug",
-	"summary": "test summary",
-	"description": "test description",
+	"summary": {"template": "test summary"},
+	"description": {"template": "test description"},
 	"priority": "High",
 	"labels": ["alertmanager"],
 	"custom_fields": {

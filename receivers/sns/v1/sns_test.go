@@ -14,6 +14,7 @@ import (
 
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+	"github.com/grafana/alerting/utils"
 )
 
 func TestCreatePublishInput(t *testing.T) {
@@ -49,7 +50,7 @@ func TestCreatePublishInput(t *testing.T) {
 			},
 		}
 		var tmplErr error
-		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
+		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(log.NewNopLogger()), &tmplErr)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
@@ -87,7 +88,7 @@ func TestCreatePublishInput(t *testing.T) {
 		}
 
 		var tmplErr error
-		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
+		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(log.NewNopLogger()), &tmplErr)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
@@ -126,7 +127,7 @@ func TestCreatePublishInput(t *testing.T) {
 		}
 
 		var tmplErr error
-		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, log.NewNopLogger(), &tmplErr)
+		tmplFn, _ := templates.TmplText(context.Background(), tmpl, alerts, utils.SlogFromGoKit(log.NewNopLogger()), &tmplErr)
 
 		snsInput, err := snsNotifier.createPublishInput(context.Background(), tmplFn)
 		require.NoError(t, err)
