@@ -221,21 +221,13 @@ func nukeFolders(cfg Config, logger kitlog.Logger) error {
 
 	level.Info(logger).Log("msg", "Deleting folders", "count", len(foldersToDelete))
 
-	uidCh := make(chan string)
-	go func() {
-		for _, uid := range foldersToDelete {
-			uidCh <- uid
-		}
-		close(uidCh)
-	}()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var wg sync.WaitGroup
 	wg.Add(cfg.Concurrency)
+	uidCh := make(chan string)
 	errCh := make(chan error, 1)
-
 	forceDelete := true
 	for range cfg.Concurrency {
 		go func() {
@@ -267,6 +259,18 @@ func nukeFolders(cfg Config, logger kitlog.Logger) error {
 			}
 		}()
 	}
+
+	// Producer goroutine.
+	go func() {
+		defer close(uidCh)
+		for _, uid := range foldersToDelete {
+			select {
+			case <-ctx.Done():
+				return
+			case uidCh <- uid:
+			}
+		}
+	}()
 
 	wg.Wait()
 
@@ -300,19 +304,12 @@ func createFolders(cfg Config, numFolders int, seed int64, logger kitlog.Logger)
 		return nil, err
 	}
 
-	uidCh := make(chan string)
-	go func() {
-		for _, uid := range folderUIDs {
-			uidCh <- uid
-		}
-		close(uidCh)
-	}()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	var wg sync.WaitGroup
 	wg.Add(cfg.Concurrency)
+	uidCh := make(chan string)
 	errCh := make(chan error, 1)
 	for range cfg.Concurrency {
 		go func() {
@@ -349,6 +346,18 @@ func createFolders(cfg Config, numFolders int, seed int64, logger kitlog.Logger)
 			}
 		}()
 	}
+
+	// Producer goroutine.
+	go func() {
+		defer close(uidCh)
+		for _, uid := range folderUIDs {
+			select {
+			case <-ctx.Done():
+				return
+			case uidCh <- uid:
+			}
+		}
+	}()
 
 	wg.Wait()
 
