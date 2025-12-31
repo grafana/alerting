@@ -11,6 +11,7 @@ import (
 
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/grafana/alerting/testing/alerting-gen/pkg/config"
 	gen "github.com/grafana/alerting/testing/alerting-gen/pkg/generate"
 	api "github.com/grafana/grafana-openapi-client-go/client"
 	"github.com/grafana/grafana-openapi-client-go/client/folders"
@@ -18,7 +19,7 @@ import (
 	"github.com/grafana/grafana-openapi-client-go/models"
 )
 
-func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
+func Run(cfg config.Config, debug bool) ([]*models.AlertRuleGroup, error) {
 	// Initialize logger based on debug flag using go-kit/log.
 	baseLogger := kitlog.NewLogfmtLogger(os.Stderr)
 	// Level filter.
@@ -79,8 +80,8 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create folders: %w", err)
 		}
-		cfg.folderUIDs = createdUIDs
-		level.Info(logger).Log("msg", "folders created successfully", "count", len(cfg.folderUIDs))
+		cfg.FolderUIDs = createdUIDs
+		level.Info(logger).Log("msg", "folders created successfully", "count", len(cfg.FolderUIDs))
 	}
 
 	groups, err := gen.GenerateGroups(gen.Config{
@@ -92,7 +93,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		GroupsPerFolder:    cfg.GroupsPerFolder,
 		EvalInterval:       cfg.EvalInterval,
 		Seed:               cfg.Seed,
-		FolderUIDs:         cfg.folderUIDs,
+		FolderUIDs:         cfg.FolderUIDs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate groups: %w", err)
@@ -109,7 +110,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 
 // sendViaProvisioning maps the generated export groups into provisioned group payloads
 // and pushes them to Grafana using the provisioning API.
-func sendViaProvisioning(cfg Config, groups []*models.AlertRuleGroup, logger kitlog.Logger) error {
+func sendViaProvisioning(cfg config.Config, groups []*models.AlertRuleGroup, logger kitlog.Logger) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -216,7 +217,7 @@ func newGrafanaClient(baseURL, username, password, token string, orgID int64) (*
 }
 
 // nukeFolders deletes all alerting-gen created folders.
-func nukeFolders(cfg Config, logger kitlog.Logger) error {
+func nukeFolders(cfg config.Config, logger kitlog.Logger) error {
 	cli, err := newGrafanaClient(cfg.GrafanaURL, cfg.Username, cfg.Password, cfg.Token, cfg.OrgID)
 	if err != nil {
 		return err
@@ -262,7 +263,7 @@ func nukeFolders(cfg Config, logger kitlog.Logger) error {
 }
 
 // createFolders creates N folders in Grafana and returns their UIDs.
-func createFolders(cfg Config, numFolders int, seed int64, logger kitlog.Logger) ([]string, error) {
+func createFolders(cfg config.Config, numFolders int, seed int64, logger kitlog.Logger) ([]string, error) {
 	cli, err := newGrafanaClient(cfg.GrafanaURL, cfg.Username, cfg.Password, cfg.Token, cfg.OrgID)
 	if err != nil {
 		return nil, err

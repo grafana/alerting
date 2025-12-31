@@ -1,4 +1,4 @@
-package execute
+package config
 
 import (
 	"testing"
@@ -122,7 +122,7 @@ func TestConfig_Validate(t *testing.T) {
 				UploadOptions: UploadOptions{
 					OrgID:       1,
 					Concurrency: 1,
-					folderUIDs:  []string{"default"},
+					FolderUIDs:  []string{"default"},
 				},
 			},
 		},
@@ -144,7 +144,7 @@ func TestConfig_Validate(t *testing.T) {
 				UploadOptions: UploadOptions{
 					OrgID:       1,
 					Concurrency: 1,
-					folderUIDs:  []string{"folder1"},
+					FolderUIDs:  []string{"folder1"},
 				},
 			},
 		},
@@ -166,7 +166,7 @@ func TestConfig_Validate(t *testing.T) {
 				UploadOptions: UploadOptions{
 					OrgID:       1,
 					Concurrency: 1,
-					folderUIDs:  []string{"folder1"},
+					FolderUIDs:  []string{"folder1"},
 				},
 			},
 		},
@@ -187,7 +187,7 @@ func TestConfig_Validate(t *testing.T) {
 				UploadOptions: UploadOptions{
 					OrgID:       1,
 					Concurrency: 1,
-					folderUIDs:  []string{"folder1"},
+					FolderUIDs:  []string{"folder1"},
 				},
 			},
 		},
@@ -276,7 +276,7 @@ func TestConfig_Validate(t *testing.T) {
 				UploadOptions: UploadOptions{
 					OrgID:       1,
 					Concurrency: 1,
-					folderUIDs:  []string{"folder1", "folder2", "folder3"},
+					FolderUIDs:  []string{"folder1", "folder2", "folder3"},
 				},
 			},
 		},
@@ -340,7 +340,7 @@ func TestConfig_Validate(t *testing.T) {
 				UploadOptions: UploadOptions{
 					OrgID:       1,
 					Concurrency: 1,
-					folderUIDs:  []string{"folder1", "folder2", "folder3"},
+					FolderUIDs:  []string{"folder1", "folder2", "folder3"},
 				},
 			},
 		},
@@ -362,7 +362,7 @@ func TestConfig_Validate(t *testing.T) {
 				UploadOptions: UploadOptions{
 					OrgID:       1,
 					Concurrency: 1,
-					folderUIDs:  []string{"folder1", "folder2"},
+					FolderUIDs:  []string{"folder1", "folder2"},
 				},
 			},
 		},
@@ -405,7 +405,7 @@ func TestConfig_Validate(t *testing.T) {
 				UploadOptions: UploadOptions{
 					OrgID:       1,
 					Concurrency: 1,
-					folderUIDs:  []string{"f1", "f2", "f3"},
+					FolderUIDs:  []string{"f1", "f2", "f3"},
 				},
 			},
 		},

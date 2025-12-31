@@ -1,4 +1,4 @@
-package execute
+package config
 
 import (
 	"errors"
@@ -31,7 +31,7 @@ type UploadOptions struct {
 	Nuke          bool
 	Concurrency   int
 
-	folderUIDs []string
+	FolderUIDs []string
 }
 
 // Validate validates the configuration and adds defaults.
@@ -97,20 +97,20 @@ func (c *Config) Validate() error {
 	if len(c.FolderUIDsCSV) > 0 {
 		if c.FolderCount > 0 {
 			// TODO: (Optional) Create missing folders.
-			// If folderCount > len(folderUIDs), create folders until we reach the desired folder count.
+			// If folderCount > len(FolderUIDs), create folders until we reach the desired folder count.
 			return errors.New("can't have folder UIDs and folder count")
 		}
 
 		// Extract folder UIDs.
 		for uid := range strings.SplitSeq(c.FolderUIDsCSV, ",") {
 			if trimmed := strings.TrimSpace(uid); trimmed != "" {
-				c.folderUIDs = append(c.folderUIDs, trimmed)
+				c.FolderUIDs = append(c.FolderUIDs, trimmed)
 			}
 		}
 		c.FolderUIDsCSV = ""
 	}
 
-	folderCount := len(c.folderUIDs)
+	folderCount := len(c.FolderUIDs)
 	if folderCount == 0 {
 		folderCount = c.FolderCount
 	}
@@ -135,7 +135,7 @@ func (c *Config) Validate() error {
 	}
 
 	// At this point, we must have either a desired folder count or a list of folder UIDs.
-	if c.FolderCount == 0 && len(c.folderUIDs) == 0 {
+	if c.FolderCount == 0 && len(c.FolderUIDs) == 0 {
 		return errors.New("can't calculate desired folder count with the provided configuration (rule count, rules per group, groups per folder)")
 	}
 
