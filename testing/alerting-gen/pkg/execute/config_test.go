@@ -79,6 +79,8 @@ func TestConfig_Validate(t *testing.T) {
 			name: "no alert or recording rules",
 			config: Config{
 				UploadOptions: UploadOptions{
+					GrafanaURL:    "http://localhost:3000",
+					Token:         "test-token",
 					FolderUIDsCSV: "folder1",
 				},
 			},
@@ -88,6 +90,10 @@ func TestConfig_Validate(t *testing.T) {
 			name: "no folder UIDs or folder count",
 			config: Config{
 				NumAlerting: 10,
+				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
+				},
 			},
 			errMsg: "can't calculate desired folder count with the provided configuration (rule count, rules per group, groups per folder)",
 		},
@@ -96,6 +102,8 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				NumAlerting: 10,
 				UploadOptions: UploadOptions{
+					GrafanaURL:    "http://localhost:3000",
+					Token:         "test-token",
 					FolderUIDsCSV: "folder1,folder2",
 					NumFolders:    3,
 				},
@@ -109,6 +117,8 @@ func TestConfig_Validate(t *testing.T) {
 				NumRecording:  25,
 				RulesPerGroup: 10,
 				UploadOptions: UploadOptions{
+					GrafanaURL:    "http://localhost:3000",
+					Token:         "test-token",
 					FolderUIDsCSV: "default",
 				},
 			},
@@ -120,6 +130,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					Concurrency: 1,
 					FolderUIDs:  []string{"default"},
@@ -132,6 +144,8 @@ func TestConfig_Validate(t *testing.T) {
 				NumAlerting:   10,
 				RulesPerGroup: 5,
 				UploadOptions: UploadOptions{
+					GrafanaURL:    "http://localhost:3000",
+					Token:         "test-token",
 					FolderUIDsCSV: "folder1",
 				},
 			},
@@ -142,6 +156,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   5,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					Concurrency: 1,
 					FolderUIDs:  []string{"folder1"},
@@ -154,6 +170,8 @@ func TestConfig_Validate(t *testing.T) {
 				NumAlerting:     20,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
+					GrafanaURL:    "http://localhost:3000",
+					Token:         "test-token",
 					FolderUIDsCSV: "folder1",
 				},
 			},
@@ -164,6 +182,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					Concurrency: 1,
 					FolderUIDs:  []string{"folder1"},
@@ -175,6 +195,8 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				NumAlerting: 15,
 				UploadOptions: UploadOptions{
+					GrafanaURL:    "http://localhost:3000",
+					Token:         "test-token",
 					FolderUIDsCSV: "folder1",
 				},
 			},
@@ -185,6 +207,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   15,
 				GroupsPerFolder: 1,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					Concurrency: 1,
 					FolderUIDs:  []string{"folder1"},
@@ -197,7 +221,10 @@ func TestConfig_Validate(t *testing.T) {
 				NumAlerting:     100,
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
-				UploadOptions:   UploadOptions{},
+				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
+				},
 			},
 			expectedConfig: Config{
 				NumAlerting:     100,
@@ -206,6 +233,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					NumFolders:  2,
 					Concurrency: 1,
@@ -219,7 +248,10 @@ func TestConfig_Validate(t *testing.T) {
 				NumRecording:    50,
 				RulesPerGroup:   10,
 				GroupsPerFolder: 3,
-				UploadOptions:   UploadOptions{},
+				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
+				},
 			},
 			expectedConfig: Config{
 				NumAlerting:     50,
@@ -229,6 +261,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 3,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					NumFolders:  4,
 					Concurrency: 1,
@@ -241,6 +275,8 @@ func TestConfig_Validate(t *testing.T) {
 				NumAlerting:     100,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
 					NumFolders: 4,
 				},
 			},
@@ -251,6 +287,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   5,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					NumFolders:  4,
 					Concurrency: 1,
@@ -264,6 +302,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
+					GrafanaURL:    "http://localhost:3000",
+					Token:         "test-token",
 					FolderUIDsCSV: "folder1,folder2,folder3",
 				},
 			},
@@ -274,6 +314,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					Concurrency: 1,
 					FolderUIDs:  []string{"folder1", "folder2", "folder3"},
@@ -287,6 +329,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   5,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
 					NumFolders: 10,
 				},
 			},
@@ -297,6 +341,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   5,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					NumFolders:  10,
 					Concurrency: 1,
@@ -307,6 +353,10 @@ func TestConfig_Validate(t *testing.T) {
 			name: "empty folder UIDs, no folder count",
 			config: Config{
 				NumAlerting: 10,
+				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
+				},
 			},
 			errMsg: "can't calculate desired folder count with the provided configuration (rule count, rules per group, groups per folder)",
 		},
@@ -317,6 +367,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
 					NumFolders: 1,
 				},
 			},
@@ -328,6 +380,8 @@ func TestConfig_Validate(t *testing.T) {
 				NumAlerting:     30,
 				GroupsPerFolder: 3,
 				UploadOptions: UploadOptions{
+					GrafanaURL:    "http://localhost:3000",
+					Token:         "test-token",
 					FolderUIDsCSV: "folder1, folder2 , folder3",
 				},
 			},
@@ -338,6 +392,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   4,
 				GroupsPerFolder: 3,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					Concurrency: 1,
 					FolderUIDs:  []string{"folder1", "folder2", "folder3"},
@@ -350,6 +406,8 @@ func TestConfig_Validate(t *testing.T) {
 				NumAlerting:     20,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
+					GrafanaURL:    "http://localhost:3000",
+					Token:         "test-token",
 					FolderUIDsCSV: "folder1,,folder2,",
 				},
 			},
@@ -360,6 +418,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   5,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					Concurrency: 1,
 					FolderUIDs:  []string{"folder1", "folder2"},
@@ -371,6 +431,8 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				NumAlerting: 20,
 				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
 					NumFolders: 2,
 				},
 			},
@@ -381,6 +443,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 1,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					NumFolders:  2,
 					Concurrency: 1,
@@ -393,6 +457,8 @@ func TestConfig_Validate(t *testing.T) {
 				NumAlerting:     30,
 				GroupsPerFolder: 3,
 				UploadOptions: UploadOptions{
+					GrafanaURL:    "http://localhost:3000",
+					Token:         "test-token",
 					FolderUIDsCSV: "f1,f2,f3,",
 				},
 			},
@@ -403,6 +469,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   4,
 				GroupsPerFolder: 3,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					Concurrency: 1,
 					FolderUIDs:  []string{"f1", "f2", "f3"},
@@ -498,6 +566,7 @@ func TestConfig_Validate(t *testing.T) {
 				NumAlerting:     50,
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
+				DryRun:          true,
 				UploadOptions: UploadOptions{
 					NumFolders: 1,
 				},
@@ -508,6 +577,7 @@ func TestConfig_Validate(t *testing.T) {
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
+				DryRun:          true,
 				UploadOptions: UploadOptions{
 					OrgID:       1,
 					NumFolders:  1,
@@ -516,15 +586,15 @@ func TestConfig_Validate(t *testing.T) {
 			},
 		},
 		{
-			name: "nuke without GrafanaURL",
+			name: "nuke on a dry run",
 			config: Config{
 				NumAlerting: 10,
+				DryRun:      true,
 				UploadOptions: UploadOptions{
-					Nuke:       true,
-					NumFolders: 1,
+					Nuke: true,
 				},
 			},
-			errMsg: "can't nuke an instance without a URL",
+			errMsg: "can't nuke when doing a dry run",
 		},
 		{
 			name: "nuke with GrafanaURL and credentials, no rules",
@@ -583,6 +653,8 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				NumAlerting: 10,
 				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
 					NumFolders: 1,
 				},
 			},
@@ -593,6 +665,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 1,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					NumFolders:  1,
 					Concurrency: 1,
@@ -604,6 +678,8 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				NumAlerting: 10,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					NumFolders:  1,
 					Concurrency: 20,
 				},
@@ -615,6 +691,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 1,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					NumFolders:  1,
 					Concurrency: 20,
@@ -626,6 +704,8 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				NumAlerting: 10,
 				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
 					NumFolders: 1,
 				},
 				QueryDS: "test-ds",
@@ -637,6 +717,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 1,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					NumFolders:  1,
 					Concurrency: 1,
@@ -648,6 +730,8 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				NumAlerting: 10,
 				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
 					NumFolders: 1,
 				},
 				WriteDS: "test-ds",
@@ -659,6 +743,8 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 1,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					NumFolders:  1,
 					Concurrency: 1,
@@ -670,6 +756,8 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				NumAlerting: 10,
 				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
 					NumFolders: 1,
 				},
 				QueryDS: "test-ds-query",
@@ -682,6 +770,75 @@ func TestConfig_Validate(t *testing.T) {
 				RulesPerGroup:   10,
 				GroupsPerFolder: 1,
 				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
+					OrgID:       1,
+					NumFolders:  1,
+					Concurrency: 1,
+				},
+			},
+		},
+		{
+			name: "dry run without GrafanaURL",
+			config: Config{
+				NumAlerting:     20,
+				RulesPerGroup:   10,
+				GroupsPerFolder: 2,
+				DryRun:          true,
+				UploadOptions: UploadOptions{
+					NumFolders: 1,
+				},
+			},
+			expectedConfig: Config{
+				NumAlerting:     20,
+				QueryDS:         "grafanacloud-prom",
+				WriteDS:         "grafanacloud-prom",
+				RulesPerGroup:   10,
+				GroupsPerFolder: 2,
+				DryRun:          true,
+				UploadOptions: UploadOptions{
+					OrgID:       1,
+					NumFolders:  1,
+					Concurrency: 1,
+				},
+			},
+		},
+		{
+			name: "non-dry run without GrafanaURL should fail",
+			config: Config{
+				NumAlerting:     20,
+				RulesPerGroup:   10,
+				GroupsPerFolder: 2,
+				DryRun:          false,
+				UploadOptions: UploadOptions{
+					NumFolders: 1,
+				},
+			},
+			errMsg: "Grafana URL is required when not doing a dry run",
+		},
+		{
+			name: "dry run with GrafanaURL and credentials",
+			config: Config{
+				NumAlerting:     30,
+				RulesPerGroup:   10,
+				GroupsPerFolder: 3,
+				DryRun:          true,
+				UploadOptions: UploadOptions{
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test-token",
+					NumFolders: 1,
+				},
+			},
+			expectedConfig: Config{
+				NumAlerting:     30,
+				QueryDS:         "grafanacloud-prom",
+				WriteDS:         "grafanacloud-prom",
+				RulesPerGroup:   10,
+				GroupsPerFolder: 3,
+				DryRun:          true,
+				UploadOptions: UploadOptions{
+					GrafanaURL:  "http://localhost:3000",
+					Token:       "test-token",
 					OrgID:       1,
 					NumFolders:  1,
 					Concurrency: 1,

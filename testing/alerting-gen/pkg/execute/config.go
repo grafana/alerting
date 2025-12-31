@@ -76,14 +76,18 @@ func (c *Config) Validate() error {
 		c.WriteDS = c.QueryDS
 	}
 
+	// Always require Grafana URL if it's not a dry run.
+	if !c.DryRun && c.GrafanaURL == "" {
+		return errors.New("Grafana URL is required when not doing a dry run")
+	}
+
+	if c.Nuke && c.DryRun {
+		return errors.New("can't nuke when doing a dry run")
+	}
+
 	// Validate Grafana credentials when URL is provided.
 	if c.GrafanaURL != "" && c.Token == "" && (c.Username == "" || c.Password == "") {
 		return errors.New("no username + password or token provided")
-	}
-
-	// Can't nuke without a URL.
-	if c.Nuke && c.GrafanaURL == "" {
-		return errors.New("can't nuke an instance without a URL")
 	}
 
 	if c.NumAlerting <= 0 && c.NumRecording <= 0 {

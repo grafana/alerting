@@ -10,7 +10,7 @@ import (
 	"github.com/grafana/alerting/testing/alerting-gen/pkg/execute"
 )
 
-// CLIOptions holds CLI inputs
+// CLIOptions holds CLI inputs.
 type CLIOptions struct {
 	OutPath              string
 	Debug                bool
