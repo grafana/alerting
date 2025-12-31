@@ -240,33 +240,40 @@ func nukeFolders(cfg Config, logger kitlog.Logger) error {
 
 // createFolders creates N folders in Grafana and returns their UIDs.
 func createFolders(cfg Config, numFolders int, seed int64, logger kitlog.Logger) ([]string, error) {
+	// Generate random folder UIDs using the same approach as alert UIDs.
+	uidGen := gen.RandomUID()
+	folderUIDs := make([]string, 0, numFolders)
+	for i := range numFolders {
+		// Use seed + i to get deterministic but unique UIDs per folder.
+		folderUID := uidGen.Example(int(seed) + i)
+		folderUIDs = append(folderUIDs, folderUID)
+	}
+
+	// If it's a dry run, return the folder UIDs.
+	if cfg.DryRun {
+		return folderUIDs, nil
+	}
+
 	cli, err := newGrafanaClient(cfg.GrafanaURL, cfg.Username, cfg.Password, cfg.Token, cfg.OrgID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Generate random folder UIDs using the same approach as alert UIDs.
-	uidGen := gen.RandomUID()
-	folderUIDs := make([]string, 0, numFolders)
-
-	for i := range numFolders {
+	for i, uid := range folderUIDs {
 		// Use seed + i to get deterministic but unique UIDs per folder.
-		folderUID := uidGen.Example(int(seed) + i)
 		folderTitle := fmt.Sprintf("Alerts Folder %d", i+1)
 
-		level.Debug(logger).Log("msg", "Creating folder", "uid", folderUID, "title", folderTitle)
+		level.Debug(logger).Log("msg", "Creating folder", "uid", uid, "title", folderTitle)
 
 		body := &models.CreateFolderCommand{
-			UID:   folderUID,
+			UID:   uid,
 			Title: folderTitle,
 		}
 
 		resp, err := cli.Folders.CreateFolder(body)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create folder %q: %w", folderUID, err)
+			return nil, fmt.Errorf("failed to create folder %q: %w", uid, err)
 		}
-
-		folderUIDs = append(folderUIDs, resp.Payload.UID)
 		level.Debug(logger).Log("msg", "Folder created", "uid", resp.Payload.UID)
 	}
 
