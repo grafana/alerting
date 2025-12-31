@@ -16,14 +16,14 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "negative alert count",
 			config: Config{
-				AlertRuleCount: -5,
+				NumAlerting: -5,
 			},
 			errMsg: "alert rule count cannot be negative",
 		},
 		{
 			name: "negative recording rule count",
 			config: Config{
-				RecordingRuleCount: -10,
+				NumRecording: -10,
 			},
 			errMsg: "recording rule count cannot be negative",
 		},
@@ -61,7 +61,7 @@ func TestConfig_Validate(t *testing.T) {
 			name: "negative folder count",
 			config: Config{
 				UploadOptions: UploadOptions{
-					FolderCount: -2,
+					NumFolders: -2,
 				},
 			},
 			errMsg: "folder count cannot be negative",
@@ -87,17 +87,17 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "no folder UIDs or folder count",
 			config: Config{
-				AlertRuleCount: 10,
+				NumAlerting: 10,
 			},
 			errMsg: "can't calculate desired folder count with the provided configuration (rule count, rules per group, groups per folder)",
 		},
 		{
 			name: "both folder UIDs and folder count provided",
 			config: Config{
-				AlertRuleCount: 10,
+				NumAlerting: 10,
 				UploadOptions: UploadOptions{
 					FolderUIDsCSV: "folder1,folder2",
-					FolderCount:   3,
+					NumFolders:    3,
 				},
 			},
 			errMsg: "can't have folder UIDs and folder count",
@@ -105,20 +105,20 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid config with both rule types",
 			config: Config{
-				AlertRuleCount:     25,
-				RecordingRuleCount: 25,
-				RulesPerGroup:      10,
+				NumAlerting:   25,
+				NumRecording:  25,
+				RulesPerGroup: 10,
 				UploadOptions: UploadOptions{
 					FolderUIDsCSV: "default",
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:     25,
-				RecordingRuleCount: 25,
-				QueryDS:            "grafanacloud-prom",
-				WriteDS:            "grafanacloud-prom",
-				RulesPerGroup:      10,
-				GroupsPerFolder:    5,
+				NumAlerting:     25,
+				NumRecording:    25,
+				QueryDS:         "grafanacloud-prom",
+				WriteDS:         "grafanacloud-prom",
+				RulesPerGroup:   10,
+				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
 					OrgID:       1,
 					Concurrency: 1,
@@ -129,14 +129,14 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "dynamic GroupsPerFolder when zero",
 			config: Config{
-				AlertRuleCount: 10,
-				RulesPerGroup:  5,
+				NumAlerting:   10,
+				RulesPerGroup: 5,
 				UploadOptions: UploadOptions{
 					FolderUIDsCSV: "folder1",
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  10,
+				NumAlerting:     10,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   5,
@@ -151,14 +151,14 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "dynamic RulesPerGroup when zero",
 			config: Config{
-				AlertRuleCount:  20,
+				NumAlerting:     20,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
 					FolderUIDsCSV: "folder1",
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  20,
+				NumAlerting:     20,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   10,
@@ -173,13 +173,13 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "both RulesPerGroup and GroupsPerFolder calculated",
 			config: Config{
-				AlertRuleCount: 15,
+				NumAlerting: 15,
 				UploadOptions: UploadOptions{
 					FolderUIDsCSV: "folder1",
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  15,
+				NumAlerting:     15,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   15,
@@ -192,22 +192,22 @@ func TestConfig_Validate(t *testing.T) {
 			},
 		},
 		{
-			name: "dynamic FolderCount",
+			name: "dynamic NumFolders",
 			config: Config{
-				AlertRuleCount:  100,
+				NumAlerting:     100,
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
 				UploadOptions:   UploadOptions{},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  100,
+				NumAlerting:     100,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
 					OrgID:       1,
-					FolderCount: 2,
+					NumFolders:  2,
 					Concurrency: 1,
 				},
 			},
@@ -215,22 +215,22 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "rounding up folder count",
 			config: Config{
-				AlertRuleCount:     50,
-				RecordingRuleCount: 50,
-				RulesPerGroup:      10,
-				GroupsPerFolder:    3,
-				UploadOptions:      UploadOptions{},
+				NumAlerting:     50,
+				NumRecording:    50,
+				RulesPerGroup:   10,
+				GroupsPerFolder: 3,
+				UploadOptions:   UploadOptions{},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:     50,
-				RecordingRuleCount: 50,
-				QueryDS:            "grafanacloud-prom",
-				WriteDS:            "grafanacloud-prom",
-				RulesPerGroup:      10,
-				GroupsPerFolder:    3,
+				NumAlerting:     50,
+				NumRecording:    50,
+				QueryDS:         "grafanacloud-prom",
+				WriteDS:         "grafanacloud-prom",
+				RulesPerGroup:   10,
+				GroupsPerFolder: 3,
 				UploadOptions: UploadOptions{
 					OrgID:       1,
-					FolderCount: 4,
+					NumFolders:  4,
 					Concurrency: 1,
 				},
 			},
@@ -238,21 +238,21 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "rounding up rules per group",
 			config: Config{
-				AlertRuleCount:  100,
+				NumAlerting:     100,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
-					FolderCount: 4,
+					NumFolders: 4,
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  100,
+				NumAlerting:     100,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   5,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
 					OrgID:       1,
-					FolderCount: 4,
+					NumFolders:  4,
 					Concurrency: 1,
 				},
 			},
@@ -260,7 +260,7 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid config with multiple folder UIDs",
 			config: Config{
-				AlertRuleCount:  100,
+				NumAlerting:     100,
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
@@ -268,7 +268,7 @@ func TestConfig_Validate(t *testing.T) {
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  100,
+				NumAlerting:     100,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   10,
@@ -283,22 +283,22 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "valid config with folder count",
 			config: Config{
-				RecordingRuleCount: 50,
-				RulesPerGroup:      5,
-				GroupsPerFolder:    2,
+				NumRecording:    50,
+				RulesPerGroup:   5,
+				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
-					FolderCount: 10,
+					NumFolders: 10,
 				},
 			},
 			expectedConfig: Config{
-				RecordingRuleCount: 50,
-				QueryDS:            "grafanacloud-prom",
-				WriteDS:            "grafanacloud-prom",
-				RulesPerGroup:      5,
-				GroupsPerFolder:    2,
+				NumRecording:    50,
+				QueryDS:         "grafanacloud-prom",
+				WriteDS:         "grafanacloud-prom",
+				RulesPerGroup:   5,
+				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
 					OrgID:       1,
-					FolderCount: 10,
+					NumFolders:  10,
 					Concurrency: 1,
 				},
 			},
@@ -306,18 +306,18 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "empty folder UIDs, no folder count",
 			config: Config{
-				AlertRuleCount: 10,
+				NumAlerting: 10,
 			},
 			errMsg: "can't calculate desired folder count with the provided configuration (rule count, rules per group, groups per folder)",
 		},
 		{
 			name: "explicit RulesPerGroup too small",
 			config: Config{
-				AlertRuleCount:  100,
+				NumAlerting:     100,
 				RulesPerGroup:   10,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
-					FolderCount: 1,
+					NumFolders: 1,
 				},
 			},
 			errMsg: "insufficient capacity: need space for 100 rules but only have capacity for 20 (RulesPerGroup=10, GroupsPerFolder=2, folders=1)",
@@ -325,14 +325,14 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "folder UIDs with spaces",
 			config: Config{
-				AlertRuleCount:  30,
+				NumAlerting:     30,
 				GroupsPerFolder: 3,
 				UploadOptions: UploadOptions{
 					FolderUIDsCSV: "folder1, folder2 , folder3",
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  30,
+				NumAlerting:     30,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   4,
@@ -347,14 +347,14 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "folder UIDs with empty entries",
 			config: Config{
-				AlertRuleCount:  20,
+				NumAlerting:     20,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
 					FolderUIDsCSV: "folder1,,folder2,",
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  20,
+				NumAlerting:     20,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   5,
@@ -369,20 +369,20 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "GroupsPerFolder defaults to 1 when RulesPerGroup not set",
 			config: Config{
-				AlertRuleCount: 20,
+				NumAlerting: 20,
 				UploadOptions: UploadOptions{
-					FolderCount: 2,
+					NumFolders: 2,
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  20,
+				NumAlerting:     20,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   10,
 				GroupsPerFolder: 1,
 				UploadOptions: UploadOptions{
 					OrgID:       1,
-					FolderCount: 2,
+					NumFolders:  2,
 					Concurrency: 1,
 				},
 			},
@@ -390,14 +390,14 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "folder UIDs with trailing comma",
 			config: Config{
-				AlertRuleCount:  30,
+				NumAlerting:     30,
 				GroupsPerFolder: 3,
 				UploadOptions: UploadOptions{
 					FolderUIDsCSV: "f1,f2,f3,",
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  30,
+				NumAlerting:     30,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   4,
@@ -412,12 +412,12 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "GrafanaURL set but no credentials",
 			config: Config{
-				AlertRuleCount:  10,
+				NumAlerting:     10,
 				RulesPerGroup:   5,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
-					GrafanaURL:  "http://localhost:3000",
-					FolderCount: 1,
+					GrafanaURL: "http://localhost:3000",
+					NumFolders: 1,
 				},
 			},
 			errMsg: "no username + password or token provided",
@@ -425,18 +425,18 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "GrafanaURL with username and password",
 			config: Config{
-				AlertRuleCount:  10,
+				NumAlerting:     10,
 				RulesPerGroup:   5,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
-					GrafanaURL:  "http://localhost:3000",
-					Username:    "admin",
-					Password:    "admin",
-					FolderCount: 1,
+					GrafanaURL: "http://localhost:3000",
+					Username:   "admin",
+					Password:   "admin",
+					NumFolders: 1,
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  10,
+				NumAlerting:     10,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   5,
@@ -446,7 +446,7 @@ func TestConfig_Validate(t *testing.T) {
 					Username:    "admin",
 					Password:    "admin",
 					OrgID:       1,
-					FolderCount: 1,
+					NumFolders:  1,
 					Concurrency: 1,
 				},
 			},
@@ -454,17 +454,17 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "GrafanaURL with token only",
 			config: Config{
-				AlertRuleCount:  20,
+				NumAlerting:     20,
 				RulesPerGroup:   10,
 				GroupsPerFolder: 1,
 				UploadOptions: UploadOptions{
-					GrafanaURL:  "http://localhost:3000",
-					Token:       "test_token",
-					FolderCount: 2,
+					GrafanaURL: "http://localhost:3000",
+					Token:      "test_token",
+					NumFolders: 2,
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  20,
+				NumAlerting:     20,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   10,
@@ -473,7 +473,7 @@ func TestConfig_Validate(t *testing.T) {
 					GrafanaURL:  "http://localhost:3000",
 					Token:       "test_token",
 					OrgID:       1,
-					FolderCount: 2,
+					NumFolders:  2,
 					Concurrency: 1,
 				},
 			},
@@ -481,13 +481,13 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "GrafanaURL with password only (no username)",
 			config: Config{
-				AlertRuleCount:  10,
+				NumAlerting:     10,
 				RulesPerGroup:   5,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
-					GrafanaURL:  "http://localhost:3000",
-					Password:    "admin",
-					FolderCount: 1,
+					GrafanaURL: "http://localhost:3000",
+					Password:   "admin",
+					NumFolders: 1,
 				},
 			},
 			errMsg: "no username + password or token provided",
@@ -495,22 +495,22 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "no GrafanaURL, no credentials needed",
 			config: Config{
-				AlertRuleCount:  50,
+				NumAlerting:     50,
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
-					FolderCount: 1,
+					NumFolders: 1,
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  50,
+				NumAlerting:     50,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   10,
 				GroupsPerFolder: 5,
 				UploadOptions: UploadOptions{
 					OrgID:       1,
-					FolderCount: 1,
+					NumFolders:  1,
 					Concurrency: 1,
 				},
 			},
@@ -518,10 +518,10 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "nuke without GrafanaURL",
 			config: Config{
-				AlertRuleCount: 10,
+				NumAlerting: 10,
 				UploadOptions: UploadOptions{
-					Nuke:        true,
-					FolderCount: 1,
+					Nuke:       true,
+					NumFolders: 1,
 				},
 			},
 			errMsg: "can't nuke an instance without a URL",
@@ -550,19 +550,19 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "nuke with GrafanaURL and rules",
 			config: Config{
-				AlertRuleCount:  10,
+				NumAlerting:     10,
 				RulesPerGroup:   5,
 				GroupsPerFolder: 2,
 				UploadOptions: UploadOptions{
-					Nuke:        true,
-					GrafanaURL:  "http://localhost:3000",
-					Username:    "admin",
-					Password:    "admin",
-					FolderCount: 1,
+					Nuke:       true,
+					GrafanaURL: "http://localhost:3000",
+					Username:   "admin",
+					Password:   "admin",
+					NumFolders: 1,
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  10,
+				NumAlerting:     10,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   5,
@@ -573,7 +573,7 @@ func TestConfig_Validate(t *testing.T) {
 					Username:    "admin",
 					Password:    "admin",
 					OrgID:       1,
-					FolderCount: 1,
+					NumFolders:  1,
 					Concurrency: 1,
 				},
 			},
@@ -581,20 +581,20 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "Concurrency defaults to 1 when zero",
 			config: Config{
-				AlertRuleCount: 10,
+				NumAlerting: 10,
 				UploadOptions: UploadOptions{
-					FolderCount: 1,
+					NumFolders: 1,
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  10,
+				NumAlerting:     10,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   10,
 				GroupsPerFolder: 1,
 				UploadOptions: UploadOptions{
 					OrgID:       1,
-					FolderCount: 1,
+					NumFolders:  1,
 					Concurrency: 1,
 				},
 			},
@@ -602,21 +602,21 @@ func TestConfig_Validate(t *testing.T) {
 		{
 			name: "Concurrency preserved when set to valid value",
 			config: Config{
-				AlertRuleCount: 10,
+				NumAlerting: 10,
 				UploadOptions: UploadOptions{
-					FolderCount: 1,
+					NumFolders:  1,
 					Concurrency: 20,
 				},
 			},
 			expectedConfig: Config{
-				AlertRuleCount:  10,
+				NumAlerting:     10,
 				QueryDS:         "grafanacloud-prom",
 				WriteDS:         "grafanacloud-prom",
 				RulesPerGroup:   10,
 				GroupsPerFolder: 1,
 				UploadOptions: UploadOptions{
 					OrgID:       1,
-					FolderCount: 1,
+					NumFolders:  1,
 					Concurrency: 20,
 				},
 			},

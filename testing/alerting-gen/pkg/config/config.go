@@ -9,14 +9,14 @@ import (
 )
 
 type Config struct {
-	AlertRuleCount     int
-	RecordingRuleCount int
-	QueryDS            string
-	WriteDS            string
-	RulesPerGroup      int
-	GroupsPerFolder    int
-	EvalInterval       int64
-	Seed               int64
+	NumAlerting     int
+	NumRecording    int
+	QueryDS         string
+	WriteDS         string
+	RulesPerGroup   int
+	GroupsPerFolder int
+	EvalInterval    int64
+	Seed            int64
 	UploadOptions
 }
 
@@ -27,7 +27,7 @@ type UploadOptions struct {
 	Token         string
 	OrgID         int64
 	FolderUIDsCSV string
-	FolderCount   int
+	NumFolders    int
 	Nuke          bool
 	Concurrency   int
 
@@ -37,10 +37,10 @@ type UploadOptions struct {
 // Validate validates the configuration and adds defaults.
 func (c *Config) Validate() error {
 	// Check for negative values.
-	if c.AlertRuleCount < 0 {
+	if c.NumAlerting < 0 {
 		return errors.New("alert rule count cannot be negative")
 	}
-	if c.RecordingRuleCount < 0 {
+	if c.NumRecording < 0 {
 		return errors.New("recording rule count cannot be negative")
 	}
 	if c.RulesPerGroup < 0 {
@@ -55,7 +55,7 @@ func (c *Config) Validate() error {
 	if c.OrgID < 0 {
 		return errors.New("org ID cannot be negative")
 	}
-	if c.FolderCount < 0 {
+	if c.NumFolders < 0 {
 		return errors.New("folder count cannot be negative")
 	}
 	if c.Concurrency < 0 {
@@ -85,7 +85,7 @@ func (c *Config) Validate() error {
 		return errors.New("can't nuke an instance without a URL")
 	}
 
-	if c.AlertRuleCount <= 0 && c.RecordingRuleCount <= 0 {
+	if c.NumAlerting <= 0 && c.NumRecording <= 0 {
 		// If we're just nuking without creating rules, we're done validating.
 		if c.Nuke {
 			return nil
@@ -95,7 +95,7 @@ func (c *Config) Validate() error {
 	}
 
 	if len(c.FolderUIDsCSV) > 0 {
-		if c.FolderCount > 0 {
+		if c.NumFolders > 0 {
 			// TODO: (Optional) Create missing folders.
 			// If folderCount > len(FolderUIDs), create folders until we reach the desired folder count.
 			return errors.New("can't have folder UIDs and folder count")
@@ -112,9 +112,9 @@ func (c *Config) Validate() error {
 
 	folderCount := len(c.FolderUIDs)
 	if folderCount == 0 {
-		folderCount = c.FolderCount
+		folderCount = c.NumFolders
 	}
-	ruleCount := c.AlertRuleCount + c.RecordingRuleCount
+	ruleCount := c.NumAlerting + c.NumRecording
 
 	if c.GroupsPerFolder <= 0 {
 		// No groups per folder specified. Calculate it based on rules per group and folders.
@@ -131,11 +131,11 @@ func (c *Config) Validate() error {
 	if folderCount <= 0 && c.RulesPerGroup > 0 {
 		capacityPerFolder := c.RulesPerGroup * c.GroupsPerFolder
 		folderCount = int(math.Ceil(float64(ruleCount) / float64(capacityPerFolder)))
-		c.FolderCount = folderCount
+		c.NumFolders = folderCount
 	}
 
 	// At this point, we must have either a desired folder count or a list of folder UIDs.
-	if c.FolderCount == 0 && len(c.FolderUIDs) == 0 {
+	if c.NumFolders == 0 && len(c.FolderUIDs) == 0 {
 		return errors.New("can't calculate desired folder count with the provided configuration (rule count, rules per group, groups per folder)")
 	}
 

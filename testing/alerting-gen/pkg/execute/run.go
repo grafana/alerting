@@ -20,6 +20,10 @@ import (
 )
 
 func Run(cfg config.Config, debug bool) ([]*models.AlertRuleGroup, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	// Initialize logger based on debug flag using go-kit/log.
 	baseLogger := kitlog.NewLogfmtLogger(os.Stderr)
 	// Level filter.
@@ -32,7 +36,7 @@ func Run(cfg config.Config, debug bool) ([]*models.AlertRuleGroup, error) {
 	logger := kitlog.With(filtered, "ts", kitlog.DefaultTimestampUTC, "caller", kitlog.DefaultCaller)
 
 	// Basic validation.
-	if cfg.RecordingRuleCount > 0 && cfg.WriteDS == "" {
+	if cfg.NumRecording > 0 && cfg.WriteDS == "" {
 		return nil, fmt.Errorf("write-ds is required when generating recording rules (set -write-ds to a Prometheus datasource UID)")
 	}
 	if cfg.GrafanaURL != "" {
@@ -59,7 +63,7 @@ func Run(cfg config.Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		level.Info(logger).Log("msg", "Nuke completed successfully")
 
 		// If no generation work to do, exit early.
-		if cfg.AlertRuleCount == 0 && cfg.RecordingRuleCount == 0 {
+		if cfg.NumAlerting == 0 && cfg.NumRecording == 0 {
 			return nil, nil
 		}
 	}
@@ -71,12 +75,12 @@ func Run(cfg config.Config, debug bool) ([]*models.AlertRuleGroup, error) {
 	}
 
 	// If num-folders is set, create folders dynamically.
-	if cfg.FolderCount > 0 {
+	if cfg.NumFolders > 0 {
 		if cfg.GrafanaURL == "" {
 			return nil, fmt.Errorf("grafana-url is required when num-folders is set (folders need to be created via API)")
 		}
-		level.Info(logger).Log("msg", "creating folders", "count", cfg.FolderCount)
-		createdUIDs, err := createFolders(cfg, cfg.FolderCount, cfg.Seed, logger)
+		level.Info(logger).Log("msg", "creating folders", "count", cfg.NumFolders)
+		createdUIDs, err := createFolders(cfg, cfg.NumFolders, cfg.Seed, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create folders: %w", err)
 		}
@@ -85,15 +89,15 @@ func Run(cfg config.Config, debug bool) ([]*models.AlertRuleGroup, error) {
 	}
 
 	groups, err := gen.GenerateGroups(gen.Config{
-		AlertRuleCount:     cfg.AlertRuleCount,
-		RecordingRuleCount: cfg.RecordingRuleCount,
-		QueryDS:            cfg.QueryDS,
-		WriteDS:            cfg.WriteDS,
-		RulesPerGroup:      cfg.RulesPerGroup,
-		GroupsPerFolder:    cfg.GroupsPerFolder,
-		EvalInterval:       cfg.EvalInterval,
-		Seed:               cfg.Seed,
-		FolderUIDs:         cfg.FolderUIDs,
+		NumAlerting:     cfg.NumAlerting,
+		NumRecording:    cfg.NumRecording,
+		QueryDS:         cfg.QueryDS,
+		WriteDS:         cfg.WriteDS,
+		RulesPerGroup:   cfg.RulesPerGroup,
+		GroupsPerFolder: cfg.GroupsPerFolder,
+		EvalInterval:    cfg.EvalInterval,
+		Seed:            cfg.Seed,
+		FolderUIDs:      cfg.FolderUIDs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate groups: %w", err)

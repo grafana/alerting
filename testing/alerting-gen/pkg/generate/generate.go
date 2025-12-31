@@ -9,15 +9,15 @@ import (
 )
 
 type Config struct {
-	AlertRuleCount     int
-	RecordingRuleCount int
-	QueryDS            string
-	WriteDS            string
-	RulesPerGroup      int
-	GroupsPerFolder    int
-	EvalInterval       int64
-	Seed               int64
-	FolderUIDs         []string
+	NumAlerting     int
+	NumRecording    int
+	QueryDS         string
+	WriteDS         string
+	RulesPerGroup   int
+	GroupsPerFolder int
+	EvalInterval    int64
+	Seed            int64
+	FolderUIDs      []string
 }
 
 // GenerateGroups moved to groups.go
