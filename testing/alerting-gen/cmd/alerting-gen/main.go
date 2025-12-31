@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/grafana/alerting/testing/alerting-gen/pkg/config"
 	"github.com/grafana/alerting/testing/alerting-gen/pkg/execute"
 )
 
@@ -17,7 +16,7 @@ type CLIOptions struct {
 	OutPath              string
 	Debug                bool
 	EvalIntervalDuration time.Duration
-	config.Config
+	execute.Config
 }
 
 func main() {
