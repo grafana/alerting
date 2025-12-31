@@ -85,19 +85,19 @@ func (c *Config) Validate() error {
 		return errors.New("can't nuke an instance without a URL")
 	}
 
-	// If we're just nuking without creating rules, we're done validating.
-	if c.Nuke && c.AlertRuleCount <= 0 && c.RecordingRuleCount <= 0 {
-		return nil
-	}
-
-	// Otherwise, we need rules to create.
 	if c.AlertRuleCount <= 0 && c.RecordingRuleCount <= 0 {
+		// If we're just nuking without creating rules, we're done validating.
+		if c.Nuke {
+			return nil
+		}
+		// Otherwise, we need rules to create.
 		return errors.New("no alert/recording rules to create")
 	}
 
-	// TODO: Create missing folders? If folderCount > len(folderUIDs), create folders until we reach the desired folder count.
 	if len(c.FolderUIDsCSV) > 0 {
 		if c.FolderCount > 0 {
+			// TODO: (Optional) Create missing folders.
+			// If folderCount > len(folderUIDs), create folders until we reach the desired folder count.
 			return errors.New("can't have folder UIDs and folder count")
 		}
 
@@ -134,9 +134,9 @@ func (c *Config) Validate() error {
 		c.FolderCount = folderCount
 	}
 
-	// At this point, we must have a folder count.
-	if folderCount == 0 {
-		return errors.New("no folder UIDs or desired folder count provided")
+	// At this point, we must have either a desired folder count or a list of folder UIDs.
+	if c.FolderCount == 0 && len(c.folderUIDs) == 0 {
+		return errors.New("can't calculate desired folder count with the provided configuration (rule count, rules per group, groups per folder)")
 	}
 
 	if c.RulesPerGroup <= 0 {

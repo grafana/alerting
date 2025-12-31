@@ -89,7 +89,7 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				AlertRuleCount: 10,
 			},
-			errMsg: "no folder UIDs or desired folder count provided",
+			errMsg: "can't calculate desired folder count with the provided configuration (rule count, rules per group, groups per folder)",
 		},
 		{
 			name: "both folder UIDs and folder count provided",
@@ -308,7 +308,7 @@ func TestConfig_Validate(t *testing.T) {
 			config: Config{
 				AlertRuleCount: 10,
 			},
-			errMsg: "no folder UIDs or desired folder count provided",
+			errMsg: "can't calculate desired folder count with the provided configuration (rule count, rules per group, groups per folder)",
 		},
 		{
 			name: "explicit RulesPerGroup too small",

@@ -32,6 +32,9 @@ func GroupRules(rules []*models.ProvisionedAlertRule, rulesPerGroup, groupsPerFo
 	if groupsPerFolder <= 0 {
 		groupsPerFolder = 1
 	}
+	if len(folderUIDs) == 0 {
+		folderUIDs = []string{"default"}
+	}
 
 	groups := make([]*models.AlertRuleGroup, 0)
 	groupIdx := 0
