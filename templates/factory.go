@@ -12,6 +12,7 @@ import (
 type Config struct {
 	OrgID       string
 	ExternalURL *url.URL
+	AppVersion  string
 	Limits      Limits
 }
 
@@ -34,7 +35,7 @@ func (l Limits) Validate() error {
 	return nil
 }
 
-func NewConfig(orgID string, externalURL string, limits Limits) (Config, error) {
+func NewConfig(orgID string, externalURL string, appVersion string, limits Limits) (Config, error) {
 	u, err := url.Parse(externalURL)
 	if err != nil {
 		return Config{}, err
@@ -42,6 +43,7 @@ func NewConfig(orgID string, externalURL string, limits Limits) (Config, error) 
 	cfg := Config{
 		OrgID:       orgID,
 		ExternalURL: u,
+		AppVersion:  appVersion,
 		Limits:      limits,
 	}
 	return cfg, cfg.Validate()
@@ -68,8 +70,9 @@ func (tp *Factory) GetTemplate(kind Kind) (*Template, error) {
 		return nil, err
 	}
 	result := &Template{
-		Template: t,
-		limits:   tp.cfg.Limits,
+		Template:   t,
+		limits:     tp.cfg.Limits,
+		AppVersion: tp.cfg.AppVersion,
 	}
 	if tp.cfg.ExternalURL != nil {
 		t.ExternalURL = new(url.URL)

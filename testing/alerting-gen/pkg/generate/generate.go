@@ -25,11 +25,11 @@ type Config struct {
 // Helpers moved to helpers.go
 
 // NewAlertingRuleGenerator returns a rapid generator for alerting rules
-func NewAlertingRuleGenerator(queryDs string) *rapid.Generator[*models.ProvisionedAlertRule] {
+func NewAlertingRuleGenerator(queryDS string) *rapid.Generator[*models.ProvisionedAlertRule] {
 	return rapid.Custom(func(t *rapid.T) *models.ProvisionedAlertRule {
 		// local refID scoped to this rule
 		refID := "A"
-		data := []*models.AlertQuery{buildQuery(queryDs, refID)}
+		data := []*models.AlertQuery{buildQuery(t, queryDS, refID)}
 		title := genTitle().Draw(t, "title")
 		forDur := mustParseDuration(genDurationStr().Draw(t, "for"))
 		// KeepFiringFor must be a multiple of For (0 inclusive)
@@ -83,7 +83,7 @@ func NewRecordingRuleGenerator(queryDS, writeDS string) *rapid.Generator[*models
 	return rapid.Custom(func(t *rapid.T) *models.ProvisionedAlertRule {
 		// local refID scoped to this rule
 		refID := "A"
-		data := []*models.AlertQuery{buildQuery(queryDS, refID)}
+		data := []*models.AlertQuery{buildQuery(t, queryDS, refID)}
 		title := genTitle().Draw(t, "title")
 		uid := RandomUID().Draw(t, "uid")
 		metric := genMetricName().Draw(t, "metric")

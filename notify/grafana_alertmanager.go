@@ -346,7 +346,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
 	}
 
-	cfg, err := templates.NewConfig(fmt.Sprintf("%d", am.TenantID()), am.ExternalURL(), templates.DefaultLimits)
+	cfg, err := templates.NewConfig(fmt.Sprintf("%d", am.TenantID()), am.ExternalURL(), am.opts.Version, templates.DefaultLimits)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the template provider component of alerting: %w", err)
 	}
@@ -681,6 +681,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 
 	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template, alerts, logger)
 	data := templates.ExtendData(promTmplData, logger)
+	data.AppVersion = newTmpl.AppVersion
 
 	// Iterate over each definition in the template and evaluate it.
 	var results TestTemplatesResults
@@ -740,7 +741,7 @@ func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInt
 // ApplyConfig applies a new configuration by re-initializing all components using the configuration provided.
 // It is not safe to call concurrently.
 func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err error) {
-	tmplCfg, err := templates.NewConfig(fmt.Sprintf("%d", am.TenantID()), am.ExternalURL(), cfg.Limits.Templates)
+	tmplCfg, err := templates.NewConfig(fmt.Sprintf("%d", am.TenantID()), am.ExternalURL(), am.opts.Version, cfg.Limits.Templates)
 	if err != nil {
 		return err
 	}

@@ -60,10 +60,34 @@ var (
 		"Vulture", "Wallaby", "Walrus", "Whale", "Wildcat", "Wolf",
 		"Woodpecker", "Wombat", "Yak", "Zebra",
 	}
+
+	queries = []string{
+		"vector(0)",
+		"vector(1)",
+		"sum by (name) (group by (id, name) (grafanacloud_instance_info))",
+		"sum by (plan) (group by (id, plan) (grafanacloud_grafana_instance_info))",
+		"sum by (id, state) (grafanacloud_grafana_instance_active_user_count)",
+		"grafanacloud_instance_rule_evaluation_failures_total:rate5m > 0",
+		"grafanacloud_instance_ruler_notifications_errors_total:rate5m > 0",
+		"grafanacloud_org_total_overage > 0",
+		"grafanacloud_org_spend_commit_balance_total == 0 or grafanacloud_org_spend_commit_balance_total < grafanacloud_org_spend_commit_credit_total * 0.1",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts)",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 10",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 25",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 50",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 100",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 500",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 1000",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 2500",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 5000",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 10000",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 50000",
+		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 100000",
+	}
 )
 
 // Helpers
-func buildQuery(dsUID, refID string) *models.AlertQuery {
+func buildQuery(t *rapid.T, dsUID, refID string) *models.AlertQuery {
 	// __expr__ math or a basic prom query
 	model := map[string]any{
 		"refId":      refID,
@@ -76,7 +100,7 @@ func buildQuery(dsUID, refID string) *models.AlertQuery {
 			"refId":      refID,
 			"type":       "query",
 			"datasource": map[string]any{"uid": dsUID},
-			"expr":       "vector(1)",
+			"expr":       rapid.SampledFrom(queries).Draw(t, "query"),
 			"instant":    true,
 			"range":      false,
 		}
