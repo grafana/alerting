@@ -55,8 +55,8 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create folders: %w", err)
 		}
-		cfg.FolderUIDs = createdUIDs
-		level.Info(logger).Log("msg", "folders created successfully", "count", len(cfg.FolderUIDs))
+		cfg.folderUIDs = createdUIDs
+		level.Info(logger).Log("msg", "folders created successfully", "count", len(cfg.folderUIDs))
 	}
 
 	groups, err := gen.GenerateGroups(gen.Config{
@@ -68,7 +68,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 		GroupsPerFolder: cfg.GroupsPerFolder,
 		EvalInterval:    cfg.EvalInterval,
 		Seed:            cfg.Seed,
-		FolderUIDs:      cfg.FolderUIDs,
+		FolderUIDs:      cfg.folderUIDs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate groups: %w", err)
