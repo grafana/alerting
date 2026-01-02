@@ -54,7 +54,7 @@ func TestNewFactory(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg, err := NewConfig("grafana", externalURL, DefaultLimits)
+			cfg, err := NewConfig("grafana", externalURL, "", DefaultLimits)
 			require.NoError(t, err)
 			factory, err := NewFactory(tc.templates, cfg, logger)
 			if tc.expectError != nil {
@@ -108,7 +108,7 @@ func TestFactoryNewTemplate(t *testing.T) {
 			Template: fmt.Sprintf(`{{ define "factory_test" }}TEST %s KIND{{ end }}`, kind),
 		})
 	}
-	cfg, err := NewConfig("grafana", "http://localhost", DefaultLimits)
+	cfg, err := NewConfig("grafana", "http://localhost", "", DefaultLimits)
 	require.NoError(t, err)
 	f, err := NewFactory(def, cfg, log.NewNopLogger())
 	require.NoError(t, err)
@@ -173,7 +173,7 @@ func TestFactoryNewTemplate(t *testing.T) {
 	})
 
 	t.Run("user-defined template only applies to the given kind", func(t *testing.T) {
-		cfg, err := NewConfig("grafana", "http://localhost", DefaultLimits)
+		cfg, err := NewConfig("grafana", "http://localhost", "", DefaultLimits)
 		require.NoError(t, err)
 		f, err := NewFactory([]TemplateDefinition{
 			{
@@ -307,7 +307,7 @@ func TestFactoryWithTemplate(t *testing.T) {
 	as := []*types.Alert{{}}
 	kind := GrafanaKind
 	initial := TemplateDefinition{Name: "test", Kind: kind, Template: `{{ define "factory_test" }}TEST{{ end }}`}
-	cfg, err := NewConfig("grafana", "http://localhost", DefaultLimits)
+	cfg, err := NewConfig("grafana", "http://localhost", "", DefaultLimits)
 	require.NoError(t, err)
 	f, err := NewFactory([]TemplateDefinition{initial}, cfg, log.NewNopLogger())
 	require.NoError(t, err)

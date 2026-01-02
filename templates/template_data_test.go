@@ -123,6 +123,20 @@ func TestTmplText(t *testing.T) {
 		assert.Equal(t, "TestAlert", data.Alerts[0].Labels["alertname"])
 	})
 
+	t.Run("should pass AppVersion from template to data", func(t *testing.T) {
+		tmplWithVersion := &Template{
+			Template:   tm,
+			limits:     DefaultLimits,
+			AppVersion: "10.0.0",
+		}
+
+		var tmplErr error
+		_, data := TmplText(context.Background(), tmplWithVersion, alerts, l, &tmplErr)
+
+		assert.NotNil(t, data)
+		assert.Equal(t, "10.0.0", data.AppVersion)
+	})
+
 	t.Run("should extract group key from context", func(t *testing.T) {
 		// Create context with group key
 		ctx := context.Background()
