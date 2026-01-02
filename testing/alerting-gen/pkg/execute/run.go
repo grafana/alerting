@@ -50,7 +50,7 @@ func Run(cfg Config, debug bool) ([]*models.AlertRuleGroup, error) {
 
 	// If num-folders is set and it's not a dry run, create folders dynamically.
 	if cfg.NumFolders > 0 && !cfg.DryRun {
-		level.Info(logger).Log("msg", "creating folders", "count", cfg.NumFolders)
+		level.Info(logger).Log("msg", "Creating folders", "count", cfg.NumFolders)
 		createdUIDs, err := createFolders(cfg, cfg.NumFolders, cfg.Seed, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create folders: %w", err)
@@ -221,21 +221,66 @@ func nukeFolders(cfg Config, logger kitlog.Logger) error {
 
 	level.Info(logger).Log("msg", "Deleting folders", "count", len(foldersToDelete))
 
-	// Delete each folder.
-	forceDelete := true
-	for _, folderUID := range foldersToDelete {
-		level.Debug(logger).Log("msg", "Deleting folder", "uid", folderUID)
-		deleteParams := folders.NewDeleteFolderParams().
-			WithFolderUID(folderUID).
-			WithForceDeleteRules(&forceDelete)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-		if _, err := cli.Folders.DeleteFolder(deleteParams); err != nil {
-			return fmt.Errorf("failed to delete folder %q: %w", folderUID, err)
-		}
-		level.Debug(logger).Log("msg", "Folder deleted", "uid", folderUID)
+	var wg sync.WaitGroup
+	wg.Add(cfg.Concurrency)
+	uidCh := make(chan string)
+	errCh := make(chan error, 1)
+	forceDelete := true
+	for range cfg.Concurrency {
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case uid, ok := <-uidCh:
+					if !ok {
+						return
+					}
+					level.Debug(logger).Log("msg", "Deleting folder", "uid", uid)
+					deleteParams := folders.NewDeleteFolderParams().
+						WithFolderUID(uid).
+						WithForceDeleteRules(&forceDelete)
+
+					if _, err := cli.Folders.DeleteFolder(deleteParams); err != nil {
+						// Non-blocking send, only first error gets through.
+						select {
+						case errCh <- fmt.Errorf("failed to delete folder %q: %w", uid, err):
+						default:
+						}
+						cancel()
+						return
+					}
+					level.Debug(logger).Log("msg", "Folder deleted", "uid", uid)
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
 	}
 
-	return nil
+	// Producer goroutine.
+	go func() {
+		defer close(uidCh)
+		for _, uid := range foldersToDelete {
+			select {
+			case <-ctx.Done():
+				return
+			case uidCh <- uid:
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	// Check if we got an error.
+	select {
+	case err := <-errCh:
+		return err
+	default:
+		return nil
+	}
 }
 
 // createFolders creates N folders in Grafana and returns their UIDs.
@@ -259,23 +304,68 @@ func createFolders(cfg Config, numFolders int, seed int64, logger kitlog.Logger)
 		return nil, err
 	}
 
-	for i, uid := range folderUIDs {
-		// Use seed + i to get deterministic but unique UIDs per folder.
-		folderTitle := fmt.Sprintf("Alerts Folder %d", i+1)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-		level.Debug(logger).Log("msg", "Creating folder", "uid", uid, "title", folderTitle)
+	var wg sync.WaitGroup
+	wg.Add(cfg.Concurrency)
+	uidCh := make(chan string)
+	errCh := make(chan error, 1)
+	for range cfg.Concurrency {
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case uid, ok := <-uidCh:
+					if !ok {
+						return
+					}
+					folderTitle := fmt.Sprintf("Alerts Folder %s", uid)
 
-		body := &models.CreateFolderCommand{
-			UID:   uid,
-			Title: folderTitle,
-		}
+					level.Debug(logger).Log("msg", "Creating folder", "uid", uid, "title", folderTitle)
 
-		resp, err := cli.Folders.CreateFolder(body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create folder %q: %w", uid, err)
-		}
-		level.Debug(logger).Log("msg", "Folder created", "uid", resp.Payload.UID)
+					body := &models.CreateFolderCommand{
+						UID:   uid,
+						Title: folderTitle,
+					}
+
+					resp, err := cli.Folders.CreateFolder(body)
+					if err != nil {
+						// Non-blocking send, only first error gets through.
+						select {
+						case errCh <- fmt.Errorf("failed to create folder %q: %w", uid, err):
+						default:
+						}
+						cancel()
+						return
+					}
+					level.Debug(logger).Log("msg", "Folder created", "uid", resp.Payload.UID)
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
 	}
 
-	return folderUIDs, nil
+	// Producer goroutine.
+	go func() {
+		defer close(uidCh)
+		for _, uid := range folderUIDs {
+			select {
+			case <-ctx.Done():
+				return
+			case uidCh <- uid:
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	// Check if we got an error.
+	select {
+	case err := <-errCh:
+		return folderUIDs, err
+	default:
+		return folderUIDs, nil
+	}
 }
