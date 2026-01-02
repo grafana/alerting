@@ -9,30 +9,28 @@ import (
 )
 
 type Config struct {
-	NumAlerting     int
-	NumRecording    int
-	QueryDS         string
-	WriteDS         string
-	RulesPerGroup   int
-	GroupsPerFolder int
-	EvalInterval    int64
-	Seed            int64
-	DryRun          bool
-	UploadOptions
-}
+	NumFolders      int    `json:"numFolders"`
+	NumAlerting     int    `json:"numAlerting"`
+	NumRecording    int    `json:"numRecording"`
+	RulesPerGroup   int    `json:"rulesPerGroup"`
+	GroupsPerFolder int    `json:"groupsPerFolder"`
+	FolderUIDsCSV   string `json:"folderUIDsCSV"`
+	QueryDS         string `json:"queryDS"`
+	WriteDS         string `json:"writeDS"`
+	EvalInterval    int64  `json:"evalInterval"`
+	Seed            int64  `json:"seed"`
+	DryRun          bool   `json:"dryRun"`
+	Nuke            bool   `json:"nuke"`
+	Concurrency     int    `json:"concurrency"`
 
-type UploadOptions struct {
-	GrafanaURL    string
-	Username      string
-	Password      string
-	Token         string
-	OrgID         int64
-	FolderUIDsCSV string
-	NumFolders    int
-	Nuke          bool
-	Concurrency   int
+	// Instance config.
+	GrafanaURL string `json:"grafanaURL"`
+	Username   string `json:"username"`
+	Password   string `json:"password"`
+	Token      string `json:"token"`
+	OrgID      int64  `json:"orgID"`
 
-	FolderUIDs []string
+	folderUIDs []string
 }
 
 // Validate validates the configuration and adds defaults.
@@ -109,13 +107,13 @@ func (c *Config) Validate() error {
 		// Extract folder UIDs.
 		for uid := range strings.SplitSeq(c.FolderUIDsCSV, ",") {
 			if trimmed := strings.TrimSpace(uid); trimmed != "" {
-				c.FolderUIDs = append(c.FolderUIDs, trimmed)
+				c.folderUIDs = append(c.folderUIDs, trimmed)
 			}
 		}
 		c.FolderUIDsCSV = ""
 	}
 
-	folderCount := len(c.FolderUIDs)
+	folderCount := len(c.folderUIDs)
 	if folderCount == 0 {
 		folderCount = c.NumFolders
 	}
@@ -140,7 +138,7 @@ func (c *Config) Validate() error {
 	}
 
 	// At this point, we must have either a desired folder count or a list of folder UIDs.
-	if c.NumFolders == 0 && len(c.FolderUIDs) == 0 {
+	if c.NumFolders == 0 && len(c.folderUIDs) == 0 {
 		return errors.New("can't calculate desired folder count with the provided configuration (rule count, rules per group, groups per folder)")
 	}
 
