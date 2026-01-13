@@ -15,6 +15,7 @@ type Config struct {
 	WriteDS         string
 	RulesPerGroup   int
 	GroupsPerFolder int
+	EvalInterval    int64
 	Seed            int64
 	FolderUIDs      []string
 }
@@ -24,11 +25,11 @@ type Config struct {
 // Helpers moved to helpers.go
 
 // NewAlertingRuleGenerator returns a rapid generator for alerting rules
-func NewAlertingRuleGenerator(queryDs string) *rapid.Generator[*models.ProvisionedAlertRule] {
+func NewAlertingRuleGenerator(queryDS string) *rapid.Generator[*models.ProvisionedAlertRule] {
 	return rapid.Custom(func(t *rapid.T) *models.ProvisionedAlertRule {
 		// local refID scoped to this rule
 		refID := "A"
-		data := []*models.AlertQuery{buildQuery(queryDs, refID)}
+		data := []*models.AlertQuery{buildQuery(t, queryDS, refID)}
 		title := genTitle().Draw(t, "title")
 		forDur := mustParseDuration(genDurationStr().Draw(t, "for"))
 		// KeepFiringFor must be a multiple of For (0 inclusive)
@@ -39,7 +40,7 @@ func NewAlertingRuleGenerator(queryDs string) *rapid.Generator[*models.Provision
 			mult := rapid.IntRange(0, 5).Draw(t, "keep_mult")
 			keepDur = strfmt.Duration(time.Duration(forDur) * time.Duration(mult))
 		}
-		uid := randomUID().Draw(t, "uid")
+		uid := RandomUID().Draw(t, "uid")
 		labels := genLabels().Draw(t, "labels")
 		summary := genSummary().Draw(t, "summary")
 		extraAnns := genAdditionalAnnotations().Draw(t, "annotations")
@@ -82,9 +83,9 @@ func NewRecordingRuleGenerator(queryDS, writeDS string) *rapid.Generator[*models
 	return rapid.Custom(func(t *rapid.T) *models.ProvisionedAlertRule {
 		// local refID scoped to this rule
 		refID := "A"
-		data := []*models.AlertQuery{buildQuery(queryDS, refID)}
+		data := []*models.AlertQuery{buildQuery(t, queryDS, refID)}
 		title := genTitle().Draw(t, "title")
-		uid := randomUID().Draw(t, "uid")
+		uid := RandomUID().Draw(t, "uid")
 		metric := genMetricName().Draw(t, "metric")
 		summary := genSummary().Draw(t, "summary")
 		extraAnns := genAdditionalAnnotations().Draw(t, "annotations")
@@ -98,6 +99,8 @@ func NewRecordingRuleGenerator(queryDS, writeDS string) *rapid.Generator[*models
 		paused := rapid.Bool().Draw(t, "is_paused")
 		// TODO: make orgID configurable; assume 1 for now
 		orgID := int64(1)
+		// Recording rules require For field set to 0 for Grafana API
+		forDur := strfmt.Duration(0)
 
 		return &models.ProvisionedAlertRule{
 			Title:       strPtr(title),
@@ -105,6 +108,7 @@ func NewRecordingRuleGenerator(queryDS, writeDS string) *rapid.Generator[*models
 			RuleGroup:   nil,
 			FolderUID:   nil,
 			Data:        data,
+			For:         &forDur,
 			IsPaused:    paused,
 			Labels:      map[string]string{"rule_kind": "recording"},
 			Annotations: anns,

@@ -3,7 +3,6 @@ package historian
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/go-kit/log"
@@ -15,7 +14,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	alertingInstrument "github.com/grafana/alerting/http/instrument"
-	alertingModels "github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/historian/lokiclient"
 	"github.com/grafana/alerting/notify/nfstatus"
 )
@@ -25,20 +23,21 @@ const (
 	NotificationHistoryWriteTimeout = time.Minute
 	LabelFrom                       = "from"
 	LabelFromValue                  = "notify-history"
-	LabelRuleUID                    = "ruleUID"
 )
 
 type NotificationHistoryLokiEntry struct {
-	SchemaVersion int                                 `json:"schemaVersion"`
-	Receiver      string                              `json:"receiver"`
-	GroupKey      string                              `json:"groupKey"`
-	Status        string                              `json:"status"`
-	GroupLabels   map[string]string                   `json:"groupLabels"`
-	Alerts        []NotificationHistoryLokiEntryAlert `json:"alerts"`
-	Retry         bool                                `json:"retry"`
-	Error         string                              `json:"error,omitempty"`
-	Duration      int64                               `json:"duration"`
-	PipelineTime  time.Time                           `json:"pipelineTime"`
+	SchemaVersion int                               `json:"schemaVersion"`
+	Receiver      string                            `json:"receiver"`
+	GroupKey      string                            `json:"groupKey"`
+	Status        string                            `json:"status"`
+	GroupLabels   map[string]string                 `json:"groupLabels"`
+	Alert         NotificationHistoryLokiEntryAlert `json:"alert"`
+	AlertIndex    int                               `json:"alertIndex"`
+	AlertCount    int                               `json:"alertCount"`
+	Retry         bool                              `json:"retry"`
+	Error         string                            `json:"error,omitempty"`
+	Duration      int64                             `json:"duration"`
+	PipelineTime  time.Time                         `json:"pipelineTime"`
 }
 
 type NotificationHistoryLokiEntryAlert struct {
@@ -87,7 +86,7 @@ func (h *NotificationHistorian) TestConnection(ctx context.Context) error {
 }
 
 func (h *NotificationHistorian) Record(ctx context.Context, nhe nfstatus.NotificationHistoryEntry) {
-	streams, err := h.prepareStreams(nhe)
+	stream, err := h.prepareStream(nhe)
 	if err != nil {
 		level.Error(h.logger).Log("msg", "Failed to convert notification history to streams", "error", err)
 		return
@@ -105,43 +104,11 @@ func (h *NotificationHistorian) Record(ctx context.Context, nhe nfstatus.Notific
 	level.Debug(h.logger).Log("msg", "Saving notification history")
 	h.writesTotal.Inc()
 
-	if err := h.client.Push(writeCtx, streams); err != nil {
+	if err := h.client.Push(writeCtx, []lokiclient.Stream{stream}); err != nil {
 		level.Error(h.logger).Log("msg", "Failed to save notification history", "error", err)
 		h.writesFailed.Inc()
 	}
 	level.Debug(h.logger).Log("msg", "Done saving notification history")
-}
-
-func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryEntry) ([]lokiclient.Stream, error) {
-	// group alerts by rule UID. each rule UID will be a separate stream.
-	ruleUIDToAlerts := make(map[prometheusModel.LabelValue][]nfstatus.NotificationHistoryAlert)
-	for _, alert := range nhe.Alerts {
-		ruleUID, ok := alert.Labels[alertingModels.RuleUIDLabel]
-		if !ok {
-			return []lokiclient.Stream{}, fmt.Errorf("rule UID not found in labels")
-		}
-		ruleUIDToAlerts[ruleUID] = append(ruleUIDToAlerts[ruleUID], alert)
-	}
-
-	streams := make([]lokiclient.Stream, 0)
-	for ruleUID := range ruleUIDToAlerts {
-		stream, err := h.prepareStream(nfstatus.NotificationHistoryEntry{
-			Alerts:          ruleUIDToAlerts[ruleUID],
-			Retry:           nhe.Retry,
-			GroupKey:        nhe.GroupKey,
-			NotificationErr: nhe.NotificationErr,
-			Duration:        nhe.Duration,
-			ReceiverName:    nhe.ReceiverName,
-			GroupLabels:     nhe.GroupLabels,
-			PipelineTime:    nhe.PipelineTime,
-		})
-		if err != nil {
-			return []lokiclient.Stream{}, err
-		}
-		streams = append(streams, stream)
-	}
-
-	return streams, nil
 }
 
 func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEntry) (lokiclient.Stream, error) {
@@ -170,27 +137,36 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 		as[i] = nhe.Alerts[i].Alert
 	}
 
-	entry := NotificationHistoryLokiEntry{
-		SchemaVersion: 1,
-		Receiver:      nhe.ReceiverName,
-		Status:        string(types.Alerts(as...).StatusAt(now)),
-		GroupKey:      nhe.GroupKey,
-		GroupLabels:   prepareLabels(nhe.GroupLabels),
-		Alerts:        entryAlerts,
-		Retry:         nhe.Retry,
-		Error:         notificationErrStr,
-		Duration:      int64(nhe.Duration),
-		PipelineTime:  nhe.PipelineTime,
-	}
+	values := make([]lokiclient.Sample, len(nhe.Alerts))
+	for i := range nhe.Alerts {
+		entry := NotificationHistoryLokiEntry{
+			SchemaVersion: 1,
+			Receiver:      nhe.ReceiverName,
+			Status:        string(types.Alerts(as...).StatusAt(now)),
+			GroupKey:      nhe.GroupKey,
+			GroupLabels:   prepareLabels(nhe.GroupLabels),
+			Alert:         entryAlerts[i],
+			AlertIndex:    i,
+			AlertCount:    len(nhe.Alerts),
+			Retry:         nhe.Retry,
+			Error:         notificationErrStr,
+			Duration:      int64(nhe.Duration),
+			PipelineTime:  nhe.PipelineTime,
+		}
 
-	entryJSON, err := json.Marshal(entry)
-	if err != nil {
-		return lokiclient.Stream{}, err
+		entryJSON, err := json.Marshal(entry)
+		if err != nil {
+			return lokiclient.Stream{}, err
+		}
+
+		values[i] = lokiclient.Sample{
+			T: now,
+			V: string(entryJSON),
+		}
 	}
 
 	streamLabels := make(map[string]string)
 	streamLabels[LabelFrom] = LabelFromValue
-	streamLabels[LabelRuleUID] = string(nhe.Alerts[0].Labels[alertingModels.RuleUIDLabel])
 
 	for k, v := range h.externalLabels {
 		streamLabels[k] = v
@@ -198,11 +174,7 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 
 	return lokiclient.Stream{
 		Stream: streamLabels,
-		Values: []lokiclient.Sample{
-			{
-				T: now,
-				V: string(entryJSON),
-			}},
+		Values: values,
 	}, nil
 }
 

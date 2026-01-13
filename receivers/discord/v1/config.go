@@ -67,6 +67,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			PropertyName: "url",
 			Required:     true,
 			Secure:       true,
+			Protected:    true,
 		},
 		{
 			Label:        "Avatar URL",

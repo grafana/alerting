@@ -10,8 +10,7 @@ It outputs a list of valid `AlertingRuleGroup` JSON that you can inspect. Option
 ## Install
 
 ```bash
-cd ./alerting-gen
-go build ./cmd/alerting-gen
+make build
 ```
 
 ## Usage

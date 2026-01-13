@@ -15,6 +15,8 @@ func (t DispatchTimer) String() string {
 	switch t {
 	case DispatchTimerSync:
 		return "sync"
+	case DispatchTimerDefault:
+		return "default"
 	default:
 		return "default"
 	}

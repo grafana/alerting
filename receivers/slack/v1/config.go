@@ -28,6 +28,7 @@ type Config struct {
 	MentionUsers   receivers.CommaSeparatedStrings `json:"mentionUsers,omitempty" yaml:"mentionUsers,omitempty"`
 	MentionGroups  receivers.CommaSeparatedStrings `json:"mentionGroups,omitempty" yaml:"mentionGroups,omitempty"`
 	Color          string                          `json:"color,omitempty" yaml:"color,omitempty"`
+	Footer         string                          `json:"footer,omitempty" yaml:"footer,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
@@ -169,6 +170,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Secure:       true,
 			Required:     true,
 			DependsOn:    "token",
+			Protected:    true,
 		},
 		{ // New in 8.4.
 			Label:        "Endpoint URL",
@@ -177,6 +179,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Description:  "Optionally provide a custom Slack message API endpoint for non-webhook requests, default is https://slack.com/api/chat.postMessage",
 			Placeholder:  "Slack endpoint url",
 			PropertyName: "endpointUrl",
+			Protected:    true,
 		},
 		{
 			Label:        "Color",
@@ -200,6 +203,14 @@ var Schema = schema.IntegrationSchemaVersion{
 			Description:  "Body of the slack message",
 			PropertyName: "text",
 			Placeholder:  `{{ template "slack.default.text" . }}`,
+		},
+		{
+			Label:        "Footer",
+			Element:      schema.ElementTypeInput,
+			InputType:    schema.InputTypeText,
+			Description:  "Templated footer of the slack message",
+			PropertyName: "footer",
+			Placeholder:  `{{ template "slack.default.footer" . }}`,
 		},
 	},
 }

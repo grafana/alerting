@@ -10,3 +10,5 @@ vendor
 .DS_Store
 
 .idea
+
+testing/alerting-gen/alerting-gen

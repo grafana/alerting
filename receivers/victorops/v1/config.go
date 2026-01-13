@@ -57,6 +57,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			PropertyName: "url",
 			Required:     true,
 			Secure:       true,
+			Protected:    true,
 		},
 		{ // New in 8.0.
 			Label:        "Message Type",

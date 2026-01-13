@@ -70,9 +70,6 @@ func TestRecordingRuleGenerator_Properties(t *testing.T) {
 		require.NotNil(t, rule.For, "Recording rules still require For pointer")
 		require.Equal(t, int64(0), int64(*rule.For), "Recording rules For expected 0")
 
-		require.NotNil(t, rule.ExecErrState)
-		require.NotNil(t, rule.NoDataState)
-
 		require.NotNil(t, rule.OrgID)
 		require.Equal(t, int64(1), *rule.OrgID, "OrgID must be 1 for now")
 

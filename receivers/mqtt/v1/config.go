@@ -101,6 +101,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Description:  "The URL of the MQTT broker.",
 			PropertyName: "brokerUrl",
 			Required:     true,
+			Protected:    true,
 		},
 		{
 			Label:        "Topic",

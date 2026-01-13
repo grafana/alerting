@@ -198,42 +198,102 @@ func TestCreateDialer(t *testing.T) {
 }
 
 func TestBuildEmail(t *testing.T) {
-	cfg := EmailSenderConfig{
-		ContentTypes: []string{"text/html", "text/plain"},
-		StaticHeaders: map[string]string{
-			"Header-1": "value-1",
-			"Header-2": "value-2",
+	tests := []struct {
+		name             string
+		cfg              EmailSenderConfig
+		msg              Message
+		expectedTo       []string
+		expectedBcc      []string
+		checkBodyContent bool
+	}{
+		{
+			name: "Standard email with To header",
+			cfg: EmailSenderConfig{
+				ContentTypes: []string{"text/html", "text/plain"},
+				StaticHeaders: map[string]string{
+					"Header-1": "value-1",
+					"Header-2": "value-2",
+				},
+			},
+			msg: Message{
+				From:    "test@test.com",
+				To:      []string{"to1@to.com", "to2@to.com"},
+				Subject: "Test Subject",
+				ReplyTo: []string{"reply1@reply.com", "reply2@reply.com"},
+				Body:    map[string]string{"text/plain": "This is a test message"},
+			},
+			expectedTo:       []string{"to1@to.com", "to2@to.com"},
+			expectedBcc:      nil,
+			checkBodyContent: true,
+		},
+		{
+			name: "UseBCC=true, SingleEmail=false - recipients in Bcc",
+			cfg: EmailSenderConfig{
+				UseBCC:       true,
+				ContentTypes: []string{"text/plain"},
+			},
+			msg: Message{
+				From:        "test@test.com",
+				To:          []string{"to1@to.com", "to2@to.com"},
+				Subject:     "Test Subject",
+				SingleEmail: false,
+				Body:        map[string]string{"text/plain": "This is a test message"},
+			},
+			expectedTo:  nil,
+			expectedBcc: []string{"to1@to.com", "to2@to.com"},
+		},
+		{
+			name: "UseBCC=true, SingleEmail=true - recipients in To (UseBCC ignored)",
+			cfg: EmailSenderConfig{
+				UseBCC:       true,
+				ContentTypes: []string{"text/plain"},
+			},
+			msg: Message{
+				From:        "test@test.com",
+				To:          []string{"to1@to.com", "to2@to.com"},
+				Subject:     "Test Subject",
+				SingleEmail: true,
+				Body:        map[string]string{"text/plain": "This is a test message"},
+			},
+			expectedTo:  []string{"to1@to.com", "to2@to.com"},
+			expectedBcc: nil,
 		},
 	}
 
-	s, err := NewEmailSender(cfg)
-	require.NoError(t, err)
-	ds, ok := s.(*defaultEmailSender)
-	require.True(t, ok)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			s, err := NewEmailSender(tc.cfg)
+			require.NoError(t, err)
+			ds, ok := s.(*defaultEmailSender)
+			require.True(t, ok)
 
-	mCfg := Message{
-		From:    "test@test.com",
-		To:      []string{"to1@to.com", "to2@to.com"},
-		Subject: "Test Subject",
-		ReplyTo: []string{"reply1@reply.com", "reply2@reply.com"},
-		Body:    map[string]string{"text/plain": "This is a test message"},
+			m := ds.buildEmail(&tc.msg)
+			require.Equal(t, []string{tc.msg.From}, m.GetHeader("From"))
+			require.Equal(t, tc.expectedTo, m.GetHeader("To"))
+			require.Equal(t, tc.expectedBcc, m.GetHeader("Bcc"))
+			require.Equal(t, []string{tc.msg.Subject}, m.GetHeader("Subject"))
+
+			if len(tc.msg.ReplyTo) > 0 {
+				require.Equal(t, []string{strings.Join(tc.msg.ReplyTo, ", ")}, m.GetHeader("Reply-To"))
+			}
+
+			for k, v := range tc.cfg.StaticHeaders {
+				require.Equal(t, []string{v}, m.GetHeader(k))
+			}
+
+			if tc.checkBodyContent {
+				var buf bytes.Buffer
+				_, err = m.WriteTo(&buf)
+				require.NoError(t, err)
+
+				str := buf.String()
+				require.Contains(t, str, tc.msg.Body["text/plain"])
+				if _, ok := tc.msg.Body["text/html"]; ok {
+					require.Contains(t, str, tc.msg.Body["text/html"])
+				}
+			}
+		})
 	}
-	m := ds.buildEmail(&mCfg)
-	require.Equal(t, []string{mCfg.From}, m.GetHeader("From"))
-	require.Equal(t, mCfg.To, m.GetHeader("To"))
-	require.Equal(t, []string{mCfg.Subject}, m.GetHeader("Subject"))
-	require.Equal(t, []string{strings.Join(mCfg.ReplyTo, ", ")}, m.GetHeader("Reply-To"))
-	for k, v := range cfg.StaticHeaders {
-		require.Equal(t, []string{v}, m.GetHeader(k))
-	}
-
-	var buf bytes.Buffer
-	_, err = m.WriteTo(&buf)
-	require.NoError(t, err)
-
-	str := buf.String()
-	require.Contains(t, str, mCfg.Body["text/plain"])
-	require.Contains(t, str, mCfg.Body["text/html"])
 }
 
 type mockSender struct {
@@ -251,6 +311,7 @@ func TestSend(t *testing.T) {
 	tests := []struct {
 		name         string
 		message      *Message
+		cfg          EmailSenderConfig
 		expectedSent [][]string
 		senderError  error
 		expectedErr  bool
@@ -287,6 +348,24 @@ func TestSend(t *testing.T) {
 			expectedSent: [][]string{{"a@b.com"}, {"c@d.com"}},
 			expectedErr:  true,
 		},
+		{
+			name:    "SingleEmail=false, UseBCC=true",
+			message: makeMsg(false, "a@b.com", "c@d.com", "e@f.com"),
+			cfg:     EmailSenderConfig{UseBCC: true},
+			expectedSent: [][]string{
+				{"a@b.com", "c@d.com", "e@f.com"},
+			},
+			expectedErr: false,
+		},
+		{
+			name:    "SingleEmail=true, UseBCC=true",
+			message: makeMsg(true, "a@b.com", "c@d.com"),
+			cfg:     EmailSenderConfig{UseBCC: true},
+			expectedSent: [][]string{
+				{"a@b.com", "c@d.com"},
+			},
+			expectedErr: false,
+		},
 	}
 
 	for _, tc := range tests {
@@ -294,7 +373,7 @@ func TestSend(t *testing.T) {
 			ms := &mockSender{err: tc.senderError}
 
 			ds := &defaultEmailSender{
-				cfg:  EmailSenderConfig{},
+				cfg:  tc.cfg,
 				tmpl: nil,
 				dialFn: func(_ *defaultEmailSender) (gomail.SendCloser, error) {
 					return ms, nil

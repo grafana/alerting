@@ -79,6 +79,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			Placeholder:  "http://localhost:8082",
 			PropertyName: "kafkaRestProxy",
 			Required:     true,
+			Protected:    true,
 		},
 		{
 			Label:        "Topic",
