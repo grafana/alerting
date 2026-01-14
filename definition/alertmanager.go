@@ -630,5 +630,14 @@ func (t *PostableApiTemplate) Validate() error {
 
 type TemplateKind string
 
-const GrafanaTemplateKind TemplateKind = "grafana"
-const MimirTemplateKind TemplateKind = "mimir"
+const (
+	GrafanaTemplateKind TemplateKind = "grafana"
+	MimirTemplateKind   TemplateKind = "mimir"
+)
+
+type TimeIntervalKind string
+
+const (
+	GrafanaTimeIntervalKind TimeIntervalKind = "grafana"
+	MimirTimeIntervalKind   TimeIntervalKind = "mimir"
+)
