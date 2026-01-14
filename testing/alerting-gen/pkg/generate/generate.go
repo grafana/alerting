@@ -20,11 +20,7 @@ type Config struct {
 	FolderUIDs      []string
 }
 
-// GenerateGroups moved to groups.go
-
-// Helpers moved to helpers.go
-
-// NewAlertingRuleGenerator returns a rapid generator for alerting rules
+// NewAlertingRuleGenerator returns a rapid generator for alerting rules.
 func NewAlertingRuleGenerator(queryDS string) *rapid.Generator[*models.ProvisionedAlertRule] {
 	return rapid.Custom(func(t *rapid.T) *models.ProvisionedAlertRule {
 		// local refID scoped to this rule
@@ -58,6 +54,15 @@ func NewAlertingRuleGenerator(queryDS string) *rapid.Generator[*models.Provision
 		// TODO: make orgID configurable; assume 1 for now
 		orgID := int64(1)
 
+		// Randomly add receiver to some rules
+		var notificationSettings *models.AlertRuleNotificationSettings
+		if rapid.Bool().Draw(t, "with_notification_settings") {
+			r := "grafana-default-email"
+			notificationSettings = &models.AlertRuleNotificationSettings{
+				Receiver: &r,
+			}
+		}
+
 		return &models.ProvisionedAlertRule{
 			Title:                       strPtr(title),
 			UID:                         uid,
@@ -72,6 +77,7 @@ func NewAlertingRuleGenerator(queryDS string) *rapid.Generator[*models.Provision
 			NoDataState:                 strPtr(noData),
 			Labels:                      labels,
 			Annotations:                 anns,
+			NotificationSettings:        notificationSettings,
 			MissingSeriesEvalsToResolve: missingToResolve,
 			OrgID:                       &orgID,
 		}
