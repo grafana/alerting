@@ -71,18 +71,16 @@ var (
 		"grafanacloud_instance_ruler_notifications_errors_total:rate5m > 0",
 		"grafanacloud_org_total_overage > 0",
 		"grafanacloud_org_spend_commit_balance_total == 0 or grafanacloud_org_spend_commit_balance_total < grafanacloud_org_spend_commit_credit_total * 0.1",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts)",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 10",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 25",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 50",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 100",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 500",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 1000",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 2500",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 5000",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 10000",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 50000",
-		"sum by (id, state) (grafanacloud_grafana_instance_alerting_alerts) > 100000",
+
+		// Multi-dimensional alerts. Number of instances capped to k.
+		"topk(1, sum by (alertname) (GRAFANA_ALERTS))",
+		"topk(3, sum by (alertname) (GRAFANA_ALERTS))",
+		"topk(5, sum by (alertname) (GRAFANA_ALERTS))",
+		"topk(8, sum by (alertname) (GRAFANA_ALERTS))",
+		"topk(10, sum by (alertname) (GRAFANA_ALERTS))",
+		"topk(20, sum by (alertname) (GRAFANA_ALERTS))",
+		"topk(50, sum by (alertname) (GRAFANA_ALERTS))",
+		"topk(100, sum by (alertname) (GRAFANA_ALERTS))",
 	}
 )
 
