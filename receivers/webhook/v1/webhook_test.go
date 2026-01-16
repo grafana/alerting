@@ -59,6 +59,7 @@ func TestNotify(t *testing.T) {
 		expHeaders    map[string]string
 		expHTTPMethod string
 		expMsgError   error
+		expNoCalls    bool
 	}{
 		{
 			name: "Default config with one alert with custom message",
@@ -713,6 +714,26 @@ func TestNotify(t *testing.T) {
 				"Content-Type":     "application/text",
 			},
 		},
+		{
+			name: "should not send if noop URL is set",
+			settings: Config{
+				URL:        NoopURL,
+				HTTPMethod: http.MethodPost,
+				MaxAlerts:  0,
+				Title:      templates.DefaultMessageTitleEmbed,
+				Message:    templates.DefaultMessageEmbed,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations:  model.LabelSet{"ann1": "annv1"},
+						GeneratorURL: "http://localhost/generator",
+					},
+				},
+			},
+			expNoCalls: true,
+		},
 	}
 
 	for _, c := range cases {
@@ -755,6 +776,10 @@ func TestNotify(t *testing.T) {
 					require.NoError(t, err)
 					require.True(t, ok)
 
+					if c.expNoCalls {
+						require.Empty(t, webhookSender.WebhookCalls)
+						return
+					}
 					if c.expMsg != nil {
 						expBody, err := json.Marshal(c.expMsg)
 						require.NoError(t, err)

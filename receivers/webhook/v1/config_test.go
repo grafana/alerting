@@ -76,7 +76,7 @@ func TestNewConfig(t *testing.T) {
 			name:     "Extracts all fields",
 			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
-				URL:                      "http://localhost",
+				URL:                      NoopURL,
 				HTTPMethod:               "PUT",
 				MaxAlerts:                2,
 				AuthorizationScheme:      "basic",
@@ -103,7 +103,7 @@ func TestNewConfig(t *testing.T) {
 			settings:       FullValidConfigForTesting,
 			secretSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
-				URL:                      "http://localhost",
+				URL:                      NoopURL,
 				HTTPMethod:               "PUT",
 				MaxAlerts:                2,
 				AuthorizationScheme:      "basic",
