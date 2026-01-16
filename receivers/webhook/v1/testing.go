@@ -8,7 +8,7 @@ import (
 
 // FullValidConfigForTesting is a string representation of a JSON object that contains all fields supported by the notifier Config. It can be used without secrets.
 var FullValidConfigForTesting = fmt.Sprintf(`{
-	"url": %s,
+	"url": %q,
 	"httpMethod": "PUT",
 	"maxAlerts": "2",
 	"authorization_scheme": "basic",
