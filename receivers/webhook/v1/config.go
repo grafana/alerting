@@ -14,6 +14,7 @@ import (
 )
 
 const Version = schema.V1
+const NoopURL = "grafana://noop"
 
 type CustomPayload struct {
 	// Template is the template used to generate the payload for the webhook.
