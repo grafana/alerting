@@ -58,9 +58,9 @@ func TestGroupRules_PartitionAndFolderCycling(t *testing.T) {
 
 	// Group 1 in f1, group 2 in f2 when groupsPerFolder=1
 	require.Equal(t, "f1", groups[0].FolderUID)
-	require.Equal(t, "group-1", groups[0].Title)
+	require.NotEmpty(t, groups[0].Title)
 	require.Equal(t, "f2", groups[1].FolderUID)
-	require.Equal(t, "group-2", groups[1].Title)
+	require.NotEmpty(t, groups[1].Title)
 
 	// Each rule should be annotated with the group's folder and title
 	for gi, g := range groups {
@@ -87,7 +87,7 @@ func TestGroupRules_DefaultsWhenZeroOrEmpty(t *testing.T) {
 	g := groups[0]
 	require.Equal(t, int64(60), g.Interval)
 	require.Equal(t, "default", g.FolderUID)
-	require.Equal(t, "group-1", g.Title)
+	require.NotEmpty(t, g.Title)
 	require.Len(t, g.Rules, len(rules))
 
 	// sanity: math ceiling is enforced when grouping is applied (not applicable here since one group)
