@@ -206,10 +206,22 @@ func removePrivateItems(kv template.KV) template.KV {
 }
 
 func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *ExtendedAlert {
+    mergedLabels := make(KV)
+
+    // Add static labels from the alert rule first
+    for k, v := range alert.RuleLabels {
+        mergedLabels[k] = v
+    }
+
+    // Add dynamic alert labels, overriding static labels if keys conflict
+    for k, v := range alert.Labels {
+        mergedLabels[k] = v
+    }
+
 	// remove "private" annotations & labels so they don't show up in the template
 	extended := &ExtendedAlert{
 		Status:       alert.Status,
-		Labels:       removePrivateItems(alert.Labels),
+		Labels:       removePrivateItems(mergedLabels),
 		Annotations:  removePrivateItems(alert.Annotations),
 		StartsAt:     alert.StartsAt,
 		EndsAt:       alert.EndsAt,

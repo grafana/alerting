@@ -186,3 +186,60 @@ func TestTmplText(t *testing.T) {
 		assert.NotEmpty(t, result) // Should contain partial output up to limit
 	})
 }
+
+func TestExtendAlert_MergesRuleLabelsAndGeneratesURLs(t *testing.T) {
+	logger := log.NewNopLogger()
+	externalURL := "http://grafana.local"
+
+	alert := template.Alert{
+		Status: "firing",
+		Labels: template.KV{
+			"alertname": "HighCPU",
+		},
+		RuleLabels: template.KV{
+			"environment": "prod",
+			"alertname":   "StaticAlert",
+		},
+		Annotations: template.KV{
+			models.DashboardUIDAnnotation: "dash123",
+			models.PanelIDAnnotation:     "5",
+			"summary":                     "CPU high",
+			models.OrgIDAnnotation:        "10",
+		},
+		StartsAt:     time.Now().Add(-time.Hour),
+		EndsAt:       time.Now(),
+		GeneratorURL: "http://prometheus.local/graph",
+		Fingerprint:  "abc123",
+	}
+
+	extended := extendAlert(alert, externalURL, logger)
+
+	// Dynamic label overrides static
+	if extended.Labels["alertname"] != "HighCPU" {
+		t.Errorf("expected alertname to be HighCPU, got %s", extended.Labels["alertname"])
+	}
+	// Static label is included
+	if extended.Labels["environment"] != "prod" {
+		t.Errorf("expected environment label to be prod, got %s", extended.Labels["environment"])
+	}
+
+	// Dashboard URL contains correct query parameters
+	if !strings.Contains(extended.DashboardURL, "dash123") {
+		t.Errorf("expected dashboard URL to include dash UID, got %s", extended.DashboardURL)
+	}
+
+	// Panel URL contains viewPanel
+	if !strings.Contains(extended.PanelURL, "viewPanel=5") {
+		t.Errorf("expected panel URL to include panel ID, got %s", extended.PanelURL)
+	}
+
+	// Silence URL contains matcher for rule UID
+	if !strings.Contains(extended.SilenceURL, "matcher=alertname=HighCPU") {
+		t.Errorf("expected silence URL to include matcher for alertname, got %s", extended.SilenceURL)
+	}
+
+	// OrgID parsed correctly
+	if extended.OrgID == nil || *extended.OrgID != 10 {
+		t.Errorf("expected OrgID to be 10, got %+v", extended.OrgID)
+	}
+}
