@@ -2,14 +2,19 @@ package notify
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
+
+	"github.com/go-kit/log"
 
 	"github.com/grafana/alerting/templates"
 
 	"github.com/go-openapi/strfmt"
-	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 )
 
 var (
@@ -39,8 +44,9 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "Template Contents",
+				Name:  "slack.title",
+				Text:  "Template Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -53,8 +59,9 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "17",
+				Name:  "slack.title",
+				Text:  "17",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -67,8 +74,9 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "TEMPLATE CONTENTS",
+				Name:  "slack.title",
+				Text:  "TEMPLATE CONTENTS",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -110,8 +118,9 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "Other Contents",
+				Name:  "slack.title",
+				Text:  "Other Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -124,11 +133,13 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "discord.title",
-				Text: "Discord Title",
+				Name:  "discord.title",
+				Text:  "Discord Title",
+				Scope: rootScope,
 			}, {
-				Name: "slack.title",
-				Text: "Other Contents",
+				Name:  "slack.title",
+				Text:  "Other Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -141,13 +152,94 @@ func TestTemplateSimple(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "discord.title",
-				Text: "Discord Title",
+				Name:  "discord.title",
+				Text:  "Discord Title",
+				Scope: rootScope,
 			}},
 			Errors: []TestTemplatesErrorResult{{
 				Name:  "slack.title",
 				Kind:  ExecutionError,
 				Error: `template: :1:91: executing "other" at <{{template "missing" .}}>: template "missing" not defined`,
+			}},
+		},
+	}, {
+		name: "gomplate template",
+		input: TestTemplatesConfigBodyParams{
+			Alerts: []*amv2.PostableAlert{&simpleAlert},
+			Name:   "slack.title",
+			Template: `{{ define "now" }}{{ time.Now.Year }}{{ end }}
+{{ define "dict" }}{{ coll.Dict "testkey" "testval" | data.ToJSON }}{{ end }}
+{{ define "dict.pretty" }}{{ coll.Dict "testkey" "testval" | data.ToJSONPretty " "}}{{ end }}
+{{ define "slice" }}{{ coll.Slice "testkey" "testval" | coll.Append "appended" | data.ToJSON}}{{ end }}
+{{ define "tmpl" }}{{ coll.Slice "testkey" (tmpl.Exec "slice" . | data.JSON) | coll.Append (tmpl.Inline "{{print .Receiver}}" .) | data.ToJSON}}{{ end }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: []TestTemplatesResult{{
+				Name:  "dict",
+				Text:  `{"testkey":"testval"}`,
+				Scope: rootScope,
+			}, {
+				Name:  "dict.pretty",
+				Text:  "{\n \"testkey\": \"testval\"\n}",
+				Scope: rootScope,
+			}, {
+				Name:  "now",
+				Text:  fmt.Sprint(time.Now().Year()),
+				Scope: rootScope,
+			}, {
+				Name:  "slice",
+				Text:  `["testkey","testval","appended"]`,
+				Scope: rootScope,
+			}, {
+				Name:  "tmpl",
+				Text:  `["testkey",["testkey","testval","appended"],"TestReceiver"]`,
+				Scope: rootScope,
+			}},
+			Errors: nil,
+		},
+	}, {
+		name: "gomplate data.JSON eJSON not supported",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "ejson",
+			Template: `{{ define "ejson" }}{{ coll.Dict "_public_key" "someval" "otherkey" "otherval" | data.ToJSON }}{{ end }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: []TestTemplatesResult{{
+				Name: "ejson",
+				// Defense against unintentionally adding eJSON support by importing gomplate data.JSON.
+				// Gomplate extracts the _public_key field and attempts to access the ENV.
+				Text:  `{"_public_key":"someval","otherkey":"otherval"}`,
+				Scope: rootScope,
+			}},
+			Errors: nil,
+		},
+	}, {
+		name: "gomplate env.Getenv not available",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}{{ env.Getenv "HOME" }}{{ end }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: nil,
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  InvalidTemplate,
+				Error: `template: slack.title:1: function "env" not defined`,
+			}},
+		},
+	}, {
+		name: "gomplate env.ExpandEnv not available",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "slack.title",
+			Template: `{{ define "slack.title" }}{{ env.ExpandEnv "Your path is set to $PATH" }}{{ end }}`,
+		},
+		expected: TestTemplatesResults{
+			Results: nil,
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  InvalidTemplate,
+				Error: `template: slack.title:1: function "env" not defined`,
 			}},
 		},
 	},
@@ -178,8 +270,9 @@ func TestTemplateSpecialCases(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "Template Contents",
+				Name:  "slack.title",
+				Text:  "Template Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -203,8 +296,9 @@ func TestTemplateSpecialCases(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "discord.title",
-				Text: "Template Contents",
+				Name:  "discord.title",
+				Text:  "Template Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -231,8 +325,9 @@ func TestTemplateSpecialCases(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "",
-				Text: "Template Contents",
+				Name:  "",
+				Text:  "Template Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -245,13 +340,28 @@ func TestTemplateSpecialCases(t *testing.T) {
 		},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "",
-				Text: "abcdef",
+				Name:  "",
+				Text:  "abcdef",
+				Scope: rootScope,
 			}, {
-				Name: "slack.title",
-				Text: "Template Contents",
+				Name:  "slack.title",
+				Text:  "Template Contents",
+				Scope: rootScope,
 			}},
 			Errors: nil,
+		},
+	}, {
+		name: "error on really big template",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "",
+			Template: fmt.Sprintf("{{- $spaces := printf \"%%%ds\" \"\" }}{{- range $i := (len $spaces) }}.{{- end }}", MaxTemplateOutputSize+1),
+		},
+		expected: TestTemplatesResults{
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  ExecutionError,
+				Error: templates.ErrTemplateOutputTooLarge.Error(),
+			}},
 		},
 	},
 	}
@@ -279,12 +389,14 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.default.title" . }}{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: nil,
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "[FIRING:1] group_label_value (alert1 val1)",
+				Name:  "slack.title",
+				Text:  "[FIRING:1] group_label_value (alert1 val1)",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -294,15 +406,18 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "existing" . }}{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "existing",
 			Template: `{{ define "existing" }}Some existing template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "Some existing template",
+				Name:  "slack.title",
+				Text:  "Some existing template",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -312,15 +427,18 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}New template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "New template",
+				Name:  "slack.title",
+				Text:  "New template",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -330,10 +448,12 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.alternate_title" . }}{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: nil,
@@ -349,15 +469,18 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}{{ template "slack.alternate_title" . }}{{ end }}{{ define "slack.alternate_title" }}Some new alternate template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		},
 		existingTemplates: []templates.TemplateDefinition{{
 			Name:     "slack.title",
 			Template: `{{ define "slack.title" }}Some existing template{{ end }}{{ define "slack.alternate_title" }}Some existing alternate template{{ end }}`,
+			Kind:     templates.GrafanaKind,
 		}},
 		expected: TestTemplatesResults{
 			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "Some new alternate template",
+				Name:  "slack.title",
+				Text:  "Some new alternate template",
+				Scope: rootScope,
 			}},
 			Errors: nil,
 		},
@@ -367,7 +490,11 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if len(test.existingTemplates) > 0 {
-				am.templates = test.existingTemplates
+				var err error
+				cfg, err := templates.NewConfig("grafana", am.ExternalURL(), "", templates.DefaultLimits)
+				require.NoError(t, err)
+				am.templates, err = templates.NewFactory(test.existingTemplates, cfg, log.NewNopLogger())
+				require.NoError(t, err)
 			}
 			res, err := am.TestTemplate(context.Background(), test.input)
 			require.NoError(t, err)
@@ -377,19 +504,21 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 }
 
 func TestTemplateAlertData(t *testing.T) {
-	am, _ := setupAMTest(t)
-	am.externalURL = "http://localhost:9093"
+	am, _ := setupAMTest(t, func(opts *GrafanaAlertmanagerOpts) {
+		opts.ExternalURL = "http://localhost:9093"
+	})
 
 	tests := []struct {
 		name     string
 		input    TestTemplatesConfigBodyParams
 		expected TestTemplatesResults
-	}{{
-		name: "check various extended data",
-		input: TestTemplatesConfigBodyParams{
-			Alerts: []*amv2.PostableAlert{&simpleAlert},
-			Name:   "slack.title",
-			Template: `{{ define "slack.title" }}
+	}{
+		{
+			name: "check various extended data",
+			input: TestTemplatesConfigBodyParams{
+				Alerts: []*amv2.PostableAlert{&simpleAlert},
+				Name:   "slack.title",
+				Template: `{{ define "slack.title" }}
 Receiver: {{ .Receiver }}
 Status: {{ .Status }}
 ExternalURL: {{ .ExternalURL }}
@@ -400,15 +529,82 @@ GroupLabels: {{ range .GroupLabels.SortedPairs }}{{ .Name }}={{ .Value }}{{ end 
 CommonLabels: {{ range .CommonLabels.SortedPairs }}{{ .Name }}={{ .Value }}{{ end }}
 CommonAnnotations: {{ range .CommonAnnotations.SortedPairs }}{{ .Name }}={{ .Value }}{{ end }}
 {{ end }}`,
+			},
+			expected: TestTemplatesResults{
+				Results: []TestTemplatesResult{{
+					Name:  "slack.title",
+					Text:  "\nReceiver: TestReceiver\nStatus: firing\nExternalURL: http://localhost:9093\nAlerts: 1\nFiring Alerts: 1\nResolved Alerts: 0\nGroupLabels: group_label=group_label_value\nCommonLabels: alertname=alert1lbl1=val1\nCommonAnnotations: ann1=annv1\n",
+					Scope: rootScope,
+				}},
+				Errors: nil,
+			},
 		},
-		expected: TestTemplatesResults{
-			Results: []TestTemplatesResult{{
-				Name: "slack.title",
-				Text: "\nReceiver: TestReceiver\nStatus: firing\nExternalURL: http://localhost:9093\nAlerts: 1\nFiring Alerts: 1\nResolved Alerts: 0\nGroupLabels: group_label=group_label_value\nCommonLabels: alertname=alert1lbl1=val1\nCommonAnnotations: ann1=annv1\n",
-			}},
-			Errors: nil,
+		{
+			name: "template scoped to .Alerts",
+			input: TestTemplatesConfigBodyParams{
+				Alerts: []*amv2.PostableAlert{&simpleAlert},
+				Name:   "alerts.custom",
+				Template: `{{ define "alerts.custom" }}{{ range . }}
+Labels:
+{{ range .Labels.SortedPairs }} - {{ .Name }} = {{ .Value }}
+{{ end }}Annotations:
+{{ range .Annotations.SortedPairs }} - {{ .Name }} = {{ .Value }}
+{{ end }}{{ if gt (len .GeneratorURL) 0 }}Source: {{ .GeneratorURL }}
+{{ end }}{{ if gt (len .SilenceURL) 0 }}Silence: {{ .SilenceURL }}
+{{ end }}{{ if gt (len .DashboardURL) 0 }}Dashboard: {{ .DashboardURL }}
+{{ end }}{{ if gt (len .PanelURL) 0 }}Panel: {{ .PanelURL }}
+{{ end }}{{ end }}{{ end }}`,
+			},
+			expected: TestTemplatesResults{
+				Results: []TestTemplatesResult{{
+					Name:  "alerts.custom",
+					Text:  "\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost:9093/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Drule+uid&matcher=lbl1%3Dval1\nDashboard: http://localhost:9093/d/abcd\nPanel: http://localhost:9093/d/abcd?viewPanel=efgh\n",
+					Scope: alertsScope,
+				}},
+				Errors: nil,
+			},
 		},
-	},
+		{
+			name: "template scoped to .Alert",
+			input: TestTemplatesConfigBodyParams{
+				Alerts: []*amv2.PostableAlert{&simpleAlert},
+				Name:   "alerts.custom.single",
+				Template: `{{ define "alerts.custom.single" }}
+Labels:
+{{ range .Labels.SortedPairs }} - {{ .Name }} = {{ .Value }}
+{{ end }}Annotations:
+{{ range .Annotations.SortedPairs }} - {{ .Name }} = {{ .Value }}
+{{ end }}{{ if gt (len .GeneratorURL) 0 }}Source: {{ .GeneratorURL }}
+{{ end }}{{ if gt (len .SilenceURL) 0 }}Silence: {{ .SilenceURL }}
+{{ end }}{{ if gt (len .DashboardURL) 0 }}Dashboard: {{ .DashboardURL }}
+{{ end }}{{ if gt (len .PanelURL) 0 }}Panel: {{ .PanelURL }}
+{{ end }}{{ end }}`,
+			},
+			expected: TestTemplatesResults{
+				Results: []TestTemplatesResult{{
+					Name:  "alerts.custom.single",
+					Text:  "\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost:9093/alerting/silence/new?alertmanager=grafana&matcher=__alert_rule_uid__%3Drule+uid&matcher=lbl1%3Dval1\nDashboard: http://localhost:9093/d/abcd\nPanel: http://localhost:9093/d/abcd?viewPanel=efgh\n",
+					Scope: alertScope,
+				}},
+				Errors: nil,
+			},
+		},
+		{
+			name: "failing scope",
+			input: TestTemplatesConfigBodyParams{
+				Alerts:   []*amv2.PostableAlert{&simpleAlert},
+				Name:     "alerts.custom.failing",
+				Template: `{{ define "alerts.custom.failing" }}{{ .DOESNOTEXIST }} {{ end }}`,
+			},
+			expected: TestTemplatesResults{
+				Results: nil,
+				Errors: []TestTemplatesErrorResult{{
+					Name:  "alerts.custom.failing",
+					Kind:  ExecutionError,
+					Error: `template: :1:39: executing "alerts.custom.failing" at <.DOESNOTEXIST>: can't evaluate field DOESNOTEXIST in type *templates.ExtendedData`,
+				}},
+			},
+		},
 	}
 
 	for _, test := range tests {

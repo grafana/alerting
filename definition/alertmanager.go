@@ -1,7 +1,9 @@
 package definition
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -115,6 +117,30 @@ func AsGrafanaRoute(r *config.Route) *Route {
 	}
 
 	return gRoute
+}
+
+// AllMatchers returns concatenated Match, MatchRE, Matchers and ObjectMatchers in a format of config.Matchers.
+func (r *Route) AllMatchers() (config.Matchers, error) {
+	matchers := make(config.Matchers, 0, len(r.Matchers)+len(r.ObjectMatchers)+len(r.Match)+len(r.MatchRE))
+
+	for ln, lv := range r.Match {
+		matcher, err := labels.NewMatcher(labels.MatchEqual, ln, lv)
+		if err != nil {
+			return nil, err
+		}
+		matchers = append(matchers, matcher)
+	}
+
+	for ln, lv := range r.MatchRE {
+		matcher, err := labels.NewMatcher(labels.MatchRegexp, ln, lv.String())
+		if err != nil {
+			return nil, err
+		}
+		matchers = append(matchers, matcher)
+	}
+
+	matchers = append(matchers, append(r.Matchers, r.ObjectMatchers...)...)
+	return matchers, nil
 }
 
 func (r *Route) ResourceType() string {
@@ -256,21 +282,8 @@ func (c *PostableApiAlertingConfig) UnmarshalYAML(unmarshal func(interface{}) er
 func (c *PostableApiAlertingConfig) Validate() error {
 	receivers := make(map[string]struct{}, len(c.Receivers))
 
-	var hasGrafReceivers, hasAMReceivers bool
 	for _, r := range c.Receivers {
 		receivers[r.Name] = struct{}{}
-		switch r.Type() {
-		case GrafanaReceiverType:
-			hasGrafReceivers = true
-		case AlertmanagerReceiverType:
-			hasAMReceivers = true
-		default:
-			continue
-		}
-	}
-
-	if hasGrafReceivers && hasAMReceivers {
-		return fmt.Errorf("cannot mix Alertmanager & Grafana receiver types")
 	}
 
 	// Taken from https://github.com/prometheus/alertmanager/blob/14cbe6301c732658d6fe877ec55ad5b738abcf06/config/config.go#L171-L192
@@ -293,22 +306,7 @@ func (c *PostableApiAlertingConfig) Validate() error {
 		}
 	}
 
-	return nil
-}
-
-// Type requires validate has been called and just checks the first receiver type
-func (c *PostableApiAlertingConfig) ReceiverType() ReceiverType {
-	for _, r := range c.Receivers {
-		switch r.Type() {
-		case GrafanaReceiverType:
-			return GrafanaReceiverType
-		case AlertmanagerReceiverType:
-			return AlertmanagerReceiverType
-		default:
-			continue
-		}
-	}
-	return EmptyReceiverType
+	return ValidateAlertmanagerConfig(c)
 }
 
 // AllReceivers will recursively walk a routing tree and return a list of all the
@@ -392,32 +390,6 @@ type PostableGrafanaReceiver struct {
 	Settings              RawMessage        `json:"settings,omitempty" yaml:"settings,omitempty"`
 	SecureSettings        map[string]string `json:"secureSettings,omitempty" yaml:"secureSettings,omitempty"`
 }
-
-type ReceiverType int
-
-const (
-	GrafanaReceiverType ReceiverType = 1 << iota
-	AlertmanagerReceiverType
-	EmptyReceiverType = GrafanaReceiverType | AlertmanagerReceiverType
-)
-
-func (r ReceiverType) String() string {
-	switch r {
-	case GrafanaReceiverType:
-		return "grafana"
-	case AlertmanagerReceiverType:
-		return "alertmanager"
-	case EmptyReceiverType:
-		return "empty"
-	default:
-		return "unknown"
-	}
-}
-
-// Can determines whether a receiver type can implement another receiver type.
-// This is useful as receivers with just names but no contact points
-// are valid in all backends.
-func (r ReceiverType) Can(other ReceiverType) bool { return r&other != 0 }
 
 // ObjectMatcher is a matcher that can be used to filter alerts.
 // swagger:model ObjectMatcher
@@ -554,55 +526,109 @@ func (r *PostableApiReceiver) UnmarshalYAML(unmarshal func(interface{}) error) e
 		return err
 	}
 
-	hasGrafanaReceivers := len(r.PostableGrafanaReceivers.GrafanaManagedReceivers) > 0
-
-	if hasGrafanaReceivers {
-		if len(r.EmailConfigs) > 0 {
-			return fmt.Errorf("cannot have both Alertmanager EmailConfigs & Grafana receivers together")
-		}
-		if len(r.PagerdutyConfigs) > 0 {
-			return fmt.Errorf("cannot have both Alertmanager PagerdutyConfigs & Grafana receivers together")
-		}
-		if len(r.SlackConfigs) > 0 {
-			return fmt.Errorf("cannot have both Alertmanager SlackConfigs & Grafana receivers together")
-		}
-		if len(r.WebhookConfigs) > 0 {
-			return fmt.Errorf("cannot have both Alertmanager WebhookConfigs & Grafana receivers together")
-		}
-		if len(r.OpsGenieConfigs) > 0 {
-			return fmt.Errorf("cannot have both Alertmanager OpsGenieConfigs & Grafana receivers together")
-		}
-		if len(r.WechatConfigs) > 0 {
-			return fmt.Errorf("cannot have both Alertmanager WechatConfigs & Grafana receivers together")
-		}
-		if len(r.PushoverConfigs) > 0 {
-			return fmt.Errorf("cannot have both Alertmanager PushoverConfigs & Grafana receivers together")
-		}
-		if len(r.VictorOpsConfigs) > 0 {
-			return fmt.Errorf("cannot have both Alertmanager VictorOpsConfigs & Grafana receivers together")
-		}
-	}
 	return nil
 }
 
-func (r *PostableApiReceiver) Type() ReceiverType {
-	if len(r.PostableGrafanaReceivers.GrafanaManagedReceivers) > 0 {
-		return GrafanaReceiverType
-	}
-
+func (r *PostableApiReceiver) HasMimirIntegrations() bool {
 	cpy := r.Receiver
 	cpy.Name = ""
-	if reflect.ValueOf(cpy).IsZero() {
-		return EmptyReceiverType
-	}
+	return !reflect.ValueOf(cpy).IsZero()
+}
 
-	return AlertmanagerReceiverType
+func (r *PostableApiReceiver) HasGrafanaIntegrations() bool {
+	return len(r.GrafanaManagedReceivers) > 0
 }
 
 func (r *PostableApiReceiver) GetName() string {
-	return r.Receiver.Name
+	return r.Name
+}
+
+// CopyIntegrations appends all integrations, Mimir and Grafana, from source receiver to destination.
+func CopyIntegrations(src, dest *PostableApiReceiver) error {
+	if src == nil || dest == nil {
+		return errors.New("both source and destination receivers should be non-nil")
+	}
+	// Get the reflect.Value of src and dest
+	srcVal := reflect.ValueOf(&src.Receiver).Elem()
+	destVal := reflect.ValueOf(&dest.Receiver).Elem()
+
+	// Iterate through all fields of the struct
+	for i := 0; i < srcVal.NumField(); i++ {
+		srcField := srcVal.Field(i)
+		destField := destVal.Field(i)
+
+		// Only process slice fields (skip Name field)
+		if srcField.Kind() != reflect.Slice {
+			continue
+		}
+
+		// Get the length of the source slice
+		srcLen := srcField.Len()
+
+		// Append each element from source to destination
+		for j := 0; j < srcLen; j++ {
+			// Get the element from source slice
+			elem := srcField.Index(j)
+
+			// Append to destination slice
+			destField.Set(reflect.Append(destField, elem))
+		}
+	}
+
+	if src.GrafanaManagedReceivers != nil {
+		dest.GrafanaManagedReceivers = append(dest.GrafanaManagedReceivers, src.GrafanaManagedReceivers...)
+	}
+	return nil
 }
 
 type PostableGrafanaReceivers struct {
 	GrafanaManagedReceivers []*PostableGrafanaReceiver `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
 }
+
+// DecryptSecureSettings returns a map containing the decoded and decrypted secure settings.
+func (pgr *PostableGrafanaReceiver) DecryptSecureSettings(decryptFn func(payload []byte) ([]byte, error)) (map[string]string, error) {
+	decrypted := make(map[string]string, len(pgr.SecureSettings))
+	for k, v := range pgr.SecureSettings {
+		decoded, err := base64.StdEncoding.DecodeString(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode value for key '%s': %w", k, err)
+		}
+
+		b, err := decryptFn(decoded)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt value for key '%s': %w", k, err)
+		}
+
+		decrypted[k] = string(b)
+	}
+	return decrypted, nil
+}
+
+// nolint:revive
+type PostableApiTemplate struct {
+	Name    string       `yaml:"name" json:"name"`
+	Content string       `yaml:"content" json:"content"`
+	Kind    TemplateKind `yaml:"kind" json:"kind"`
+}
+
+func (t *PostableApiTemplate) Validate() error {
+	if t.Name == "" {
+		return fmt.Errorf("template name is required")
+	}
+	if t.Content == "" {
+		return fmt.Errorf("template content is required")
+	}
+	if t.Kind == "" {
+		return fmt.Errorf("template kind is required")
+	}
+	k := strings.ToLower(string(t.Kind))
+	if k != string(GrafanaTemplateKind) && k != string(MimirTemplateKind) {
+		return fmt.Errorf("invalid template kind, must be either '%s' or '%s'", GrafanaTemplateKind, MimirTemplateKind)
+	}
+	return nil
+}
+
+type TemplateKind string
+
+const GrafanaTemplateKind TemplateKind = "grafana"
+const MimirTemplateKind TemplateKind = "mimir"

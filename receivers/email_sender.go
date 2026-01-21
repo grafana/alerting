@@ -5,8 +5,10 @@ import (
 	"context"
 	"crypto/tls"
 	"embed"
+	"errors"
 	"fmt"
 	"html/template"
+	"io"
 	"net"
 	"net/mail"
 	"strconv"
@@ -33,42 +35,50 @@ type EmailSenderConfig struct {
 	SkipVerify     bool
 	StartTLSPolicy string
 	StaticHeaders  map[string]string
-	Version        string
+	SentBy         string
+	// UseBCC indicates whether to send emails using BCC
+	// instead of the TO field when SingleEmail is false.
+	// If both UseBCC and SingleEmail are true, UseBCC is ignored
+	// and recipients are placed in the TO field.
+	UseBCC bool
 }
 
 type defaultEmailSender struct {
-	cfg  EmailSenderConfig
-	tmpl *template.Template
+	cfg    EmailSenderConfig
+	tmpl   *template.Template
+	dialFn func(*defaultEmailSender) (gomail.SendCloser, error)
 }
 
-// NewEmailSenderFactory takes a configuration and returns a new EmailSender factory function.
-func NewEmailSenderFactory(cfg EmailSenderConfig) func(Metadata) (EmailSender, error) {
-	return func(n Metadata) (EmailSender, error) {
-		tmpl, err := template.New("templates").
-			Funcs(template.FuncMap{
-				"Subject":                 subjectTemplateFunc,
-				"__dangerouslyInjectHTML": __dangerouslyInjectHTML,
-			}).Funcs(sprig.FuncMap()).
-			ParseFS(defaultEmailTemplate, "templates/*")
-		if err != nil {
-			return nil, err
-		}
-		return &defaultEmailSender{
-			cfg:  cfg,
-			tmpl: tmpl,
-		}, nil
+// NewEmailSender takes a configuration and returns a new EmailSender.
+func NewEmailSender(cfg EmailSenderConfig) (EmailSender, error) {
+	tmpl, err := template.New("templates").
+		Funcs(template.FuncMap{
+			"Subject":                 subjectTemplateFunc,
+			"__dangerouslyInjectHTML": __dangerouslyInjectHTML,
+		}).Funcs(sprig.FuncMap()).
+		ParseFS(defaultEmailTemplate, "templates/*")
+	if err != nil {
+		return nil, err
 	}
+	return &defaultEmailSender{
+		cfg:  cfg,
+		tmpl: tmpl,
+		dialFn: func(s *defaultEmailSender) (gomail.SendCloser, error) {
+			return s.dial()
+		},
+	}, nil
 }
 
 // Message representats an email message.
 type Message struct {
-	To            []string
-	From          string
-	Subject       string
-	Body          map[string]string
-	EmbeddedFiles []string
-	ReplyTo       []string
-	SingleEmail   bool
+	To               []string
+	From             string
+	Subject          string
+	Body             map[string]string
+	EmbeddedFiles    []string
+	EmbeddedContents []EmbeddedContent
+	ReplyTo          []string
+	SingleEmail      bool
 }
 
 // SendEmail implements the EmailSender interface.
@@ -117,20 +127,21 @@ func (s *defaultEmailSender) buildEmailMessage(cmd *SendEmailSettings) (*Message
 
 	addr := mail.Address{Name: s.cfg.FromName, Address: s.cfg.FromAddress}
 	return &Message{
-		To:            cmd.To,
-		From:          addr.String(),
-		Subject:       subject,
-		Body:          body,
-		EmbeddedFiles: cmd.EmbeddedFiles,
-		ReplyTo:       cmd.ReplyTo,
-		SingleEmail:   cmd.SingleEmail,
+		To:               cmd.To,
+		From:             addr.String(),
+		Subject:          subject,
+		Body:             body,
+		EmbeddedFiles:    cmd.EmbeddedFiles,
+		EmbeddedContents: cmd.EmbeddedContents,
+		ReplyTo:          cmd.ReplyTo,
+		SingleEmail:      cmd.SingleEmail,
 	}, nil
 }
 
 func (s *defaultEmailSender) setDefaultTemplateData(data map[string]any) {
 	data["AppUrl"] = s.cfg.ExternalURL
-	data["BuildVersion"] = s.cfg.Version
 	data["Subject"] = map[string]any{}
+	data["SentBy"] = s.cfg.SentBy
 	dataCopy := map[string]any{}
 	for k, v := range data {
 		dataCopy[k] = v
@@ -140,24 +151,53 @@ func (s *defaultEmailSender) setDefaultTemplateData(data map[string]any) {
 
 func (s *defaultEmailSender) Send(messages ...*Message) (int, error) {
 	sentEmailsCount := 0
-	dialer, err := s.createDialer()
+
+	sender, err := s.dialFn(s)
 	if err != nil {
-		return sentEmailsCount, err
+		return sentEmailsCount, fmt.Errorf("failed to dial SMTP server: %w", err)
 	}
+	defer sender.Close()
+
+	var errs error
 
 	for _, msg := range messages {
-		m := s.buildEmail(msg)
-
-		innerError := dialer.DialAndSend(m)
-		if innerError != nil {
-			err = fmt.Errorf("failed to send notification to email addresses: %s: %w", strings.Join(msg.To, ";"), innerError)
-			continue
+		for _, m := range s.expandMsg(msg) {
+			if err := gomail.Send(sender, m); err != nil {
+				errs = errors.Join(errs, fmt.Errorf("failed to send notification to email addresses: %s: %w", strings.Join(msg.To, ";"), err))
+			} else {
+				sentEmailsCount++
+			}
 		}
-
-		sentEmailsCount++
 	}
 
-	return sentEmailsCount, err
+	return sentEmailsCount, errs
+}
+
+// expandMsg expands the message to a list of messages, one for each recipient
+// if SingleEmail is false, otherwise it returns a single message.
+func (s *defaultEmailSender) expandMsg(msg *Message) []*gomail.Message {
+	if msg.SingleEmail || s.cfg.UseBCC {
+		return []*gomail.Message{s.buildEmail(msg)}
+	}
+
+	result := make([]*gomail.Message, 0, len(msg.To))
+
+	for _, recipient := range msg.To {
+		msgCopy := *msg
+		msgCopy.To = []string{recipient}
+		m := s.buildEmail(&msgCopy)
+		result = append(result, m)
+	}
+
+	return result
+}
+
+func (s *defaultEmailSender) dial() (gomail.SendCloser, error) {
+	dialer, err := s.createDialer()
+	if err != nil {
+		return nil, err
+	}
+	return dialer.Dial()
 }
 
 func (s *defaultEmailSender) createDialer() (*gomail.Dialer, error) {
@@ -210,12 +250,23 @@ func (s *defaultEmailSender) buildEmail(msg *Message) *gomail.Message {
 		m.SetHeader(h, val)
 	}
 	m.SetHeader("From", msg.From)
-	m.SetHeader("To", msg.To...)
+	if s.cfg.UseBCC && !msg.SingleEmail {
+		m.SetHeader("Bcc", msg.To...)
+	} else {
+		m.SetHeader("To", msg.To...)
+	}
 	m.SetHeader("Subject", msg.Subject)
 
 	// Add embedded files.
 	for _, file := range msg.EmbeddedFiles {
 		m.Embed(file)
+	}
+
+	for _, file := range msg.EmbeddedContents {
+		m.Embed(file.Name, gomail.SetCopyFunc(func(writer io.Writer) error {
+			_, err := writer.Write(file.Content)
+			return err
+		}))
 	}
 
 	// Add reply-to addresses to the email message.

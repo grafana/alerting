@@ -21,19 +21,45 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/nfstatus"
+	"github.com/grafana/alerting/receivers"
 )
 
-func setupAMTest(t *testing.T) (*GrafanaAlertmanager, *prometheus.Registry) {
-	reg := prometheus.NewPedanticRegistry()
-	m := NewGrafanaAlertmanagerMetrics(reg)
+type withOptsFn func(opts *GrafanaAlertmanagerOpts)
 
-	grafanaConfig := &GrafanaAlertmanagerConfig{
+func testOpts(t *testing.T, reg prometheus.Registerer) GrafanaAlertmanagerOpts {
+	t.Helper()
+
+	return GrafanaAlertmanagerOpts{
 		Silences: newFakeMaintanenceOptions(t),
 		Nflog:    newFakeMaintanenceOptions(t),
+
+		TenantKey:     "org",
+		TenantID:      1,
+		Peer:          &NilPeer{},
+		Logger:        log.NewNopLogger(),
+		Metrics:       NewGrafanaAlertmanagerMetrics(reg, log.NewNopLogger()),
+		EmailSender:   receivers.MockNotificationService(),
+		ImageProvider: images.NewFakeProvider(1),
+		Decrypter:     NoopDecrypt,
+	}
+}
+
+func setupAMTest(t *testing.T, withOpts ...withOptsFn) (*GrafanaAlertmanager, *prometheus.Registry) {
+	t.Helper()
+
+	reg := prometheus.NewPedanticRegistry()
+
+	opts := testOpts(t, reg)
+	for _, fn := range withOpts {
+		fn(&opts)
 	}
 
-	am, err := NewGrafanaAlertmanager("org", 1, grafanaConfig, &NilPeer{}, log.NewNopLogger(), m)
+	require.NoError(t, opts.Validate())
+
+	am, err := NewGrafanaAlertmanager(opts)
 	require.NoError(t, err)
 	return am, reg
 }
@@ -578,8 +604,8 @@ func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
 func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
 	fn := &fakeNotifier{}
 	integrations := []*nfstatus.Integration{
-		nfstatus.NewIntegration(fn, fn, "grafana-oncall", 0, "test-grafana-oncall"),
-		nfstatus.NewIntegration(fn, fn, "sns", 1, "test-sns"),
+		nfstatus.NewIntegration(fn, fn, "grafana-oncall", 0, "test-grafana-oncall", nil, log.NewNopLogger()),
+		nfstatus.NewIntegration(fn, fn, "sns", 1, "test-sns", nil, log.NewNopLogger()),
 	}
 
 	am, reg := setupAMTest(t)
@@ -615,7 +641,8 @@ func TestSilenceCleanup(t *testing.T) {
 	dt := func(t time.Time) strfmt.DateTime { return strfmt.DateTime(t) }
 
 	makeSilence := func(comment string, createdBy string,
-		startsAt, endsAt strfmt.DateTime, matchers amv2.Matchers) *PostableSilence {
+		startsAt, endsAt strfmt.DateTime, matchers amv2.Matchers,
+	) *PostableSilence {
 		return &PostableSilence{
 			ID: "",
 			Silence: amv2.Silence{
@@ -675,17 +702,17 @@ func TestStatusForTestReceivers(t *testing.T) {
 		_, status := newTestReceiversResult(types.Alert{}, []result{
 			{
 				ReceiverName: "receiver 1",
-				Config:       &GrafanaIntegrationConfig{Name: "integration 1"},
+				Config:       &models.IntegrationConfig{Name: "integration 1"},
 				Error: IntegrationValidationError{
-					Integration: &GrafanaIntegrationConfig{Name: "integration 1"},
+					Integration: &models.IntegrationConfig{Name: "integration 1"},
 					Err:         errors.New("error 1"),
 				},
 			},
 			{
 				ReceiverName: "receiver 2",
-				Config:       &GrafanaIntegrationConfig{Name: "integration 2"},
+				Config:       &models.IntegrationConfig{Name: "integration 2"},
 				Error: IntegrationValidationError{
-					Integration: &GrafanaIntegrationConfig{Name: "integration 2"},
+					Integration: &models.IntegrationConfig{Name: "integration 2"},
 					Err:         errors.New("error 2"),
 				},
 			},
@@ -694,8 +721,8 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 1",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 1"},
 					},
 				},
@@ -704,8 +731,8 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 2",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 2"},
 					},
 				},
@@ -718,17 +745,17 @@ func TestStatusForTestReceivers(t *testing.T) {
 		_, status := newTestReceiversResult(types.Alert{}, []result{
 			{
 				ReceiverName: "receiver 1",
-				Config:       &GrafanaIntegrationConfig{Name: "integration 1"},
+				Config:       &models.IntegrationConfig{Name: "integration 1"},
 				Error: IntegrationTimeoutError{
-					Integration: &GrafanaIntegrationConfig{Name: "integration 1"},
+					Integration: &models.IntegrationConfig{Name: "integration 1"},
 					Err:         errors.New("error 1"),
 				},
 			},
 			{
 				ReceiverName: "receiver 2",
-				Config:       &GrafanaIntegrationConfig{Name: "integration 2"},
+				Config:       &models.IntegrationConfig{Name: "integration 2"},
 				Error: IntegrationTimeoutError{
-					Integration: &GrafanaIntegrationConfig{Name: "integration 2"},
+					Integration: &models.IntegrationConfig{Name: "integration 2"},
 					Err:         errors.New("error 2"),
 				},
 			},
@@ -737,8 +764,8 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 1",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 1"},
 					},
 				},
@@ -747,8 +774,8 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 2",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 2"},
 					},
 				},
@@ -761,17 +788,17 @@ func TestStatusForTestReceivers(t *testing.T) {
 		_, status := newTestReceiversResult(types.Alert{}, []result{
 			{
 				ReceiverName: "receiver 1",
-				Config:       &GrafanaIntegrationConfig{Name: "integration 1"},
+				Config:       &models.IntegrationConfig{Name: "integration 1"},
 				Error: IntegrationValidationError{
-					Integration: &GrafanaIntegrationConfig{Name: "integration 1"},
+					Integration: &models.IntegrationConfig{Name: "integration 1"},
 					Err:         errors.New("error 1"),
 				},
 			},
 			{
 				ReceiverName: "receiver 2",
-				Config:       &GrafanaIntegrationConfig{Name: "integration 2"},
+				Config:       &models.IntegrationConfig{Name: "integration 2"},
 				Error: IntegrationTimeoutError{
-					Integration: &GrafanaIntegrationConfig{Name: "integration 2"},
+					Integration: &models.IntegrationConfig{Name: "integration 2"},
 					Err:         errors.New("error 2"),
 				},
 			},
@@ -780,8 +807,8 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 1",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 1"},
 					},
 				},
@@ -790,8 +817,8 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 2",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 2"},
 					},
 				},
@@ -804,19 +831,19 @@ func TestStatusForTestReceivers(t *testing.T) {
 		_, status := newTestReceiversResult(types.Alert{}, []result{
 			{
 				ReceiverName: "receiver 1",
-				Config:       &GrafanaIntegrationConfig{Name: "integration 1"},
+				Config:       &models.IntegrationConfig{Name: "integration 1"},
 			},
 			{
 				ReceiverName: "receiver 2",
-				Config:       &GrafanaIntegrationConfig{Name: "integration 2"},
+				Config:       &models.IntegrationConfig{Name: "integration 2"},
 			},
 		}, []*APIReceiver{
 			{
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 1",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 1"},
 					},
 				},
@@ -825,13 +852,21 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "receiver 2",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
 						{Name: "integration 2"},
 					},
 				},
 			},
 		}, time.Now())
 		require.Equal(t, http.StatusOK, status)
+	})
+}
+
+func Test_GrafanaAlertmanagerOpts_Validate(t *testing.T) {
+	t.Run("if SyncDispatchTimer, flushlog should not be nil", func(t *testing.T) {
+		testOpts := testOpts(t, prometheus.NewRegistry())
+		testOpts.DispatchTimer = DispatchTimerSync
+		require.NotNil(t, testOpts.Validate())
 	})
 }

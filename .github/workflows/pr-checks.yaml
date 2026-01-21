@@ -1,0 +1,35 @@
+name: Validate Pull Request
+
+on:
+  pull_request:
+
+concurrency:
+  group: "pr-${{ github.event.pull_request.number }}"
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        with:
+          "go-version-file": "go.mod"
+
+      - name: Verify dependencies
+        run: make mod-check
+
+      - name: Run linting
+        run: make lint
+
+      - name: Run tests
+        run: make test
