@@ -58,6 +58,7 @@ type IntegrationTypeSchema struct {
 	Description    string                     `json:"description,omitempty"`
 	Info           string                     `json:"info,omitempty"`
 	Versions       []IntegrationSchemaVersion `json:"versions"`
+	Deprecated     bool                       `json:"deprecated,omitempty"`
 }
 
 // GetAllTypes returns a list of all types that are mentioned by the schema.
@@ -115,6 +116,8 @@ type IntegrationSchemaVersion struct {
 	Options []Field `json:"options"`
 	// Additional information about the version
 	Info string `json:"info,omitempty"`
+	// Indicates whether the version is deprecated and will be removed in a future release
+	Deprecated bool `json:"deprecated,omitempty"`
 
 	typeSchema *IntegrationTypeSchema
 }
