@@ -1,8 +1,6 @@
 package generate
 
 import (
-	"fmt"
-
 	models "github.com/grafana/grafana-openapi-client-go/models"
 	"pgregory.net/rapid"
 )
@@ -38,9 +36,10 @@ func GroupRules(rules []*models.ProvisionedAlertRule, rulesPerGroup, groupsPerFo
 
 	groups := make([]*models.AlertRuleGroup, 0)
 	groupIdx := 0
+	uidGen := RandomUID()
 	for i := 0; i < len(rules); i += rulesPerGroup {
 		end := min(i+rulesPerGroup, len(rules))
-		name := fmt.Sprintf("group-%d", groupIdx+1)
+		name := uidGen.Example(int(seed) + groupIdx)
 		folderUID := folderUIDs[(groupIdx/groupsPerFolder)%len(folderUIDs)]
 
 		// Use fixed interval if provided, otherwise generate random (1-20 minutes, divisible by 10).

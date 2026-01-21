@@ -64,23 +64,13 @@ var (
 	queries = []string{
 		"vector(0)",
 		"vector(1)",
-		"sum by (name) (group by (id, name) (grafanacloud_instance_info))",
-		"sum by (plan) (group by (id, plan) (grafanacloud_grafana_instance_info))",
-		"sum by (id, state) (grafanacloud_grafana_instance_active_user_count)",
-		"grafanacloud_instance_rule_evaluation_failures_total:rate5m > 0",
-		"grafanacloud_instance_ruler_notifications_errors_total:rate5m > 0",
-		"grafanacloud_org_total_overage > 0",
-		"grafanacloud_org_spend_commit_balance_total == 0 or grafanacloud_org_spend_commit_balance_total < grafanacloud_org_spend_commit_credit_total * 0.1",
-
-		// Multi-dimensional alerts. Number of instances capped to k.
-		"topk(1, sum by (alertname) (GRAFANA_ALERTS))",
-		"topk(3, sum by (alertname) (GRAFANA_ALERTS))",
-		"topk(5, sum by (alertname) (GRAFANA_ALERTS))",
-		"topk(8, sum by (alertname) (GRAFANA_ALERTS))",
-		"topk(10, sum by (alertname) (GRAFANA_ALERTS))",
-		"topk(20, sum by (alertname) (GRAFANA_ALERTS))",
-		"topk(50, sum by (alertname) (GRAFANA_ALERTS))",
-		"topk(100, sum by (alertname) (GRAFANA_ALERTS))",
+		"test_metric > 0",
+		"sum by (service) (test_metric_labeled) > 0",
+		"sum by (service) (test_metric_labeled) > 5",
+		"sum by (service) (test_metric_labeled) > 10",
+		"sum by (service) (test_metric_labeled) > 20",
+		"sum by (service) (test_metric_labeled) > 50",
+		"sum by (service) (test_metric_labeled) > 100",
 	}
 )
 
