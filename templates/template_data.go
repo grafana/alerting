@@ -206,6 +206,7 @@ func removePrivateItems(kv template.KV) template.KV {
 }
 
 func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *ExtendedAlert {
+    // Merge static rule labels into alert labels
     mergedLabels := make(KV)
 
     // Add static labels from the alert rule first
