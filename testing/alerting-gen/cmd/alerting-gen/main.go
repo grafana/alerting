@@ -28,8 +28,8 @@ func main() {
 
 func parseFlags() CLIOptions {
 	var cfg CLIOptions
-	flag.IntVar(&cfg.NumAlerting, "alerts", 0, "Number of alerting rules to generate")
-	flag.IntVar(&cfg.NumRecording, "recordings", 0, "Number of recording rules to generate")
+	flag.IntVar(&cfg.NumAlerting, "num-alerting", 0, "Number of alerting rules to generate")
+	flag.IntVar(&cfg.NumRecording, "num-recording", 0, "Number of recording rules to generate")
 	flag.StringVar(&cfg.QueryDS, "query-ds", "", "Data source UID to query from")
 	flag.StringVar(&cfg.WriteDS, "write-ds", "", "Data source UID to write recording rules to (defaults to same as query-ds)")
 	flag.IntVar(&cfg.RulesPerGroup, "rules-per-group", 0, "Number of rules per group")

@@ -191,7 +191,7 @@ func TestNotify_GroupRobot(t *testing.T) {
 			},
 			expMsg: map[string]interface{}{
 				"text": map[string]interface{}{
-					"content": "[FIRING:1]  (val1)\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n\n",
+					"content": "[FIRING:1]  (val1)\n**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				},
 				"msgtype": "text",
 			},
@@ -352,7 +352,7 @@ func TestNotify_ApiApp(t *testing.T) {
 			},
 			expMsg: map[string]interface{}{
 				"text": map[string]interface{}{
-					"content": "[FIRING:2]  \n2 alerts are firing, 0 are resolved\n",
+					"content": "[FIRING:2]  \n2 alerts are firing, 0 are resolved",
 				},
 				"msgtype": "text",
 				"agentid": "agent_id",

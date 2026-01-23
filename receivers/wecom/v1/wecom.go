@@ -52,7 +52,7 @@ func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		tmpl(w.settings.Message),
 	)
 	if w.settings.MsgType != DefaultsgType {
-		content = fmt.Sprintf("%s\n%s\n",
+		content = fmt.Sprintf("%s\n%s",
 			tmpl(w.settings.Title),
 			tmpl(w.settings.Message),
 		)
