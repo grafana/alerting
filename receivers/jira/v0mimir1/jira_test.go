@@ -24,12 +24,12 @@ import (
 	"testing"
 	"time"
 
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
 	"github.com/go-kit/log"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
@@ -47,7 +47,7 @@ func TestJiraRetry(t *testing.T) {
 					Path:   "/rest/api/2",
 				},
 			},
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -124,7 +124,7 @@ func TestJiraTemplating(t *testing.T) {
 
 		t.Run(tc.title, func(t *testing.T) {
 			tc.cfg.APIURL = &config.URL{URL: u}
-			tc.cfg.HTTPConfig = &commoncfg.HTTPClientConfig{}
+			tc.cfg.HTTPConfig = &httpcfg.HTTPClientConfig{}
 			pd, err := New(tc.cfg, test.CreateTmpl(t), log.NewNopLogger())
 			require.NoError(t, err)
 
@@ -566,7 +566,7 @@ func TestJiraNotify(t *testing.T) {
 			u, _ := url.Parse(srv.URL)
 
 			tc.cfg.APIURL = &config.URL{URL: u}
-			tc.cfg.HTTPConfig = &commoncfg.HTTPClientConfig{}
+			tc.cfg.HTTPConfig = &httpcfg.HTTPClientConfig{}
 
 			notifier, err := New(tc.cfg, test.CreateTmpl(t), log.NewNopLogger())
 			require.NoError(t, err)

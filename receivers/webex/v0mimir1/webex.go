@@ -23,6 +23,7 @@ import (
 	"github.com/go-kit/log/level"
 	commoncfg "github.com/prometheus/common/config"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
@@ -44,7 +45,7 @@ type Notifier struct {
 
 // New returns a new Webex notifier.
 func New(c *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg.HTTPClientOption) (*Notifier, error) {
-	client, err := commoncfg.NewClientFromConfig(*c.HTTPConfig, "webex", httpOpts...)
+	client, err := httpcfg.NewClientFromConfig(*c.HTTPConfig, "webex", httpOpts...)
 	if err != nil {
 		return nil, err
 	}

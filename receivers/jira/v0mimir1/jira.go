@@ -29,6 +29,7 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
@@ -103,7 +104,7 @@ type Notifier struct {
 }
 
 func New(c *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg.HTTPClientOption) (*Notifier, error) {
-	client, err := commoncfg.NewClientFromConfig(*c.HTTPConfig, "jira", httpOpts...)
+	client, err := httpcfg.NewClientFromConfig(*c.HTTPConfig, "jira", httpOpts...)
 	if err != nil {
 		return nil, err
 	}
