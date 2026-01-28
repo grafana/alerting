@@ -27,10 +27,10 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
@@ -41,7 +41,7 @@ func TestPagerDutyRetryV1(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			ServiceKey: config.Secret("01234567890123456789012345678901"),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -59,7 +59,7 @@ func TestPagerDutyRetryV2(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			RoutingKey: config.Secret("01234567890123456789012345678901"),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -81,7 +81,7 @@ func TestPagerDutyRedactedURLV1(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			ServiceKey: config.Secret(key),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -101,7 +101,7 @@ func TestPagerDutyRedactedURLV2(t *testing.T) {
 		&Config{
 			URL:        &config.URL{URL: u},
 			RoutingKey: config.Secret(key),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -124,7 +124,7 @@ func TestPagerDutyV1ServiceKeyFromFile(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			ServiceKeyFile: f.Name(),
-			HTTPConfig:     &commoncfg.HTTPClientConfig{},
+			HTTPConfig:     &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -149,7 +149,7 @@ func TestPagerDutyV2RoutingKeyFromFile(t *testing.T) {
 		&Config{
 			URL:            &config.URL{URL: u},
 			RoutingKeyFile: f.Name(),
-			HTTPConfig:     &commoncfg.HTTPClientConfig{},
+			HTTPConfig:     &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -249,7 +249,7 @@ func TestPagerDutyTemplating(t *testing.T) {
 	} {
 		t.Run(tc.title, func(t *testing.T) {
 			tc.cfg.URL = &config.URL{URL: u}
-			tc.cfg.HTTPConfig = &commoncfg.HTTPClientConfig{}
+			tc.cfg.HTTPConfig = &httpcfg.HTTPClientConfig{}
 			pd, err := New(tc.cfg, test.CreateTmpl(t), log.NewNopLogger())
 			require.NoError(t, err)
 			if pd.apiV1 != "" {
@@ -336,7 +336,7 @@ func TestEventSizeEnforcement(t *testing.T) {
 	notifierV1, err := New(
 		&Config{
 			ServiceKey: config.Secret("01234567890123456789012345678901"),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -359,7 +359,7 @@ func TestEventSizeEnforcement(t *testing.T) {
 	notifierV2, err := New(
 		&Config{
 			RoutingKey: config.Secret("01234567890123456789012345678901"),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -470,7 +470,7 @@ func TestPagerDutyEmptySrcHref(t *testing.T) {
 	require.NoError(t, err)
 
 	pagerDutyConfig := Config{
-		HTTPConfig: &commoncfg.HTTPClientConfig{},
+		HTTPConfig: &httpcfg.HTTPClientConfig{},
 		RoutingKey: config.Secret("01234567890123456789012345678901"),
 		URL:        &config.URL{URL: u},
 		Images:     images,

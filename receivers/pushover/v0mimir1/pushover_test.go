@@ -18,9 +18,9 @@ import (
 	"testing"
 
 	"github.com/go-kit/log"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/stretchr/testify/require"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify/test"
 )
@@ -28,7 +28,7 @@ import (
 func TestPushoverRetry(t *testing.T) {
 	notifier, err := New(
 		&Config{
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -49,7 +49,7 @@ func TestPushoverRedactedURL(t *testing.T) {
 		&Config{
 			UserKey:    config.Secret(key),
 			Token:      config.Secret(token),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -74,7 +74,7 @@ func TestPushoverReadingUserKeyFromFile(t *testing.T) {
 		&Config{
 			UserKeyFile: f.Name(),
 			Token:       config.Secret("token"),
-			HTTPConfig:  &commoncfg.HTTPClientConfig{},
+			HTTPConfig:  &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -99,7 +99,7 @@ func TestPushoverReadingTokenFromFile(t *testing.T) {
 		&Config{
 			UserKey:    config.Secret("user key"),
 			TokenFile:  f.Name(),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),

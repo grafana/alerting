@@ -24,10 +24,10 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
@@ -37,7 +37,7 @@ import (
 func TestOpsGenieRetry(t *testing.T) {
 	notifier, err := New(
 		&Config{
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -60,7 +60,7 @@ func TestOpsGenieRedactedURL(t *testing.T) {
 		&Config{
 			APIURL:     &config.URL{URL: u},
 			APIKey:     config.Secret(key),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -85,7 +85,7 @@ func TestGettingOpsGegineApikeyFromFile(t *testing.T) {
 		&Config{
 			APIURL:     &config.URL{URL: u},
 			APIKeyFile: f.Name(),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -136,7 +136,7 @@ func TestOpsGenie(t *testing.T) {
 				Actions:    `{{ .CommonLabels.Actions }}`,
 				APIKey:     `{{ .ExternalURL }}`,
 				APIURL:     &config.URL{URL: u},
-				HTTPConfig: &commoncfg.HTTPClientConfig{},
+				HTTPConfig: &httpcfg.HTTPClientConfig{},
 			},
 			expectedEmptyAlertBody: `{"alias":"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b","message":"","details":{},"source":""}
 `,
@@ -172,7 +172,7 @@ func TestOpsGenie(t *testing.T) {
 				Actions:    `{{ .CommonLabels.Actions }}`,
 				APIKey:     `{{ .ExternalURL }}`,
 				APIURL:     &config.URL{URL: u},
-				HTTPConfig: &commoncfg.HTTPClientConfig{},
+				HTTPConfig: &httpcfg.HTTPClientConfig{},
 			},
 			expectedEmptyAlertBody: `{"alias":"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b","message":"","details":{"Description":"adjusted "},"source":""}
 `,
@@ -202,7 +202,7 @@ func TestOpsGenie(t *testing.T) {
 				Priority:   `{{ .CommonLabels.Priority }}`,
 				APIKey:     `{{ .ExternalURL }}`,
 				APIURL:     &config.URL{URL: u},
-				HTTPConfig: &commoncfg.HTTPClientConfig{},
+				HTTPConfig: &httpcfg.HTTPClientConfig{},
 			},
 			expectedEmptyAlertBody: `{"alias":"6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b","message":"","details":{"Description":"adjusted "},"source":""}
 `,
@@ -285,7 +285,7 @@ func TestOpsGenieWithUpdate(t *testing.T) {
 		UpdateAlerts: true,
 		APIKey:       "test-api-key",
 		APIURL:       &config.URL{URL: u},
-		HTTPConfig:   &commoncfg.HTTPClientConfig{},
+		HTTPConfig:   &httpcfg.HTTPClientConfig{},
 	}
 	notifierWithUpdate, err := New(&opsGenieConfigWithUpdate, tmpl, log.NewNopLogger())
 	alert := &types.Alert{

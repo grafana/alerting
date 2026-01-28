@@ -25,10 +25,10 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
@@ -38,7 +38,7 @@ import (
 func TestSlackRetry(t *testing.T) {
 	notifier, err := New(
 		&Config{
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -58,7 +58,7 @@ func TestSlackRedactedURL(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			APIURL:     &config.SecretURL{URL: u},
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -80,7 +80,7 @@ func TestGettingSlackURLFromFile(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			APIURLFile: f.Name(),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -102,7 +102,7 @@ func TestTrimmingSlackURLFromFile(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			APIURLFile: f.Name(),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -193,7 +193,7 @@ func TestNotifier_Notify_WithReason(t *testing.T) {
 			notifier, err := New(
 				&Config{
 					NotifierConfig: config.NotifierConfig{},
-					HTTPConfig:     &commoncfg.HTTPClientConfig{},
+					HTTPConfig:     &httpcfg.HTTPClientConfig{},
 					APIURL:         &config.SecretURL{URL: apiurl},
 					Channel:        "channelname",
 				},

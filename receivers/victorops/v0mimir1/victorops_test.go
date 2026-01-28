@@ -28,9 +28,10 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 )
 
 func TestVictorOpsCustomFields(t *testing.T) {
@@ -52,7 +53,7 @@ func TestVictorOpsCustomFields(t *testing.T) {
 		CustomFields: map[string]string{
 			"Field_A": "{{ .CommonLabels.Message }}",
 		},
-		HTTPConfig: &commoncfg.HTTPClientConfig{},
+		HTTPConfig: &httpcfg.HTTPClientConfig{},
 	}
 
 	notifier, err := New(conf, tmpl, logger)
@@ -87,7 +88,7 @@ func TestVictorOpsRetry(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			APIKey:     config.Secret("secret"),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -108,7 +109,7 @@ func TestVictorOpsRedactedURL(t *testing.T) {
 		&Config{
 			APIURL:     &config.URL{URL: u},
 			APIKey:     config.Secret(secret),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -132,7 +133,7 @@ func TestVictorOpsReadingApiKeyFromFile(t *testing.T) {
 		&Config{
 			APIURL:     &config.URL{URL: u},
 			APIKeyFile: f.Name(),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -202,7 +203,7 @@ func TestVictorOpsTemplating(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.cfg.HTTPConfig = &commoncfg.HTTPClientConfig{}
+			tc.cfg.HTTPConfig = &httpcfg.HTTPClientConfig{}
 			tc.cfg.APIURL = &config.URL{URL: u}
 			tc.cfg.APIKey = "test"
 			vo, err := New(tc.cfg, test.CreateTmpl(t), log.NewNopLogger())

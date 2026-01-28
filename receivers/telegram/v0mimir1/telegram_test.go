@@ -25,10 +25,10 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
@@ -45,7 +45,7 @@ func TestTelegramRetry(t *testing.T) {
 	}
 	notifier, err := New(
 		&Config{
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 			APIUrl:     &fakeURL,
 		},
 		test.CreateTmpl(t),
@@ -76,7 +76,7 @@ func TestTelegramNotify(t *testing.T) {
 			name: "No escaping by default",
 			cfg: Config{
 				Message:    "<code>x < y</code>",
-				HTTPConfig: &commoncfg.HTTPClientConfig{},
+				HTTPConfig: &httpcfg.HTTPClientConfig{},
 				BotToken:   config.Secret(token),
 			},
 			expText: "<code>x < y</code>",
@@ -86,7 +86,7 @@ func TestTelegramNotify(t *testing.T) {
 			cfg: Config{
 				ParseMode:  "HTML",
 				Message:    "<code>x < y</code>",
-				HTTPConfig: &commoncfg.HTTPClientConfig{},
+				HTTPConfig: &httpcfg.HTTPClientConfig{},
 				BotToken:   config.Secret(token),
 			},
 			expText: "<code>x &lt; y</code>",
@@ -95,7 +95,7 @@ func TestTelegramNotify(t *testing.T) {
 			name: "Bot token from file",
 			cfg: Config{
 				Message:      "test",
-				HTTPConfig:   &commoncfg.HTTPClientConfig{},
+				HTTPConfig:   &httpcfg.HTTPClientConfig{},
 				BotTokenFile: fileWithToken.Name(),
 			},
 			expText: "test",
