@@ -31,6 +31,8 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 )
 
 const (
@@ -54,7 +56,7 @@ type Notifier struct {
 
 // New returns a new notifier that uses the Microsoft Teams Webhook API.
 func New(c *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg.HTTPClientOption) (*Notifier, error) {
-	client, err := commoncfg.NewClientFromConfig(*c.HTTPConfig, "msteams", httpOpts...)
+	client, err := httpcfg.NewClientFromConfig(*c.HTTPConfig, "msteams", httpOpts...)
 	if err != nil {
 		return nil, err
 	}

@@ -29,9 +29,10 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 )
 
 // This is a test URL that has been modified to not be valid.
@@ -41,7 +42,7 @@ func TestDiscordRetry(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			WebhookURL: &config.SecretURL{URL: testWebhookURL},
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -99,7 +100,7 @@ func TestDiscordTemplating(t *testing.T) {
 	} {
 		t.Run(tc.title, func(t *testing.T) {
 			tc.cfg.WebhookURL = &config.SecretURL{URL: u}
-			tc.cfg.HTTPConfig = &commoncfg.HTTPClientConfig{}
+			tc.cfg.HTTPConfig = &httpcfg.HTTPClientConfig{}
 			pd, err := New(tc.cfg, test.CreateTmpl(t), log.NewNopLogger())
 			require.NoError(t, err)
 
@@ -136,7 +137,7 @@ func TestDiscordRedactedURL(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			WebhookURL: &config.SecretURL{URL: u},
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -158,7 +159,7 @@ func TestDiscordReadingURLFromFile(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			WebhookURLFile: f.Name(),
-			HTTPConfig:     &commoncfg.HTTPClientConfig{},
+			HTTPConfig:     &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -195,7 +196,7 @@ func TestDiscord_Notify(t *testing.T) {
 	// Create a Config with the WebhookURLFile set
 	cfg := &Config{
 		WebhookURLFile: tempFile.Name(),
-		HTTPConfig:     &commoncfg.HTTPClientConfig{},
+		HTTPConfig:     &httpcfg.HTTPClientConfig{},
 		Title:          "Test Title",
 		Message:        "Test Message",
 	}

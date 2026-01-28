@@ -23,10 +23,10 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
@@ -39,7 +39,7 @@ func TestWebexRetry(t *testing.T) {
 
 	notifier, err := New(
 		&Config{
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 			APIURL:     &config.URL{URL: testWebhookURL},
 		},
 		test.CreateTmpl(t),
@@ -60,7 +60,7 @@ func TestWebexTemplating(t *testing.T) {
 		cfg       *Config
 		Message   string
 		expJSON   string
-		commonCfg *commoncfg.HTTPClientConfig
+		commonCfg *httpcfg.HTTPClientConfig
 
 		retry     bool
 		errMsg    string
@@ -71,8 +71,8 @@ func TestWebexTemplating(t *testing.T) {
 			cfg: &Config{
 				Message: `{{ template "webex.default.message" . }}`,
 			},
-			commonCfg: &commoncfg.HTTPClientConfig{
-				Authorization: &commoncfg.Authorization{Type: "Bearer", Credentials: "anewsecret"},
+			commonCfg: &httpcfg.HTTPClientConfig{
+				Authorization: &httpcfg.Authorization{Type: "Bearer", Credentials: "anewsecret"},
 			},
 
 			expJSON:   `{"markdown":"\n\nAlerts Firing:\nLabels:\n - lbl1 = val1\n - lbl3 = val3\nAnnotations:\nSource: \nLabels:\n - lbl1 = val1\n - lbl2 = val2\nAnnotations:\nSource: \n\n\n\n"}`,
@@ -84,7 +84,7 @@ func TestWebexTemplating(t *testing.T) {
 			cfg: &Config{
 				Message: "{{ ",
 			},
-			commonCfg: &commoncfg.HTTPClientConfig{},
+			commonCfg: &httpcfg.HTTPClientConfig{},
 			errMsg:    "template: :1: unclosed action",
 		},
 	}

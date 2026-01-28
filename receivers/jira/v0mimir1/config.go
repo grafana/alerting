@@ -18,9 +18,9 @@ import (
 	"errors"
 
 	"github.com/prometheus/alertmanager/config"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/grafana/alerting/receivers/schema"
 )
 
@@ -39,7 +39,7 @@ var DefaultConfig = Config{
 // Config configures notifications via JIRA.
 type Config struct {
 	config.NotifierConfig `yaml:",inline" json:",inline"`
-	HTTPConfig            *commoncfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
+	HTTPConfig            *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
 	APIURL *config.URL `yaml:"api_url,omitempty" json:"api_url,omitempty"`
 

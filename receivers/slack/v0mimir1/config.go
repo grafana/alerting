@@ -18,8 +18,8 @@ import (
 	"errors"
 
 	"github.com/prometheus/alertmanager/config"
-	commoncfg "github.com/prometheus/common/config"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/grafana/alerting/receivers/schema"
 )
 
@@ -47,7 +47,7 @@ var DefaultConfig = Config{
 type Config struct {
 	config.NotifierConfig `yaml:",inline" json:",inline"`
 
-	HTTPConfig *commoncfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
+	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
 	APIURL     *config.SecretURL `yaml:"api_url,omitempty" json:"api_url,omitempty"`
 	APIURLFile string            `yaml:"api_url_file,omitempty" json:"api_url_file,omitempty"`

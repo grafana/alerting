@@ -23,9 +23,9 @@ import (
 	"testing"
 
 	"github.com/go-kit/log"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/stretchr/testify/require"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
@@ -39,7 +39,7 @@ func TestWebhookRetry(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			URL:        &config.SecretURL{URL: u},
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -108,7 +108,7 @@ func TestWebhookRedactedURL(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			URL:        &config.SecretURL{URL: u},
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -130,7 +130,7 @@ func TestWebhookReadingURLFromFile(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			URLFile:    f.Name(),
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),

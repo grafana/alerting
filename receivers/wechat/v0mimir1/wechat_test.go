@@ -21,8 +21,9 @@ import (
 	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify/test"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/stretchr/testify/require"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 )
 
 func TestWechatRedactedURLOnInitialAuthentication(t *testing.T) {
@@ -33,7 +34,7 @@ func TestWechatRedactedURLOnInitialAuthentication(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			APIURL:     &config.URL{URL: u},
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 			CorpID:     "corpid",
 			APISecret:  config.Secret(secret),
 		},
@@ -55,7 +56,7 @@ func TestWechatRedactedURLOnNotify(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			APIURL:     &config.URL{URL: u},
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 			CorpID:     "corpid",
 			APISecret:  config.Secret(secret),
 		},
@@ -77,7 +78,7 @@ func TestWechatMessageTypeSelector(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			APIURL:      &config.URL{URL: u},
-			HTTPConfig:  &commoncfg.HTTPClientConfig{},
+			HTTPConfig:  &httpcfg.HTTPClientConfig{},
 			CorpID:      "corpid",
 			APISecret:   config.Secret(secret),
 			MessageType: "markdown",

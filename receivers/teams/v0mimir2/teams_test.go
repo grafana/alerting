@@ -25,9 +25,10 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
@@ -42,7 +43,7 @@ func TestMSTeamsV2Retry(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			WebhookURL: &config.SecretURL{URL: testWebhookURL},
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -75,7 +76,7 @@ func TestNotifier_Notify_WithReason(t *testing.T) {
 			notifier, err := New(
 				&Config{
 					WebhookURL: &config.SecretURL{URL: testWebhookURL},
-					HTTPConfig: &commoncfg.HTTPClientConfig{},
+					HTTPConfig: &httpcfg.HTTPClientConfig{},
 				},
 				test.CreateTmpl(t),
 				log.NewNopLogger(),
@@ -154,7 +155,7 @@ func TestMSTeamsV2Templating(t *testing.T) {
 	} {
 		t.Run(tc.title, func(t *testing.T) {
 			tc.cfg.WebhookURL = &config.SecretURL{URL: u}
-			tc.cfg.HTTPConfig = &commoncfg.HTTPClientConfig{}
+			tc.cfg.HTTPConfig = &httpcfg.HTTPClientConfig{}
 			pd, err := New(tc.cfg, test.CreateTmpl(t), log.NewNopLogger())
 			require.NoError(t, err)
 
@@ -191,7 +192,7 @@ func TestMSTeamsV2RedactedURL(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			WebhookURL: &config.SecretURL{URL: u},
-			HTTPConfig: &commoncfg.HTTPClientConfig{},
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -213,7 +214,7 @@ func TestMSTeamsV2ReadingURLFromFile(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			WebhookURLFile: f.Name(),
-			HTTPConfig:     &commoncfg.HTTPClientConfig{},
+			HTTPConfig:     &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
