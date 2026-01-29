@@ -123,6 +123,49 @@ func TestTmplText(t *testing.T) {
 		assert.Equal(t, "TestAlert", data.Alerts[0].Labels["alertname"])
 	})
 
+	t.Run("should populate RuleUID from alert labels", func(t *testing.T) {
+		var tmplErr error
+		_, data := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+
+		require.Len(t, data.Alerts, 1)
+		assert.Equal(t, "test-rule-uid", data.Alerts[0].RuleUID)
+		_, hasRuleUIDLabel := data.Alerts[0].Labels[models.RuleUIDLabel]
+		assert.False(t, hasRuleUIDLabel, "rule UID label should be stripped from labels")
+	})
+
+	t.Run("should allow accessing RuleUID in templates", func(t *testing.T) {
+		var tmplErr error
+		expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+
+		result := expand("{{ (index .Alerts 0).RuleUID }}")
+		assert.NoError(t, tmplErr)
+		assert.Equal(t, "test-rule-uid", result)
+	})
+
+	t.Run("should handle alert without rule UID label", func(t *testing.T) {
+		alertsNoRuleUID := []*types.Alert{
+			{
+				Alert: model.Alert{
+					Labels: model.LabelSet{
+						"alertname": "TestAlertNoRuleUID",
+					},
+					Annotations: model.LabelSet{
+						"summary": "Test summary",
+					},
+					StartsAt:     constNow,
+					EndsAt:       constNow.Add(1 * time.Hour),
+					GeneratorURL: "http://localhost/alert",
+				},
+			},
+		}
+
+		var tmplErr error
+		_, data := TmplText(context.Background(), tmpl, alertsNoRuleUID, l, &tmplErr)
+
+		require.Len(t, data.Alerts, 1)
+		assert.Empty(t, data.Alerts[0].RuleUID)
+	})
+
 	t.Run("should pass AppVersion from template to data", func(t *testing.T) {
 		tmplWithVersion := &Template{
 			Template:   tm,

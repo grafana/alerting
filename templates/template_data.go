@@ -123,6 +123,7 @@ type ExtendedAlert struct {
 	SilenceURL    string             `json:"silenceURL"`
 	DashboardURL  string             `json:"dashboardURL"`
 	PanelURL      string             `json:"panelURL"`
+	RuleUID       string             `json:"ruleUID,omitempty"`
 	Values        map[string]float64 `json:"values"`
 	ValueString   string             `json:"valueString"` // TODO: Remove in Grafana 10
 	ImageURL      string             `json:"imageURL,omitempty"`
@@ -215,6 +216,7 @@ func extendAlert(alert template.Alert, externalURL string, logger log.Logger) *E
 		EndsAt:       alert.EndsAt,
 		GeneratorURL: alert.GeneratorURL,
 		Fingerprint:  alert.Fingerprint,
+		RuleUID:      alert.Labels[models.RuleUIDLabel],
 	}
 
 	if alert.Annotations[models.OrgIDAnnotation] != "" {

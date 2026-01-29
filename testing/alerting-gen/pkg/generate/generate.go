@@ -20,11 +20,7 @@ type Config struct {
 	FolderUIDs      []string
 }
 
-// GenerateGroups moved to groups.go
-
-// Helpers moved to helpers.go
-
-// NewAlertingRuleGenerator returns a rapid generator for alerting rules
+// NewAlertingRuleGenerator returns a rapid generator for alerting rules.
 func NewAlertingRuleGenerator(queryDS string) *rapid.Generator[*models.ProvisionedAlertRule] {
 	return rapid.Custom(func(t *rapid.T) *models.ProvisionedAlertRule {
 		// local refID scoped to this rule
@@ -53,10 +49,20 @@ func NewAlertingRuleGenerator(queryDS string) *rapid.Generator[*models.Provision
 		}
 		execErr := genExecErrState().Draw(t, "exec_err_state")
 		noData := genNoDataState().Draw(t, "no_data_state")
-		paused := rapid.Bool().Draw(t, "is_paused")
+		// 10% chance of being paused.
+		paused := rapid.IntRange(0, 99).Draw(t, "is_paused") < 10
 		missingToResolve := rapid.Int64Range(0, 5).Draw(t, "missing_to_resolve")
 		// TODO: make orgID configurable; assume 1 for now
 		orgID := int64(1)
+
+		// Randomly add receiver to some rules.
+		var notificationSettings *models.AlertRuleNotificationSettings
+		if rapid.Bool().Draw(t, "with_notification_settings") {
+			r := "grafana-default-email"
+			notificationSettings = &models.AlertRuleNotificationSettings{
+				Receiver: &r,
+			}
+		}
 
 		return &models.ProvisionedAlertRule{
 			Title:                       strPtr(title),
@@ -72,6 +78,7 @@ func NewAlertingRuleGenerator(queryDS string) *rapid.Generator[*models.Provision
 			NoDataState:                 strPtr(noData),
 			Labels:                      labels,
 			Annotations:                 anns,
+			NotificationSettings:        notificationSettings,
 			MissingSeriesEvalsToResolve: missingToResolve,
 			OrgID:                       &orgID,
 		}
@@ -96,7 +103,8 @@ func NewRecordingRuleGenerator(queryDS, writeDS string) *rapid.Generator[*models
 			}
 			anns[k] = v
 		}
-		paused := rapid.Bool().Draw(t, "is_paused")
+		// 10% chance of being paused.
+		paused := rapid.IntRange(0, 99).Draw(t, "is_paused") < 10
 		// TODO: make orgID configurable; assume 1 for now
 		orgID := int64(1)
 		// Recording rules require For field set to 0 for Grafana API

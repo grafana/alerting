@@ -45,6 +45,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
 		require.NoError(t, err)
+		parsed.WebhookConfigs[0].Settings.URL = "http://localhost:8080" // to make sure Notify test works
 		return parsed, len(recCfg.Integrations)
 	}
 
