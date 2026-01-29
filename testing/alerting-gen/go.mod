@@ -6,7 +6,7 @@ require (
 	github.com/go-kit/log v0.2.1
 	github.com/go-openapi/strfmt v0.23.0
 	github.com/grafana/grafana-openapi-client-go v0.0.0-20250828163705-969607f81baa
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	pgregory.net/rapid v1.2.0
 )
 
