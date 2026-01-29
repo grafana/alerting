@@ -11,9 +11,10 @@ const Type schema.IntegrationType = "opsgenie"
 var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
 	Type:           Type,
 	Name:           "OpsGenie",
-	Description:    "Sends notifications to OpsGenie",
+	Description:    "Sends notifications to OpsGenie. This integration is deprecated and will be removed in a future release.",
 	Heading:        "OpsGenie settings",
 	CurrentVersion: v1.Version,
+	Deprecated:     true,
 	Versions: []schema.IntegrationSchemaVersion{
 		v1.Schema,
 		v0mimir1.Schema,
