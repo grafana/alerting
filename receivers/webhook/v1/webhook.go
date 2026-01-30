@@ -173,7 +173,7 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		HMACConfig: wn.settings.HMACConfig,
 	}
 
-	if err := wn.ns.SendWebhook(ctx, l, cmd); err != nil {
+	if _, err := wn.ns.SendWebhook(ctx, l, cmd); err != nil {
 		return false, err
 	}
 
