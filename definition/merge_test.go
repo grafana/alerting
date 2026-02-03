@@ -205,8 +205,10 @@ func TestMerge(t *testing.T) {
 					})
 
 				}),
-				RenamedReceivers: map[string]string{
-					"grafana-default-email": "grafana-default-email_mimir-12345",
+				RenameResources: RenameResources{
+					Receivers: map[string]string{
+						"grafana-default-email": "grafana-default-email_mimir-12345",
+					},
 				},
 			},
 		},
@@ -241,8 +243,10 @@ func TestMerge(t *testing.T) {
 						},
 					)
 				}),
-				RenamedReceivers: map[string]string{
-					"grafana-default-email": "grafana-default-email_mimir-12345_01",
+				RenameResources: RenameResources{
+					Receivers: map[string]string{
+						"grafana-default-email": "grafana-default-email_mimir-12345_01",
+					},
 				},
 			},
 		},
@@ -294,9 +298,11 @@ func TestMerge(t *testing.T) {
 						ActiveTimeIntervals: []string{"mti-1_mimir-12345"},
 					})
 				}),
-				RenamedTimeIntervals: map[string]string{
-					"ti-1":  "ti-1_mimir-12345",
-					"mti-1": "mti-1_mimir-12345",
+				RenameResources: RenameResources{
+					TimeIntervals: map[string]string{
+						"ti-1":  "ti-1_mimir-12345",
+						"mti-1": "mti-1_mimir-12345",
+					},
 				},
 			},
 		},
