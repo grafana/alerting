@@ -84,9 +84,13 @@ func (o MergeOpts) Validate() error {
 // MergeResult represents the result of merging two Alertmanager configurations.
 // It contains the unified configuration and maps of renamed receivers and time intervals.
 type MergeResult struct {
-	Config               PostableApiAlertingConfig
-	RenamedReceivers     map[string]string
-	RenamedTimeIntervals map[string]string
+	Config PostableApiAlertingConfig
+	RenameResources
+}
+
+type RenameResources struct {
+	Receivers     map[string]string
+	TimeIntervals map[string]string
 }
 
 // Merge combines two Alertmanager configurations into a single unified configuration.
@@ -152,7 +156,12 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 		opts.DedupSuffix,
 	)
 
-	renameReceiversInRoutes([]*Route{b.Route}, renamedReceivers, renamedTimeIntervals)
+	renamed := RenameResources{
+		Receivers:     renamedReceivers,
+		TimeIntervals: renamedTimeIntervals,
+	}
+
+	RenameResourceUsagesInRoutes([]*Route{b.Route}, renamed)
 
 	if a.Route == nil {
 		return MergeResult{}, fmt.Errorf("cannot merge into undefined routing tree")
@@ -162,7 +171,7 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 	}
 	route := mergeRoutes(*a.Route, *b.Route, opts.SubtreeMatchers)
 
-	inhibitRules := mergeInhibitRules(a.InhibitRules, b.InhibitRules, opts.SubtreeMatchers)
+	inhibitRules := MergeInhibitRules(a.InhibitRules, b.InhibitRules, opts.SubtreeMatchers)
 
 	return MergeResult{
 		Config: PostableApiAlertingConfig{
@@ -176,8 +185,24 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 			},
 			Receivers: mergedReceivers,
 		},
-		RenamedReceivers:     renamedReceivers,
-		RenamedTimeIntervals: renamedTimeIntervals,
+		RenameResources: renamed,
+	}, nil
+}
+
+// DeduplicateResources merges existing and incoming resources (receivers and time intervals) and ensures unique names by applying suffixes. Returns renamed resources for tracking adjustments made.
+func DeduplicateResources(a, b PostableApiAlertingConfig, opts MergeOpts) (RenameResources, error) {
+	_, renamedReceivers := MergeReceivers(a.Receivers, b.Receivers, opts.DedupSuffix)
+
+	_, renamedTimeIntervals := MergeTimeIntervals(
+		a.MuteTimeIntervals,
+		a.TimeIntervals,
+		b.MuteTimeIntervals,
+		b.TimeIntervals,
+		opts.DedupSuffix,
+	)
+	return RenameResources{
+		Receivers:     renamedReceivers,
+		TimeIntervals: renamedTimeIntervals,
 	}, nil
 }
 
@@ -290,31 +315,32 @@ func checkIfMatchersUsed(matchers config.Matchers, routes []*Route) (bool, error
 	return false, nil
 }
 
-func renameReceiversInRoutes(routes []*Route, renamedReceivers map[string]string, renamedIntervals map[string]string) {
+// RenameResourceUsagesInRoutes updates the receiver and mute/active time intervals of routes based on the provided rename resources.
+func RenameResourceUsagesInRoutes(routes []*Route, renames RenameResources) {
 	for _, r := range routes {
 		if r == nil {
 			continue
 		}
 		if r.Receiver != "" {
-			if newName, ok := renamedReceivers[r.Receiver]; ok {
+			if newName, ok := renames.Receivers[r.Receiver]; ok {
 				r.Receiver = newName
 			}
 		}
 		for i := range r.MuteTimeIntervals {
-			if newName, ok := renamedIntervals[r.MuteTimeIntervals[i]]; ok {
+			if newName, ok := renames.TimeIntervals[r.MuteTimeIntervals[i]]; ok {
 				r.MuteTimeIntervals[i] = newName
 			}
 		}
 		for i := range r.ActiveTimeIntervals {
-			if newName, ok := renamedIntervals[r.ActiveTimeIntervals[i]]; ok {
+			if newName, ok := renames.TimeIntervals[r.ActiveTimeIntervals[i]]; ok {
 				r.ActiveTimeIntervals[i] = newName
 			}
 		}
-		renameReceiversInRoutes(r.Routes, renamedReceivers, renamedIntervals)
+		RenameResourceUsagesInRoutes(r.Routes, renames)
 	}
 }
 
-func mergeInhibitRules(a, b []config.InhibitRule, matcher config.Matchers) []config.InhibitRule {
+func MergeInhibitRules(a, b []config.InhibitRule, matcher config.Matchers) []config.InhibitRule {
 	result := make([]config.InhibitRule, 0, len(a)+len(b))
 	result = append(result, a...)
 	for _, rule := range b {
