@@ -10,7 +10,7 @@ import (
 	"github.com/Masterminds/sprig/v3"
 )
 
-//go:embed *
+//go:embed *.html *.txt
 var defaultEmailTemplate embed.FS
 
 // EmailTemplate wraps the parsed email templates and provides thread-safe access.
