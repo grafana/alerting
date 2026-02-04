@@ -161,7 +161,7 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 	}
 
 	route := a.Route
-	var inhibitRules []config.InhibitRule
+	inhibitRules := a.InhibitRules
 	if len(opts.SubtreeMatchers) > 0 {
 		RenameResourceUsagesInRoutes([]*Route{b.Route}, renamed)
 		if route == nil {
