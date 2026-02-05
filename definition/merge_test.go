@@ -383,7 +383,7 @@ func TestMerge(t *testing.T) {
 
 		full := load(t, fullMergedConfig)
 		full.Route.Routes = full.Route.Routes[1:]
-		full.InhibitRules = nil
+		full.InhibitRules = g.InhibitRules
 		full.Global = nil
 
 		diff := cmp.Diff(MergeResult{Config: *full}, result,

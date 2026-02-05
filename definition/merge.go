@@ -161,7 +161,7 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 	}
 
 	route := a.Route
-	var inhibitRules []config.InhibitRule
+	inhibitRules := a.InhibitRules
 	if len(opts.SubtreeMatchers) > 0 {
 		RenameResourceUsagesInRoutes([]*Route{b.Route}, renamed)
 		if route == nil {
@@ -171,7 +171,7 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 			return MergeResult{}, fmt.Errorf("cannot merge undefined routing tree")
 		}
 		route = MergeRoutes(*route, *b.Route, opts.SubtreeMatchers)
-		inhibitRules = MergeInhibitRules(a.InhibitRules, b.InhibitRules, opts.SubtreeMatchers)
+		inhibitRules = MergeInhibitRules(inhibitRules, b.InhibitRules, opts.SubtreeMatchers)
 	}
 
 	return MergeResult{
