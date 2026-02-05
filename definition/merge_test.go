@@ -371,6 +371,29 @@ func TestMerge(t *testing.T) {
 		assert.Equal(t, load(t, fullMimirConfig), m)
 	})
 
+	t.Run("should not modify existing config when matchers are empty", func(t *testing.T) {
+		g := load(t, fullGrafanaConfig)
+		m := load(t, fullMimirConfig)
+		emptyOpts := MergeOpts{
+			DedupSuffix:     "_mimir-12345",
+			SubtreeMatchers: config.Matchers{},
+		}
+		result, err := Merge(*g, *m, emptyOpts)
+		require.NoError(t, err)
+
+		// Modify the result to verify it doesn't affect the original
+		if result.Config.Route != nil {
+			result.Config.Route.Receiver = "modified-receiver"
+		}
+		if len(result.Config.InhibitRules) > 0 {
+			result.Config.InhibitRules[0].Equal = []string{"modified"}
+		}
+
+		// Original should be unchanged
+		assert.Equal(t, load(t, fullGrafanaConfig), g)
+		assert.Equal(t, load(t, fullMimirConfig), m)
+	})
+
 	t.Run("should skip merging routes and inhibition rules if matchers are empty", func(t *testing.T) {
 		g := load(t, fullGrafanaConfig)
 		m := load(t, fullMimirConfig)

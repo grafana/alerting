@@ -160,18 +160,30 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 		TimeIntervals: renamedTimeIntervals,
 	}
 
-	route := a.Route
-	inhibitRules := a.InhibitRules
+	var route *Route
+	var inhibitRules []config.InhibitRule
 	if len(opts.SubtreeMatchers) > 0 {
 		RenameResourceUsagesInRoutes([]*Route{b.Route}, renamed)
-		if route == nil {
+		if a.Route == nil {
 			return MergeResult{}, fmt.Errorf("cannot merge into undefined routing tree")
 		}
 		if b.Route == nil {
 			return MergeResult{}, fmt.Errorf("cannot merge undefined routing tree")
 		}
-		route = MergeRoutes(*route, *b.Route, opts.SubtreeMatchers)
-		inhibitRules = MergeInhibitRules(inhibitRules, b.InhibitRules, opts.SubtreeMatchers)
+		route = MergeRoutes(*a.Route, *b.Route, opts.SubtreeMatchers)
+		inhibitRules = MergeInhibitRules(a.InhibitRules, b.InhibitRules, opts.SubtreeMatchers)
+	} else {
+		// When matchers are empty, create copies to avoid sharing references with input.
+		// This maintains consistency with the non-empty matchers path, where MergeRoutes
+		// and MergeInhibitRules create independent objects.
+		if a.Route != nil {
+			routeCopy := *a.Route
+			route = &routeCopy
+		}
+		if len(a.InhibitRules) > 0 {
+			inhibitRules = make([]config.InhibitRule, len(a.InhibitRules))
+			copy(inhibitRules, a.InhibitRules)
+		}
 	}
 
 	return MergeResult{
