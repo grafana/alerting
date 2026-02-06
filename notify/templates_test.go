@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -350,19 +351,6 @@ func TestTemplateSpecialCases(t *testing.T) {
 			}},
 			Errors: nil,
 		},
-	}, {
-		name: "error on really big template",
-		input: TestTemplatesConfigBodyParams{
-			Alerts:   []*amv2.PostableAlert{&simpleAlert},
-			Name:     "",
-			Template: fmt.Sprintf("{{- $spaces := printf \"%%%ds\" \"\" }}{{- range $i := (len $spaces) }}.{{- end }}", MaxTemplateOutputSize+1),
-		},
-		expected: TestTemplatesResults{
-			Errors: []TestTemplatesErrorResult{{
-				Kind:  ExecutionError,
-				Error: templates.ErrTemplateOutputTooLarge.Error(),
-			}},
-		},
 	},
 	}
 
@@ -373,6 +361,31 @@ func TestTemplateSpecialCases(t *testing.T) {
 			assert.Equal(t, test.expected, *res)
 		})
 	}
+}
+
+func TestTemplateOutputSizeLimit(t *testing.T) {
+	am, _ := setupAMTest(t)
+
+	// Store original limit and restore after test
+	originalLimit := templates.MaxTemplateOutputSize
+	defer func() { templates.MaxTemplateOutputSize = originalLimit }()
+
+	// Set a small limit for testing (1 KB)
+	templates.MaxTemplateOutputSize = 1024
+
+	// Create a template that generates output larger than 1 KB
+	largeTemplate := strings.Repeat("X", 2000)
+
+	res, err := am.TestTemplate(context.Background(), TestTemplatesConfigBodyParams{
+		Alerts:   []*amv2.PostableAlert{&simpleAlert},
+		Name:     "",
+		Template: largeTemplate,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	require.Len(t, res.Errors, 1)
+	assert.Equal(t, ExecutionError, res.Errors[0].Kind)
+	assert.Equal(t, templates.ErrTemplateOutputTooLarge.Error(), res.Errors[0].Error)
 }
 
 func TestTemplateWithExistingTemplates(t *testing.T) {
