@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -353,7 +354,7 @@ func TestTemplateSpecialCases(t *testing.T) {
 		input: TestTemplatesConfigBodyParams{
 			Alerts:   []*amv2.PostableAlert{&simpleAlert},
 			Name:     "",
-			Template: fmt.Sprintf("{{- $spaces := printf \"%%%ds\" \"\" }}{{- range $i := (len $spaces) }}.{{- end }}", MaxTemplateOutputSize+1),
+			Template: strings.Repeat("a", MaxTemplateOutputSize+1),
 		},
 		expected: TestTemplatesResults{
 			Errors: []TestTemplatesErrorResult{{
