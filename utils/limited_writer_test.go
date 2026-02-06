@@ -169,7 +169,7 @@ type failingWriter struct {
 	err error
 }
 
-func (w *failingWriter) Write(p []byte) (n int, err error) {
+func (w *failingWriter) Write(_ []byte) (n int, err error) {
 	return 0, w.err
 }
 
