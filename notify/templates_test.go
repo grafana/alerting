@@ -2,7 +2,7 @@ package notify
 
 import (
 	"context"
-	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/grafana/alerting/templates"
@@ -267,19 +267,6 @@ func TestTemplateSpecialCases(t *testing.T) {
 			}},
 			Errors: nil,
 		},
-	}, {
-		name: "error on really big template",
-		input: TestTemplatesConfigBodyParams{
-			Alerts:   []*amv2.PostableAlert{&simpleAlert},
-			Name:     "",
-			Template: fmt.Sprintf("{{- $spaces := printf \"%%%ds\" \"\" }}{{- range $i := (len $spaces) }}.{{- end }}", MaxTemplateOutputSize+1),
-		},
-		expected: TestTemplatesResults{
-			Errors: []TestTemplatesErrorResult{{
-				Kind:  ExecutionError,
-				Error: templates.ErrTemplateOutputTooLarge.Error(),
-			}},
-		},
 	},
 	}
 
@@ -290,6 +277,33 @@ func TestTemplateSpecialCases(t *testing.T) {
 			assert.Equal(t, test.expected, *res)
 		})
 	}
+
+	// Test the size limit separately with a temporarily reduced limit.
+	// This allows us to test the limit behavior without generating huge output.
+	t.Run("error on really big template", func(t *testing.T) {
+		// Temporarily reduce the limit for this test
+		originalLimit := templates.MaxTemplateOutputSize
+		templates.MaxTemplateOutputSize = 1024 // 1KB for testing
+		defer func() { templates.MaxTemplateOutputSize = originalLimit }()
+
+		// Create a template that generates output larger than 1KB by using a large repeated string
+		largeContent := "{{ range .Alerts }}" + strings.Repeat("X", 2000) + "{{ end }}"
+		input := TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "",
+			Template: largeContent,
+		}
+		expected := TestTemplatesResults{
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  ExecutionError,
+				Error: templates.ErrTemplateOutputTooLarge.Error(),
+			}},
+		}
+
+		res, err := am.TestTemplate(context.Background(), input)
+		require.NoError(t, err)
+		assert.Equal(t, expected, *res)
+	})
 }
 
 func TestTemplateWithExistingTemplates(t *testing.T) {
