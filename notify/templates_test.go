@@ -2,7 +2,6 @@ package notify
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 
