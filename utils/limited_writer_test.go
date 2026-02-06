@@ -96,10 +96,12 @@ func TestLimitedWriter(t *testing.T) {
 			expectedData: "",
 		},
 		{
-			name:         "write to zero limit",
-			limit:        0,
-			writes:       [][]byte{[]byte("hello")},
-			expectedData: "hello",
+			name:          "write to zero limit",
+			limit:         0,
+			writes:        [][]byte{[]byte("hello")},
+			expectedData:  "",
+			expectedError: ErrWriteLimitExceeded,
+			errorOnWrite:  1,
 		},
 		{
 			name:          "many small writes exceed limit",

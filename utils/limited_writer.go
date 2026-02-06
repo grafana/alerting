@@ -48,8 +48,10 @@ func (lw *LimitedWriter) Write(p []byte) (n int, err error) {
 }
 
 // NewLimitedWriter creates a new LimitedWriter.
+// A limit of 0 means no bytes are allowed (all writes will fail).
+// A negative limit means no limit (returns the underlying writer directly).
 func NewLimitedWriter(w io.Writer, limit int64) io.Writer {
-	if limit <= 0 {
+	if limit < 0 {
 		return w
 	}
 	return &LimitedWriter{w: w, limit: limit}
