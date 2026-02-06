@@ -12,7 +12,6 @@ import (
 )
 
 var (
-	ErrNoMatchers              = errors.New("matchers must not be empty")
 	ErrInvalidMatchers         = errors.New("only equality matchers are allowed")
 	ErrDuplicateMatchers       = errors.New("matchers should be unique")
 	ErrSubtreeMatchersConflict = errors.New("subtree matchers conflict with existing Grafana routes, merging will break existing notifications")
@@ -65,9 +64,6 @@ type MergeOpts struct {
 }
 
 func (o MergeOpts) Validate() error {
-	if len(o.SubtreeMatchers) == 0 {
-		return ErrNoMatchers
-	}
 	seenNames := make(map[string]struct{}, len(o.SubtreeMatchers))
 	for _, matcher := range o.SubtreeMatchers {
 		if _, ok := seenNames[matcher.Name]; ok {
@@ -138,12 +134,15 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 	if err := opts.Validate(); err != nil {
 		return MergeResult{}, err
 	}
-	match, err := checkIfMatchersUsed(opts.SubtreeMatchers, a.Route.Routes)
-	if err != nil {
-		return MergeResult{}, err
-	}
-	if match {
-		return MergeResult{}, fmt.Errorf("%w: sub tree matchers: %s", ErrSubtreeMatchersConflict, opts.SubtreeMatchers)
+
+	if len(opts.SubtreeMatchers) > 0 {
+		match, err := checkIfMatchersUsed(opts.SubtreeMatchers, a.Route.Routes)
+		if err != nil {
+			return MergeResult{}, err
+		}
+		if match {
+			return MergeResult{}, fmt.Errorf("%w: sub tree matchers: %s", ErrSubtreeMatchersConflict, opts.SubtreeMatchers)
+		}
 	}
 
 	mergedReceivers, renamedReceivers := MergeReceivers(a.Receivers, b.Receivers, opts.DedupSuffix)
@@ -161,17 +160,19 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 		TimeIntervals: renamedTimeIntervals,
 	}
 
-	RenameResourceUsagesInRoutes([]*Route{b.Route}, renamed)
-
-	if a.Route == nil {
-		return MergeResult{}, fmt.Errorf("cannot merge into undefined routing tree")
+	route := a.Route
+	inhibitRules := a.InhibitRules
+	if len(opts.SubtreeMatchers) > 0 {
+		RenameResourceUsagesInRoutes([]*Route{b.Route}, renamed)
+		if route == nil {
+			return MergeResult{}, fmt.Errorf("cannot merge into undefined routing tree")
+		}
+		if b.Route == nil {
+			return MergeResult{}, fmt.Errorf("cannot merge undefined routing tree")
+		}
+		route = MergeRoutes(*route, *b.Route, opts.SubtreeMatchers)
+		inhibitRules = MergeInhibitRules(inhibitRules, b.InhibitRules, opts.SubtreeMatchers)
 	}
-	if b.Route == nil {
-		return MergeResult{}, fmt.Errorf("cannot merge undefined routing tree")
-	}
-	route := mergeRoutes(*a.Route, *b.Route, opts.SubtreeMatchers)
-
-	inhibitRules := MergeInhibitRules(a.InhibitRules, b.InhibitRules, opts.SubtreeMatchers)
 
 	return MergeResult{
 		Config: PostableApiAlertingConfig{
@@ -259,7 +260,7 @@ func createIndexTimeIntervals(
 	return usedNames
 }
 
-func mergeRoutes(a, b Route, matcher config.Matchers) *Route {
+func MergeRoutes(a, b Route, matcher config.Matchers) *Route {
 	// get a and b by value so we get shallow copies of the top level routes, which we can modify.
 	// make sure "b" route has all defaults set explicitly to avoid inheriting "a"'s default route settings.
 	defaultOpts := dispatch.DefaultRouteOpts
