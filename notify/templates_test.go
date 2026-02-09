@@ -350,6 +350,19 @@ func TestTemplateSpecialCases(t *testing.T) {
 			}},
 			Errors: nil,
 		},
+	}, {
+		name: "error on really big template",
+		input: TestTemplatesConfigBodyParams{
+			Alerts:   []*amv2.PostableAlert{&simpleAlert},
+			Name:     "",
+			Template: fmt.Sprintf("{{- $spaces := printf \"%%%ds\" \"\" }}{{- range $i := (len $spaces) }}.{{- end }}", MaxTemplateOutputSize+1),
+		},
+		expected: TestTemplatesResults{
+			Errors: []TestTemplatesErrorResult{{
+				Kind:  ExecutionError,
+				Error: templates.ErrTemplateOutputTooLarge.Error(),
+			}},
+		},
 	},
 	}
 
@@ -478,7 +491,9 @@ func TestTemplateWithExistingTemplates(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if len(test.existingTemplates) > 0 {
 				var err error
-				am.templates, err = templates.NewFactory(test.existingTemplates, log.NewNopLogger(), am.ExternalURL(), "grafana")
+				cfg, err := templates.NewConfig("grafana", am.ExternalURL(), "", templates.DefaultLimits)
+				require.NoError(t, err)
+				am.templates, err = templates.NewFactory(test.existingTemplates, cfg, log.NewNopLogger())
 				require.NoError(t, err)
 			}
 			res, err := am.TestTemplate(context.Background(), test.input)

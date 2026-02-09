@@ -10,36 +10,39 @@ import (
 	"strings"
 	"time"
 
-	"github.com/grafana/alerting/http"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
+	"github.com/grafana/alerting/definition"
+	"github.com/grafana/alerting/http"
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/receivers/alertmanager"
-	"github.com/grafana/alerting/receivers/dinding"
-	"github.com/grafana/alerting/receivers/discord"
-	"github.com/grafana/alerting/receivers/email"
-	"github.com/grafana/alerting/receivers/googlechat"
-	"github.com/grafana/alerting/receivers/jira"
-	"github.com/grafana/alerting/receivers/kafka"
-	"github.com/grafana/alerting/receivers/line"
-	"github.com/grafana/alerting/receivers/mqtt"
-	"github.com/grafana/alerting/receivers/oncall"
-	"github.com/grafana/alerting/receivers/opsgenie"
-	"github.com/grafana/alerting/receivers/pagerduty"
-	"github.com/grafana/alerting/receivers/pushover"
-	"github.com/grafana/alerting/receivers/sensugo"
-	"github.com/grafana/alerting/receivers/slack"
-	"github.com/grafana/alerting/receivers/sns"
-	"github.com/grafana/alerting/receivers/teams"
-	"github.com/grafana/alerting/receivers/telegram"
-	"github.com/grafana/alerting/receivers/threema"
-	"github.com/grafana/alerting/receivers/victorops"
-	"github.com/grafana/alerting/receivers/webex"
-	"github.com/grafana/alerting/receivers/webhook"
-	"github.com/grafana/alerting/receivers/wecom"
+	alertmanager "github.com/grafana/alerting/receivers/alertmanager/v1"
+	dingding "github.com/grafana/alerting/receivers/dingding/v1"
+	discord "github.com/grafana/alerting/receivers/discord/v1"
+	email "github.com/grafana/alerting/receivers/email/v1"
+	googlechat "github.com/grafana/alerting/receivers/googlechat/v1"
+	jira "github.com/grafana/alerting/receivers/jira/v1"
+	kafka "github.com/grafana/alerting/receivers/kafka/v1"
+	line "github.com/grafana/alerting/receivers/line/v1"
+	mqtt "github.com/grafana/alerting/receivers/mqtt/v1"
+	oncall "github.com/grafana/alerting/receivers/oncall/v1"
+	opsgenie "github.com/grafana/alerting/receivers/opsgenie/v1"
+	pagerduty "github.com/grafana/alerting/receivers/pagerduty/v1"
+	pushover "github.com/grafana/alerting/receivers/pushover/v1"
+	"github.com/grafana/alerting/receivers/schema"
+	sensugo "github.com/grafana/alerting/receivers/sensugo/v1"
+	slack "github.com/grafana/alerting/receivers/slack/v1"
+	sns "github.com/grafana/alerting/receivers/sns/v1"
+	teams "github.com/grafana/alerting/receivers/teams/v1"
+	telegram "github.com/grafana/alerting/receivers/telegram/v1"
+	threema "github.com/grafana/alerting/receivers/threema/v1"
+	victorops "github.com/grafana/alerting/receivers/victorops/v1"
+	webex "github.com/grafana/alerting/receivers/webex/v1"
+	webhook "github.com/grafana/alerting/receivers/webhook/v1"
+	wecom "github.com/grafana/alerting/receivers/wecom/v1"
 )
 
 const (
@@ -68,38 +71,20 @@ type TestIntegrationConfigResult struct {
 	Error  string `json:"error"`
 }
 
-type GrafanaIntegrationConfig struct {
-	UID                   string            `json:"uid" yaml:"uid"`
-	Name                  string            `json:"name" yaml:"name"`
-	Type                  string            `json:"type" yaml:"type"`
-	DisableResolveMessage bool              `json:"disableResolveMessage" yaml:"disableResolveMessage"`
-	Settings              json.RawMessage   `json:"settings" yaml:"settings"`
-	SecureSettings        map[string]string `json:"secureSettings" yaml:"secureSettings"`
-}
-
 type ConfigReceiver = config.Receiver
 
 type APIReceiver struct {
-	ConfigReceiver      `yaml:",inline"`
-	GrafanaIntegrations `yaml:",inline"`
-}
-
-type GrafanaIntegrations struct {
-	Integrations []*GrafanaIntegrationConfig `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
+	ConfigReceiver        `yaml:",inline"`
+	models.ReceiverConfig `yaml:",inline"`
 }
 
 type TestReceiversConfigBodyParams struct {
-	Alert     *TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
-	Receivers []*APIReceiver                  `yaml:"receivers,omitempty" json:"receivers,omitempty"`
-}
-
-type TestReceiversConfigAlertParams struct {
-	Annotations model.LabelSet `yaml:"annotations,omitempty" json:"annotations,omitempty"`
-	Labels      model.LabelSet `yaml:"labels,omitempty" json:"labels,omitempty"`
+	Alert     *models.TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
+	Receivers []*APIReceiver                         `yaml:"receivers,omitempty" json:"receivers,omitempty"`
 }
 
 type IntegrationTimeoutError struct {
-	Integration *GrafanaIntegrationConfig
+	Integration *models.IntegrationConfig
 	Err         error
 }
 
@@ -115,7 +100,7 @@ func (am *GrafanaAlertmanager) TestReceivers(ctx context.Context, c TestReceiver
 	return TestReceivers(ctx, c, am.buildReceiverIntegrations, templates)
 }
 
-func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time) types.Alert {
+func newTestAlert(c *models.TestReceiversConfigAlertParams, startsAt, updatedAt time.Time) types.Alert {
 	var (
 		defaultAnnotations = model.LabelSet{
 			"summary":          "Notification test",
@@ -136,23 +121,23 @@ func newTestAlert(c TestReceiversConfigBodyParams, startsAt, updatedAt time.Time
 		UpdatedAt: updatedAt,
 	}
 
-	if c.Alert != nil {
-		if c.Alert.Annotations != nil {
-			for k, v := range c.Alert.Annotations {
-				alert.Annotations[k] = v
-			}
-		}
-		if c.Alert.Labels != nil {
-			for k, v := range c.Alert.Labels {
-				alert.Labels[k] = v
-			}
+	if c == nil {
+		return alert
+	}
+	if c.Annotations != nil {
+		for k, v := range c.Annotations {
+			alert.Annotations[k] = v
 		}
 	}
-
+	if c.Labels != nil {
+		for k, v := range c.Labels {
+			alert.Labels[k] = v
+		}
+	}
 	return alert
 }
 
-func ProcessIntegrationError(config *GrafanaIntegrationConfig, err error) error {
+func ProcessIntegrationError(config *models.IntegrationConfig, err error) error {
 	if err == nil {
 		return nil
 	}
@@ -181,7 +166,7 @@ func ProcessIntegrationError(config *GrafanaIntegrationConfig, err error) error 
 type GrafanaReceiverConfig struct {
 	Name                string
 	AlertmanagerConfigs []*NotifierConfig[alertmanager.Config]
-	DingdingConfigs     []*NotifierConfig[dinding.Config]
+	DingdingConfigs     []*NotifierConfig[dingding.Config]
 	DiscordConfigs      []*NotifierConfig[discord.Config]
 	EmailConfigs        []*NotifierConfig[email.Config]
 	GooglechatConfigs   []*NotifierConfig[googlechat.Config]
@@ -205,7 +190,7 @@ type GrafanaReceiverConfig struct {
 	WebexConfigs        []*NotifierConfig[webex.Config]
 }
 
-// NotifierConfig represents parsed GrafanaIntegrationConfig.
+// NotifierConfig represents parsed IntegrationConfig.
 type NotifierConfig[T interface{}] struct {
 	receivers.Metadata
 	Settings         T
@@ -274,7 +259,7 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decode De
 }
 
 // parseNotifier parses receivers and populates the corresponding field in GrafanaReceiverConfig. Returns an error if the configuration cannot be parsed.
-func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *GrafanaIntegrationConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn, idx int) error {
+func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *models.IntegrationConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn, idx int) error {
 	secureSettings, err := decode(receiver.SecureSettings)
 	if err != nil {
 		return err
@@ -296,7 +281,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 		}
 		result.AlertmanagerConfigs = append(result.AlertmanagerConfigs, notifierConfig)
 	case "dingding":
-		cfg, err := dinding.NewConfig(receiver.Settings)
+		cfg, err := dingding.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
 		}
@@ -532,7 +517,7 @@ func GetActiveReceiversMap(r *dispatch.Route) map[string]struct{} {
 	return receiversMap
 }
 
-func parseHTTPConfig(integration *GrafanaIntegrationConfig, decryptFn func(key string, fallback string) string) (*http.HTTPClientConfig, error) {
+func parseHTTPConfig(integration *models.IntegrationConfig, decryptFn func(key string, fallback string) string) (*http.HTTPClientConfig, error) {
 	httpConfigSettings := struct {
 		HTTPConfig *http.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 	}{}
@@ -551,7 +536,7 @@ func parseHTTPConfig(integration *GrafanaIntegrationConfig, decryptFn func(key s
 	return httpConfigSettings.HTTPConfig, nil
 }
 
-func newNotifierConfig[T interface{}](integration *GrafanaIntegrationConfig, idx int, settings T, decryptFn func(key string, fallback string) string) (*NotifierConfig[T], error) {
+func newNotifierConfig[T interface{}](integration *models.IntegrationConfig, idx int, settings T, decryptFn func(key string, fallback string) string) (*NotifierConfig[T], error) {
 	httpClientConfig, err := parseHTTPConfig(integration, decryptFn)
 	if err != nil {
 		return nil, err
@@ -571,7 +556,7 @@ func newNotifierConfig[T interface{}](integration *GrafanaIntegrationConfig, idx
 
 type IntegrationValidationError struct {
 	Err         error
-	Integration *GrafanaIntegrationConfig
+	Integration *models.IntegrationConfig
 }
 
 func (e IntegrationValidationError) Error() string {
@@ -584,3 +569,26 @@ func (e IntegrationValidationError) Error() string {
 }
 
 func (e IntegrationValidationError) Unwrap() error { return e.Err }
+
+type MimirIntegrationConfig struct {
+	Schema schema.IntegrationSchemaVersion
+	Config any
+}
+
+// ConfigJSON returns the JSON representation of the integration config with non-masked secrets.
+func (c MimirIntegrationConfig) ConfigJSON() ([]byte, error) {
+	return definition.MarshalJSONWithSecrets(c.Config)
+}
+
+func (c MimirIntegrationConfig) ConfigMap() (map[string]any, error) {
+	data, err := c.ConfigJSON()
+	if err != nil {
+		return nil, err
+	}
+	var result map[string]any
+	err = json.Unmarshal(data, &result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}

@@ -1,0 +1,133 @@
+package generate
+
+import (
+	"time"
+
+	"github.com/go-openapi/strfmt"
+	models "github.com/grafana/grafana-openapi-client-go/models"
+	"pgregory.net/rapid"
+)
+
+type Config struct {
+	NumAlerting     int
+	NumRecording    int
+	QueryDS         string
+	WriteDS         string
+	RulesPerGroup   int
+	GroupsPerFolder int
+	EvalInterval    int64
+	Seed            int64
+	FolderUIDs      []string
+}
+
+// NewAlertingRuleGenerator returns a rapid generator for alerting rules.
+func NewAlertingRuleGenerator(queryDS string) *rapid.Generator[*models.ProvisionedAlertRule] {
+	return rapid.Custom(func(t *rapid.T) *models.ProvisionedAlertRule {
+		// local refID scoped to this rule
+		refID := "A"
+		data := []*models.AlertQuery{buildQuery(t, queryDS, refID)}
+		title := genTitle().Draw(t, "title")
+		forDur := mustParseDuration(genDurationStr().Draw(t, "for"))
+		// KeepFiringFor must be a multiple of For (0 inclusive)
+		var keepDur strfmt.Duration
+		if time.Duration(forDur) == 0 {
+			keepDur = strfmt.Duration(0)
+		} else {
+			mult := rapid.IntRange(0, 5).Draw(t, "keep_mult")
+			keepDur = strfmt.Duration(time.Duration(forDur) * time.Duration(mult))
+		}
+		uid := RandomUID().Draw(t, "uid")
+		labels := genLabels().Draw(t, "labels")
+		summary := genSummary().Draw(t, "summary")
+		extraAnns := genAdditionalAnnotations().Draw(t, "annotations")
+		anns := map[string]string{"summary": summary}
+		for k, v := range extraAnns {
+			if k == "summary" {
+				continue
+			}
+			anns[k] = v
+		}
+		execErr := genExecErrState().Draw(t, "exec_err_state")
+		noData := genNoDataState().Draw(t, "no_data_state")
+		// 10% chance of being paused.
+		paused := rapid.IntRange(0, 99).Draw(t, "is_paused") < 10
+		missingToResolve := rapid.Int64Range(0, 5).Draw(t, "missing_to_resolve")
+		// TODO: make orgID configurable; assume 1 for now
+		orgID := int64(1)
+
+		// Randomly add receiver to some rules.
+		var notificationSettings *models.AlertRuleNotificationSettings
+		if rapid.Bool().Draw(t, "with_notification_settings") {
+			r := "empty"
+			notificationSettings = &models.AlertRuleNotificationSettings{
+				Receiver: &r,
+			}
+		}
+
+		return &models.ProvisionedAlertRule{
+			Title:                       strPtr(title),
+			UID:                         uid,
+			RuleGroup:                   nil, // filled when grouped
+			FolderUID:                   nil, // filled when grouped
+			Condition:                   strPtr(refID),
+			Data:                        data,
+			For:                         &forDur,
+			KeepFiringFor:               keepDur,
+			IsPaused:                    paused,
+			ExecErrState:                strPtr(execErr),
+			NoDataState:                 strPtr(noData),
+			Labels:                      labels,
+			Annotations:                 anns,
+			NotificationSettings:        notificationSettings,
+			MissingSeriesEvalsToResolve: missingToResolve,
+			OrgID:                       &orgID,
+		}
+	})
+}
+
+// NewRecordingRuleGenerator returns a rapid generator for recording rules
+func NewRecordingRuleGenerator(queryDS, writeDS string) *rapid.Generator[*models.ProvisionedAlertRule] {
+	return rapid.Custom(func(t *rapid.T) *models.ProvisionedAlertRule {
+		// local refID scoped to this rule
+		refID := "A"
+		data := []*models.AlertQuery{buildQuery(t, queryDS, refID)}
+		title := genTitle().Draw(t, "title")
+		uid := RandomUID().Draw(t, "uid")
+		metric := genMetricName().Draw(t, "metric")
+		summary := genSummary().Draw(t, "summary")
+		extraAnns := genAdditionalAnnotations().Draw(t, "annotations")
+		anns := map[string]string{"summary": summary}
+		for k, v := range extraAnns {
+			if k == "summary" {
+				continue
+			}
+			anns[k] = v
+		}
+		// 10% chance of being paused.
+		paused := rapid.IntRange(0, 99).Draw(t, "is_paused") < 10
+		// TODO: make orgID configurable; assume 1 for now
+		orgID := int64(1)
+		// Recording rules require For field set to 0 for Grafana API
+		forDur := strfmt.Duration(0)
+
+		return &models.ProvisionedAlertRule{
+			Title:       strPtr(title),
+			UID:         uid,
+			RuleGroup:   nil,
+			FolderUID:   nil,
+			Data:        data,
+			For:         &forDur,
+			IsPaused:    paused,
+			Labels:      map[string]string{"rule_kind": "recording"},
+			Annotations: anns,
+			Record: &models.Record{
+				From:                strPtr(refID),
+				Metric:              strPtr(metric),
+				TargetDatasourceUID: writeDS,
+			},
+			OrgID: &orgID,
+		}
+	})
+}
+
+// helper functions are defined in helpers.go

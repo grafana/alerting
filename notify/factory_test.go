@@ -17,8 +17,11 @@ import (
 
 	"github.com/prometheus/alertmanager/notify"
 
+	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -37,11 +40,12 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 
 	getFullConfig := func(t *testing.T) (GrafanaReceiverConfig, int) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
-		for notifierType, cfg := range AllKnownConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(notifierType))
+		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
 		require.NoError(t, err)
+		parsed.WebhookConfigs[0].Settings.URL = "http://localhost:8080" // to make sure Notify test works
 		return parsed, len(recCfg.Integrations)
 	}
 
@@ -101,7 +105,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 					if integration.Name() == "prometheus-alertmanager" {
 						t.Skip() // TODO: prometheus-alertmanager integration does not support custom dialer yet.
 					}
-					alert := newTestAlert(TestReceiversConfigBodyParams{}, time.Now(), time.Now())
+					alert := newTestAlert(nil, time.Now(), time.Now())
 
 					ctx := context.Background()
 					ctx = notify.WithGroupKey(ctx, fmt.Sprintf("%s-%s-%d", integration.Name(), alert.Labels.Fingerprint(), time.Now().Unix()))
@@ -127,7 +131,9 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 	var orgID = rand.Int63()
 	var version = fmt.Sprintf("Grafana v%d", rand.Uint32())
 	imageProvider := &images.URLProvider{}
-	tmpl, err := templates.NewFactory(nil, log.NewNopLogger(), "http://localhost", "grafana")
+	cfg, err := templates.NewConfig("grafana", "http://localhost", "", templates.DefaultLimits)
+	require.NoError(t, err)
+	tmpl, err := templates.NewFactory(nil, cfg, log.NewNopLogger())
 	require.NoError(t, err)
 	emailService := receivers.MockNotificationService()
 
@@ -147,9 +153,9 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "test2",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
-						AllKnownConfigsForTesting["email"].GetRawNotifierConfig("test2"),
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
+						notifytest.AllKnownV1ConfigsForTesting["email"].GetRawNotifierConfig("test2"),
 					},
 				},
 			},
@@ -184,9 +190,9 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "test",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
-						AllKnownConfigsForTesting["email"].GetRawNotifierConfig("test"),
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
+						notifytest.AllKnownV1ConfigsForTesting["email"].GetRawNotifierConfig("test"),
 					},
 				},
 			},
@@ -194,9 +200,9 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 				ConfigReceiver: ConfigReceiver{
 					Name: "test",
 				},
-				GrafanaIntegrations: GrafanaIntegrations{
-					Integrations: []*GrafanaIntegrationConfig{
-						AllKnownConfigsForTesting["webhook"].GetRawNotifierConfig("test"),
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
+						notifytest.AllKnownV1ConfigsForTesting["webhook"].GetRawNotifierConfig("test"),
 					},
 				},
 			},
@@ -224,4 +230,18 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 		require.Len(t, integrations, 1)
 		require.Equal(t, "webhook[0]", integrations[0].String())
 	})
+}
+
+func TestBuildPrometheusReceiverIntegrations(t *testing.T) {
+	receiver, err := notifytest.GetMimirReceiverWithAllIntegrations(notifytest.WithTLS, notifytest.WithAuthorization, notifytest.WithOAuth2)
+	require.NoError(t, err)
+	err = definition.ValidateAlertmanagerConfig(receiver)
+	require.NoError(t, err)
+	cfg, err := templates.NewConfig("1", "http://localhost", "", templates.DefaultLimits)
+	require.NoError(t, err)
+	tmpl, err := templates.NewFactory(nil, cfg, log.NewNopLogger())
+	require.NoError(t, err)
+	integrations, err := BuildPrometheusReceiverIntegrations(receiver, tmpl, nil, log.NewNopLogger(), NoWrap, nil)
+	require.NoError(t, err)
+	require.Len(t, integrations, 14)
 }

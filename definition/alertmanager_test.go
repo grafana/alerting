@@ -65,54 +65,6 @@ func Test_ApiReceiver_Marshaling(t *testing.T) {
 	}
 }
 
-func Test_APIReceiverType(t *testing.T) {
-	for _, tc := range []struct {
-		desc     string
-		input    PostableApiReceiver
-		expected ReceiverType
-	}{
-		{
-			desc: "empty",
-			input: PostableApiReceiver{
-				Receiver: config.Receiver{
-					Name: "foo",
-				},
-			},
-			expected: EmptyReceiverType,
-		},
-		{
-			desc: "am",
-			input: PostableApiReceiver{
-				Receiver: config.Receiver{
-					Name: "foo",
-					EmailConfigs: []*config.EmailConfig{{
-						To:      "test@test.com",
-						HTML:    config.DefaultEmailConfig.HTML,
-						Headers: map[string]string{},
-					}},
-				},
-			},
-			expected: AlertmanagerReceiverType,
-		},
-		{
-			desc: "graf",
-			input: PostableApiReceiver{
-				Receiver: config.Receiver{
-					Name: "foo",
-				},
-				PostableGrafanaReceivers: PostableGrafanaReceivers{
-					GrafanaManagedReceivers: []*PostableGrafanaReceiver{{}},
-				},
-			},
-			expected: GrafanaReceiverType,
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			require.Equal(t, tc.expected, tc.input.Type())
-		})
-	}
-}
-
 func Test_AllReceivers(t *testing.T) {
 	input := &Route{
 		Receiver: "foo",
@@ -457,54 +409,6 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				require.Nil(t, err)
 				require.Equal(t, tc.input, *cfg)
 			}
-		})
-	}
-}
-
-func Test_PostableApiReceiver_Unmarshaling_YAML(t *testing.T) {
-	for _, tc := range []struct {
-		desc  string
-		input string
-		rtype ReceiverType
-	}{
-		{
-			desc: "grafana receivers",
-			input: `
-name: grafana_managed
-grafana_managed_receiver_configs:
-  - uid: alertmanager UID
-    name: an alert manager receiver
-    type: prometheus-alertmanager
-    sendreminder: false
-    disableresolvemessage: false
-    frequency: 5m
-    isdefault: false
-    settings: {}
-    securesettings:
-      basicAuthPassword: <basicAuthPassword>
-  - uid: dingding UID
-    name: a dingding receiver
-    type: dingding
-    sendreminder: false
-    disableresolvemessage: false
-    frequency: 5m
-    isdefault: false`,
-			rtype: GrafanaReceiverType,
-		},
-		{
-			desc: "receiver",
-			input: `
-name: example-email
-email_configs:
-  - to: 'youraddress@example.org'`,
-			rtype: AlertmanagerReceiverType,
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			var r PostableApiReceiver
-			err := yaml.Unmarshal([]byte(tc.input), &r)
-			require.Nil(t, err)
-			assert.Equal(t, tc.rtype, r.Type())
 		})
 	}
 }
@@ -1001,106 +905,6 @@ func Test_ConfigUnmashaling(t *testing.T) {
 			var out Config
 			err := json.Unmarshal([]byte(tc.input), &out)
 			require.Equal(t, tc.err, err)
-		})
-	}
-}
-
-func Test_ReceiverCompatibility(t *testing.T) {
-	for _, tc := range []struct {
-		desc     string
-		a, b     ReceiverType
-		expected bool
-	}{
-		{
-			desc:     "grafana=grafana",
-			a:        GrafanaReceiverType,
-			b:        GrafanaReceiverType,
-			expected: true,
-		},
-		{
-			desc:     "am=am",
-			a:        AlertmanagerReceiverType,
-			b:        AlertmanagerReceiverType,
-			expected: true,
-		},
-		{
-			desc:     "empty=grafana",
-			a:        EmptyReceiverType,
-			b:        AlertmanagerReceiverType,
-			expected: true,
-		},
-		{
-			desc:     "empty=am",
-			a:        EmptyReceiverType,
-			b:        AlertmanagerReceiverType,
-			expected: true,
-		},
-		{
-			desc:     "empty=empty",
-			a:        EmptyReceiverType,
-			b:        EmptyReceiverType,
-			expected: true,
-		},
-		{
-			desc:     "graf!=am",
-			a:        GrafanaReceiverType,
-			b:        AlertmanagerReceiverType,
-			expected: false,
-		},
-		{
-			desc:     "am!=graf",
-			a:        AlertmanagerReceiverType,
-			b:        GrafanaReceiverType,
-			expected: false,
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			require.Equal(t, tc.expected, tc.a.Can(tc.b))
-		})
-	}
-}
-
-func Test_ReceiverMatchesBackend(t *testing.T) {
-	for _, tc := range []struct {
-		desc string
-		rec  ReceiverType
-		b    ReceiverType
-		ok   bool
-	}{
-		{
-			desc: "graf=graf",
-			rec:  GrafanaReceiverType,
-			b:    GrafanaReceiverType,
-			ok:   true,
-		},
-		{
-			desc: "empty=graf",
-			rec:  EmptyReceiverType,
-			b:    GrafanaReceiverType,
-			ok:   true,
-		},
-		{
-			desc: "am=am",
-			rec:  AlertmanagerReceiverType,
-			b:    AlertmanagerReceiverType,
-			ok:   true,
-		},
-		{
-			desc: "empty=am",
-			rec:  EmptyReceiverType,
-			b:    AlertmanagerReceiverType,
-			ok:   true,
-		},
-		{
-			desc: "graf!=am",
-			rec:  GrafanaReceiverType,
-			b:    AlertmanagerReceiverType,
-			ok:   false,
-		},
-	} {
-		t.Run(tc.desc, func(t *testing.T) {
-			ok := tc.rec.Can(tc.b)
-			require.Equal(t, tc.ok, ok)
 		})
 	}
 }
@@ -1612,4 +1416,114 @@ func TestPostableApiTemplateValidate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCopyIntegrations(t *testing.T) {
+	mimirEmail := &config.EmailConfig{
+		From: "test",
+		To:   "test",
+	}
+	mimirSlack := &config.SlackConfig{
+		Title: "test",
+	}
+	grafana := &PostableGrafanaReceiver{
+		UID:  "test-uid",
+		Name: "test",
+	}
+
+	t.Run("should noop on empty source and dest", func(t *testing.T) {
+		dst := PostableApiReceiver{}
+		src := PostableApiReceiver{}
+		require.NoError(t, CopyIntegrations(&src, &dst))
+		require.Equal(t, PostableApiReceiver{}, dst)
+	})
+
+	t.Run("should copy all integrations from src to dest by reference", func(t *testing.T) {
+		dst := PostableApiReceiver{}
+		src := PostableApiReceiver{
+			Receiver: config.Receiver{
+				Name: "source",
+				EmailConfigs: []*config.EmailConfig{
+					mimirEmail,
+				},
+				SlackConfigs: []*config.SlackConfig{
+					mimirSlack,
+				},
+			},
+			PostableGrafanaReceivers: PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
+					grafana,
+				},
+			},
+		}
+		require.NoError(t, CopyIntegrations(&src, &dst))
+		require.Equal(t, PostableApiReceiver{
+			Receiver: config.Receiver{
+				EmailConfigs: []*config.EmailConfig{
+					mimirEmail,
+				},
+				SlackConfigs: []*config.SlackConfig{
+					mimirSlack,
+				},
+			},
+			PostableGrafanaReceivers: PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
+					grafana,
+				},
+			},
+		}, dst)
+		require.Same(t, mimirEmail, dst.EmailConfigs[0])
+		require.Same(t, mimirSlack, dst.SlackConfigs[0])
+		require.Same(t, grafana, dst.GrafanaManagedReceivers[0])
+	})
+
+	t.Run("should append to existing integrations", func(t *testing.T) {
+		dst := PostableApiReceiver{
+			Receiver: config.Receiver{
+				Name: "dest",
+				SlackConfigs: []*config.SlackConfig{
+					mimirSlack,
+				},
+			},
+			PostableGrafanaReceivers: PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
+					grafana,
+				},
+			},
+		}
+		src := PostableApiReceiver{
+			Receiver: config.Receiver{
+				Name: "source",
+				SlackConfigs: []*config.SlackConfig{
+					mimirSlack,
+				},
+			},
+			PostableGrafanaReceivers: PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
+					grafana,
+				},
+			},
+		}
+		require.NoError(t, CopyIntegrations(&src, &dst))
+		require.Equal(t, PostableApiReceiver{
+			Receiver: config.Receiver{
+				Name: "dest",
+				SlackConfigs: []*config.SlackConfig{
+					mimirSlack,
+					mimirSlack,
+				},
+			},
+			PostableGrafanaReceivers: PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
+					grafana,
+					grafana,
+				},
+			},
+		}, dst)
+	})
+
+	t.Run("fails when either is nil", func(t *testing.T) {
+		require.Error(t, CopyIntegrations(&PostableApiReceiver{}, nil))
+		require.Error(t, CopyIntegrations(nil, &PostableApiReceiver{}))
+	})
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/template"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/types"
@@ -137,11 +138,16 @@ func TestDefaultTemplateString(t *testing.T) {
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
 
+	tmp := &Template{
+		Template: tmpl,
+		limits:   DefaultLimits,
+	}
+
 	var tmplErr error
 	l := log.NewNopLogger()
-	expand, _ := TmplText(context.Background(), tmpl, alerts, l, &tmplErr)
+	expand, _ := TmplText(context.Background(), tmp, alerts, l, &tmplErr)
 
-	tmplDef, err := DefaultTemplate()
+	tmplDef, err := DefaultTemplate(nil)
 	require.NoError(t, err)
 
 	tmplFromDefinition, err := template.New(defaultOptionsPerKind(GrafanaKind, "grafana")...)
@@ -151,8 +157,13 @@ func TestDefaultTemplateString(t *testing.T) {
 	require.NoError(t, err)
 	tmplFromDefinition.ExternalURL = externalURL
 
+	tpl := &Template{
+		Template: tmplFromDefinition,
+		limits:   DefaultLimits,
+	}
+
 	var tmplDefErr error
-	expandFromDefinition, _ := TmplText(context.Background(), tmplFromDefinition, alerts, l, &tmplDefErr)
+	expandFromDefinition, _ := TmplText(context.Background(), tpl, alerts, l, &tmplDefErr)
 
 	cases := []struct {
 		templateString string
@@ -351,6 +362,39 @@ Silence: [http://localhost/grafana/alerting/silence/new?alertmanager=grafana&mat
 	}
 	require.NoError(t, tmplErr)
 	require.NoError(t, tmplDefErr)
+
+	t.Run("should omit templates", func(t *testing.T) {
+		def, err := DefaultTemplate(nil)
+		require.NoError(t, err)
+		defOmit, err := DefaultTemplate(DefaultTemplatesToOmit)
+		require.NoError(t, err)
+		for _, tmpl := range DefaultTemplatesToOmit {
+			assert.Contains(t, def.Template, tmpl)
+			assert.NotContains(t, defOmit.Template, tmpl)
+		}
+	})
+}
+
+func Test_InlineScope(t *testing.T) {
+	tmpl := ForTests(t)
+
+	clone, err := tmpl.Clone()
+	require.NoError(t, err)
+
+	tmplText := `{{ coll.Dict 
+  "state"  (tmpl.Inline "{{ if eq .Status \"resolved\" }}ok{{ else }}alerting{{ end }}" . )
+  | data.ToJSONPretty " "}}`
+
+	render, err := tmpl.ExecuteTextString(tmplText, map[string]interface{}{"Status": "resolved"})
+	require.NoError(t, err)
+	assert.Equal(t, "{\n \"state\": \"ok\"\n}", render)
+
+	reuse := `{{ coll.Dict 
+	"state"  (tmpl.Exec "<inline>" . )
+ | data.ToJSONPretty " "}}`
+	render, err = clone.ExecuteTextString(reuse, map[string]interface{}{"Status": "firing"})
+
+	require.ErrorContainsf(t, err, `template "<inline>" not defined`, "got: %s", render)
 }
 
 // resetTimeNow resets the global variable timeNow to the default value, which is time.Now

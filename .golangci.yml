@@ -1,38 +1,59 @@
+version: "2"
 output:
-  formats: line-number
-
+  formats:
+    text:
+      path: stdout
+      colors: false
 linters:
   enable:
-    - goimports
-    - gofmt
-    - misspell
+    - asciicheck
+    - bodyclose
+    - dogsled
+    - errcheck
     - errorlint
+    - exhaustive
+    - forbidigo
+    - goprintffuncname
+    - govet
+    - ineffassign
+    - loggercheck
+    - misspell
+    - nakedret
+    - prealloc
     - revive
-
-linters-settings:
-  errcheck:
-    exclude-functions:
-      - (github.com/go-kit/kit/log.Logger).Log
-      - (github.com/go-kit/log.Logger).Log
-
-  errorlint:
-    # Check for plain error comparisons.
-    comparison: true
-
-    # Do not check for plain type assertions and type switches.
-    asserts: false
-
-    errorf: false
-
-run:
-  timeout: 5m
-
-issues:
-  exclude-dirs:
-    - alerting/channels # TODO(gotjosh): remove this once we get to aligning the notifiers.
-
-  # List of build tags, all linters use it.
-  build-tags:
-    - netgo
-    - requires_docker
-    - requires_libpcap
+    - staticcheck
+    - unconvert
+    - unused
+  settings:
+    errcheck:
+      exclude-functions:
+        - (github.com/go-kit/kit/log.Logger).Log
+        - (github.com/go-kit/log.Logger).Log
+    errorlint:
+      errorf: false
+      asserts: false
+      comparison: true
+    revive:
+      confidence: 3
+      severity: warning
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

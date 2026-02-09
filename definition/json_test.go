@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/prometheus/alertmanager/config"
-	amcfg "github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/timeinterval"
 	commoncfg "github.com/prometheus/common/config"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMarshalJSONWithSecrets(t *testing.T) {
@@ -305,10 +305,10 @@ func TestSecretURLTypeMarshaling(t *testing.T) {
 
 func TestSecretOmitempty(t *testing.T) {
 	type testStruct struct {
-		Secret    amcfg.Secret     `json:"secret,omitempty"`
-		SecretPtr *amcfg.Secret    `json:"secret_ptr,omitempty"`
-		URL       amcfg.SecretURL  `json:"url,omitempty"`
-		URLPtr    *amcfg.SecretURL `json:"url_ptr,omitempty"`
+		Secret    config.Secret     `json:"secret,omitempty"`
+		SecretPtr *config.Secret    `json:"secret_ptr,omitempty"`
+		URL       config.SecretURL  `json:"url,omitempty"`
+		URLPtr    *config.SecretURL `json:"url_ptr,omitempty"`
 	}
 
 	tests := []struct {
@@ -324,10 +324,10 @@ func TestSecretOmitempty(t *testing.T) {
 		{
 			name: "all present",
 			value: testStruct{
-				Secret:    amcfg.Secret("secret1"),
-				SecretPtr: func() *amcfg.Secret { s := amcfg.Secret("secret2"); return &s }(),
-				URL:       amcfg.SecretURL{URL: &url.URL{Scheme: "https", Host: "example.com"}},
-				URLPtr:    &amcfg.SecretURL{URL: &url.URL{Scheme: "https", Host: "example2.com"}},
+				Secret:    config.Secret("secret1"),
+				SecretPtr: func() *config.Secret { s := config.Secret("secret2"); return &s }(),
+				URL:       config.SecretURL{URL: &url.URL{Scheme: "https", Host: "example.com"}},
+				URLPtr:    &config.SecretURL{URL: &url.URL{Scheme: "https", Host: "example2.com"}},
 			},
 			expected: `{
 				"secret": "secret1",
