@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/grafana/alerting/logging"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -164,7 +164,7 @@ func TestSenderDisablesKeepAlives(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create sender
-	s := NewSender(&logging.FakeLogger{})
+	s := NewSender(log.NewNopLogger())
 
 	// Make multiple requests
 	for range 3 {

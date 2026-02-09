@@ -84,7 +84,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 			Password: n.settings.Password,
 			Body:     body,
 		}); err != nil {
-			level.Warn(n.logger).Log("failed to send to Alertmanager", "error", err, "alertmanager", n.Name, "url", u.String())
+			level.Warn(l).Log("msg", "failed to send to Alertmanager", "error", err, "url", u.String())
 			lastErr = err
 			numErrs++
 		}

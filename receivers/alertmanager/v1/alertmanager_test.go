@@ -129,22 +129,22 @@ func TestNotify(t *testing.T) {
 			}
 		}
 
+		var body []byte
+		mock := &mockSender{
+			sendHTTPReqFunc: func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg) ([]byte, error) {
+				body = cfg.Body
+				return nil, nil
+			},
+		}
+
 		sn := &Notifier{
 			Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 			images:   imageProvider,
 			settings: singleURLConfig,
+			logger:   log.NewNopLogger(),
+			sender:   mock,
 		}
 		alerts := getAlerts()
-
-		origSendHTTPRequest := receivers.SendHTTPRequest
-		t.Cleanup(func() {
-			receivers.SendHTTPRequest = origSendHTTPRequest
-		})
-		var body []byte
-		receivers.SendHTTPRequest = func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg, _ log.Logger) ([]byte, error) {
-			body = cfg.Body
-			return nil, nil
-		}
 
 		ctx := notify.WithGroupKey(context.Background(), "alertname")
 		ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
@@ -174,15 +174,23 @@ func TestNotify(t *testing.T) {
 				},
 			},
 		}
-		orig := receivers.SendHTTPRequest
-		t.Cleanup(func() { receivers.SendHTTPRequest = orig })
 		var body []byte
-		receivers.SendHTTPRequest = func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg, _ log.Logger) ([]byte, error) {
-			body = cfg.Body
-			return nil, nil
+		mock := &mockSender{
+			sendHTTPReqFunc: func(_ context.Context, _ *url.URL, cfg receivers.HTTPCfg) ([]byte, error) {
+				body = cfg.Body
+				return nil, nil
+			},
 		}
-		sn := &Notifier{Base: receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()), images: imageProvider, settings: singleURLConfig}
-		ok, err := sn.Notify(context.Background(), alerts...)
+		sn := &Notifier{
+			Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+			images:   imageProvider,
+			settings: singleURLConfig,
+			logger:   log.NewNopLogger(),
+			sender:   mock,
+		}
+		ctx := notify.WithGroupKey(context.Background(), "alertname")
+		ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+		ok, err := sn.Notify(ctx, alerts...)
 		require.NoError(t, err)
 		require.True(t, ok)
 		var sent []*types.Alert
