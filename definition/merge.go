@@ -12,7 +12,6 @@ import (
 )
 
 var (
-	ErrNoMatchers              = errors.New("matchers must not be empty")
 	ErrInvalidMatchers         = errors.New("only equality matchers are allowed")
 	ErrDuplicateMatchers       = errors.New("matchers should be unique")
 	ErrSubtreeMatchersConflict = errors.New("subtree matchers conflict with existing Grafana routes, merging will break existing notifications")
@@ -65,9 +64,6 @@ type MergeOpts struct {
 }
 
 func (o MergeOpts) Validate() error {
-	if len(o.SubtreeMatchers) == 0 {
-		return ErrNoMatchers
-	}
 	seenNames := make(map[string]struct{}, len(o.SubtreeMatchers))
 	for _, matcher := range o.SubtreeMatchers {
 		if _, ok := seenNames[matcher.Name]; ok {
@@ -84,9 +80,13 @@ func (o MergeOpts) Validate() error {
 // MergeResult represents the result of merging two Alertmanager configurations.
 // It contains the unified configuration and maps of renamed receivers and time intervals.
 type MergeResult struct {
-	Config               PostableApiAlertingConfig
-	RenamedReceivers     map[string]string
-	RenamedTimeIntervals map[string]string
+	Config PostableApiAlertingConfig
+	RenameResources
+}
+
+type RenameResources struct {
+	Receivers     map[string]string
+	TimeIntervals map[string]string
 }
 
 // Merge combines two Alertmanager configurations into a single unified configuration.
@@ -134,12 +134,15 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 	if err := opts.Validate(); err != nil {
 		return MergeResult{}, err
 	}
-	match, err := checkIfMatchersUsed(opts.SubtreeMatchers, a.Route.Routes)
-	if err != nil {
-		return MergeResult{}, err
-	}
-	if match {
-		return MergeResult{}, fmt.Errorf("%w: sub tree matchers: %s", ErrSubtreeMatchersConflict, opts.SubtreeMatchers)
+
+	if len(opts.SubtreeMatchers) > 0 {
+		match, err := checkIfMatchersUsed(opts.SubtreeMatchers, a.Route.Routes)
+		if err != nil {
+			return MergeResult{}, err
+		}
+		if match {
+			return MergeResult{}, fmt.Errorf("%w: sub tree matchers: %s", ErrSubtreeMatchersConflict, opts.SubtreeMatchers)
+		}
 	}
 
 	mergedReceivers, renamedReceivers := MergeReceivers(a.Receivers, b.Receivers, opts.DedupSuffix)
@@ -152,17 +155,24 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 		opts.DedupSuffix,
 	)
 
-	renameReceiversInRoutes([]*Route{b.Route}, renamedReceivers, renamedTimeIntervals)
-
-	if a.Route == nil {
-		return MergeResult{}, fmt.Errorf("cannot merge into undefined routing tree")
+	renamed := RenameResources{
+		Receivers:     renamedReceivers,
+		TimeIntervals: renamedTimeIntervals,
 	}
-	if b.Route == nil {
-		return MergeResult{}, fmt.Errorf("cannot merge undefined routing tree")
-	}
-	route := mergeRoutes(*a.Route, *b.Route, opts.SubtreeMatchers)
 
-	inhibitRules := mergeInhibitRules(a.InhibitRules, b.InhibitRules, opts.SubtreeMatchers)
+	route := a.Route
+	inhibitRules := a.InhibitRules
+	if len(opts.SubtreeMatchers) > 0 {
+		RenameResourceUsagesInRoutes([]*Route{b.Route}, renamed)
+		if route == nil {
+			return MergeResult{}, fmt.Errorf("cannot merge into undefined routing tree")
+		}
+		if b.Route == nil {
+			return MergeResult{}, fmt.Errorf("cannot merge undefined routing tree")
+		}
+		route = MergeRoutes(*route, *b.Route, opts.SubtreeMatchers)
+		inhibitRules = MergeInhibitRules(inhibitRules, b.InhibitRules, opts.SubtreeMatchers)
+	}
 
 	return MergeResult{
 		Config: PostableApiAlertingConfig{
@@ -176,8 +186,24 @@ func Merge(a, b PostableApiAlertingConfig, opts MergeOpts) (MergeResult, error) 
 			},
 			Receivers: mergedReceivers,
 		},
-		RenamedReceivers:     renamedReceivers,
-		RenamedTimeIntervals: renamedTimeIntervals,
+		RenameResources: renamed,
+	}, nil
+}
+
+// DeduplicateResources merges existing and incoming resources (receivers and time intervals) and ensures unique names by applying suffixes. Returns renamed resources for tracking adjustments made.
+func DeduplicateResources(a, b PostableApiAlertingConfig, opts MergeOpts) (RenameResources, error) {
+	_, renamedReceivers := MergeReceivers(a.Receivers, b.Receivers, opts.DedupSuffix)
+
+	_, renamedTimeIntervals := MergeTimeIntervals(
+		a.MuteTimeIntervals,
+		a.TimeIntervals,
+		b.MuteTimeIntervals,
+		b.TimeIntervals,
+		opts.DedupSuffix,
+	)
+	return RenameResources{
+		Receivers:     renamedReceivers,
+		TimeIntervals: renamedTimeIntervals,
 	}, nil
 }
 
@@ -234,7 +260,7 @@ func createIndexTimeIntervals(
 	return usedNames
 }
 
-func mergeRoutes(a, b Route, matcher config.Matchers) *Route {
+func MergeRoutes(a, b Route, matcher config.Matchers) *Route {
 	// get a and b by value so we get shallow copies of the top level routes, which we can modify.
 	// make sure "b" route has all defaults set explicitly to avoid inheriting "a"'s default route settings.
 	defaultOpts := dispatch.DefaultRouteOpts
@@ -290,31 +316,32 @@ func checkIfMatchersUsed(matchers config.Matchers, routes []*Route) (bool, error
 	return false, nil
 }
 
-func renameReceiversInRoutes(routes []*Route, renamedReceivers map[string]string, renamedIntervals map[string]string) {
+// RenameResourceUsagesInRoutes updates the receiver and mute/active time intervals of routes based on the provided rename resources.
+func RenameResourceUsagesInRoutes(routes []*Route, renames RenameResources) {
 	for _, r := range routes {
 		if r == nil {
 			continue
 		}
 		if r.Receiver != "" {
-			if newName, ok := renamedReceivers[r.Receiver]; ok {
+			if newName, ok := renames.Receivers[r.Receiver]; ok {
 				r.Receiver = newName
 			}
 		}
 		for i := range r.MuteTimeIntervals {
-			if newName, ok := renamedIntervals[r.MuteTimeIntervals[i]]; ok {
+			if newName, ok := renames.TimeIntervals[r.MuteTimeIntervals[i]]; ok {
 				r.MuteTimeIntervals[i] = newName
 			}
 		}
 		for i := range r.ActiveTimeIntervals {
-			if newName, ok := renamedIntervals[r.ActiveTimeIntervals[i]]; ok {
+			if newName, ok := renames.TimeIntervals[r.ActiveTimeIntervals[i]]; ok {
 				r.ActiveTimeIntervals[i] = newName
 			}
 		}
-		renameReceiversInRoutes(r.Routes, renamedReceivers, renamedIntervals)
+		RenameResourceUsagesInRoutes(r.Routes, renames)
 	}
 }
 
-func mergeInhibitRules(a, b []config.InhibitRule, matcher config.Matchers) []config.InhibitRule {
+func MergeInhibitRules(a, b []config.InhibitRule, matcher config.Matchers) []config.InhibitRule {
 	result := make([]config.InhibitRule, 0, len(a)+len(b))
 	result = append(result, a...)
 	for _, rule := range b {
