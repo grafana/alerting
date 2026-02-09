@@ -206,7 +206,7 @@ func (s *defaultSender) SendHTTPRequest(ctx context.Context, url *url.URL, cfg H
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
-			level.Warn(s.logger).Log("failed to close response Body", "error", err)
+			level.Warn(s.logger).Log("msg", "failed to close response Body", "error", err)
 		}
 	}()
 
@@ -216,12 +216,12 @@ func (s *defaultSender) SendHTTPRequest(ctx context.Context, url *url.URL, cfg H
 	}
 
 	if resp.StatusCode/100 != 2 {
-		level.Warn(s.logger).Log("HTTP request failed", "url", request.URL.String(), "statusCode", resp.Status, "Body",
+		level.Warn(s.logger).Log("msg", "HTTP request failed", "url", request.URL.String(), "statusCode", resp.Status, "Body",
 			string(respBody))
 		return nil, fmt.Errorf("failed to send HTTP request - status code %d", resp.StatusCode)
 	}
 
-	level.Debug(s.logger).Log("sending HTTP request succeeded", "url", request.URL.String(), "statusCode", resp.Status)
+	level.Debug(s.logger).Log("msg", "sending HTTP request succeeded", "url", request.URL.String(), "statusCode", resp.Status)
 	return respBody, nil
 }
 
