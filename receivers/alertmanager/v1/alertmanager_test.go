@@ -99,7 +99,6 @@ func TestNotify(t *testing.T) {
 				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 				images:   imageProvider,
 				settings: c.settings,
-				logger:   log.NewNopLogger(),
 				sender:   mock,
 			}
 
@@ -141,7 +140,6 @@ func TestNotify(t *testing.T) {
 			Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 			images:   imageProvider,
 			settings: singleURLConfig,
-			logger:   log.NewNopLogger(),
 			sender:   mock,
 		}
 		alerts := getAlerts()
@@ -185,7 +183,6 @@ func TestNotify(t *testing.T) {
 			Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 			images:   imageProvider,
 			settings: singleURLConfig,
-			logger:   log.NewNopLogger(),
 			sender:   mock,
 		}
 		ctx := notify.WithGroupKey(context.Background(), "alertname")

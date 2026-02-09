@@ -20,7 +20,6 @@ type Notifier struct {
 	*receivers.Base
 	images   images.Provider
 	settings Config
-	logger   log.Logger
 	sender   receivers.Sender
 }
 
@@ -29,7 +28,6 @@ func New(cfg Config, meta receivers.Metadata, images images.Provider, logger log
 		Base:     receivers.NewBase(meta, logger),
 		images:   images,
 		settings: cfg,
-		logger:   logger,
 		sender:   receivers.NewSender(logger),
 	}
 }
