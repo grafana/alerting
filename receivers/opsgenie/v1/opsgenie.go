@@ -119,6 +119,16 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, on.tmpl, as, l, &tmplErr)
 
+	// Augment extended Alert data with any extra data if provided
+	// If there is no extra data in the context or it is malformed,
+	// we simply continue without erroring
+	extraData, ok := receivers.GetExtraDataFromContext(ctx)
+	if ok && len(data.Alerts) == len(extraData) {
+		for i, ed := range extraData {
+			data.Alerts[i].ExtraData = ed
+		}
+	}
+
 	message, truncated := receivers.TruncateInRunes(tmpl(on.settings.Message), opsGenieMaxMessageLenRunes)
 	if truncated {
 		level.Warn(l).Log("msg", "truncated message", "alert", key, "max_runes", opsGenieMaxMessageLenRunes)

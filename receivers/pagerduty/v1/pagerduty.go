@@ -123,6 +123,16 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, pn.tmpl, as, l, &tmplErr)
 
+	// Augment extended Alert data with any extra data if provided
+	// If there is no extra data in the context or it is malformed,
+	// we simply continue without erroring
+	extraData, ok := receivers.GetExtraDataFromContext(ctx)
+	if ok && len(data.Alerts) == len(extraData) {
+		for i, ed := range extraData {
+			data.Alerts[i].ExtraData = ed
+		}
+	}
+
 	details := make(map[string]string, len(pn.settings.Details))
 	for k, v := range pn.settings.Details {
 		detail, err := pn.tmpl.ExecuteTextString(v, data)

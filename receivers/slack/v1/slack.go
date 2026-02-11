@@ -283,6 +283,17 @@ func commonAlertGeneratorURL(_ context.Context, alerts templates.ExtendedAlerts)
 func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert, l log.Logger) (*slackMessage, *templates.ExtendedData, error) {
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
+
+	// Augment extended Alert data with any extra data if provided
+	// If there is no extra data in the context or it is malformed,
+	// we simply continue without erroring
+	extraData, ok := receivers.GetExtraDataFromContext(ctx)
+	if ok && len(data.Alerts) == len(extraData) {
+		for i, ed := range extraData {
+			data.Alerts[i].ExtraData = ed
+		}
+	}
+
 	ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", l)
 
 	// If all alerts have the same GeneratorURL, use that.
