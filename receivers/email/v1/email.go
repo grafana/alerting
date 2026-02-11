@@ -85,6 +85,16 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 		level.Warn(l).Log("msg", "failed to get all images for email", "err", err)
 	}
 
+	// Augment extended Alert data with any extra data if provided
+	// If there is no extra data in the context or it is malformed,
+	// we simply continue without erroring
+	extraData, ok := receivers.GetExtraDataFromContext(ctx)
+	if ok && len(data.Alerts) == len(extraData) {
+		for i, ed := range extraData {
+			data.Alerts[i].ExtraData = ed
+		}
+	}
+
 	cmd := &receivers.SendEmailSettings{
 		Subject: subject,
 		Data: map[string]interface{}{
