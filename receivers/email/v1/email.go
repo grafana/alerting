@@ -41,6 +41,9 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, en.tmpl, alerts, l, &tmplErr)
 
+	// Augment extended Alert data with any extra data if provided.
+	receivers.ApplyExtraData(ctx, data.Alerts)
+
 	subject := tmpl(en.settings.Subject)
 	alertPageURL := en.tmpl.ExternalURL.String()
 	ruleURL := en.tmpl.ExternalURL.String()
@@ -84,9 +87,6 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 	if err != nil {
 		level.Warn(l).Log("msg", "failed to get all images for email", "err", err)
 	}
-
-	// Augment extended Alert data with any extra data if provided.
-	receivers.ApplyExtraData(ctx, data.Alerts)
 
 	cmd := &receivers.SendEmailSettings{
 		Subject: subject,
