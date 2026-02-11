@@ -284,15 +284,8 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
 
-	// Augment extended Alert data with any extra data if provided
-	// If there is no extra data in the context or it is malformed,
-	// we simply continue without erroring
-	extraData, ok := receivers.GetExtraDataFromContext(ctx)
-	if ok && len(data.Alerts) == len(extraData) {
-		for i, ed := range extraData {
-			data.Alerts[i].ExtraData = ed
-		}
-	}
+	// Augment extended Alert data with any extra data if provided.
+	receivers.ApplyExtraData(ctx, data.Alerts)
 
 	ruleURL := receivers.JoinURLPath(sn.tmpl.ExternalURL.String(), "/alerting/list", l)
 
