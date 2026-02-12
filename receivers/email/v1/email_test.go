@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"testing"
 
@@ -235,4 +236,69 @@ func TestNotify(t *testing.T) {
 			require.Equal(t, expected, emailSender.EmailSync)
 		})
 	})
+}
+
+func TestNotify_ExtraData(t *testing.T) {
+	tmpl := templates.ForTests(t)
+	externalURL, err := url.Parse("http://localhost/base")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+
+	settings := Config{
+		SingleEmail: false,
+		Addresses: []string{
+			"someops@example.com",
+		},
+		Message: "{{ template \"default.title\" . }}",
+		Subject: templates.DefaultMessageTitleEmbed,
+	}
+
+	emailSender := receivers.MockNotificationService()
+	emailNotifier := &Notifier{
+		Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+		ns:       emailSender,
+		tmpl:     tmpl,
+		settings: settings,
+		images:   &images.UnavailableProvider{},
+	}
+
+	// Create test alerts
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		},
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+				Annotations: model.LabelSet{"ann1": "annv2"},
+			},
+		},
+	}
+
+	// Create extra data that will be passed via context
+	extraData1 := json.RawMessage(`{"customField": "customValue1", "priority": "high"}`)
+	extraData2 := json.RawMessage(`{"customField": "customValue2", "priority": "medium"}`)
+	extraDataSlice := []json.RawMessage{extraData1, extraData2}
+
+	// Create context with extra data
+	ctx := context.WithValue(context.Background(), receivers.ExtraDataKey, extraDataSlice)
+
+	// Call Notify
+	ok, err := emailNotifier.Notify(ctx, alerts...)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	// Verify that extra data is present in the alerts
+	emailAlerts, ok := emailSender.EmailSync.Data["Alerts"].(templates.ExtendedAlerts)
+	require.True(t, ok, "Alerts should be of type templates.ExtendedAlerts")
+	require.Len(t, emailAlerts, 2)
+
+	// Check first alert's extra data
+	require.JSONEq(t, string(extraData1), string(emailAlerts[0].ExtraData))
+
+	// Check second alert's extra data
+	require.JSONEq(t, string(extraData2), string(emailAlerts[1].ExtraData))
 }

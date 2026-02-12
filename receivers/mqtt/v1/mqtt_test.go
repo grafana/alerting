@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"net/url"
 	"testing"
 
@@ -435,4 +436,80 @@ func TestNew(t *testing.T) {
 			require.Equal(t, tmpl, n.tmpl)
 		})
 	}
+}
+
+func TestNotify_ExtraData(t *testing.T) {
+	tmpl := templates.ForTests(t)
+	require.NotNil(t, tmpl)
+
+	externalURL, err := url.Parse("http://localhost/base")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+
+	settings := Config{
+		Topic:         "alert1",
+		Message:       templates.DefaultMessageEmbed,
+		MessageFormat: MessageFormatJSON,
+	}
+
+	// Create test alerts
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		},
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+				Annotations: model.LabelSet{"ann1": "annv2"},
+			},
+		},
+	}
+
+	// Create extra data that will be passed via context
+	extraData1 := json.RawMessage(`{"customField": "customValue1", "priority": "high"}`)
+	extraData2 := json.RawMessage(`{"customField": "customValue2", "priority": "medium"}`)
+	extraDataSlice := []json.RawMessage{extraData1, extraData2}
+
+	mockMQTTClient := new(mockMQTTClient)
+	mockMQTTClient.On(
+		"Connect",
+		mock.Anything,
+		settings.BrokerURL,
+		settings.ClientID,
+		settings.Username,
+		settings.Password,
+		mock.Anything,
+	).Return(nil)
+	mockMQTTClient.On("Disconnect", mock.Anything).Return(nil)
+	mockMQTTClient.On("Publish", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	n := &Notifier{
+		Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+		tmpl:     tmpl,
+		settings: settings,
+		client:   mockMQTTClient,
+	}
+
+	// Create context with extra data
+	ctx := notify.WithGroupKey(context.Background(), "alertname")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+	ctx = context.WithValue(ctx, receivers.ExtraDataKey, extraDataSlice)
+
+	// Call Notify
+	ok, err := n.Notify(ctx, alerts...)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	// Verify that the extra data is present in the published message
+	require.Equal(t, 1, len(mockMQTTClient.publishedMessages))
+
+	payload := string(mockMQTTClient.publishedMessages[0].payload)
+
+	// Verify that extra data is present in the JSON message
+	require.Contains(t, payload, "customField")
+	require.Contains(t, payload, "customValue1")
+	require.Contains(t, payload, "customValue2")
 }
