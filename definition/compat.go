@@ -8,6 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/prometheus/alertmanager/config"
+
+	"github.com/grafana/alerting/http/v0mimir1"
 )
 
 // LoadCompat loads a PostableApiAlertingConfig from a YAML configuration
@@ -38,7 +40,7 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		}
 		for _, wh := range rcv.WebhookConfigs {
 			if wh.HTTPConfig == nil {
-				wh.HTTPConfig = c.Global.HTTPConfig
+				wh.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 		}
 		for _, ec := range rcv.EmailConfigs {
@@ -76,7 +78,7 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		}
 		for _, sc := range rcv.SlackConfigs {
 			if sc.HTTPConfig == nil {
-				sc.HTTPConfig = c.Global.HTTPConfig
+				sc.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 			if sc.APIURL == nil {
 				if c.Global.SlackAPIURL == nil {
@@ -87,12 +89,12 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		}
 		for _, poc := range rcv.PushoverConfigs {
 			if poc.HTTPConfig == nil {
-				poc.HTTPConfig = c.Global.HTTPConfig
+				poc.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 		}
 		for _, pdc := range rcv.PagerdutyConfigs {
 			if pdc.HTTPConfig == nil {
-				pdc.HTTPConfig = c.Global.HTTPConfig
+				pdc.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 			if pdc.URL == nil {
 				if c.Global.PagerdutyURL == nil {
@@ -103,7 +105,7 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		}
 		for _, ogc := range rcv.OpsGenieConfigs {
 			if ogc.HTTPConfig == nil {
-				ogc.HTTPConfig = c.Global.HTTPConfig
+				ogc.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 			if ogc.APIURL == nil {
 				if c.Global.OpsGenieAPIURL == nil {
@@ -123,7 +125,7 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		}
 		for _, wcc := range rcv.WechatConfigs {
 			if wcc.HTTPConfig == nil {
-				wcc.HTTPConfig = c.Global.HTTPConfig
+				wcc.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 
 			if wcc.APIURL == nil {
@@ -153,7 +155,7 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		}
 		for _, voc := range rcv.VictorOpsConfigs {
 			if voc.HTTPConfig == nil {
-				voc.HTTPConfig = c.Global.HTTPConfig
+				voc.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 			if voc.APIURL == nil {
 				if c.Global.VictorOpsAPIURL == nil {
@@ -173,13 +175,13 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		}
 		for _, sns := range rcv.SNSConfigs {
 			if sns.HTTPConfig == nil {
-				sns.HTTPConfig = c.Global.HTTPConfig
+				sns.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 		}
 
 		for _, telegram := range rcv.TelegramConfigs {
 			if telegram.HTTPConfig == nil {
-				telegram.HTTPConfig = c.Global.HTTPConfig
+				telegram.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 			if telegram.APIUrl == nil {
 				telegram.APIUrl = c.Global.TelegramAPIUrl
@@ -187,7 +189,7 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		}
 		for _, discord := range rcv.DiscordConfigs {
 			if discord.HTTPConfig == nil {
-				discord.HTTPConfig = c.Global.HTTPConfig
+				discord.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 			if discord.WebhookURL == nil {
 				return nil, errors.New("no discord webhook URL provided")
@@ -204,7 +206,7 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		}
 		for _, msteams := range rcv.MSTeamsConfigs {
 			if msteams.HTTPConfig == nil {
-				msteams.HTTPConfig = c.Global.HTTPConfig
+				msteams.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 			if msteams.WebhookURL == nil {
 				return nil, errors.New("no msteams webhook URL provided")
@@ -212,7 +214,7 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		}
 		for _, msteamsv2 := range rcv.MSTeamsV2Configs {
 			if msteamsv2.HTTPConfig == nil {
-				msteamsv2.HTTPConfig = c.Global.HTTPConfig
+				msteamsv2.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 			if msteamsv2.WebhookURL == nil && len(msteamsv2.WebhookURLFile) == 0 {
 				return nil, errors.New("no msteamsv2 webhook URL provided")
@@ -220,7 +222,7 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		}
 		for _, jira := range rcv.JiraConfigs {
 			if jira.HTTPConfig == nil {
-				jira.HTTPConfig = c.Global.HTTPConfig
+				jira.HTTPConfig = v0mimir1.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
 			if jira.APIURL == nil {
 				if c.Global.JiraAPIURL == nil {
@@ -233,25 +235,6 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 	}
 
 	return &c, nil
-}
-
-// GrafanaToUpstreamConfig converts a Grafana alerting configuration into an upstream Alertmanager configuration.
-// It ignores the configuration for Grafana receivers, adding only their names.
-func GrafanaToUpstreamConfig(cfg *PostableApiAlertingConfig) config.Config {
-	rcvs := make([]config.Receiver, 0, len(cfg.Receivers))
-	for _, r := range cfg.Receivers {
-		rcvs = append(rcvs, r.Receiver)
-	}
-
-	return config.Config{
-		Global:            cfg.Global,
-		Route:             cfg.Route.AsAMRoute(),
-		InhibitRules:      cfg.InhibitRules,
-		Receivers:         rcvs,
-		Templates:         cfg.Templates,
-		MuteTimeIntervals: cfg.MuteTimeIntervals,
-		TimeIntervals:     cfg.TimeIntervals,
-	}
 }
 
 func TemplatesMapToPostableAPITemplates(templates map[string]string, kind TemplateKind) []PostableApiTemplate {
