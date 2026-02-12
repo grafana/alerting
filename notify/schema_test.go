@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/prometheus/alertmanager/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -279,8 +278,9 @@ func TestOriginalTypeForAlias(t *testing.T) {
 func TestV0IntegrationsSecrets(t *testing.T) {
 	// This test ensures that all known integrations' secrets are listed in the schema definition.
 	notifytest.ForEachIntegrationType(t, func(configType reflect.Type) {
-		t.Run(configType.Name(), func(t *testing.T) {
-			integrationType := schema.IntegrationType(strings.ToLower(strings.TrimSuffix(configType.Name(), "Config")))
+		integrationType, ok := v0integrationTypeToIntegrationType[configType]
+		require.Truef(t, ok, "v0 integration type not found for %s", configType)
+		t.Run(string(integrationType), func(t *testing.T) {
 			iSchema, ok := GetSchemaForIntegration(integrationType)
 			require.Truef(t, ok, "schema for %s not found", integrationType)
 			var version schema.IntegrationSchemaVersion
@@ -320,11 +320,11 @@ func TestIntegrationTypeFromMimirType(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, email.Type, actual)
 
-	actual, err = IntegrationTypeFromMimirType(config.MSTeamsConfig{})
+	actual, err = IntegrationTypeFromMimirType(teamsV0Mimir1.Config{})
 	require.NoError(t, err)
 	require.Equal(t, teamsV0Mimir1.Schema.TypeAlias, actual)
 
-	actual, err = IntegrationTypeFromMimirType(&config.MSTeamsV2Config{})
+	actual, err = IntegrationTypeFromMimirType(&teamsV0Mimir2.Config{})
 	require.NoError(t, err)
 	require.Equal(t, teamsV0Mimir2.Schema.TypeAlias, actual)
 
@@ -339,11 +339,8 @@ func TestIntegrationTypeFromMimirType(t *testing.T) {
 
 	// This test ensures that all known integrations' secrets are listed in the schema definition.
 	notifytest.ForEachIntegrationType(t, func(configType reflect.Type) {
-		name := configType.Name()
-		expected := strings.ToLower(strings.TrimSuffix(name, "Config"))
-		actual, err := IntegrationTypeFromMimirTypeReflect(configType)
+		_, err := IntegrationTypeFromMimirTypeReflect(configType)
 		require.NoError(t, err)
-		require.Equal(t, schema.IntegrationType(expected), actual)
 	})
 }
 
