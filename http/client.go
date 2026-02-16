@@ -106,7 +106,7 @@ func ToHTTPClientOption(option ...ClientOption) []commoncfg.HTTPClientOption {
 	return result
 }
 
-func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receivers.SendWebhookSettings) error {
+func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receivers.SendWebhookSettings) (*receivers.WebhookResponse, error) {
 	// This method was moved from https://github.com/grafana/grafana/blob/71d04a326be9578e2d678f23c1efa61768e0541f/pkg/services/notifications/webhook.go#L38
 	if webhook.HTTPMethod == "" {
 		webhook.HTTPMethod = http.MethodPost
@@ -114,17 +114,17 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 	level.Debug(l).Log("msg", "sending webhook", "url", webhook.URL, "http method", webhook.HTTPMethod)
 
 	if webhook.HTTPMethod != http.MethodPost && webhook.HTTPMethod != http.MethodPut {
-		return fmt.Errorf("%w: %s", ErrInvalidMethod, webhook.HTTPMethod)
+		return nil, fmt.Errorf("%w: %s", ErrInvalidMethod, webhook.HTTPMethod)
 	}
 
 	request, err := http.NewRequestWithContext(ctx, webhook.HTTPMethod, webhook.URL, bytes.NewReader([]byte(webhook.Body)))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	url, err := url.Parse(webhook.URL)
 	if err != nil {
 		// Should not be possible - NewRequestWithContext should also err if the URL is bad.
-		return err
+		return nil, err
 	}
 
 	if webhook.ContentType == "" {
@@ -155,7 +155,7 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 		)
 		if err != nil {
 			level.Error(l).Log("msg", "Failed to add HMAC roundtripper to client", "err", err)
-			return err
+			return nil, err
 		}
 	}
 
@@ -166,7 +166,7 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 
 	resp, err := client.Do(request)
 	if err != nil {
-		return redactURL(err)
+		return nil, redactURL(err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -176,24 +176,33 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return nil, err
+	}
+
+	webhookResp := &receivers.WebhookResponse{
+		StatusCode: resp.StatusCode,
+		Body:       body,
+		Headers:    make(map[string][]string),
+	}
+	for k, v := range resp.Header {
+		webhookResp.Headers[k] = v
 	}
 
 	if webhook.Validation != nil {
 		err := webhook.Validation(body, resp.StatusCode)
 		if err != nil {
 			level.Debug(l).Log("msg", "Webhook failed validation", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body), "err", err)
-			return fmt.Errorf("webhook failed validation: %w", err)
+			return webhookResp, fmt.Errorf("webhook failed validation: %w", err)
 		}
 	}
 
 	if resp.StatusCode/100 == 2 {
 		level.Debug(l).Log("msg", "Webhook succeeded", "url", url.Redacted(), "statuscode", resp.Status)
-		return nil
+		return webhookResp, nil
 	}
 
 	level.Debug(l).Log("msg", "Webhook failed", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body))
-	return fmt.Errorf("webhook response status %v", resp.Status)
+	return webhookResp, fmt.Errorf("webhook response status %v", resp.Status)
 }
 
 func redactURL(err error) error {
