@@ -26,18 +26,20 @@ const (
 )
 
 type NotificationHistoryLokiEntry struct {
-	SchemaVersion int                               `json:"schemaVersion"`
-	Receiver      string                            `json:"receiver"`
-	GroupKey      string                            `json:"groupKey"`
-	Status        string                            `json:"status"`
-	GroupLabels   map[string]string                 `json:"groupLabels"`
-	Alert         NotificationHistoryLokiEntryAlert `json:"alert"`
-	AlertIndex    int                               `json:"alertIndex"`
-	AlertCount    int                               `json:"alertCount"`
-	Retry         bool                              `json:"retry"`
-	Error         string                            `json:"error,omitempty"`
-	Duration      int64                             `json:"duration"`
-	PipelineTime  time.Time                         `json:"pipelineTime"`
+	SchemaVersion  int                               `json:"schemaVersion"`
+	Receiver       string                            `json:"receiver"`
+	Integration    string                            `json:"integration"`
+	IntegrationIdx int                               `json:"integrationIdx"`
+	GroupKey       string                            `json:"groupKey"`
+	Status         string                            `json:"status"`
+	GroupLabels    map[string]string                 `json:"groupLabels"`
+	Alert          NotificationHistoryLokiEntryAlert `json:"alert"`
+	AlertIndex     int                               `json:"alertIndex"`
+	AlertCount     int                               `json:"alertCount"`
+	Retry          bool                              `json:"retry"`
+	Error          string                            `json:"error,omitempty"`
+	Duration       int64                             `json:"duration"`
+	PipelineTime   time.Time                         `json:"pipelineTime"`
 }
 
 type NotificationHistoryLokiEntryAlert struct {
@@ -140,18 +142,20 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 	values := make([]lokiclient.Sample, len(nhe.Alerts))
 	for i := range nhe.Alerts {
 		entry := NotificationHistoryLokiEntry{
-			SchemaVersion: 1,
-			Receiver:      nhe.ReceiverName,
-			Status:        string(types.Alerts(as...).StatusAt(now)),
-			GroupKey:      nhe.GroupKey,
-			GroupLabels:   prepareLabels(nhe.GroupLabels),
-			Alert:         entryAlerts[i],
-			AlertIndex:    i,
-			AlertCount:    len(nhe.Alerts),
-			Retry:         nhe.Retry,
-			Error:         notificationErrStr,
-			Duration:      int64(nhe.Duration),
-			PipelineTime:  nhe.PipelineTime,
+			SchemaVersion:  1,
+			Receiver:       nhe.ReceiverName,
+			Integration:    nhe.IntegrationName,
+			IntegrationIdx: nhe.IntegrationIdx,
+			Status:         string(types.Alerts(as...).StatusAt(now)),
+			GroupKey:       nhe.GroupKey,
+			GroupLabels:    prepareLabels(nhe.GroupLabels),
+			Alert:          entryAlerts[i],
+			AlertIndex:     i,
+			AlertCount:     len(nhe.Alerts),
+			Retry:          nhe.Retry,
+			Error:          notificationErrStr,
+			Duration:       int64(nhe.Duration),
+			PipelineTime:   nhe.PipelineTime,
 		}
 
 		entryJSON, err := json.Marshal(entry)
