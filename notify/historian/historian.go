@@ -142,7 +142,7 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 	values := make([]lokiclient.Sample, len(nhe.Alerts))
 	for i := range nhe.Alerts {
 		entry := NotificationHistoryLokiEntry{
-			SchemaVersion:  1,
+			SchemaVersion:  2,
 			Receiver:       nhe.ReceiverName,
 			Integration:    nhe.IntegrationName,
 			IntegrationIdx: nhe.IntegrationIdx,

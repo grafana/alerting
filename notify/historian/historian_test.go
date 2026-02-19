@@ -68,7 +68,7 @@ func TestRecord(t *testing.T) {
 						Values: []lokiclient.Sample{
 							{
 								T: testNow,
-								V: "{\"schemaVersion\":1,\"receiver\":\"testReceiverName\",\"integration\":\"testIntegrationName\",\"integrationIdx\":42,\"groupKey\":\"testGroupKey\",\"status\":\"resolved\",\"groupLabels\":{\"foo\":\"bar\"},\"alert\":{\"status\":\"resolved\",\"labels\":{\"__alert_rule_uid__\":\"testRuleUID\",\"alertname\":\"Alert1\"},\"annotations\":{\"__private__\":\"baz\",\"foo\":\"bar\"},\"startsAt\":\"2025-07-15T16:55:00Z\",\"endsAt\":\"2025-07-15T16:55:00Z\",\"enrichments\":{\"things\":[\"foo\",\"bar\"]}},\"alertIndex\":0,\"alertCount\":1,\"retry\":false,\"duration\":1000000000,\"pipelineTime\":\"2025-07-15T16:55:00Z\"}",
+								V: "{\"schemaVersion\":2,\"receiver\":\"testReceiverName\",\"integration\":\"testIntegrationName\",\"integrationIdx\":42,\"groupKey\":\"testGroupKey\",\"status\":\"resolved\",\"groupLabels\":{\"foo\":\"bar\"},\"alert\":{\"status\":\"resolved\",\"labels\":{\"__alert_rule_uid__\":\"testRuleUID\",\"alertname\":\"Alert1\"},\"annotations\":{\"__private__\":\"baz\",\"foo\":\"bar\"},\"startsAt\":\"2025-07-15T16:55:00Z\",\"endsAt\":\"2025-07-15T16:55:00Z\",\"enrichments\":{\"things\":[\"foo\",\"bar\"]}},\"alertIndex\":0,\"alertCount\":1,\"retry\":false,\"duration\":1000000000,\"pipelineTime\":\"2025-07-15T16:55:00Z\"}",
 							},
 						},
 					},
@@ -87,7 +87,7 @@ func TestRecord(t *testing.T) {
 						Values: []lokiclient.Sample{
 							{
 								T: testNow,
-								V: "{\"schemaVersion\":1,\"receiver\":\"testReceiverName\",\"integration\":\"testIntegrationName\",\"integrationIdx\":42,\"groupKey\":\"testGroupKey\",\"status\":\"resolved\",\"groupLabels\":{\"foo\":\"bar\"},\"alert\":{\"status\":\"resolved\",\"labels\":{\"__alert_rule_uid__\":\"testRuleUID\",\"alertname\":\"Alert1\"},\"annotations\":{\"__private__\":\"baz\",\"foo\":\"bar\"},\"startsAt\":\"2025-07-15T16:55:00Z\",\"endsAt\":\"2025-07-15T16:55:00Z\",\"enrichments\":{\"things\":[\"foo\",\"bar\"]}},\"alertIndex\":0,\"alertCount\":1,\"retry\":true,\"error\":\"test notification error\",\"duration\":1000000000,\"pipelineTime\":\"2025-07-15T16:55:00Z\"}",
+								V: "{\"schemaVersion\":2,\"receiver\":\"testReceiverName\",\"integration\":\"testIntegrationName\",\"integrationIdx\":42,\"groupKey\":\"testGroupKey\",\"status\":\"resolved\",\"groupLabels\":{\"foo\":\"bar\"},\"alert\":{\"status\":\"resolved\",\"labels\":{\"__alert_rule_uid__\":\"testRuleUID\",\"alertname\":\"Alert1\"},\"annotations\":{\"__private__\":\"baz\",\"foo\":\"bar\"},\"startsAt\":\"2025-07-15T16:55:00Z\",\"endsAt\":\"2025-07-15T16:55:00Z\",\"enrichments\":{\"things\":[\"foo\",\"bar\"]}},\"alertIndex\":0,\"alertCount\":1,\"retry\":true,\"error\":\"test notification error\",\"duration\":1000000000,\"pipelineTime\":\"2025-07-15T16:55:00Z\"}",
 							},
 						},
 					},
@@ -149,6 +149,7 @@ func TestRecord(t *testing.T) {
 			NotificationErr: nil,
 			Duration:        time.Second,
 			ReceiverName:    testReceiverName,
+			IntegrationName: "testIntegrationName",
 			GroupLabels:     testGroupLabels,
 			PipelineTime:    testPipelineTime,
 		}

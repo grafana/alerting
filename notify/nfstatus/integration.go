@@ -40,6 +40,9 @@ func (e NotificationHistoryEntry) Validate() error {
 	if e.ReceiverName == "" {
 		errs = append(errs, errors.New("missing receiver name"))
 	}
+	if e.IntegrationName == "" {
+		errs = append(errs, errors.New("missing integration name"))
+	}
 	if e.GroupLabels == nil {
 		errs = append(errs, errors.New("missing group labels"))
 	}
