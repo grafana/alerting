@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/pkg/labels"
+
+	"github.com/grafana/alerting/http/v0mimir1"
 )
 
 var validConfig = []byte(`{"route":{"receiver":"grafana-default-email","routes":[{"receiver":"grafana-default-email","object_matchers":[["a","=","b"]],"mute_time_intervals":["test1"]}]},"mute_time_intervals":[{"name":"test1","time_intervals":[{"times":[{"start_time":"00:00","end_time":"12:00"}]}]}],"templates":null,"receivers":[{"name":"grafana-default-email","grafana_managed_receiver_configs":[{"uid":"uxwfZvtnz","name":"email receiver","type":"email","disableResolveMessage":false,"settings":{"addresses":"<example@email.com>"},"secureFields":{}}]}]}`)
@@ -95,17 +97,18 @@ func TestLoadCompat(t *testing.T) {
 			globalConfig := c.Global
 
 			// All configs should have the default http config set except for Webex.
-			require.Equal(t, c.Receivers[0].DiscordConfigs[0].HTTPConfig, globalConfig.HTTPConfig)
-			require.Equal(t, c.Receivers[0].MSTeamsConfigs[0].HTTPConfig, globalConfig.HTTPConfig)
-			require.Equal(t, c.Receivers[0].OpsGenieConfigs[0].HTTPConfig, globalConfig.HTTPConfig)
-			require.Equal(t, c.Receivers[0].PagerdutyConfigs[0].HTTPConfig, globalConfig.HTTPConfig)
-			require.Equal(t, c.Receivers[0].PushoverConfigs[0].HTTPConfig, globalConfig.HTTPConfig)
-			require.Equal(t, c.Receivers[0].SNSConfigs[0].HTTPConfig, globalConfig.HTTPConfig)
-			require.Equal(t, c.Receivers[0].SlackConfigs[0].HTTPConfig, globalConfig.HTTPConfig)
-			require.Equal(t, c.Receivers[0].TelegramConfigs[0].HTTPConfig, globalConfig.HTTPConfig)
-			require.Equal(t, c.Receivers[0].VictorOpsConfigs[0].HTTPConfig, globalConfig.HTTPConfig)
-			require.Equal(t, c.Receivers[0].WebhookConfigs[0].HTTPConfig, globalConfig.HTTPConfig)
-			require.Equal(t, c.Receivers[0].WechatConfigs[0].HTTPConfig, globalConfig.HTTPConfig)
+			expectedHTTPConfig := v0mimir1.FromCommonHTTPClientConfig(globalConfig.HTTPConfig)
+			require.Equal(t, expectedHTTPConfig, c.Receivers[0].DiscordConfigs[0].HTTPConfig)
+			require.Equal(t, expectedHTTPConfig, c.Receivers[0].MSTeamsConfigs[0].HTTPConfig)
+			require.Equal(t, expectedHTTPConfig, c.Receivers[0].OpsGenieConfigs[0].HTTPConfig)
+			require.Equal(t, expectedHTTPConfig, c.Receivers[0].PagerdutyConfigs[0].HTTPConfig)
+			require.Equal(t, expectedHTTPConfig, c.Receivers[0].PushoverConfigs[0].HTTPConfig)
+			require.Equal(t, expectedHTTPConfig, c.Receivers[0].SNSConfigs[0].HTTPConfig)
+			require.Equal(t, expectedHTTPConfig, c.Receivers[0].SlackConfigs[0].HTTPConfig)
+			require.Equal(t, expectedHTTPConfig, c.Receivers[0].TelegramConfigs[0].HTTPConfig)
+			require.Equal(t, expectedHTTPConfig, c.Receivers[0].VictorOpsConfigs[0].HTTPConfig)
+			require.Equal(t, expectedHTTPConfig, c.Receivers[0].WebhookConfigs[0].HTTPConfig)
+			require.Equal(t, expectedHTTPConfig, c.Receivers[0].WechatConfigs[0].HTTPConfig)
 
 			if len(c.Receivers[0].EmailConfigs) > 0 {
 				require.Equal(t, c.Receivers[0].EmailConfigs[0].Smarthost, globalConfig.SMTPSmarthost)
@@ -119,23 +122,6 @@ func TestLoadCompat(t *testing.T) {
 		})
 	}
 
-}
-
-func TestGrafanaToUpstreamConfig(t *testing.T) {
-	cfg, err := Load(validConfig)
-	require.NoError(t, err)
-	upstream := GrafanaToUpstreamConfig(cfg)
-
-	require.Equal(t, cfg.Global, upstream.Global)
-	require.Equal(t, cfg.Route.AsAMRoute(), upstream.Route)
-	require.Equal(t, cfg.InhibitRules, upstream.InhibitRules)
-	require.Equal(t, cfg.Templates, upstream.Templates)
-	require.Equal(t, cfg.MuteTimeIntervals, upstream.MuteTimeIntervals)
-	require.Equal(t, cfg.TimeIntervals, upstream.TimeIntervals)
-
-	for i, r := range cfg.Receivers {
-		require.Equal(t, r.Name, upstream.Receivers[i].Name)
-	}
 }
 
 func TestAsAMRoute(t *testing.T) {

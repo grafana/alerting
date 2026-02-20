@@ -12,6 +12,10 @@ import (
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/timeinterval"
 	commoncfg "github.com/prometheus/common/config"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
+	webhook_v0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
 )
 
 func TestMarshalJSONWithSecrets(t *testing.T) {
@@ -81,13 +85,13 @@ func TestMarshalJSONWithSecrets(t *testing.T) {
 		},
 		Receivers: []*PostableApiReceiver{
 			{
-				Receiver: config.Receiver{
+				Receiver: Receiver{
 					Name: "test-receiver",
-					WebhookConfigs: []*config.WebhookConfig{
+					WebhookConfigs: []*webhook_v0mimir1.Config{
 						{
 							URL: &config.SecretURL{URL: testURL},
-							HTTPConfig: &commoncfg.HTTPClientConfig{
-								BasicAuth: &commoncfg.BasicAuth{
+							HTTPConfig: &httpcfg.HTTPClientConfig{
+								BasicAuth: &httpcfg.BasicAuth{
 									Username: "user",
 									Password: commoncfg.Secret("password"),
 								},
@@ -95,15 +99,15 @@ func TestMarshalJSONWithSecrets(t *testing.T) {
 						},
 						{
 							URL: &config.SecretURL{URL: testURL},
-							HTTPConfig: &commoncfg.HTTPClientConfig{
-								Authorization: &commoncfg.Authorization{
+							HTTPConfig: &httpcfg.HTTPClientConfig{
+								Authorization: &httpcfg.Authorization{
 									Type:        "Bearer",
 									Credentials: commoncfg.Secret("bearer-token-secret"),
 								},
 							},
 						},
 					},
-					EmailConfigs: []*config.EmailConfig{
+					EmailConfigs: []*email_v0mimir1.Config{
 						{
 							To:           "test@grafana.com",
 							From:         "alerts@grafana.com",

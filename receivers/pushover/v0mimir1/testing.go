@@ -12,8 +12,8 @@ const FullValidConfigForTesting = `{
 	"sound": "bike",
 	"priority": "urgent",
 	"retry": "30s",
-	"expire": "1h0m0s",
-	"ttl": "1h0m0s",
+	"expire": "1h",
+	"ttl": "1h",
 	"html": true,
 	"send_resolved": true
 }`
