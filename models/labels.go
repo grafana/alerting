@@ -30,3 +30,23 @@ const (
 	ValuesAnnotation      = "__values__"
 	ValueStringAnnotation = "__value_string__"
 )
+
+// filterAlertmanagerKV returns true if a label or annotation should be excluded
+// because its name or value is empty.
+func filterAlertmanagerKV(name, value string) bool {
+	return name == "" || value == ""
+}
+
+// FilterAlertmanagerLabel returns true if the label should be excluded from
+// Alertmanager payloads. Labels are filtered when the name is empty,
+// the value is empty, or the name matches NamespaceUIDLabel.
+func FilterAlertmanagerLabel(name, value string) bool {
+	return filterAlertmanagerKV(name, value) || name == NamespaceUIDLabel
+}
+
+// FilterAlertmanagerAnnotation returns true if the annotation should be
+// excluded from Alertmanager payloads. Annotations are filtered when the
+// name or value is empty.
+func FilterAlertmanagerAnnotation(name, value string) bool {
+	return filterAlertmanagerKV(name, value)
+}
