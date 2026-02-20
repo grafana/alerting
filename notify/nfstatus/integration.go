@@ -12,6 +12,8 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/receivers"
 )
 
 type NotificationHistoryAlert struct {
@@ -85,7 +87,11 @@ func NewNotifierAdapter(n notify.Notifier) Notifier {
 
 func (n NotifierAdapter) Notify(ctx context.Context, alerts ...*types.Alert) (NotifyInfo, bool, error) {
 	retry, err := n.n.Notify(ctx, alerts...)
-	return NotifyInfo{}, retry, err
+	var info NotifyInfo
+	if extraData, ok := receivers.GetExtraDataFromContext(ctx); ok {
+		info.ExtraData = extraData
+	}
+	return info, retry, err
 }
 
 // NewIntegration returns a new integration.
