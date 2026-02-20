@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	alertingInstrument "github.com/grafana/alerting/http/instrument"
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/historian/lokiclient"
 	"github.com/grafana/alerting/notify/nfstatus"
 )
@@ -163,9 +164,18 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 			return lokiclient.Stream{}, err
 		}
 
+		// Loki pagination is done with timestamps, and notifications can have many alerts.
+		// Therefore, to be able to return notifications with > 5000 alerts, we should give
+		// each line a slightly different timestamp.
+		ts := now.Add(time.Nanosecond * time.Duration(i))
+
 		values[i] = lokiclient.Sample{
-			T: now,
+			T: ts,
 			V: string(entryJSON),
+			Metadata: map[string]string{
+				"receiver": nhe.ReceiverName,
+				"rule_uid": entryAlerts[i].Labels[models.RuleUIDLabel],
+			},
 		}
 	}
 
