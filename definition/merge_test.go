@@ -389,7 +389,7 @@ func TestMerge(t *testing.T) {
 		full.Global = nil
 
 		diff := cmp.Diff(MergeResult{Config: *full}, result,
-			cmpopts.IgnoreUnexported(commoncfg.ProxyConfig{}, labels.Matcher{}),
+			cmpopts.IgnoreUnexported(commoncfg.ProxyConfig{}, httpcfg.ProxyConfig{}, labels.Matcher{}),
 			cmpopts.SortSlices(func(a, b *labels.Matcher) bool {
 				return a.Name < b.Name
 			}),
