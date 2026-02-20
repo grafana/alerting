@@ -24,9 +24,13 @@ type fakeNotifier struct {
 	err   error
 }
 
-func (f *fakeNotifier) Notify(_ context.Context, _ ...*types.Alert) (bool, error) {
+func (f *fakeNotifier) Notify(ctx context.Context, _ ...*types.Alert) (NotifyInfo, bool, error) {
 	time.Sleep(10 * time.Millisecond)
-	return f.retry, f.err
+	var info NotifyInfo
+	if extraData, ok := ctx.Value(receivers.ExtraDataKey).([]json.RawMessage); ok {
+		info.ExtraData = extraData
+	}
+	return info, f.retry, f.err
 }
 
 type fakeResolvedSender struct {
