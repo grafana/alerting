@@ -28,6 +28,8 @@ type NotificationHistoryEntry struct {
 	NotificationErr error
 	Duration        time.Duration
 	ReceiverName    string
+	IntegrationName string
+	IntegrationIdx  int
 	GroupLabels     model.LabelSet
 	PipelineTime    time.Time
 }
@@ -65,7 +67,13 @@ type Integration struct {
 // NewIntegration returns a new integration.
 func NewIntegration(notifier notify.Notifier, rs notify.ResolvedSender, name string, idx int, receiverName string, notificationHistorian NotificationHistorian, logger log.Logger) *Integration {
 	// Wrap the provided Notifier with our own, which will capture notification attempt errors.
-	status := &statusCaptureNotifier{upstream: notifier, notificationHistorian: notificationHistorian, logger: logger}
+	status := &statusCaptureNotifier{
+		integrationName:       name,
+		integrationIdx:        idx,
+		upstream:              notifier,
+		notificationHistorian: notificationHistorian,
+		logger:                logger,
+	}
 
 	integration := notify.NewIntegration(status, rs, name, idx, receiverName)
 
@@ -124,6 +132,8 @@ func GetIntegrations(integrations []*Integration) []*notify.Integration {
 
 // statusCaptureNotifier is used to wrap a notify.Notifer and capture information about attempts.
 type statusCaptureNotifier struct {
+	integrationName       string
+	integrationIdx        int
 	upstream              notify.Notifier
 	notificationHistorian NotificationHistorian
 	logger                log.Logger
@@ -183,6 +193,8 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 		NotificationErr: err,
 		Duration:        duration,
 		ReceiverName:    receiverName,
+		IntegrationName: n.integrationName,
+		IntegrationIdx:  n.integrationIdx,
 		GroupLabels:     groupLabels,
 		PipelineTime:    pipelineTime,
 	}
