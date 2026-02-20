@@ -21,6 +21,7 @@ import (
 	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
@@ -34,7 +35,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 
 	emailService := receivers.MockNotificationService()
 
-	noopWrapper := func(_ string, n Notifier) Notifier {
+	noopWrapper := func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
 		return n
 	}
 
@@ -53,7 +54,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 		fullCfg, qty := getFullConfig(t)
 
 		wrapped := 0
-		notifyWrapper := func(_ string, n Notifier) Notifier {
+		notifyWrapper := func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
 			wrapped++
 			return n
 		}
@@ -170,7 +171,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			DecodeSecretsFromBase64,
 			emailService,
 			nil,
-			func(_ string, n notify.Notifier) notify.Notifier {
+			func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
 				return n
 			},
 			version,
@@ -217,7 +218,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			DecodeSecretsFromBase64,
 			emailService,
 			nil,
-			func(_ string, n notify.Notifier) notify.Notifier {
+			func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
 				return n
 			},
 			version,
