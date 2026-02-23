@@ -88,7 +88,7 @@ type teamsMessage struct {
 
 // New returns a new notifier that uses the Microsoft Teams Power Platform connector.
 func New(c *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg.HTTPClientOption) (*Notifier, error) {
-	client, err := httpcfg.NewClientFromConfig(*c.HTTPConfig, "msteamsv2", httpOpts...)
+	client, err := httpcfg.NewClientFromConfig(c.HTTPConfig, "msteamsv2", httpOpts...)
 	if err != nil {
 		return nil, err
 	}

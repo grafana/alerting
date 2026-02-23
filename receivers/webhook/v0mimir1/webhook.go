@@ -44,7 +44,7 @@ type Notifier struct {
 
 // New returns a new Webhook.
 func New(conf *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg.HTTPClientOption) (*Notifier, error) {
-	client, err := httpcfg.NewClientFromConfig(*conf.HTTPConfig, "webhook", httpOpts...)
+	client, err := httpcfg.NewClientFromConfig(conf.HTTPConfig, "webhook", httpOpts...)
 	if err != nil {
 		return nil, err
 	}

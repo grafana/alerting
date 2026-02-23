@@ -6,7 +6,10 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 )
 
-func NewClientFromConfig(cfg HTTPClientConfig, name string, optFuncs ...commoncfg.HTTPClientOption) (*http.Client, error) {
+func NewClientFromConfig(cfg *HTTPClientConfig, name string, optFuncs ...commoncfg.HTTPClientOption) (*http.Client, error) {
+	if cfg == nil {
+		cfg = &DefaultHTTPClientConfig
+	}
 	converted := cfg.ToCommonHTTPClientConfig()
 	if err := converted.Validate(); err != nil {
 		return nil, err
