@@ -117,9 +117,16 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 						Receiver: config.Receiver{
 							Name: "am",
 							EmailConfigs: []*config.EmailConfig{{
-								To:      "test@test.com",
-								HTML:    config.DefaultEmailConfig.HTML,
-								Headers: map[string]string{},
+								Smarthost: config.HostPort{
+									Host: "test",
+									Port: "567",
+								},
+								Hello:      "localhost",
+								RequireTLS: func() *bool { b := true; return &b }(),
+								From:       "grafana",
+								To:         "test@test.com",
+								HTML:       config.DefaultEmailConfig.HTML,
+								Headers:    map[string]string{},
 							}},
 						},
 					},
@@ -336,9 +343,16 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 						Receiver: config.Receiver{
 							Name: "am",
 							EmailConfigs: []*config.EmailConfig{{
-								To:      "test@test.com",
-								HTML:    config.DefaultEmailConfig.HTML,
-								Headers: map[string]string{},
+								Smarthost: config.HostPort{
+									Host: "test",
+									Port: "567",
+								},
+								Hello:      "localhost",
+								RequireTLS: func() *bool { b := true; return &b }(),
+								From:       "grafana",
+								To:         "test@test.com",
+								HTML:       config.DefaultEmailConfig.HTML,
+								Headers:    map[string]string{},
 							}},
 						},
 					},
@@ -389,7 +403,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 			encoded, err := json.Marshal(tc.input)
 			require.Nil(t, err)
 
-			cfg, err := Load(encoded)
+			cfg, err := LoadCompat(encoded)
 			if tc.err {
 				require.Error(t, err)
 			} else {
@@ -402,7 +416,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 			encoded, err := yaml.Marshal(tc.input)
 			require.Nil(t, err)
 
-			cfg, err := Load(encoded)
+			cfg, err := LoadCompat(encoded)
 			if tc.err {
 				require.Error(t, err)
 			} else {
