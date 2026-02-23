@@ -251,10 +251,10 @@ func IntegrationTypeFromMimirTypeReflect(t reflect.Type) (schema.IntegrationType
 	}
 	if t.Kind() == reflect.Struct {
 		itype, ok := v0integrationTypeToIntegrationType[t]
-		if !ok {
-			return "", errors.New("not a v0mimir config type")
+		if ok {
+			return itype, nil
 		}
-		return itype, nil
+		return IntegrationTypeFromString(strings.ToLower(strings.TrimSuffix(t.Name(), "Config")))
 	}
 	if t.Kind() == reflect.Ptr {
 		return IntegrationTypeFromMimirTypeReflect(t.Elem())
