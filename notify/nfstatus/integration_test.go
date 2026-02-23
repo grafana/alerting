@@ -144,6 +144,8 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 		NotificationErr: notifier.err,
 		Duration:        0,
 		ReceiverName:    testReceiverName,
+		IntegrationName: "foo",
+		IntegrationIdx:  42,
 		GroupLabels:     testGroupLabels,
 		PipelineTime:    testPipelineTime,
 	}
