@@ -561,5 +561,9 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 // The upstream alertmanager defines an unexported 'duration' type (underlying type int64) that
 // cannot be assigned to directly from outside the package.
 func setConfigDuration(ptr any, d model.Duration) {
-	reflect.ValueOf(ptr).Elem().SetInt(int64(d))
+	v := reflect.ValueOf(ptr)
+	if !v.IsValid() || v.Kind() != reflect.Pointer || v.IsNil() {
+		return
+	}
+	v.Elem().SetInt(int64(d))
 }
