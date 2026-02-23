@@ -175,3 +175,7 @@ replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20251124
 replace google.golang.org/genproto/googleapis/rpc => google.golang.org/genproto/googleapis/rpc v0.0.0-20251124214823-79d6a2a48846
 
 replace google.golang.org/genproto/googleapis/api => google.golang.org/genproto/googleapis/api v0.0.0-20251124214823-79d6a2a48846
+
+// Redirect old YAML v2 import path to canonical path to avoid type conflicts
+// when different transitive dependencies use different import paths.
+replace gopkg.in/yaml.v2 => go.yaml.in/yaml/v2 v2.4.3
