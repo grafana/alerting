@@ -61,7 +61,7 @@ func init() {
 }
 
 type ClusterPeer interface {
-	AddState(string, cluster.State, prometheus.Registerer) cluster.ClusterChannel
+	AddState(string, cluster.State, prometheus.Registerer, ...cluster.ChannelOption) cluster.ClusterChannel
 	Position() int
 	WaitReady(context.Context) error
 }
