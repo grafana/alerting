@@ -121,23 +121,6 @@ func TestLoadCompat(t *testing.T) {
 
 }
 
-func TestGrafanaToUpstreamConfig(t *testing.T) {
-	cfg, err := Load(validConfig)
-	require.NoError(t, err)
-	upstream := GrafanaToUpstreamConfig(cfg)
-
-	require.Equal(t, cfg.Global, upstream.Global)
-	require.Equal(t, cfg.Route.AsAMRoute(), upstream.Route)
-	require.Equal(t, cfg.InhibitRules, upstream.InhibitRules)
-	require.Equal(t, cfg.Templates, upstream.Templates)
-	require.Equal(t, cfg.MuteTimeIntervals, upstream.MuteTimeIntervals)
-	require.Equal(t, cfg.TimeIntervals, upstream.TimeIntervals)
-
-	for i, r := range cfg.Receivers {
-		require.Equal(t, r.Name, upstream.Receivers[i].Name)
-	}
-}
-
 func TestAsAMRoute(t *testing.T) {
 	// Ensure that AsAMRoute and AsGrafanaRoute are inverses of each other.
 	cfg, err := LoadCompat([]byte(testConfigWithComplexRoutes))
