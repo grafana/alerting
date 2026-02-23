@@ -26,7 +26,8 @@ func (c *HTTPClientConfig) ToCommonHTTPClientConfig() *commoncfg.HTTPClientConfi
 // FromCommonHTTPClientConfig converts commoncfg.HTTPClientConfig to HTTPClientConfig.
 func FromCommonHTTPClientConfig(c *commoncfg.HTTPClientConfig) *HTTPClientConfig {
 	if c == nil {
-		return nil
+		cfg := DefaultHTTPClientConfig
+		return &cfg
 	}
 	return &HTTPClientConfig{
 		BasicAuth:       fromCommonBasicAuth(c.BasicAuth),
