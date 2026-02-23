@@ -53,7 +53,7 @@ type Notifier struct {
 
 // New returns a new Pushover notifier.
 func New(c *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg.HTTPClientOption) (*Notifier, error) {
-	client, err := httpcfg.NewClientFromConfig(*c.HTTPConfig, "pushover", httpOpts...)
+	client, err := httpcfg.NewClientFromConfig(c.HTTPConfig, "pushover", httpOpts...)
 	if err != nil {
 		return nil, err
 	}
