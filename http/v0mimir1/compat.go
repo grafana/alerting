@@ -15,7 +15,7 @@ func (c *HTTPClientConfig) ToCommonHTTPClientConfig() *commoncfg.HTTPClientConfi
 		OAuth2:          toCommonOAuth2(c.OAuth2),
 		BearerToken:     c.BearerToken,
 		BearerTokenFile: c.BearerTokenFile,
-		TLSConfig:       toCommonTLSConfig(c.TLSConfig),
+		TLSConfig:       ToCommonTLSConfig(c.TLSConfig),
 		FollowRedirects: c.FollowRedirects,
 		EnableHTTP2:     c.EnableHTTP2,
 		ProxyConfig:     toCommonProxyConfig(c.ProxyConfig),
@@ -34,7 +34,7 @@ func FromCommonHTTPClientConfig(c *commoncfg.HTTPClientConfig) *HTTPClientConfig
 		OAuth2:          fromCommonOAuth2(c.OAuth2),
 		BearerToken:     c.BearerToken,
 		BearerTokenFile: c.BearerTokenFile,
-		TLSConfig:       fromCommonTLSConfig(c.TLSConfig),
+		TLSConfig:       FromCommonTLSConfig(c.TLSConfig),
 		FollowRedirects: c.FollowRedirects,
 		EnableHTTP2:     c.EnableHTTP2,
 		ProxyConfig:     fromCommonProxyConfig(c.ProxyConfig),
@@ -106,7 +106,7 @@ func toCommonOAuth2(o *OAuth2) *commoncfg.OAuth2 {
 		Scopes:           o.Scopes,
 		TokenURL:         o.TokenURL,
 		EndpointParams:   o.EndpointParams,
-		TLSConfig:        toCommonTLSConfig(o.TLSConfig),
+		TLSConfig:        ToCommonTLSConfig(o.TLSConfig),
 		ProxyConfig:      toCommonProxyConfig(o.ProxyConfig),
 	}
 }
@@ -123,12 +123,12 @@ func fromCommonOAuth2(o *commoncfg.OAuth2) *OAuth2 {
 		Scopes:           o.Scopes,
 		TokenURL:         o.TokenURL,
 		EndpointParams:   o.EndpointParams,
-		TLSConfig:        fromCommonTLSConfig(o.TLSConfig),
+		TLSConfig:        FromCommonTLSConfig(o.TLSConfig),
 		ProxyConfig:      fromCommonProxyConfig(o.ProxyConfig),
 	}
 }
 
-func toCommonTLSConfig(c TLSConfig) commoncfg.TLSConfig {
+func ToCommonTLSConfig(c TLSConfig) commoncfg.TLSConfig {
 	return commoncfg.TLSConfig{
 		CA:                 c.CA,
 		Cert:               c.Cert,
@@ -146,7 +146,7 @@ func toCommonTLSConfig(c TLSConfig) commoncfg.TLSConfig {
 	}
 }
 
-func fromCommonTLSConfig(c commoncfg.TLSConfig) TLSConfig {
+func FromCommonTLSConfig(c commoncfg.TLSConfig) TLSConfig {
 	return TLSConfig{
 		CA:                 c.CA,
 		Cert:               c.Cert,

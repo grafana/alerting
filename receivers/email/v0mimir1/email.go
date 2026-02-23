@@ -38,6 +38,8 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 )
 
 // Email implements a Notifier for email notifications.
@@ -133,7 +135,8 @@ func (n *Email) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 		success = false
 	)
 	if n.conf.Smarthost.Port == "465" {
-		tlsConfig, err := commoncfg.NewTLSConfig(&n.conf.TLSConfig)
+		commonTls := httpcfg.ToCommonTLSConfig(n.conf.TLSConfig)
+		tlsConfig, err := commoncfg.NewTLSConfig(&commonTls)
 		if err != nil {
 			return false, fmt.Errorf("parse TLS configuration: %w", err)
 		}
@@ -180,7 +183,8 @@ func (n *Email) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 			return true, fmt.Errorf("'require_tls' is true (default) but %q does not advertise the STARTTLS extension", n.conf.Smarthost)
 		}
 
-		tlsConf, err := commoncfg.NewTLSConfig(&n.conf.TLSConfig)
+		commonTls := httpcfg.ToCommonTLSConfig(n.conf.TLSConfig)
+		tlsConf, err := commoncfg.NewTLSConfig(&commonTls)
 		if err != nil {
 			return false, fmt.Errorf("parse TLS configuration: %w", err)
 		}
