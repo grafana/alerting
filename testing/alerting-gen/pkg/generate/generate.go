@@ -58,7 +58,7 @@ func NewAlertingRuleGenerator(queryDS string) *rapid.Generator[*models.Provision
 		// Randomly add receiver to some rules.
 		var notificationSettings *models.AlertRuleNotificationSettings
 		if rapid.Bool().Draw(t, "with_notification_settings") {
-			r := "grafana-default-email"
+			r := "empty"
 			notificationSettings = &models.AlertRuleNotificationSettings{
 				Receiver: &r,
 			}

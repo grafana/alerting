@@ -11,8 +11,9 @@ const Version = schema.V0mimir1
 type Config = config.OpsGenieConfig
 
 var Schema = schema.IntegrationSchemaVersion{
-	Version:   Version,
-	CanCreate: false,
+	Version:    Version,
+	CanCreate:  false,
+	Deprecated: true,
 	Options: []schema.Field{
 		{
 			Label:        "API key",

@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	alertingInstrument "github.com/grafana/alerting/http/instrument"
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/historian/lokiclient"
 	"github.com/grafana/alerting/notify/nfstatus"
 )
@@ -26,18 +27,20 @@ const (
 )
 
 type NotificationHistoryLokiEntry struct {
-	SchemaVersion int                               `json:"schemaVersion"`
-	Receiver      string                            `json:"receiver"`
-	GroupKey      string                            `json:"groupKey"`
-	Status        string                            `json:"status"`
-	GroupLabels   map[string]string                 `json:"groupLabels"`
-	Alert         NotificationHistoryLokiEntryAlert `json:"alert"`
-	AlertIndex    int                               `json:"alertIndex"`
-	AlertCount    int                               `json:"alertCount"`
-	Retry         bool                              `json:"retry"`
-	Error         string                            `json:"error,omitempty"`
-	Duration      int64                             `json:"duration"`
-	PipelineTime  time.Time                         `json:"pipelineTime"`
+	SchemaVersion  int                               `json:"schemaVersion"`
+	Receiver       string                            `json:"receiver"`
+	Integration    string                            `json:"integration"`
+	IntegrationIdx int                               `json:"integrationIdx"`
+	GroupKey       string                            `json:"groupKey"`
+	Status         string                            `json:"status"`
+	GroupLabels    map[string]string                 `json:"groupLabels"`
+	Alert          NotificationHistoryLokiEntryAlert `json:"alert"`
+	AlertIndex     int                               `json:"alertIndex"`
+	AlertCount     int                               `json:"alertCount"`
+	Retry          bool                              `json:"retry"`
+	Error          string                            `json:"error,omitempty"`
+	Duration       int64                             `json:"duration"`
+	PipelineTime   time.Time                         `json:"pipelineTime"`
 }
 
 type NotificationHistoryLokiEntryAlert struct {
@@ -140,18 +143,20 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 	values := make([]lokiclient.Sample, len(nhe.Alerts))
 	for i := range nhe.Alerts {
 		entry := NotificationHistoryLokiEntry{
-			SchemaVersion: 1,
-			Receiver:      nhe.ReceiverName,
-			Status:        string(types.Alerts(as...).StatusAt(now)),
-			GroupKey:      nhe.GroupKey,
-			GroupLabels:   prepareLabels(nhe.GroupLabels),
-			Alert:         entryAlerts[i],
-			AlertIndex:    i,
-			AlertCount:    len(nhe.Alerts),
-			Retry:         nhe.Retry,
-			Error:         notificationErrStr,
-			Duration:      int64(nhe.Duration),
-			PipelineTime:  nhe.PipelineTime,
+			SchemaVersion:  1,
+			Receiver:       nhe.ReceiverName,
+			Integration:    nhe.IntegrationName,
+			IntegrationIdx: nhe.IntegrationIdx,
+			Status:         string(types.Alerts(as...).StatusAt(now)),
+			GroupKey:       nhe.GroupKey,
+			GroupLabels:    prepareLabels(nhe.GroupLabels),
+			Alert:          entryAlerts[i],
+			AlertIndex:     i,
+			AlertCount:     len(nhe.Alerts),
+			Retry:          nhe.Retry,
+			Error:          notificationErrStr,
+			Duration:       int64(nhe.Duration),
+			PipelineTime:   nhe.PipelineTime,
 		}
 
 		entryJSON, err := json.Marshal(entry)
@@ -159,9 +164,18 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 			return lokiclient.Stream{}, err
 		}
 
+		// Loki pagination is done with timestamps, and notifications can have many alerts.
+		// Therefore, to be able to return notifications with > 5000 alerts, we should give
+		// each line a slightly different timestamp.
+		ts := now.Add(time.Nanosecond * time.Duration(i))
+
 		values[i] = lokiclient.Sample{
-			T: now,
+			T: ts,
 			V: string(entryJSON),
+			Metadata: map[string]string{
+				"receiver": nhe.ReceiverName,
+				"rule_uid": entryAlerts[i].Labels[models.RuleUIDLabel],
+			},
 		}
 	}
 

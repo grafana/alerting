@@ -12,8 +12,6 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
-
-	"github.com/grafana/alerting/receivers"
 )
 
 type NotificationHistoryAlert struct {
@@ -28,6 +26,8 @@ type NotificationHistoryEntry struct {
 	NotificationErr error
 	Duration        time.Duration
 	ReceiverName    string
+	IntegrationName string
+	IntegrationIdx  int
 	GroupLabels     model.LabelSet
 	PipelineTime    time.Time
 }
@@ -62,10 +62,42 @@ type Integration struct {
 	integration *notify.Integration
 }
 
+// NotifyInfo is informational data about notification attempts.
+type NotifyInfo struct {
+	ExtraData []json.RawMessage
+}
+
+// Notifier is an extended version of notify.Notifier which returns the
+// context with any modifications made to it by intermediate hooks.
+type Notifier interface {
+	Notify(context.Context, ...*types.Alert) (NotifyInfo, bool, error)
+}
+
+// NotifierAdapter adapts an upstream notify.Notifier to our Notifier
+type NotifierAdapter struct {
+	n notify.Notifier
+}
+
+// NotifierAdapter adapts an upstream notify.Notifier to our Notifier
+func NewNotifierAdapter(n notify.Notifier) Notifier {
+	return NotifierAdapter{n: n}
+}
+
+func (n NotifierAdapter) Notify(ctx context.Context, alerts ...*types.Alert) (NotifyInfo, bool, error) {
+	retry, err := n.n.Notify(ctx, alerts...)
+	return NotifyInfo{}, retry, err
+}
+
 // NewIntegration returns a new integration.
-func NewIntegration(notifier notify.Notifier, rs notify.ResolvedSender, name string, idx int, receiverName string, notificationHistorian NotificationHistorian, logger log.Logger) *Integration {
+func NewIntegration(notifier Notifier, rs notify.ResolvedSender, name string, idx int, receiverName string, notificationHistorian NotificationHistorian, logger log.Logger) *Integration {
 	// Wrap the provided Notifier with our own, which will capture notification attempt errors.
-	status := &statusCaptureNotifier{upstream: notifier, notificationHistorian: notificationHistorian, logger: logger}
+	status := &statusCaptureNotifier{
+		integrationName:       name,
+		integrationIdx:        idx,
+		upstream:              notifier,
+		notificationHistorian: notificationHistorian,
+		logger:                logger,
+	}
 
 	integration := notify.NewIntegration(status, rs, name, idx, receiverName)
 
@@ -124,7 +156,9 @@ func GetIntegrations(integrations []*Integration) []*notify.Integration {
 
 // statusCaptureNotifier is used to wrap a notify.Notifer and capture information about attempts.
 type statusCaptureNotifier struct {
-	upstream              notify.Notifier
+	integrationName       string
+	integrationIdx        int
+	upstream              Notifier
 	notificationHistorian NotificationHistorian
 	logger                log.Logger
 
@@ -137,10 +171,10 @@ type statusCaptureNotifier struct {
 // Notify implements the Notifier interface.
 func (n *statusCaptureNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
 	start := time.Now()
-	retry, err := n.upstream.Notify(ctx, alerts...)
+	info, retry, err := n.upstream.Notify(ctx, alerts...)
 	duration := time.Since(start)
 
-	go n.recordNotificationHistory(ctx, alerts, retry, err, duration)
+	go n.recordNotificationHistory(ctx, alerts, retry, err, duration, info)
 
 	n.mtx.Lock()
 	defer n.mtx.Unlock()
@@ -152,7 +186,7 @@ func (n *statusCaptureNotifier) Notify(ctx context.Context, alerts ...*types.Ale
 	return retry, err
 }
 
-func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, alerts []*types.Alert, retry bool, err error, duration time.Duration) {
+func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, alerts []*types.Alert, retry bool, err error, duration time.Duration, info NotifyInfo) {
 	if n.notificationHistorian == nil {
 		return
 	}
@@ -163,9 +197,8 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 	pipelineTime, _ := notify.Now(ctx)
 	groupKey, _ := notify.GroupKey(ctx)
 
-	// Don't log/return because extra data is optional.
-	extraData, _ := receivers.GetExtraDataFromContext(ctx)
-
+	// Inject ExtraData into alerts.
+	extraData := info.ExtraData
 	entryAlerts := make([]NotificationHistoryAlert, len(alerts))
 	for i := range alerts {
 		entryAlerts[i] = NotificationHistoryAlert{
@@ -183,6 +216,8 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 		NotificationErr: err,
 		Duration:        duration,
 		ReceiverName:    receiverName,
+		IntegrationName: n.integrationName,
+		IntegrationIdx:  n.integrationIdx,
 		GroupLabels:     groupLabels,
 		PipelineTime:    pipelineTime,
 	}

@@ -7,134 +7,60 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/grafana/alerting/templates/email"
+
 	gomail "gopkg.in/mail.v2"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestEmbedTemplate(t *testing.T) {
-	// Test the email templates are embedded and parsed correctly.
-	require.NotEmpty(t, defaultEmailTemplate)
-	s, err := NewEmailSender(EmailSenderConfig{})
-	require.NoError(t, err)
-
-	ds, ok := s.(*defaultEmailSender)
-	require.True(t, ok)
-
-	definedTmpls := ds.tmpl.DefinedTemplates()
-	require.Contains(t, definedTmpls, "\"ng_alert_notification.html\"")
-	require.Contains(t, definedTmpls, "\"ng_alert_notification.txt\"")
+func TestEmailTemplateInitialized(t *testing.T) {
+	// Test the email template singleton is initialized.
+	tmpl := email.Template()
+	require.NotNil(t, tmpl)
 }
 
 func TestBuildEmailMessage(t *testing.T) {
-	testValue := "test-value"
-	testData := map[string]interface{}{"Value": testValue}
 	externalURL := "http://test.org"
 	sentBy := "Grafana testVersion"
 
-	tests := []struct {
-		name             string
-		contentTypes     []string
-		data             map[string]interface{}
-		subject          string
-		template         string
-		templateName     string
-		embeddedFiles    []string
-		embeddedContents []EmbeddedContent
-		expErr           string
-		expSubject       string
-		expBody          string
-	}{
-		{
-			name:         "no subject",
-			template:     fmt.Sprintf("{{ define %q -}} test {{- end }}", "test_template"),
-			templateName: "test_template",
-			expErr:       "missing subject in template test_template",
-		},
-		{
-			name:          "subject in template, template data provided",
-			contentTypes:  []string{"text/plain"},
-			data:          testData,
-			template:      fmt.Sprintf("{{ define %q -}} {{ Subject .Subject .TemplateData %q }} {{ .AppUrl }} {{ .SentBy }} {{- end }}", "test_template.txt", "{{ .Value }}"),
-			templateName:  "test_template",
-			embeddedFiles: []string{"embedded-1", "embedded-2"},
-			embeddedContents: []EmbeddedContent{
-				{Name: "embedded-1", Content: []byte("embedded-1 data")},
-				{Name: "embedded-2", Content: []byte("embedded-2 data")},
-			},
-			expSubject: testValue,
-			expBody:    fmt.Sprintf("%s %s %s", testValue, externalURL, sentBy),
-		},
-		{
-			name:         "subject via config, template data provided",
-			contentTypes: []string{"text/html"},
-			data:         testData,
-			subject:      "test_subject",
-			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .SentBy }} {{- end }}", "test_template.html"),
-			templateName: "test_template",
-			expSubject:   "test_subject",
-			expBody:      fmt.Sprintf("%s %s %s", testValue, externalURL, sentBy),
-		},
-		{
-			name:         "default data only",
-			contentTypes: []string{"text/plain"},
-			subject:      "test_subject",
-			template:     fmt.Sprintf("{{ define %q -}} {{ .TemplateData.Value }} {{ .AppUrl }} {{ .SentBy }} {{- end }}", "test_template.txt"),
-			templateName: "test_template",
-			expSubject:   "test_subject",
-			expBody:      fmt.Sprintf(" %s %s", externalURL, sentBy),
-		},
-		{
-			name:         "attempting to execute an undefined template",
-			contentTypes: []string{"text/html", "text/plain"},
-			subject:      "test_subject",
-			templateName: "undefined",
-			expErr:       `html/template: "undefined.html" is undefined`,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			s, err := NewEmailSender(EmailSenderConfig{
-				ContentTypes: test.contentTypes,
-				ExternalURL:  externalURL,
-				SentBy:       sentBy,
-			})
-			require.NoError(t, err)
-			ds, ok := s.(*defaultEmailSender)
-			require.True(t, ok)
-
-			_, err = ds.tmpl.Parse(test.template)
-			require.NoError(t, err)
-
-			cfg := SendEmailSettings{
-				To:               []string{"test@test.com"},
-				SingleEmail:      true,
-				Template:         test.templateName,
-				Data:             test.data,
-				ReplyTo:          []string{"test2@test.com"},
-				EmbeddedFiles:    test.embeddedFiles,
-				EmbeddedContents: test.embeddedContents,
-				Subject:          test.subject,
-			}
-			m, err := ds.buildEmailMessage(&cfg)
-			if test.expErr != "" {
-				require.EqualError(t, err, test.expErr)
-			} else {
-				require.NoError(t, err)
-				require.Equal(t, cfg.To, m.To)
-				require.Equal(t, cfg.SingleEmail, m.SingleEmail)
-				require.Equal(t, cfg.ReplyTo, m.ReplyTo)
-				require.Equal(t, cfg.EmbeddedFiles, m.EmbeddedFiles)
-				require.Equal(t, cfg.EmbeddedContents, m.EmbeddedContents)
-				require.Equal(t, test.expSubject, m.Subject)
-
-				for _, ct := range test.contentTypes {
-					require.Equal(t, test.expBody, m.Body[ct])
-				}
-			}
+	t.Run("undefined template returns error", func(t *testing.T) {
+		s := NewEmailSender(EmailSenderConfig{
+			ContentTypes: []string{"text/html", "text/plain"},
+			ExternalURL:  externalURL,
+			SentBy:       sentBy,
 		})
-	}
+		ds, ok := s.(*defaultEmailSender)
+		require.True(t, ok)
+
+		cfg := SendEmailSettings{
+			To:          []string{"test@test.com"},
+			SingleEmail: true,
+			Template:    "undefined",
+			Subject:     "test_subject",
+		}
+		_, err := ds.buildEmailMessage(&cfg)
+		require.ErrorContains(t, err, `html/template: "undefined.html" is undefined`)
+	})
+
+	t.Run("unsupported content type returns error", func(t *testing.T) {
+		s := NewEmailSender(EmailSenderConfig{
+			ContentTypes: []string{"application/json"},
+			ExternalURL:  externalURL,
+			SentBy:       sentBy,
+		})
+		ds, ok := s.(*defaultEmailSender)
+		require.True(t, ok)
+
+		cfg := SendEmailSettings{
+			To:          []string{"test@test.com"},
+			SingleEmail: true,
+			Template:    "ng_alert_notification",
+			Subject:     "test_subject",
+		}
+		_, err := ds.buildEmailMessage(&cfg)
+		require.ErrorContains(t, err, `unrecognized content type "application/json"`)
+	})
 }
 
 func TestCreateDialer(t *testing.T) {
@@ -178,8 +104,7 @@ func TestCreateDialer(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			s, err := NewEmailSender(test.cfg)
-			require.NoError(t, err)
+			s := NewEmailSender(test.cfg)
 			ds, ok := s.(*defaultEmailSender)
 			require.True(t, ok)
 
@@ -262,8 +187,7 @@ func TestBuildEmail(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			s, err := NewEmailSender(tc.cfg)
-			require.NoError(t, err)
+			s := NewEmailSender(tc.cfg)
 			ds, ok := s.(*defaultEmailSender)
 			require.True(t, ok)
 
@@ -283,7 +207,7 @@ func TestBuildEmail(t *testing.T) {
 
 			if tc.checkBodyContent {
 				var buf bytes.Buffer
-				_, err = m.WriteTo(&buf)
+				_, err := m.WriteTo(&buf)
 				require.NoError(t, err)
 
 				str := buf.String()
@@ -373,8 +297,7 @@ func TestSend(t *testing.T) {
 			ms := &mockSender{err: tc.senderError}
 
 			ds := &defaultEmailSender{
-				cfg:  tc.cfg,
-				tmpl: nil,
+				cfg: tc.cfg,
 				dialFn: func(_ *defaultEmailSender) (gomail.SendCloser, error) {
 					return ms, nil
 				},

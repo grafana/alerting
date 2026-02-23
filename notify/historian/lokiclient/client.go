@@ -115,30 +115,51 @@ type Stream struct {
 }
 
 type Sample struct {
-	T time.Time
-	V string
+	T        time.Time
+	V        string
+	Metadata map[string]string
 }
 
 func (r *Sample) MarshalJSON() ([]byte, error) {
+	if len(r.Metadata) > 0 {
+		return json.Marshal([]any{
+			fmt.Sprintf("%d", r.T.UnixNano()), r.V, r.Metadata,
+		})
+	}
 	return json.Marshal([2]string{
 		fmt.Sprintf("%d", r.T.UnixNano()), r.V,
 	})
 }
 
 func (r *Sample) UnmarshalJSON(b []byte) error {
-	// A Loki stream sample is formatted like a list with two elements, [At, Val]
+	// A Loki stream sample is formatted like a list with two or three elements, [At, Val] or [At, Val, Metadata]
 	// At is a string wrapping a timestamp, in nanosecond unix epoch.
 	// Val is a string containing the logger line.
-	var tuple [2]string
-	if err := json.Unmarshal(b, &tuple); err != nil {
+	// Metadata is an optional JSON object with string keys and string values.
+	var raw []json.RawMessage
+	if err := json.Unmarshal(b, &raw); err != nil {
 		return fmt.Errorf("failed to deserialize sample in Loki response: %w", err)
 	}
-	nano, err := strconv.ParseInt(tuple[0], 10, 64)
+	if len(raw) < 2 {
+		return fmt.Errorf("failed to deserialize sample in Loki response: expected at least 2 elements, got %d", len(raw))
+	}
+	var ts string
+	if err := json.Unmarshal(raw[0], &ts); err != nil {
+		return fmt.Errorf("failed to deserialize sample timestamp in Loki response: %w", err)
+	}
+	nano, err := strconv.ParseInt(ts, 10, 64)
 	if err != nil {
-		return fmt.Errorf("timestamp in Loki sample not convertible to nanosecond epoch: %v", tuple[0])
+		return fmt.Errorf("timestamp in Loki sample not convertible to nanosecond epoch: %v", ts)
 	}
 	r.T = time.Unix(0, nano)
-	r.V = tuple[1]
+	if err := json.Unmarshal(raw[1], &r.V); err != nil {
+		return fmt.Errorf("failed to deserialize sample value in Loki response: %w", err)
+	}
+	if len(raw) >= 3 {
+		if err := json.Unmarshal(raw[2], &r.Metadata); err != nil {
+			return fmt.Errorf("failed to deserialize sample metadata in Loki response: %w", err)
+		}
+	}
 	return nil
 }
 

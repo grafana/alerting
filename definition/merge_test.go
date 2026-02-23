@@ -22,11 +22,10 @@ func TestMergeOpts_Validate(t *testing.T) {
 		expectedErr error
 	}{
 		{
-			name: "error if subtree matchers are empty",
+			name: "no error if subtree matchers are empty",
 			opts: MergeOpts{
 				SubtreeMatchers: config.Matchers{},
 			},
-			expectedErr: ErrNoMatchers,
 		},
 		{
 			name: "error if subtree matchers are not equal",
@@ -205,8 +204,10 @@ func TestMerge(t *testing.T) {
 					})
 
 				}),
-				RenamedReceivers: map[string]string{
-					"grafana-default-email": "grafana-default-email_mimir-12345",
+				RenameResources: RenameResources{
+					Receivers: map[string]string{
+						"grafana-default-email": "grafana-default-email_mimir-12345",
+					},
 				},
 			},
 		},
@@ -241,8 +242,10 @@ func TestMerge(t *testing.T) {
 						},
 					)
 				}),
-				RenamedReceivers: map[string]string{
-					"grafana-default-email": "grafana-default-email_mimir-12345_01",
+				RenameResources: RenameResources{
+					Receivers: map[string]string{
+						"grafana-default-email": "grafana-default-email_mimir-12345_01",
+					},
 				},
 			},
 		},
@@ -294,9 +297,11 @@ func TestMerge(t *testing.T) {
 						ActiveTimeIntervals: []string{"mti-1_mimir-12345"},
 					})
 				}),
-				RenamedTimeIntervals: map[string]string{
-					"ti-1":  "ti-1_mimir-12345",
-					"mti-1": "mti-1_mimir-12345",
+				RenameResources: RenameResources{
+					TimeIntervals: map[string]string{
+						"ti-1":  "ti-1_mimir-12345",
+						"mti-1": "mti-1_mimir-12345",
+					},
 				},
 			},
 		},
@@ -364,6 +369,38 @@ func TestMerge(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, load(t, fullGrafanaConfig), g)
 		assert.Equal(t, load(t, fullMimirConfig), m)
+	})
+
+	t.Run("should skip merging routes and inhibition rules if matchers are empty", func(t *testing.T) {
+		g := load(t, fullGrafanaConfig)
+		m := load(t, fullMimirConfig)
+		opts := MergeOpts{
+			DedupSuffix:     "_mimir-12345",
+			SubtreeMatchers: config.Matchers{},
+		}
+		result, err := Merge(*g, *m, opts)
+		require.NoError(t, err)
+
+		full := load(t, fullMergedConfig)
+		full.Route.Routes = full.Route.Routes[1:]
+		full.InhibitRules = g.InhibitRules
+		full.Global = nil
+
+		diff := cmp.Diff(MergeResult{Config: *full}, result,
+			cmpopts.IgnoreUnexported(commoncfg.ProxyConfig{}, labels.Matcher{}),
+			cmpopts.SortSlices(func(a, b *labels.Matcher) bool {
+				return a.Name < b.Name
+			}),
+			cmpopts.SortSlices(func(a, b *PostableApiReceiver) bool {
+				return a.Name < b.Name
+			}),
+			cmpopts.EquateEmpty(),
+		)
+		if !assert.Empty(t, diff) {
+			data, err := yaml.Marshal(result.Config)
+			require.NoError(t, err)
+			t.Fatalf("YAML:\n%v", string(data))
+		}
 	})
 }
 
