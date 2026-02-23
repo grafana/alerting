@@ -349,6 +349,6 @@ receivers:
     webhook_configs:
       - url: http://localhost:8080/alert
   - name: recv2
-    webhook_configs::
+    webhook_configs:
       - url: http://localhost:8080/alert
 `
