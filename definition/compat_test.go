@@ -140,7 +140,7 @@ func TestGrafanaToUpstreamConfig(t *testing.T) {
 
 func TestAsAMRoute(t *testing.T) {
 	// Ensure that AsAMRoute and AsGrafanaRoute are inverses of each other.
-	cfg, err := Load([]byte(testConfigWithComplexRoutes))
+	cfg, err := LoadCompat([]byte(testConfigWithComplexRoutes))
 	require.NoError(t, err)
 	originalRoute := cfg.Route
 	// For easier comparison move ObjectMatchers to Matchers.
@@ -363,9 +363,9 @@ route:
                 - test1
 receivers:
   - name: recv
-    email_configs:
-      - to: recv
+    webhook_configs:
+      - url: http://localhost:8080/alert
   - name: recv2
-    email_configs:
-      - to: recv2
+    webhook_configs::
+      - url: http://localhost:8080/alert
 `
