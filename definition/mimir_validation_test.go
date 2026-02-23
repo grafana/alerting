@@ -151,7 +151,7 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"map containing TLSConfig as nested child": {
 			input: map[string][]email_v0mimir1.Config{
 				"test": {{
-					TLSConfig: commoncfg.TLSConfig{
+					TLSConfig: httpcfg.TLSConfig{
 						CAFile: "/file",
 					},
 				}},
