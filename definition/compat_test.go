@@ -11,8 +11,6 @@ import (
 	"github.com/prometheus/alertmanager/pkg/labels"
 )
 
-var validConfig = []byte(`{"route":{"receiver":"grafana-default-email","routes":[{"receiver":"grafana-default-email","object_matchers":[["a","=","b"]],"mute_time_intervals":["test1"]}]},"mute_time_intervals":[{"name":"test1","time_intervals":[{"times":[{"start_time":"00:00","end_time":"12:00"}]}]}],"templates":null,"receivers":[{"name":"grafana-default-email","grafana_managed_receiver_configs":[{"uid":"uxwfZvtnz","name":"email receiver","type":"email","disableResolveMessage":false,"settings":{"addresses":"<example@email.com>"},"secureFields":{}}]}]}`)
-
 func TestLoadCompat(t *testing.T) {
 	tests := []struct {
 		name   string
