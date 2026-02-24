@@ -43,6 +43,10 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
+    rules:
+      - linters:
+          - staticcheck
+        text: "SA1019:.*github.com/aws/aws-sdk-go.*is deprecated"
     paths:
       - third_party$
       - builtin$
