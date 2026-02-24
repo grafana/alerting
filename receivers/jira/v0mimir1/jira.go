@@ -376,7 +376,10 @@ func (n *Notifier) doAPIRequest(ctx context.Context, method, path string, reques
 
 		body = &buf
 	}
-
+	// avoid panic if API URL happens to be nil (should not be possible)
+	if n.conf.APIURL == nil {
+		return nil, false, fmt.Errorf("api_url is not set")
+	}
 	url := n.conf.APIURL.JoinPath(path)
 	req, err := http.NewRequestWithContext(ctx, method, url.String(), body)
 	if err != nil {
