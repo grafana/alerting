@@ -239,27 +239,24 @@ func (c *ProxyConfig) Validate() error {
 }
 
 // Proxy returns the Proxy URL for a request.
-func (c *ProxyConfig) Proxy() (fn func(*http.Request) (*url.URL, error)) {
+func (c *ProxyConfig) Proxy() func(*http.Request) (*url.URL, error) {
 	if c == nil {
 		return nil
 	}
-	defer func() {
-		fn = c.proxyFunc
-	}()
 	if c.proxyFunc != nil {
-		return
+		return c.proxyFunc
 	}
 	if c.ProxyFromEnvironment {
 		proxyFn := httpproxy.FromEnvironment().ProxyFunc()
 		c.proxyFunc = func(req *http.Request) (*url.URL, error) {
 			return proxyFn(req.URL)
 		}
-		return
+		return c.proxyFunc
 	}
 	if c.ProxyURL.URL != nil && c.ProxyURL.String() != "" {
 		if c.NoProxy == "" {
 			c.proxyFunc = http.ProxyURL(c.ProxyURL.URL)
-			return
+			return c.proxyFunc
 		}
 		proxy := &httpproxy.Config{
 			HTTPProxy:  c.ProxyURL.String(),
@@ -271,7 +268,7 @@ func (c *ProxyConfig) Proxy() (fn func(*http.Request) (*url.URL, error)) {
 			return proxyFn(req.URL)
 		}
 	}
-	return
+	return c.proxyFunc
 }
 
 // GetProxyConnectHeader returns the Proxy Connect Headers.
@@ -374,7 +371,7 @@ func (c *HTTPClientConfig) Validate() error {
 	if (c.BasicAuth != nil || c.OAuth2 != nil) && (len(c.BearerToken) > 0 || len(c.BearerTokenFile) > 0) {
 		return errors.New("at most one of basic_auth, oauth2, bearer_token & bearer_token_file must be configured")
 	}
-	if c.BasicAuth != nil && nonZeroCount(string(c.BasicAuth.Username) != "", c.BasicAuth.UsernameFile != "", c.BasicAuth.UsernameRef != "") > 1 {
+	if c.BasicAuth != nil && nonZeroCount(c.BasicAuth.Username != "", c.BasicAuth.UsernameFile != "", c.BasicAuth.UsernameRef != "") > 1 {
 		return errors.New("at most one of basic_auth username, username_file & username_ref must be configured")
 	}
 	if c.BasicAuth != nil && nonZeroCount(string(c.BasicAuth.Password) != "", c.BasicAuth.PasswordFile != "", c.BasicAuth.PasswordRef != "") > 1 {

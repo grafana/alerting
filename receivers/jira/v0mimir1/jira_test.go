@@ -66,7 +66,7 @@ func TestJiraTemplating(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/search/jql":
-			w.Write([]byte(`{"total": 0, "issues": []}`))
+			_, _ = w.Write([]byte(`{"total": 0, "issues": []}`))
 			return
 		default:
 			dec := json.NewDecoder(r.Body)

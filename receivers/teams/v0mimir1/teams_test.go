@@ -281,7 +281,7 @@ func TestNotifier_Notify_WithReason(t *testing.T) {
 				require.NoError(t, err)
 
 				resp := httptest.NewRecorder()
-				resp.WriteString(tt.responseContent)
+				_, _ = resp.WriteString(tt.responseContent)
 
 				result := resp.Result()
 				result.StatusCode = tt.statusCode

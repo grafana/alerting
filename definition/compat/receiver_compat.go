@@ -118,7 +118,7 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 			URL:            c.URL,
 			URLFile:        c.URLFile,
 			MaxAlerts:      c.MaxAlerts,
-			Timeout:        model.Duration(c.Timeout),
+			Timeout:        c.Timeout,
 		})
 	}
 

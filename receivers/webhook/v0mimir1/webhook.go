@@ -117,7 +117,7 @@ func (n *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, er
 		ctx = postCtx
 	}
 
-	resp, err := notify.PostJSON(ctx, n.client, url, &buf)
+	resp, err := notify.PostJSON(ctx, n.client, url, &buf) //nolint:bodyclose
 	if err != nil {
 		if ctx.Err() != nil {
 			err = fmt.Errorf("%w: %w", err, context.Cause(ctx))

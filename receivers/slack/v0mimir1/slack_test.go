@@ -208,7 +208,7 @@ func TestNotifier_Notify_WithReason(t *testing.T) {
 					resp.Header().Add("Content-Type", "application/json; charset=utf-8")
 				}
 				resp.WriteHeader(tt.statusCode)
-				resp.WriteString(tt.responseBody)
+				_, _ = resp.WriteString(tt.responseBody)
 				return resp.Result(), nil
 			}
 			ctx := context.Background()

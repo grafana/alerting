@@ -85,7 +85,7 @@ func TestNotifier_Notify_WithReason(t *testing.T) {
 
 			notifier.postJSONFunc = func(ctx context.Context, client *http.Client, url string, body io.Reader) (*http.Response, error) {
 				resp := httptest.NewRecorder()
-				resp.WriteString(tt.responseContent)
+				_, _ = resp.WriteString(tt.responseContent)
 				resp.WriteHeader(tt.statusCode)
 				return resp.Result(), nil
 			}

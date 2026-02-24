@@ -29,10 +29,11 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 )
 
 const (
@@ -385,7 +386,7 @@ func (n *Notifier) doAPIRequest(ctx context.Context, method, path string, reques
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept-Language", "en")
 
-	resp, err := n.client.Do(req)
+	resp, err := n.client.Do(req) //nolint:bodyclose
 	if err != nil {
 		return nil, false, err
 	}

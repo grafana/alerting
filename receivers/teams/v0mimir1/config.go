@@ -40,8 +40,8 @@ type Config struct {
 	config.NotifierConfig `yaml:",inline" json:",inline"`
 
 	HTTPConfig     *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
-	WebhookURL     *config.SecretURL           `yaml:"webhook_url,omitempty" json:"webhook_url,omitempty"`
-	WebhookURLFile string                      `yaml:"webhook_url_file,omitempty" json:"webhook_url_file,omitempty"`
+	WebhookURL     *config.SecretURL         `yaml:"webhook_url,omitempty" json:"webhook_url,omitempty"`
+	WebhookURLFile string                    `yaml:"webhook_url_file,omitempty" json:"webhook_url_file,omitempty"`
 
 	Title   string `yaml:"title,omitempty" json:"title,omitempty"`
 	Summary string `yaml:"summary,omitempty" json:"summary,omitempty"`

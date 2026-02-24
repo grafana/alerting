@@ -37,9 +37,9 @@ var DefaultConfig = Config{
 type Config struct {
 	config.NotifierConfig `yaml:",inline" json:",inline"`
 	HTTPConfig            *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
-	APIURL                *config.URL                 `yaml:"api_url,omitempty" json:"api_url,omitempty"`
-	Message               string                      `yaml:"message,omitempty" json:"message,omitempty"`
-	RoomID                string                      `yaml:"room_id" json:"room_id"`
+	APIURL                *config.URL               `yaml:"api_url,omitempty" json:"api_url,omitempty"`
+	Message               string                    `yaml:"message,omitempty" json:"message,omitempty"`
+	RoomID                string                    `yaml:"room_id" json:"room_id"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.

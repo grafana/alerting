@@ -142,7 +142,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		return false, err
 	}
 
-	resp, err := n.postJSONFunc(ctx, n.client, url, &payload)
+	resp, err := n.postJSONFunc(ctx, n.client, url, &payload) //nolint:bodyclose
 	if err != nil {
 		return true, notify.RedactURL(err)
 	}

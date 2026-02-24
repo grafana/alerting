@@ -206,7 +206,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		u = strings.TrimSpace(string(content))
 	}
 
-	resp, err := n.postJSONFunc(ctx, n.client, u, &buf)
+	resp, err := n.postJSONFunc(ctx, n.client, u, &buf) //nolint:bodyclose
 	if err != nil {
 		return true, notify.RedactURL(err)
 	}

@@ -102,7 +102,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	for _, req := range requests {
 		req.Header.Set("User-Agent", notify.UserAgentHeader)
-		resp, err := n.client.Do(req)
+		resp, err := n.client.Do(req) //nolint:bodyclose
 		if err != nil {
 			return true, err
 		}
@@ -155,7 +155,7 @@ func (n *Notifier) createRequests(ctx context.Context, as ...*types.Alert) ([]*h
 		alias  = key.Hash()
 		alerts = types.Alerts(as...)
 	)
-	switch alerts.Status() {
+	switch alerts.Status() { //nolint:exhaustive
 	case model.AlertResolved:
 		resolvedEndpointURL := n.conf.APIURL.Copy()
 		resolvedEndpointURL.Path += fmt.Sprintf("v2/alerts/%s/close", alias)

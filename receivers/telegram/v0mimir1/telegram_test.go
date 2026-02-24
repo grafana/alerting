@@ -108,7 +108,7 @@ func TestTelegramNotify(t *testing.T) {
 				var err error
 				out, err = io.ReadAll(r.Body)
 				require.NoError(t, err)
-				w.Write([]byte(`{"ok":true,"result":{"chat":{}}}`))
+				_, _ = w.Write([]byte(`{"ok":true,"result":{"chat":{}}}`))
 			}))
 			defer srv.Close()
 			u, _ := url.Parse(srv.URL)

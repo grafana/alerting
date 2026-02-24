@@ -46,21 +46,21 @@ type Config struct {
 	config.NotifierConfig `yaml:",inline" json:",inline"`
 
 	HTTPConfig  *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
-	UserKey     config.Secret               `yaml:"user_key,omitempty" json:"user_key,omitempty"`
-	UserKeyFile string                      `yaml:"user_key_file,omitempty" json:"user_key_file,omitempty"`
-	Token       config.Secret               `yaml:"token,omitempty" json:"token,omitempty"`
-	TokenFile   string                      `yaml:"token_file,omitempty" json:"token_file,omitempty"`
-	Title       string                      `yaml:"title,omitempty" json:"title,omitempty"`
-	Message     string                      `yaml:"message,omitempty" json:"message,omitempty"`
-	URL         string                      `yaml:"url,omitempty" json:"url,omitempty"`
-	URLTitle    string                      `yaml:"url_title,omitempty" json:"url_title,omitempty"`
-	Device      string                      `yaml:"device,omitempty" json:"device,omitempty"`
-	Sound       string                      `yaml:"sound,omitempty" json:"sound,omitempty"`
-	Priority    string                      `yaml:"priority,omitempty" json:"priority,omitempty"`
-	Retry       model.Duration              `yaml:"retry,omitempty" json:"retry,omitempty"`
-	Expire      model.Duration              `yaml:"expire,omitempty" json:"expire,omitempty"`
-	TTL         model.Duration              `yaml:"ttl,omitempty" json:"ttl,omitempty"`
-	HTML        bool                        `yaml:"html" json:"html,omitempty"`
+	UserKey     config.Secret             `yaml:"user_key,omitempty" json:"user_key,omitempty"`
+	UserKeyFile string                    `yaml:"user_key_file,omitempty" json:"user_key_file,omitempty"`
+	Token       config.Secret             `yaml:"token,omitempty" json:"token,omitempty"`
+	TokenFile   string                    `yaml:"token_file,omitempty" json:"token_file,omitempty"`
+	Title       string                    `yaml:"title,omitempty" json:"title,omitempty"`
+	Message     string                    `yaml:"message,omitempty" json:"message,omitempty"`
+	URL         string                    `yaml:"url,omitempty" json:"url,omitempty"`
+	URLTitle    string                    `yaml:"url_title,omitempty" json:"url_title,omitempty"`
+	Device      string                    `yaml:"device,omitempty" json:"device,omitempty"`
+	Sound       string                    `yaml:"sound,omitempty" json:"sound,omitempty"`
+	Priority    string                    `yaml:"priority,omitempty" json:"priority,omitempty"`
+	Retry       model.Duration            `yaml:"retry,omitempty" json:"retry,omitempty"`
+	Expire      model.Duration            `yaml:"expire,omitempty" json:"expire,omitempty"`
+	TTL         model.Duration            `yaml:"ttl,omitempty" json:"ttl,omitempty"`
+	HTML        bool                      `yaml:"html" json:"html,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.

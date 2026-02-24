@@ -97,7 +97,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		return true, err
 	}
 
-	resp, err := notify.PostJSON(ctx, n.client, apiURL.String(), buf)
+	resp, err := notify.PostJSON(ctx, n.client, apiURL.String(), buf) //nolint:bodyclose
 	if err != nil {
 		return true, notify.RedactURL(err)
 	}
