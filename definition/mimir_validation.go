@@ -12,6 +12,7 @@ import (
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	discord_v0mimir1 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
+	jira_v0mimir1 "github.com/grafana/alerting/receivers/jira/v0mimir1"
 	opsgenie_v0mimir1 "github.com/grafana/alerting/receivers/opsgenie/v0mimir1"
 	pagerduty_v0mimir1 "github.com/grafana/alerting/receivers/pagerduty/v0mimir1"
 	pushover_v0mimir1 "github.com/grafana/alerting/receivers/pushover/v0mimir1"
@@ -38,6 +39,7 @@ var (
 	errPushoverTokenFileNotAllowed       = errors.New("setting Pushover token_file is not allowed")
 	errTelegramBotTokenFileNotAllowed    = errors.New("setting Telegram bot_token_file is not allowed")
 	errWebhookURLFileNotAllowed          = errors.New("setting Webhook url_file is not allowed")
+	errJiraAPIURLMissing                 = errors.New("missing Jira api_url")
 )
 
 // ValidateAlertmanagerConfig recursively scans the input config looking for data types for which
@@ -120,6 +122,11 @@ func ValidateAlertmanagerConfig(cfg any) error {
 
 	case reflect.TypeOf(webhook_v0mimir1.Config{}):
 		if err := validateWebhookConfig(v.Interface().(webhook_v0mimir1.Config)); err != nil {
+			return err
+		}
+
+	case reflect.TypeOf(jira_v0mimir1.Config{}):
+		if err := validateJiraConfig(v.Interface().(jira_v0mimir1.Config)); err != nil {
 			return err
 		}
 
@@ -385,6 +392,15 @@ func validateTelegramConfig(cfg telegram_v0mimir1.Config) error {
 func validateWebhookConfig(cfg webhook_v0mimir1.Config) error {
 	if cfg.URLFile != "" {
 		return errWebhookURLFileNotAllowed
+	}
+	return nil
+}
+
+// validateJiraConfig validates the Jira config and returns an error if it contains
+// settings not allowed by Mimir or missing required fields.
+func validateJiraConfig(cfg jira_v0mimir1.Config) error {
+	if cfg.APIURL == nil {
+		return errJiraAPIURLMissing
 	}
 	return nil
 }

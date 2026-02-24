@@ -12,6 +12,7 @@ import (
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	discord_v0mimir1 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
+	jira_v0mimir1 "github.com/grafana/alerting/receivers/jira/v0mimir1"
 	teams_v0mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
 )
 
@@ -157,6 +158,14 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 				}},
 			},
 			expected: errTLSConfigNotAllowed,
+		},
+		"*JiraConfig.APIURL is nil": {
+			input:    &jira_v0mimir1.Config{},
+			expected: errJiraAPIURLMissing,
+		},
+		"JiraConfig.APIURL is nil": {
+			input:    jira_v0mimir1.Config{Project: "test"},
+			expected: errJiraAPIURLMissing,
 		},
 	}
 
