@@ -426,10 +426,15 @@ func GetReceivers(receivers []*nfstatus.Receiver) []models.ReceiverStatus {
 		integrations := make([]models.IntegrationStatus, 0, len(rcv.Integrations()))
 		for _, integration := range rcv.Integrations() {
 			ts, d, err := integration.GetReport()
+			var lastNotifyAttempt *strfmt.DateTime
+			if !ts.IsZero() {
+				dt := strfmt.DateTime(ts)
+				lastNotifyAttempt = &dt
+			}
 			integrations = append(integrations, models.IntegrationStatus{
 				Name:                      integration.Name(),
 				SendResolved:              integration.SendResolved(),
-				LastNotifyAttempt:         strfmt.DateTime(ts),
+				LastNotifyAttempt:         lastNotifyAttempt,
 				LastNotifyAttemptDuration: d.String(),
 				LastNotifyAttemptError: func() string {
 					if err != nil {

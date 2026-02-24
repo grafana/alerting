@@ -20,7 +20,7 @@ type ReceiverStatus struct {
 type IntegrationStatus struct {
 	// A timestamp indicating the last attempt to deliver a notification regardless of the outcome.
 	// Format: date-time
-	LastNotifyAttempt strfmt.DateTime `json:"lastNotifyAttempt,omitempty"`
+	LastNotifyAttempt *strfmt.DateTime `json:"lastNotifyAttempt,omitempty"`
 
 	// Duration of the last attempt to deliver a notification in humanized format (`1s` or `15ms`, etc).
 	LastNotifyAttemptDuration string `json:"lastNotifyAttemptDuration,omitempty"`

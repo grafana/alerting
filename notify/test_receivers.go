@@ -48,8 +48,9 @@ func TestIntegration(ctx context.Context,
 	}
 	now := time.Now()
 	err = TestNotifier(ctx, nf[0], newTestAlert(&testAlert, now, now), now)
+	dt := strfmt.DateTime(now)
 	result := models.IntegrationStatus{
-		LastNotifyAttempt:         strfmt.DateTime(now),
+		LastNotifyAttempt:         &dt,
 		LastNotifyAttemptDuration: model.Duration(time.Since(now)).String(),
 		Name:                      nf[0].Name(),
 		SendResolved:              nf[0].SendResolved(),
