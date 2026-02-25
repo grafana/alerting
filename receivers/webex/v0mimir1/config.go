@@ -51,11 +51,11 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	if c.RoomID == "" {
-		return errors.New("missing room_id in Webex config")
+		return errors.New("missing room_id on webex_config")
 	}
 
 	if c.HTTPConfig == nil || c.HTTPConfig.Authorization == nil {
-		return errors.New("missing http_config.authorization in Webex config")
+		return errors.New("missing webex_configs.http_config.authorization")
 	}
 
 	return nil

@@ -45,12 +45,12 @@ type Config struct {
 
 	APIKey            config.Secret     `yaml:"api_key,omitempty" json:"api_key,omitempty"`
 	APIKeyFile        string            `yaml:"api_key_file,omitempty" json:"api_key_file,omitempty"`
-	APIURL            *config.URL       `yaml:"api_url,omitempty" json:"api_url,omitempty"`
+	APIURL            *config.URL       `yaml:"api_url" json:"api_url"`
 	RoutingKey        string            `yaml:"routing_key" json:"routing_key"`
-	MessageType       string            `yaml:"message_type,omitempty" json:"message_type,omitempty"`
-	StateMessage      string            `yaml:"state_message,omitempty" json:"state_message,omitempty"`
-	EntityDisplayName string            `yaml:"entity_display_name,omitempty" json:"entity_display_name,omitempty"`
-	MonitoringTool    string            `yaml:"monitoring_tool,omitempty" json:"monitoring_tool,omitempty"`
+	MessageType       string            `yaml:"message_type" json:"message_type"`
+	StateMessage      string            `yaml:"state_message" json:"state_message"`
+	EntityDisplayName string            `yaml:"entity_display_name" json:"entity_display_name"`
+	MonitoringTool    string            `yaml:"monitoring_tool" json:"monitoring_tool"`
 	CustomFields      map[string]string `yaml:"custom_fields,omitempty" json:"custom_fields,omitempty"`
 }
 
@@ -63,24 +63,18 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	if c.RoutingKey == "" {
-		return errors.New("missing routing key in VictorOps config")
+		return errors.New("missing Routing key in VictorOps config")
 	}
 
 	if c.APIKey != "" && c.APIKeyFile != "" {
 		return errors.New("at most one of api_key & api_key_file must be configured")
 	}
 
-	// Check for reserved fields in custom fields.
-	reservedFields := map[string]struct{}{
-		"message_type":        {},
-		"entity_id":           {},
-		"entity_display_name": {},
-		"state_message":       {},
-		"monitoring_tool":     {},
-	}
-	for key := range c.CustomFields {
-		if _, ok := reservedFields[key]; ok {
-			return fmt.Errorf("custom field %q is reserved and cannot be used", key)
+	reservedFields := []string{"routing_key", "message_type", "state_message", "entity_display_name", "monitoring_tool", "entity_id", "entity_state"}
+
+	for _, v := range reservedFields {
+		if _, ok := c.CustomFields[v]; ok {
+			return fmt.Errorf("victorOps config contains custom field %s which cannot be used as it conflicts with the fixed/static fields", v)
 		}
 	}
 

@@ -19,11 +19,24 @@ import (
 	"time"
 
 	"github.com/prometheus/alertmanager/config"
-	"github.com/prometheus/common/model"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/grafana/alerting/receivers/schema"
 )
+
+type FractionalDuration time.Duration
+
+func (d *FractionalDuration) UnmarshalText(text []byte) error {
+	parsed, err := time.ParseDuration(string(text))
+	if err == nil {
+		*d = FractionalDuration(parsed)
+	}
+	return err
+}
+
+func (d FractionalDuration) MarshalText() ([]byte, error) {
+	return []byte(time.Duration(d).String()), nil
+}
 
 const Version = schema.V0mimir1
 
@@ -36,8 +49,8 @@ var DefaultConfig = Config{
 	Message:  `{{ template "pushover.default.message" . }}`,
 	URL:      `{{ template "pushover.default.url" . }}`,
 	Priority: `{{ if eq .Status "firing" }}2{{ else }}0{{ end }}`,
-	Retry:    model.Duration(1 * time.Minute),
-	Expire:   model.Duration(1 * time.Hour),
+	Retry:    FractionalDuration(1 * time.Minute),
+	Expire:   FractionalDuration(1 * time.Hour),
 	HTML:     false,
 }
 
@@ -57,9 +70,9 @@ type Config struct {
 	Device      string                    `yaml:"device,omitempty" json:"device,omitempty"`
 	Sound       string                    `yaml:"sound,omitempty" json:"sound,omitempty"`
 	Priority    string                    `yaml:"priority,omitempty" json:"priority,omitempty"`
-	Retry       model.Duration            `yaml:"retry,omitempty" json:"retry,omitempty"`
-	Expire      model.Duration            `yaml:"expire,omitempty" json:"expire,omitempty"`
-	TTL         model.Duration            `yaml:"ttl,omitempty" json:"ttl,omitempty"`
+	Retry       FractionalDuration        `yaml:"retry,omitempty" json:"retry,omitempty"`
+	Expire      FractionalDuration        `yaml:"expire,omitempty" json:"expire,omitempty"`
+	TTL         FractionalDuration        `yaml:"ttl,omitempty" json:"ttl,omitempty"`
 	HTML        bool                      `yaml:"html" json:"html,omitempty"`
 }
 

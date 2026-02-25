@@ -4,7 +4,6 @@ import (
 	"reflect"
 
 	"github.com/prometheus/alertmanager/config"
-	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/definition"
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
@@ -183,9 +182,9 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 			Device:         c.Device,
 			Sound:          c.Sound,
 			Priority:       c.Priority,
-			Retry:          model.Duration(c.Retry),
-			Expire:         model.Duration(c.Expire),
-			TTL:            model.Duration(c.TTL),
+			Retry:          pushover_v0mimir1.FractionalDuration(c.Retry),
+			Expire:         pushover_v0mimir1.FractionalDuration(c.Expire),
+			TTL:            pushover_v0mimir1.FractionalDuration(c.TTL),
 			HTML:           c.HTML,
 		})
 	}
@@ -560,7 +559,7 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 // setConfigDuration sets a duration field in an upstream alertmanager config struct via reflection.
 // The upstream alertmanager defines an unexported 'duration' type (underlying type int64) that
 // cannot be assigned to directly from outside the package.
-func setConfigDuration(ptr any, d model.Duration) {
+func setConfigDuration(ptr any, d pushover_v0mimir1.FractionalDuration) {
 	v := reflect.ValueOf(ptr)
 	if !v.IsValid() || v.Kind() != reflect.Pointer || v.IsNil() {
 		return
