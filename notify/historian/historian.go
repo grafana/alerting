@@ -27,7 +27,7 @@ const (
 	LokiClientSpanName              = "ngalert.notification-historian.client"
 	NotificationHistoryWriteTimeout = time.Minute
 	LabelFrom                       = "from"
-	LabelFromValue                  = "notify-history"
+	LabelFromValue                  = "notify-history-events"
 	LabelFromValueAlerts            = "notify-history-alerts"
 	SchemaVersion                   = 2
 )

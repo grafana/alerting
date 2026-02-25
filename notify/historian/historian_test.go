@@ -66,7 +66,7 @@ func TestRecord(t *testing.T) {
 					{
 						Stream: map[string]string{
 							"externalLabelKey": "externalLabelValue",
-							"from":             "notify-history",
+							"from":             "notify-history-events",
 						},
 						Values: []lokiclient.Sample{
 							{
@@ -99,7 +99,7 @@ func TestRecord(t *testing.T) {
 					{
 						Stream: map[string]string{
 							"externalLabelKey": "externalLabelValue",
-							"from":             "notify-history",
+							"from":             "notify-history-events",
 						},
 						Values: []lokiclient.Sample{
 							{
