@@ -312,6 +312,11 @@ func (h Headers) MarshalJSON() ([]byte, error) {
 	return json.Marshal(h.Headers)
 }
 
+// UnmarshalJSON implements the json.Unmarshaler interface for Headers.
+func (h *Headers) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &h.Headers)
+}
+
 // Validate validates the Headers config.
 func (h *Headers) Validate() error {
 	for n := range h.Headers {
