@@ -3,6 +3,10 @@ package historian
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"maps"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/go-kit/log"
@@ -24,32 +28,37 @@ const (
 	NotificationHistoryWriteTimeout = time.Minute
 	LabelFrom                       = "from"
 	LabelFromValue                  = "notify-history"
+	LabelFromValueAlerts            = "notify-history-alerts"
+	SchemaVersion                   = 2
 )
 
 type NotificationHistoryLokiEntry struct {
-	SchemaVersion  int                               `json:"schemaVersion"`
-	Receiver       string                            `json:"receiver"`
-	Integration    string                            `json:"integration"`
-	IntegrationIdx int                               `json:"integrationIdx"`
-	GroupKey       string                            `json:"groupKey"`
-	Status         string                            `json:"status"`
-	GroupLabels    map[string]string                 `json:"groupLabels"`
-	Alert          NotificationHistoryLokiEntryAlert `json:"alert"`
-	AlertIndex     int                               `json:"alertIndex"`
-	AlertCount     int                               `json:"alertCount"`
-	Retry          bool                              `json:"retry"`
-	Error          string                            `json:"error,omitempty"`
-	Duration       int64                             `json:"duration"`
-	PipelineTime   time.Time                         `json:"pipelineTime"`
+	SchemaVersion  int               `json:"schemaVersion"`
+	UUID           string            `json:"uuid"`
+	RuleUIDs       []string          `json:"ruleUIDs"`
+	Receiver       string            `json:"receiver"`
+	Integration    string            `json:"integration"`
+	IntegrationIdx int               `json:"integrationIdx"`
+	GroupKey       string            `json:"groupKey"`
+	Status         string            `json:"status"`
+	GroupLabels    map[string]string `json:"groupLabels"`
+	AlertCount     int               `json:"alertCount"`
+	Retry          bool              `json:"retry"`
+	Error          string            `json:"error,omitempty"`
+	Duration       int64             `json:"duration"`
+	PipelineTime   time.Time         `json:"pipelineTime"`
 }
 
 type NotificationHistoryLokiEntryAlert struct {
-	Status      string            `json:"status"`
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-	StartsAt    time.Time         `json:"startsAt"`
-	EndsAt      time.Time         `json:"endsAt"`
-	ExtraData   json.RawMessage   `json:"enrichments,omitempty"`
+	SchemaVersion int               `json:"schemaVersion"`
+	UUID          string            `json:"uuid"`
+	AlertIndex    int               `json:"alertIndex"`
+	Status        string            `json:"status"`
+	Labels        map[string]string `json:"labels"`
+	Annotations   map[string]string `json:"annotations"`
+	StartsAt      time.Time         `json:"startsAt"`
+	EndsAt        time.Time         `json:"endsAt"`
+	ExtraData     json.RawMessage   `json:"enrichments,omitempty"`
 }
 
 type remoteLokiClient interface {
@@ -89,7 +98,7 @@ func (h *NotificationHistorian) TestConnection(ctx context.Context) error {
 }
 
 func (h *NotificationHistorian) Record(ctx context.Context, nhe nfstatus.NotificationHistoryEntry) {
-	stream, err := h.prepareStream(nhe)
+	streams, err := h.prepareStreams(nhe)
 	if err != nil {
 		level.Error(h.logger).Log("msg", "Failed to convert notification history to streams", "error", err)
 		return
@@ -107,27 +116,56 @@ func (h *NotificationHistorian) Record(ctx context.Context, nhe nfstatus.Notific
 	level.Debug(h.logger).Log("msg", "Saving notification history")
 	h.writesTotal.Inc()
 
-	if err := h.client.Push(writeCtx, []lokiclient.Stream{stream}); err != nil {
+	if err := h.client.Push(writeCtx, streams); err != nil {
 		level.Error(h.logger).Log("msg", "Failed to save notification history", "error", err)
 		h.writesFailed.Inc()
 	}
 	level.Debug(h.logger).Log("msg", "Done saving notification history")
 }
 
-func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEntry) (lokiclient.Stream, error) {
+// prepareStreams prepares the data to be written to Loki. It is written to two streams:
+// 1. Contains a log line per notification, and contains metadata about the notification as a whole.
+// 2. Contains a log line per alert per notification, and a UUID linking back to the notification.
+func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryEntry) ([]lokiclient.Stream, error) {
 	now := time.Now()
-	entryAlerts := make([]NotificationHistoryLokiEntryAlert, len(nhe.Alerts))
+	alertsValues := make([]lokiclient.Sample, len(nhe.Alerts))
+	ruleUIDsMap := make(map[string]struct{})
 	for i, alert := range nhe.Alerts {
 		labels := prepareLabels(alert.Labels)
 		annotations := prepareLabels(alert.Annotations)
-		entryAlerts[i] = NotificationHistoryLokiEntryAlert{
-			Labels:      labels,
-			Annotations: annotations,
-			Status:      string(alert.StatusAt(now)),
-			StartsAt:    alert.StartsAt,
-			EndsAt:      alert.EndsAt,
-			ExtraData:   alert.ExtraData,
+		entryAlert := NotificationHistoryLokiEntryAlert{
+			SchemaVersion: SchemaVersion,
+			UUID:          nhe.UUID,
+			AlertIndex:    i,
+			Labels:        labels,
+			Annotations:   annotations,
+			Status:        string(alert.StatusAt(now)),
+			StartsAt:      alert.StartsAt,
+			EndsAt:        alert.EndsAt,
+			ExtraData:     alert.ExtraData,
 		}
+
+		entryAlertJSON, err := json.Marshal(entryAlert)
+		if err != nil {
+			return []lokiclient.Stream{}, fmt.Errorf("marshal alert entry: %w", err)
+		}
+
+		// Loki pagination is done with timestamps, and notifications can have many alerts.
+		// Therefore, to be able to return notifications with > 5000 alerts, we should give
+		// each line a slightly different timestamp.
+		ts := now.Add(time.Nanosecond * time.Duration(i))
+
+		ruleUID := entryAlert.Labels[models.RuleUIDLabel]
+		alertsValues[i] = lokiclient.Sample{
+			T: ts,
+			V: string(entryAlertJSON),
+			Metadata: map[string]string{
+				"uuid":     nhe.UUID,
+				"rule_uid": ruleUID,
+			},
+		}
+
+		ruleUIDsMap[ruleUID] = struct{}{}
 	}
 
 	notificationErrStr := ""
@@ -140,55 +178,66 @@ func (h *NotificationHistorian) prepareStream(nhe nfstatus.NotificationHistoryEn
 		as[i] = nhe.Alerts[i].Alert
 	}
 
-	values := make([]lokiclient.Sample, len(nhe.Alerts))
-	for i := range nhe.Alerts {
-		entry := NotificationHistoryLokiEntry{
-			SchemaVersion:  1,
-			Receiver:       nhe.ReceiverName,
-			Integration:    nhe.IntegrationName,
-			IntegrationIdx: nhe.IntegrationIdx,
-			Status:         string(types.Alerts(as...).StatusAt(now)),
-			GroupKey:       nhe.GroupKey,
-			GroupLabels:    prepareLabels(nhe.GroupLabels),
-			Alert:          entryAlerts[i],
-			AlertIndex:     i,
-			AlertCount:     len(nhe.Alerts),
-			Retry:          nhe.Retry,
-			Error:          notificationErrStr,
-			Duration:       int64(nhe.Duration),
-			PipelineTime:   nhe.PipelineTime,
-		}
+	ruleUIDs := slices.Sorted(maps.Keys(ruleUIDsMap))
 
-		entryJSON, err := json.Marshal(entry)
-		if err != nil {
-			return lokiclient.Stream{}, err
-		}
+	entry := NotificationHistoryLokiEntry{
+		SchemaVersion:  SchemaVersion,
+		UUID:           nhe.UUID,
+		RuleUIDs:       ruleUIDs,
+		Receiver:       nhe.ReceiverName,
+		Integration:    nhe.IntegrationName,
+		IntegrationIdx: nhe.IntegrationIdx,
+		Status:         string(types.Alerts(as...).StatusAt(now)),
+		GroupKey:       nhe.GroupKey,
+		GroupLabels:    prepareLabels(nhe.GroupLabels),
+		AlertCount:     len(nhe.Alerts),
+		Retry:          nhe.Retry,
+		Error:          notificationErrStr,
+		Duration:       int64(nhe.Duration),
+		PipelineTime:   nhe.PipelineTime,
+	}
 
-		// Loki pagination is done with timestamps, and notifications can have many alerts.
-		// Therefore, to be able to return notifications with > 5000 alerts, we should give
-		// each line a slightly different timestamp.
-		ts := now.Add(time.Nanosecond * time.Duration(i))
+	entryJSON, err := json.Marshal(entry)
+	if err != nil {
+		return []lokiclient.Stream{}, fmt.Errorf("marshal notification entry: %w", err)
+	}
 
-		values[i] = lokiclient.Sample{
-			T: ts,
-			V: string(entryJSON),
-			Metadata: map[string]string{
-				"receiver": nhe.ReceiverName,
-				"rule_uid": entryAlerts[i].Labels[models.RuleUIDLabel],
-			},
-		}
+	// Even though there are potentially multiple rule UIDs per notification, it is still
+	// beneficial to store them as structured metadata, as we can perform a regex match
+	// on the field to avoids Loki having to parse the entire log line.
+	entryValue := lokiclient.Sample{
+		T: now,
+		V: string(entryJSON),
+		Metadata: map[string]string{
+			"uuid":      nhe.UUID,
+			"receiver":  nhe.ReceiverName,
+			"rule_uids": strings.Join(ruleUIDs, ","),
+		},
 	}
 
 	streamLabels := make(map[string]string)
 	streamLabels[LabelFrom] = LabelFromValue
-
 	for k, v := range h.externalLabels {
 		streamLabels[k] = v
 	}
 
-	return lokiclient.Stream{
-		Stream: streamLabels,
-		Values: values,
+	alertsStreamLabels := make(map[string]string)
+	alertsStreamLabels[LabelFrom] = LabelFromValueAlerts
+	for k, v := range h.externalLabels {
+		alertsStreamLabels[k] = v
+	}
+
+	return []lokiclient.Stream{
+		// The notification history entry itself.
+		{
+			Stream: streamLabels,
+			Values: []lokiclient.Sample{entryValue},
+		},
+		// The individual alert details entries.
+		{
+			Stream: alertsStreamLabels,
+			Values: alertsValues,
+		},
 	}, nil
 }
 
