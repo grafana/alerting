@@ -14,7 +14,7 @@ import (
 
 func TestConfigIdempotency(t *testing.T) {
 	for iType := range AllValidMimirConfigs {
-		t.Run(iType.Name(), func(t *testing.T) {
+		t.Run(iType.PkgPath(), func(t *testing.T) {
 			cfg, err := GetRawConfigForMimirIntegration(iType, WithDefault)
 			require.NoError(t, err)
 			cfgInstance, err := GetMimirIntegrationForType(iType, WithDefault)
