@@ -267,6 +267,56 @@ func (c *HTTPLokiClient) RangeQuery(ctx context.Context, logQL string, start, en
 	return result, nil
 }
 
+func (c *HTTPLokiClient) MetricsQuery(ctx context.Context, logQL string, ts int64, limit int64) (MetricsQueryRes, error) {
+	if limit < 1 {
+		limit = defaultPageSize
+	}
+	if limit > maximumPageSize {
+		limit = maximumPageSize
+	}
+
+	queryURL := c.cfg.ReadPathURL.JoinPath("/loki/api/v1/query")
+
+	values := url.Values{}
+	values.Set("query", logQL)
+	values.Set("time", fmt.Sprintf("%d", ts))
+	values.Set("limit", fmt.Sprintf("%d", limit))
+
+	queryURL.RawQuery = values.Encode()
+	level.Debug(c.logger).Log("msg", "Sending metrics query request", "query", logQL, "time", ts, "limit", limit)
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return MetricsQueryRes{}, fmt.Errorf("error creating request: %w", err)
+	}
+
+	req = req.WithContext(ctx)
+	c.setAuthAndTenantHeaders(req)
+
+	res, err := c.client.Do(req)
+	if err != nil {
+		return MetricsQueryRes{}, fmt.Errorf("error executing request: %w", err)
+	}
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			level.Warn(c.logger).Log("msg", "Failed to close response body", "err", err)
+		}
+	}()
+
+	data, err := c.handleLokiResponse(c.logger, res)
+	if err != nil {
+		return MetricsQueryRes{}, err
+	}
+
+	result := MetricsQueryRes{}
+	err = json.Unmarshal(data, &result)
+	if err != nil {
+		level.Error(c.logger).Log("msg", "Failed to parse response", "err", err, "data", string(data))
+		return MetricsQueryRes{}, fmt.Errorf("error parsing request response: %w", err)
+	}
+
+	return result, nil
+}
+
 func (c *HTTPLokiClient) MaxQuerySize() int {
 	return c.cfg.MaxQuerySize
 }
@@ -277,6 +327,40 @@ type QueryRes struct {
 
 type QueryData struct {
 	Result []Stream `json:"result"`
+}
+
+type MetricsQueryRes struct {
+	Data MetricsQueryData `json:"data"`
+}
+
+type MetricsQueryData struct {
+	Result []MetricSample `json:"result"`
+}
+
+// MetricSample represents a single instant vector result from a Loki metrics query.
+type MetricSample struct {
+	Metric map[string]string `json:"metric"`
+	Value  MetricSampleValue `json:"value"`
+}
+
+// MetricSampleValue is an [timestamp, value] pair returned by an instant metrics query.
+// The timestamp is a Unix epoch in seconds (float64), and the value is a string-encoded number.
+type MetricSampleValue [2]json.RawMessage
+
+func (v MetricSampleValue) Timestamp() (float64, error) {
+	var ts float64
+	if err := json.Unmarshal(v[0], &ts); err != nil {
+		return 0, fmt.Errorf("failed to deserialize metric sample timestamp: %w", err)
+	}
+	return ts, nil
+}
+
+func (v MetricSampleValue) Value() (string, error) {
+	var val string
+	if err := json.Unmarshal(v[1], &val); err != nil {
+		return "", fmt.Errorf("failed to deserialize metric sample value: %w", err)
+	}
+	return val, nil
 }
 
 func (c *HTTPLokiClient) handleLokiResponse(logger log.Logger, res *http.Response) ([]byte, error) {
