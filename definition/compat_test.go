@@ -11,8 +11,6 @@ import (
 	"github.com/prometheus/alertmanager/pkg/labels"
 )
 
-var validConfig = []byte(`{"route":{"receiver":"grafana-default-email","routes":[{"receiver":"grafana-default-email","object_matchers":[["a","=","b"]],"mute_time_intervals":["test1"]}]},"mute_time_intervals":[{"name":"test1","time_intervals":[{"times":[{"start_time":"00:00","end_time":"12:00"}]}]}],"templates":null,"receivers":[{"name":"grafana-default-email","grafana_managed_receiver_configs":[{"uid":"uxwfZvtnz","name":"email receiver","type":"email","disableResolveMessage":false,"settings":{"addresses":"<example@email.com>"},"secureFields":{}}]}]}`)
-
 func TestLoadCompat(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -121,26 +119,9 @@ func TestLoadCompat(t *testing.T) {
 
 }
 
-func TestGrafanaToUpstreamConfig(t *testing.T) {
-	cfg, err := Load(validConfig)
-	require.NoError(t, err)
-	upstream := GrafanaToUpstreamConfig(cfg)
-
-	require.Equal(t, cfg.Global, upstream.Global)
-	require.Equal(t, cfg.Route.AsAMRoute(), upstream.Route)
-	require.Equal(t, cfg.InhibitRules, upstream.InhibitRules)
-	require.Equal(t, cfg.Templates, upstream.Templates)
-	require.Equal(t, cfg.MuteTimeIntervals, upstream.MuteTimeIntervals)
-	require.Equal(t, cfg.TimeIntervals, upstream.TimeIntervals)
-
-	for i, r := range cfg.Receivers {
-		require.Equal(t, r.Name, upstream.Receivers[i].Name)
-	}
-}
-
 func TestAsAMRoute(t *testing.T) {
 	// Ensure that AsAMRoute and AsGrafanaRoute are inverses of each other.
-	cfg, err := Load([]byte(testConfigWithComplexRoutes))
+	cfg, err := LoadCompat([]byte(testConfigWithComplexRoutes))
 	require.NoError(t, err)
 	originalRoute := cfg.Route
 	// For easier comparison move ObjectMatchers to Matchers.
@@ -363,9 +344,9 @@ route:
                 - test1
 receivers:
   - name: recv
-    email_configs:
-      - to: recv
+    webhook_configs:
+      - url: http://localhost:8080/alert
   - name: recv2
-    email_configs:
-      - to: recv2
+    webhook_configs:
+      - url: http://localhost:8080/alert
 `
