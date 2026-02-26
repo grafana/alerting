@@ -7,8 +7,7 @@ import (
 	"reflect"
 	"slices"
 
-	promCfg "github.com/prometheus/alertmanager/config"
-
+	"github.com/grafana/alerting/definition"
 	discordV0 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	emailV0 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	jiraV0 "github.com/grafana/alerting/receivers/jira/v0mimir1"
@@ -71,8 +70,8 @@ func GetMimirIntegrationForType(iType reflect.Type, opts ...MimirIntegrationHTTP
 
 // GetMimirReceiverWithIntegrations creates a Receiver with selected integrations configured from given types and options.
 // It returns a Receiver for testing purposes or an error if the configuration process encounters an issue.
-func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...MimirIntegrationHTTPConfigOption) (promCfg.Receiver, error) {
-	receiver := promCfg.Receiver{Name: "receiver"}
+func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
+	receiver := definition.Receiver{Name: "receiver"}
 	receiverVal := reflect.ValueOf(&receiver).Elem()
 	receiverType := receiverVal.Type()
 	for i := 0; i < receiverType.NumField(); i++ {
@@ -96,10 +95,10 @@ func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...MimirIntegr
 		}
 		rawConfig, err := GetRawConfigForMimirIntegration(underlyingType, opts...)
 		if err != nil {
-			return promCfg.Receiver{}, fmt.Errorf("failed to get config for type [%s]: %v", underlyingType.String(), err)
+			return definition.Receiver{}, fmt.Errorf("failed to get config for type [%s]: %v", underlyingType.String(), err)
 		}
 		if err := json.Unmarshal([]byte(rawConfig), elemPtr); err != nil {
-			return promCfg.Receiver{}, fmt.Errorf("failed to parse config for type %s: %v", elemType.String(), err)
+			return definition.Receiver{}, fmt.Errorf("failed to parse config for type %s: %v", elemType.String(), err)
 		}
 		sliceVal = reflect.Append(sliceVal, reflect.ValueOf(elemPtr).Elem())
 		receiverVal.FieldByName(integrationField.Name).Set(sliceVal)
@@ -109,7 +108,7 @@ func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...MimirIntegr
 
 // GetMimirReceiverWithAllIntegrations creates a Receiver with all integrations configured from given types and options.
 // It returns a Receiver for testing purposes or an error if the configuration process encounters an issue.
-func GetMimirReceiverWithAllIntegrations(opts ...MimirIntegrationHTTPConfigOption) (promCfg.Receiver, error) {
+func GetMimirReceiverWithAllIntegrations(opts ...MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
 	return GetMimirReceiverWithIntegrations(slices.Collect(maps.Keys(AllValidMimirConfigs)), opts...)
 }
 
@@ -262,21 +261,21 @@ var ValidMimirHTTPConfigs = map[MimirIntegrationHTTPConfigOption]string{
 }
 
 var AllValidMimirConfigs = map[reflect.Type]string{
-	reflect.TypeOf(promCfg.DiscordConfig{}):   discordV0.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.EmailConfig{}):     emailV0.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.PagerdutyConfig{}): pagerdutyV0.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.SlackConfig{}):     slackV0.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.WebhookConfig{}):   webhookV0.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.OpsGenieConfig{}):  opsgenieV0.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.WechatConfig{}):    wechatV0.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.PushoverConfig{}):  pushoverV0.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.VictorOpsConfig{}): victoropsV0.FullValidConfigForTesting,
+	reflect.TypeOf(discordV0.Config{}):   discordV0.FullValidConfigForTesting,
+	reflect.TypeOf(emailV0.Config{}):     emailV0.FullValidConfigForTesting,
+	reflect.TypeOf(pagerdutyV0.Config{}): pagerdutyV0.FullValidConfigForTesting,
+	reflect.TypeOf(slackV0.Config{}):     slackV0.FullValidConfigForTesting,
+	reflect.TypeOf(webhookV0.Config{}):   webhookV0.FullValidConfigForTesting,
+	reflect.TypeOf(opsgenieV0.Config{}):  opsgenieV0.FullValidConfigForTesting,
+	reflect.TypeOf(wechatV0.Config{}):    wechatV0.FullValidConfigForTesting,
+	reflect.TypeOf(pushoverV0.Config{}):  pushoverV0.FullValidConfigForTesting,
+	reflect.TypeOf(victoropsV0.Config{}): victoropsV0.FullValidConfigForTesting,
 	// all sigv4 fields of SNSConfig are different in yaml
-	reflect.TypeOf(promCfg.SNSConfig{}): snsV0.FullValidConfigForTesting,
+	reflect.TypeOf(snsV0.Config{}): snsV0.FullValidConfigForTesting,
 	// token and chat fields of TelegramConfig are different in yaml
-	reflect.TypeOf(promCfg.TelegramConfig{}):  telegramV0.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.WebexConfig{}):     webexV0.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.MSTeamsConfig{}):   msteamsV01.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.MSTeamsV2Config{}): msteamsV02.FullValidConfigForTesting,
-	reflect.TypeOf(promCfg.JiraConfig{}):      jiraV0.FullValidConfigForTesting,
+	reflect.TypeOf(telegramV0.Config{}): telegramV0.FullValidConfigForTesting,
+	reflect.TypeOf(webexV0.Config{}):    webexV0.FullValidConfigForTesting,
+	reflect.TypeOf(msteamsV01.Config{}): msteamsV01.FullValidConfigForTesting,
+	reflect.TypeOf(msteamsV02.Config{}): msteamsV02.FullValidConfigForTesting,
+	reflect.TypeOf(jiraV0.Config{}):     jiraV0.FullValidConfigForTesting,
 }
