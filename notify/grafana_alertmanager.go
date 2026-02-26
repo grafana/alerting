@@ -875,7 +875,9 @@ func (am *GrafanaAlertmanager) PutAlerts(postableAlerts amv2.PostableAlerts) err
 			"starts_at",
 			a.StartsAt,
 			"ends_at",
-			a.EndsAt)
+			a.EndsAt,
+			"updated_at",
+			a.UpdatedAt)
 	}
 
 	if err := am.alerts.Put(alerts...); err != nil {
