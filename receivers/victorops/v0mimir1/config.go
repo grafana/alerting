@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/prometheus/alertmanager/config"
+	"github.com/grafana/alerting/receivers"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/grafana/alerting/receivers/schema"
@@ -28,7 +28,7 @@ const Version = schema.V0mimir1
 
 // DefaultConfig defines default values for VictorOps configurations.
 var DefaultConfig = Config{
-	NotifierConfig: config.NotifierConfig{
+	NotifierConfig: receivers.NotifierConfig{
 		VSendResolved: true,
 	},
 	MessageType:       `CRITICAL`,
@@ -39,13 +39,13 @@ var DefaultConfig = Config{
 
 // Config configures notifications via VictorOps.
 type Config struct {
-	config.NotifierConfig `yaml:",inline" json:",inline"`
+	receivers.NotifierConfig `yaml:",inline" json:",inline"`
 
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
-	APIKey            config.Secret     `yaml:"api_key,omitempty" json:"api_key,omitempty"`
+	APIKey            receivers.Secret  `yaml:"api_key,omitempty" json:"api_key,omitempty"`
 	APIKeyFile        string            `yaml:"api_key_file,omitempty" json:"api_key_file,omitempty"`
-	APIURL            *config.URL       `yaml:"api_url" json:"api_url"`
+	APIURL            *receivers.URL    `yaml:"api_url" json:"api_url"`
 	RoutingKey        string            `yaml:"routing_key" json:"routing_key"`
 	MessageType       string            `yaml:"message_type" json:"message_type"`
 	StateMessage      string            `yaml:"state_message" json:"state_message"`

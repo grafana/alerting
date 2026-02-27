@@ -18,7 +18,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/prometheus/alertmanager/config"
+	"github.com/grafana/alerting/receivers"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/grafana/alerting/receivers/schema"
@@ -42,7 +42,7 @@ const Version = schema.V0mimir1
 
 // DefaultConfig defines default values for Pushover configurations.
 var DefaultConfig = Config{
-	NotifierConfig: config.NotifierConfig{
+	NotifierConfig: receivers.NotifierConfig{
 		VSendResolved: true,
 	},
 	Title:    `{{ template "pushover.default.title" . }}`,
@@ -56,12 +56,12 @@ var DefaultConfig = Config{
 
 // Config configures notifications via Pushover.
 type Config struct {
-	config.NotifierConfig `yaml:",inline" json:",inline"`
+	receivers.NotifierConfig `yaml:",inline" json:",inline"`
 
 	HTTPConfig  *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
-	UserKey     config.Secret             `yaml:"user_key,omitempty" json:"user_key,omitempty"`
+	UserKey     receivers.Secret          `yaml:"user_key,omitempty" json:"user_key,omitempty"`
 	UserKeyFile string                    `yaml:"user_key_file,omitempty" json:"user_key_file,omitempty"`
-	Token       config.Secret             `yaml:"token,omitempty" json:"token,omitempty"`
+	Token       receivers.Secret          `yaml:"token,omitempty" json:"token,omitempty"`
 	TokenFile   string                    `yaml:"token_file,omitempty" json:"token_file,omitempty"`
 	Title       string                    `yaml:"title,omitempty" json:"title,omitempty"`
 	Message     string                    `yaml:"message,omitempty" json:"message,omitempty"`

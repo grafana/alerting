@@ -21,7 +21,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/prometheus/alertmanager/config"
+	"github.com/grafana/alerting/receivers"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/grafana/alerting/receivers/schema"
@@ -31,7 +31,7 @@ const Version = schema.V0mimir1
 
 // DefaultConfig defines default values for OpsGenie configurations.
 var DefaultConfig = Config{
-	NotifierConfig: config.NotifierConfig{
+	NotifierConfig: receivers.NotifierConfig{
 		VSendResolved: true,
 	},
 	Message:     `{{ template "opsgenie.default.message" . }}`,
@@ -41,13 +41,13 @@ var DefaultConfig = Config{
 
 // Config configures notifications via OpsGenie.
 type Config struct {
-	config.NotifierConfig `yaml:",inline" json:",inline"`
+	receivers.NotifierConfig `yaml:",inline" json:",inline"`
 
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
-	APIKey       config.Secret     `yaml:"api_key,omitempty" json:"api_key,omitempty"`
+	APIKey       receivers.Secret  `yaml:"api_key,omitempty" json:"api_key,omitempty"`
 	APIKeyFile   string            `yaml:"api_key_file,omitempty" json:"api_key_file,omitempty"`
-	APIURL       *config.URL       `yaml:"api_url,omitempty" json:"api_url,omitempty"`
+	APIURL       *receivers.URL    `yaml:"api_url,omitempty" json:"api_url,omitempty"`
 	Message      string            `yaml:"message,omitempty" json:"message,omitempty"`
 	Description  string            `yaml:"description,omitempty" json:"description,omitempty"`
 	Source       string            `yaml:"source,omitempty" json:"source,omitempty"`

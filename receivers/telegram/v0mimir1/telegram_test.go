@@ -28,16 +28,17 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/receivers"
 )
 
 func TestTelegramRetry(t *testing.T) {
 	// Fake url for testing purposes
-	fakeURL := config.URL{
+	fakeURL := receivers.URL{
 		URL: &url.URL{
 			Scheme: "https",
 			Host:   "FAKE_API",
@@ -77,7 +78,7 @@ func TestTelegramNotify(t *testing.T) {
 			cfg: Config{
 				Message:    "<code>x < y</code>",
 				HTTPConfig: &httpcfg.HTTPClientConfig{},
-				BotToken:   config.Secret(token),
+				BotToken:   receivers.Secret(token),
 			},
 			expText: "<code>x < y</code>",
 		},
@@ -87,7 +88,7 @@ func TestTelegramNotify(t *testing.T) {
 				ParseMode:  "HTML",
 				Message:    "<code>x < y</code>",
 				HTTPConfig: &httpcfg.HTTPClientConfig{},
-				BotToken:   config.Secret(token),
+				BotToken:   receivers.Secret(token),
 			},
 			expText: "<code>x &lt; y</code>",
 		},
@@ -113,7 +114,7 @@ func TestTelegramNotify(t *testing.T) {
 			defer srv.Close()
 			u, _ := url.Parse(srv.URL)
 
-			tc.cfg.APIUrl = &config.URL{URL: u}
+			tc.cfg.APIUrl = &receivers.URL{URL: u}
 
 			notifier, err := New(&tc.cfg, test.CreateTmpl(t), log.NewNopLogger())
 			require.NoError(t, err)

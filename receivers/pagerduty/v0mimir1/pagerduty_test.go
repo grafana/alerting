@@ -30,17 +30,18 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/receivers"
 )
 
 func TestPagerDutyRetryV1(t *testing.T) {
 	notifier, err := New(
 		&Config{
-			ServiceKey: config.Secret("01234567890123456789012345678901"),
+			ServiceKey: receivers.Secret("01234567890123456789012345678901"),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -58,7 +59,7 @@ func TestPagerDutyRetryV1(t *testing.T) {
 func TestPagerDutyRetryV2(t *testing.T) {
 	notifier, err := New(
 		&Config{
-			RoutingKey: config.Secret("01234567890123456789012345678901"),
+			RoutingKey: receivers.Secret("01234567890123456789012345678901"),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -80,7 +81,7 @@ func TestPagerDutyRedactedURLV1(t *testing.T) {
 	key := "01234567890123456789012345678901"
 	notifier, err := New(
 		&Config{
-			ServiceKey: config.Secret(key),
+			ServiceKey: receivers.Secret(key),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -99,8 +100,8 @@ func TestPagerDutyRedactedURLV2(t *testing.T) {
 	key := "01234567890123456789012345678901"
 	notifier, err := New(
 		&Config{
-			URL:        &config.URL{URL: u},
-			RoutingKey: config.Secret(key),
+			URL:        &receivers.URL{URL: u},
+			RoutingKey: receivers.Secret(key),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -147,7 +148,7 @@ func TestPagerDutyV2RoutingKeyFromFile(t *testing.T) {
 
 	notifier, err := New(
 		&Config{
-			URL:            &config.URL{URL: u},
+			URL:            &receivers.URL{URL: u},
 			RoutingKeyFile: f.Name(),
 			HTTPConfig:     &httpcfg.HTTPClientConfig{},
 		},
@@ -181,15 +182,15 @@ func TestPagerDutyTemplating(t *testing.T) {
 		{
 			title: "full-blown message",
 			cfg: &Config{
-				RoutingKey: config.Secret("01234567890123456789012345678901"),
-				Images: []config.PagerdutyImage{
+				RoutingKey: receivers.Secret("01234567890123456789012345678901"),
+				Images: []PagerdutyImage{
 					{
 						Src:  "{{ .Status }}",
 						Alt:  "{{ .Status }}",
 						Href: "{{ .Status }}",
 					},
 				},
-				Links: []config.PagerdutyLink{
+				Links: []PagerdutyLink{
 					{
 						Href: "{{ .Status }}",
 						Text: "{{ .Status }}",
@@ -206,7 +207,7 @@ func TestPagerDutyTemplating(t *testing.T) {
 		{
 			title: "details with templating errors",
 			cfg: &Config{
-				RoutingKey: config.Secret("01234567890123456789012345678901"),
+				RoutingKey: receivers.Secret("01234567890123456789012345678901"),
 				Details: map[string]string{
 					"firing":       `{{ template "pagerduty.default.instances" .Alerts.Firing`,
 					"resolved":     `{{ template "pagerduty.default.instances" .Alerts.Resolved }}`,
@@ -219,7 +220,7 @@ func TestPagerDutyTemplating(t *testing.T) {
 		{
 			title: "v2 message with templating errors",
 			cfg: &Config{
-				RoutingKey: config.Secret("01234567890123456789012345678901"),
+				RoutingKey: receivers.Secret("01234567890123456789012345678901"),
 				Severity:   "{{ ",
 			},
 			errMsg: "failed to template",
@@ -227,7 +228,7 @@ func TestPagerDutyTemplating(t *testing.T) {
 		{
 			title: "v1 message with templating errors",
 			cfg: &Config{
-				ServiceKey: config.Secret("01234567890123456789012345678901"),
+				ServiceKey: receivers.Secret("01234567890123456789012345678901"),
 				Client:     "{{ ",
 			},
 			errMsg: "failed to template",
@@ -235,20 +236,20 @@ func TestPagerDutyTemplating(t *testing.T) {
 		{
 			title: "routing key cannot be empty",
 			cfg: &Config{
-				RoutingKey: config.Secret(`{{ "" }}`),
+				RoutingKey: receivers.Secret(`{{ "" }}`),
 			},
 			errMsg: "routing key cannot be empty",
 		},
 		{
 			title: "service_key cannot be empty",
 			cfg: &Config{
-				ServiceKey: config.Secret(`{{ "" }}`),
+				ServiceKey: receivers.Secret(`{{ "" }}`),
 			},
 			errMsg: "service key cannot be empty",
 		},
 	} {
 		t.Run(tc.title, func(t *testing.T) {
-			tc.cfg.URL = &config.URL{URL: u}
+			tc.cfg.URL = &receivers.URL{URL: u}
 			tc.cfg.HTTPConfig = &httpcfg.HTTPClientConfig{}
 			pd, err := New(tc.cfg, test.CreateTmpl(t), log.NewNopLogger())
 			require.NoError(t, err)
@@ -335,7 +336,7 @@ func TestEventSizeEnforcement(t *testing.T) {
 
 	notifierV1, err := New(
 		&Config{
-			ServiceKey: config.Secret("01234567890123456789012345678901"),
+			ServiceKey: receivers.Secret("01234567890123456789012345678901"),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -358,7 +359,7 @@ func TestEventSizeEnforcement(t *testing.T) {
 
 	notifierV2, err := New(
 		&Config{
-			RoutingKey: config.Secret("01234567890123456789012345678901"),
+			RoutingKey: receivers.Secret("01234567890123456789012345678901"),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -381,7 +382,7 @@ func TestPagerDutyEmptySrcHref(t *testing.T) {
 		Links       []pagerDutyLink
 	}
 
-	images := []config.PagerdutyImage{
+	images := []PagerdutyImage{
 		{
 			Src:  "",
 			Alt:  "Empty src",
@@ -399,7 +400,7 @@ func TestPagerDutyEmptySrcHref(t *testing.T) {
 		},
 	}
 
-	links := []config.PagerdutyLink{
+	links := []PagerdutyLink{
 		{
 			Href: "",
 			Text: "Empty href",
@@ -415,11 +416,7 @@ func TestPagerDutyEmptySrcHref(t *testing.T) {
 		if image.Src == "" {
 			continue
 		}
-		expectedImages = append(expectedImages, pagerDutyImage{
-			Src:  image.Src,
-			Alt:  image.Alt,
-			Href: image.Href,
-		})
+		expectedImages = append(expectedImages, pagerDutyImage(image))
 	}
 
 	expectedLinks := make([]pagerDutyLink, 0, len(links))
@@ -471,8 +468,8 @@ func TestPagerDutyEmptySrcHref(t *testing.T) {
 
 	pagerDutyConfig := Config{
 		HTTPConfig: &httpcfg.HTTPClientConfig{},
-		RoutingKey: config.Secret("01234567890123456789012345678901"),
-		URL:        &config.URL{URL: u},
+		RoutingKey: receivers.Secret("01234567890123456789012345678901"),
+		URL:        &receivers.URL{URL: u},
 		Images:     images,
 		Links:      links,
 	}

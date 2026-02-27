@@ -29,7 +29,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
-	"github.com/prometheus/alertmanager/config"
+	"github.com/grafana/alerting/receivers"
+
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
@@ -57,7 +58,7 @@ func TestSlackRedactedURL(t *testing.T) {
 
 	notifier, err := New(
 		&Config{
-			APIURL:     &config.SecretURL{URL: u},
+			APIURL:     &receivers.SecretURL{URL: u},
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -192,9 +193,9 @@ func TestNotifier_Notify_WithReason(t *testing.T) {
 			apiurl, _ := url.Parse("https://slack.com/post.Message")
 			notifier, err := New(
 				&Config{
-					NotifierConfig: config.NotifierConfig{},
+					NotifierConfig: receivers.NotifierConfig{},
 					HTTPConfig:     &httpcfg.HTTPClientConfig{},
-					APIURL:         &config.SecretURL{URL: apiurl},
+					APIURL:         &receivers.SecretURL{URL: apiurl},
 					Channel:        "channelname",
 				},
 				test.CreateTmpl(t),

@@ -24,12 +24,13 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/receivers"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 )
@@ -54,7 +55,7 @@ type Notifier struct {
 	logger     log.Logger
 	client     *http.Client
 	retrier    *notify.Retrier
-	webhookURL *config.SecretURL
+	webhookURL *receivers.SecretURL
 }
 
 // New returns a new Discord notifier.

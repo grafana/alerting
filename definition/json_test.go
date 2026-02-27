@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/prometheus/alertmanager/config"
 	"github.com/stretchr/testify/require"
 
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/timeinterval"
 	commoncfg "github.com/prometheus/common/config"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/receivers"
 	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	webhook_v0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
 )
@@ -89,7 +90,7 @@ func TestMarshalJSONWithSecrets(t *testing.T) {
 					Name: "test-receiver",
 					WebhookConfigs: []*webhook_v0mimir1.Config{
 						{
-							URL: &config.SecretURL{URL: testURL},
+							URL: &receivers.SecretURL{URL: testURL},
 							HTTPConfig: &httpcfg.HTTPClientConfig{
 								BasicAuth: &httpcfg.BasicAuth{
 									Username: "user",
@@ -98,7 +99,7 @@ func TestMarshalJSONWithSecrets(t *testing.T) {
 							},
 						},
 						{
-							URL: &config.SecretURL{URL: testURL},
+							URL: &receivers.SecretURL{URL: testURL},
 							HTTPConfig: &httpcfg.HTTPClientConfig{
 								Authorization: &httpcfg.Authorization{
 									Type:        "Bearer",
@@ -112,8 +113,8 @@ func TestMarshalJSONWithSecrets(t *testing.T) {
 							To:           "test@grafana.com",
 							From:         "alerts@grafana.com",
 							AuthUsername: "smtp-user",
-							AuthPassword: config.Secret("smtp-password"),
-							AuthSecret:   config.Secret("smtp-secret"),
+							AuthPassword: receivers.Secret("smtp-password"),
+							AuthSecret:   receivers.Secret("smtp-secret"),
 							Headers:      map[string]string{},
 							HTML:         "{{ template \"email.default.html\" . }}",
 						},
@@ -121,8 +122,8 @@ func TestMarshalJSONWithSecrets(t *testing.T) {
 							To:           "test2@grafana.com",
 							From:         "alerts2@grafana.com",
 							AuthUsername: "smtp-user2",
-							AuthPassword: config.Secret(""),
-							AuthSecret:   config.Secret("smtp-secret2"),
+							AuthPassword: receivers.Secret(""),
+							AuthSecret:   receivers.Secret("smtp-secret2"),
 							Headers:      map[string]string{},
 							HTML:         "{{ template \"email.default.html\" . }}",
 						},
@@ -169,7 +170,7 @@ func TestSecretTypeMarshaling(t *testing.T) {
 		},
 		{
 			name:           "alertmanager config secret",
-			secret:         config.Secret("my-secret"),
+			secret:         receivers.Secret("my-secret"),
 			expectStandard: maskedSecret,
 			expectPlain:    `"my-secret"`,
 		},
@@ -181,7 +182,7 @@ func TestSecretTypeMarshaling(t *testing.T) {
 		},
 		{
 			name:           "empty alertmanager secret",
-			secret:         config.Secret(""),
+			secret:         receivers.Secret(""),
 			expectStandard: maskedSecret,
 			expectPlain:    `""`,
 		},
@@ -217,7 +218,7 @@ func TestSecretTypeMarshaling(t *testing.T) {
 		},
 		{
 			name:           "secret with special characters",
-			secret:         config.Secret("secret with spaces\nand\t 🔑"),
+			secret:         receivers.Secret("secret with spaces\nand\t 🔑"),
 			expectStandard: maskedSecret,
 			expectPlain:    `"secret with spaces\nand\t 🔑"`,
 		},
@@ -282,13 +283,13 @@ func TestSecretURLTypeMarshaling(t *testing.T) {
 		},
 		{
 			name:           "URL pointer",
-			secretURL:      &config.SecretURL{URL: testURL},
+			secretURL:      &receivers.SecretURL{URL: testURL},
 			expectStandard: maskedSecret,
 			expectPlain:    fmt.Sprintf(`"%s"`, u),
 		},
 		{
 			name:           "pointer to empty URL",
-			secretURL:      &config.SecretURL{},
+			secretURL:      &receivers.SecretURL{},
 			expectStandard: maskedSecret,
 			expectPlain:    `null`,
 		},
@@ -309,10 +310,19 @@ func TestSecretURLTypeMarshaling(t *testing.T) {
 
 func TestSecretOmitempty(t *testing.T) {
 	type testStruct struct {
-		Secret    config.Secret     `json:"secret,omitempty"`
-		SecretPtr *config.Secret    `json:"secret_ptr,omitempty"`
-		URL       config.SecretURL  `json:"url,omitempty"`
-		URLPtr    *config.SecretURL `json:"url_ptr,omitempty"`
+		// receivers types
+		RSecret    receivers.Secret     `json:"r_secret,omitempty"`
+		RSecretPtr *receivers.Secret    `json:"r_secret_ptr,omitempty"`
+		RURL       receivers.SecretURL  `json:"r_url,omitempty"`
+		RURLPtr    *receivers.SecretURL `json:"r_url_ptr,omitempty"`
+		// config types
+		CSecret    config.Secret     `json:"c_secret,omitempty"`
+		CSecretPtr *config.Secret    `json:"c_secret_ptr,omitempty"`
+		CURL       config.SecretURL  `json:"c_url,omitempty"`
+		CURLPtr    *config.SecretURL `json:"c_url_ptr,omitempty"`
+		// common config types
+		CCSecret    commoncfg.Secret  `json:"cc_secret,omitempty"`
+		CCSecretPtr *commoncfg.Secret `json:"cc_secret_ptr,omitempty"`
 	}
 
 	tests := []struct {
@@ -328,16 +338,28 @@ func TestSecretOmitempty(t *testing.T) {
 		{
 			name: "all present",
 			value: testStruct{
-				Secret:    config.Secret("secret1"),
-				SecretPtr: func() *config.Secret { s := config.Secret("secret2"); return &s }(),
-				URL:       config.SecretURL{URL: &url.URL{Scheme: "https", Host: "example.com"}},
-				URLPtr:    &config.SecretURL{URL: &url.URL{Scheme: "https", Host: "example2.com"}},
+				RSecret:     receivers.Secret("rs1"),
+				RSecretPtr:  func() *receivers.Secret { s := receivers.Secret("rs2"); return &s }(),
+				RURL:        receivers.SecretURL{URL: &url.URL{Scheme: "https", Host: "r.example.com"}},
+				RURLPtr:     &receivers.SecretURL{URL: &url.URL{Scheme: "https", Host: "r2.example.com"}},
+				CSecret:     config.Secret("cs1"),
+				CSecretPtr:  func() *config.Secret { s := config.Secret("cs2"); return &s }(),
+				CURL:        config.SecretURL{URL: &url.URL{Scheme: "https", Host: "c.example.com"}},
+				CURLPtr:     &config.SecretURL{URL: &url.URL{Scheme: "https", Host: "c2.example.com"}},
+				CCSecret:    commoncfg.Secret("ccs1"),
+				CCSecretPtr: func() *commoncfg.Secret { s := commoncfg.Secret("ccs2"); return &s }(),
 			},
 			expected: `{
-				"secret": "secret1",
-				"secret_ptr": "secret2",
-				"url": "https://example.com",
-				"url_ptr": "https://example2.com"
+				"r_secret": "rs1",
+				"r_secret_ptr": "rs2",
+				"r_url": "https://r.example.com",
+				"r_url_ptr": "https://r2.example.com",
+				"c_secret": "cs1",
+				"c_secret_ptr": "cs2",
+				"c_url": "https://c.example.com",
+				"c_url_ptr": "https://c2.example.com",
+				"cc_secret": "ccs1",
+				"cc_secret_ptr": "ccs2"
 			}`,
 		},
 	}

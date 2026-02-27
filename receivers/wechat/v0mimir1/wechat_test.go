@@ -19,9 +19,10 @@ import (
 	"testing"
 
 	"github.com/go-kit/log"
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/receivers"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 )
@@ -33,10 +34,10 @@ func TestWechatRedactedURLOnInitialAuthentication(t *testing.T) {
 	secret := "secret_key"
 	notifier, err := New(
 		&Config{
-			APIURL:     &config.URL{URL: u},
+			APIURL:     &receivers.URL{URL: u},
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 			CorpID:     "corpid",
-			APISecret:  config.Secret(secret),
+			APISecret:  receivers.Secret(secret),
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -55,10 +56,10 @@ func TestWechatRedactedURLOnNotify(t *testing.T) {
 
 	notifier, err := New(
 		&Config{
-			APIURL:     &config.URL{URL: u},
+			APIURL:     &receivers.URL{URL: u},
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 			CorpID:     "corpid",
-			APISecret:  config.Secret(secret),
+			APISecret:  receivers.Secret(secret),
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -77,10 +78,10 @@ func TestWechatMessageTypeSelector(t *testing.T) {
 
 	notifier, err := New(
 		&Config{
-			APIURL:      &config.URL{URL: u},
+			APIURL:      &receivers.URL{URL: u},
 			HTTPConfig:  &httpcfg.HTTPClientConfig{},
 			CorpID:      "corpid",
-			APISecret:   config.Secret(secret),
+			APISecret:   receivers.Secret(secret),
 			MessageType: "markdown",
 		},
 		test.CreateTmpl(t),

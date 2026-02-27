@@ -17,9 +17,8 @@ package v0mimir1
 import (
 	"errors"
 
-	"github.com/prometheus/alertmanager/config"
-
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 )
 
@@ -27,7 +26,7 @@ const Version = schema.V0mimir1
 
 // DefaultConfig defines default values for Slack configurations.
 var DefaultConfig = Config{
-	NotifierConfig: config.NotifierConfig{
+	NotifierConfig: receivers.NotifierConfig{
 		VSendResolved: false,
 	},
 	Color:      `{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}`,
@@ -45,34 +44,34 @@ var DefaultConfig = Config{
 
 // Config configures notifications via Slack.
 type Config struct {
-	config.NotifierConfig `yaml:",inline" json:",inline"`
+	receivers.NotifierConfig `yaml:",inline" json:",inline"`
 
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
-	APIURL     *config.SecretURL `yaml:"api_url,omitempty" json:"api_url,omitempty"`
-	APIURLFile string            `yaml:"api_url_file,omitempty" json:"api_url_file,omitempty"`
+	APIURL     *receivers.SecretURL `yaml:"api_url,omitempty" json:"api_url,omitempty"`
+	APIURLFile string               `yaml:"api_url_file,omitempty" json:"api_url_file,omitempty"`
 
 	// Slack channel override, (like #other-channel or @username).
 	Channel  string `yaml:"channel,omitempty" json:"channel,omitempty"`
 	Username string `yaml:"username,omitempty" json:"username,omitempty"`
 	Color    string `yaml:"color,omitempty" json:"color,omitempty"`
 
-	Title       string                `yaml:"title,omitempty" json:"title,omitempty"`
-	TitleLink   string                `yaml:"title_link,omitempty" json:"title_link,omitempty"`
-	Pretext     string                `yaml:"pretext,omitempty" json:"pretext,omitempty"`
-	Text        string                `yaml:"text,omitempty" json:"text,omitempty"`
-	Fields      []*config.SlackField  `yaml:"fields,omitempty" json:"fields,omitempty"`
-	ShortFields bool                  `yaml:"short_fields" json:"short_fields,omitempty"`
-	Footer      string                `yaml:"footer,omitempty" json:"footer,omitempty"`
-	Fallback    string                `yaml:"fallback,omitempty" json:"fallback,omitempty"`
-	CallbackID  string                `yaml:"callback_id,omitempty" json:"callback_id,omitempty"`
-	IconEmoji   string                `yaml:"icon_emoji,omitempty" json:"icon_emoji,omitempty"`
-	IconURL     string                `yaml:"icon_url,omitempty" json:"icon_url,omitempty"`
-	ImageURL    string                `yaml:"image_url,omitempty" json:"image_url,omitempty"`
-	ThumbURL    string                `yaml:"thumb_url,omitempty" json:"thumb_url,omitempty"`
-	LinkNames   bool                  `yaml:"link_names" json:"link_names,omitempty"`
-	MrkdwnIn    []string              `yaml:"mrkdwn_in,omitempty" json:"mrkdwn_in,omitempty"`
-	Actions     []*config.SlackAction `yaml:"actions,omitempty" json:"actions,omitempty"`
+	Title       string         `yaml:"title,omitempty" json:"title,omitempty"`
+	TitleLink   string         `yaml:"title_link,omitempty" json:"title_link,omitempty"`
+	Pretext     string         `yaml:"pretext,omitempty" json:"pretext,omitempty"`
+	Text        string         `yaml:"text,omitempty" json:"text,omitempty"`
+	Fields      []*SlackField  `yaml:"fields,omitempty" json:"fields,omitempty"`
+	ShortFields bool           `yaml:"short_fields" json:"short_fields,omitempty"`
+	Footer      string         `yaml:"footer,omitempty" json:"footer,omitempty"`
+	Fallback    string         `yaml:"fallback,omitempty" json:"fallback,omitempty"`
+	CallbackID  string         `yaml:"callback_id,omitempty" json:"callback_id,omitempty"`
+	IconEmoji   string         `yaml:"icon_emoji,omitempty" json:"icon_emoji,omitempty"`
+	IconURL     string         `yaml:"icon_url,omitempty" json:"icon_url,omitempty"`
+	ImageURL    string         `yaml:"image_url,omitempty" json:"image_url,omitempty"`
+	ThumbURL    string         `yaml:"thumb_url,omitempty" json:"thumb_url,omitempty"`
+	LinkNames   bool           `yaml:"link_names" json:"link_names,omitempty"`
+	MrkdwnIn    []string       `yaml:"mrkdwn_in,omitempty" json:"mrkdwn_in,omitempty"`
+	Actions     []*SlackAction `yaml:"actions,omitempty" json:"actions,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -318,4 +317,89 @@ var Schema = schema.IntegrationSchemaVersion{
 		},
 		schema.V0HttpConfigOption(),
 	},
+}
+
+// SlackAction configures a single Slack action that is sent with each notification.
+// See https://api.slack.com/docs/message-attachments#action_fields and https://api.slack.com/docs/message-buttons
+// for more information.
+type SlackAction struct {
+	Type         string                  `yaml:"type,omitempty"  json:"type,omitempty"`
+	Text         string                  `yaml:"text,omitempty"  json:"text,omitempty"`
+	URL          string                  `yaml:"url,omitempty"   json:"url,omitempty"`
+	Style        string                  `yaml:"style,omitempty" json:"style,omitempty"`
+	Name         string                  `yaml:"name,omitempty"  json:"name,omitempty"`
+	Value        string                  `yaml:"value,omitempty"  json:"value,omitempty"`
+	ConfirmField *SlackConfirmationField `yaml:"confirm,omitempty"  json:"confirm,omitempty"`
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface for SlackAction.
+func (c *SlackAction) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type plain SlackAction
+	if err := unmarshal((*plain)(c)); err != nil {
+		return err
+	}
+	if c.Type == "" {
+		return errors.New("missing type in Slack action configuration")
+	}
+	if c.Text == "" {
+		return errors.New("missing text in Slack action configuration")
+	}
+	if c.URL != "" {
+		// Clear all message action fields.
+		c.Name = ""
+		c.Value = ""
+		c.ConfirmField = nil
+	} else if c.Name != "" {
+		c.URL = ""
+	} else {
+		return errors.New("missing name or url in Slack action configuration")
+	}
+	return nil
+}
+
+// SlackConfirmationField protect users from destructive actions or particularly distinguished decisions
+// by asking them to confirm their button click one more time.
+// See https://api.slack.com/docs/interactive-message-field-guide#confirmation_fields for more information.
+type SlackConfirmationField struct {
+	Text        string `yaml:"text,omitempty"  json:"text,omitempty"`
+	Title       string `yaml:"title,omitempty"  json:"title,omitempty"`
+	OkText      string `yaml:"ok_text,omitempty"  json:"ok_text,omitempty"`
+	DismissText string `yaml:"dismiss_text,omitempty"  json:"dismiss_text,omitempty"`
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface for SlackConfirmationField.
+func (c *SlackConfirmationField) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type plain SlackConfirmationField
+	if err := unmarshal((*plain)(c)); err != nil {
+		return err
+	}
+	if c.Text == "" {
+		return errors.New("missing text in Slack confirmation configuration")
+	}
+	return nil
+}
+
+// SlackField configures a single Slack field that is sent with each notification.
+// Each field must contain a title, value, and optionally, a boolean value to indicate if the field
+// is short enough to be displayed next to other fields designated as short.
+// See https://api.slack.com/docs/message-attachments#fields for more information.
+type SlackField struct {
+	Title string `yaml:"title,omitempty" json:"title,omitempty"`
+	Value string `yaml:"value,omitempty" json:"value,omitempty"`
+	Short *bool  `yaml:"short,omitempty" json:"short,omitempty"`
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface for SlackField.
+func (c *SlackField) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type plain SlackField
+	if err := unmarshal((*plain)(c)); err != nil {
+		return err
+	}
+	if c.Title == "" {
+		return errors.New("missing title in Slack field configuration")
+	}
+	if c.Value == "" {
+		return errors.New("missing value in Slack field configuration")
+	}
+	return nil
 }
