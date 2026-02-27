@@ -398,7 +398,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		require.NoError(t, err)
 		params := req.LastRequest.URL.Query()
 		require.True(t, params.Has("step"), "query params did not contain 'step': %#v", params)
-		require.Equal(t, fmt.Sprint(step), params.Get("step"))
+		require.Equal(t, fmt.Sprint(step/int64(time.Second)), params.Get("step"))
 	})
 
 	t.Run("omits step parameter when zero", func(t *testing.T) {
