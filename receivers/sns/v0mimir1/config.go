@@ -16,8 +16,7 @@ package v0mimir1
 
 import (
 	"errors"
-
-	"github.com/prometheus/common/sigv4"
+	"fmt"
 
 	"github.com/grafana/alerting/receivers"
 
@@ -43,7 +42,7 @@ type Config struct {
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
 	APIUrl      string            `yaml:"api_url,omitempty" json:"api_url,omitempty"`
-	Sigv4       sigv4.SigV4Config `yaml:"sigv4" json:"sigv4"`
+	Sigv4       SigV4Config       `yaml:"sigv4" json:"sigv4"`
 	TopicARN    string            `yaml:"topic_arn,omitempty" json:"topic_arn,omitempty"`
 	PhoneNumber string            `yaml:"phone_number,omitempty" json:"phone_number,omitempty"`
 	TargetARN   string            `yaml:"target_arn,omitempty" json:"target_arn,omitempty"`
@@ -63,6 +62,30 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return errors.New("must provide either a Target ARN, Topic ARN, or Phone Number for SNS config")
 	}
 	return nil
+}
+
+type SigV4Config struct {
+	Region    string           `yaml:"region,omitempty"`
+	AccessKey string           `yaml:"access_key,omitempty"`
+	SecretKey receivers.Secret `yaml:"secret_key,omitempty"`
+	Profile   string           `yaml:"profile,omitempty"`
+	RoleARN   string           `yaml:"role_arn,omitempty"`
+}
+
+func (c *SigV4Config) Validate() error {
+	if (c.AccessKey == "") != (c.SecretKey == "") {
+		return fmt.Errorf("must provide a AWS SigV4 Access key and Secret Key if credentials are specified in the SigV4 config")
+	}
+	return nil
+}
+
+func (c *SigV4Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type plain SigV4Config
+	*c = SigV4Config{}
+	if err := unmarshal((*plain)(c)); err != nil {
+		return err
+	}
+	return c.Validate()
 }
 
 var Schema = schema.IntegrationSchemaVersion{

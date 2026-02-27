@@ -23,9 +23,12 @@ const FullValidConfigForTesting = ` {
 func GetFullValidConfig() Config {
 	cfg := DefaultConfig
 	cfg.APIUrl = "https://sns.us-east-1.amazonaws.com"
-	cfg.Sigv4 = sigv4.SigV4Config{
-		Region:  "us-east-1",
-		Profile: "prod",
+	cfg.Sigv4 = SigV4Config{
+		Region:    "us-east-1",
+		Profile:   "prod",
+		SecretKey: "secret-secret-key",
+		AccessKey: "secret-access-key",
+		RoleARN:   "arn:aws:iam::123456789012:role/role-name",
 	}
 	cfg.TopicARN = "arn:aws:sns:us-east-1:123456789:test"
 	cfg.PhoneNumber = "+1234567890"
