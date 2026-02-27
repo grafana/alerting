@@ -317,7 +317,7 @@ func (c *HTTPLokiClient) MetricsQuery(ctx context.Context, logQL string, ts int6
 	return result, nil
 }
 
-func (c *HTTPLokiClient) MetricsRangeQuery(ctx context.Context, logQL string, start, end, limit int64) (MetricsRangeQueryRes, error) {
+func (c *HTTPLokiClient) MetricsRangeQuery(ctx context.Context, logQL string, start, end, limit, step int64) (MetricsRangeQueryRes, error) {
 	if start > end {
 		return MetricsRangeQueryRes{}, fmt.Errorf("start time cannot be after end time")
 	}
@@ -336,9 +336,12 @@ func (c *HTTPLokiClient) MetricsRangeQuery(ctx context.Context, logQL string, st
 	values.Set("start", fmt.Sprintf("%d", start))
 	values.Set("end", fmt.Sprintf("%d", end))
 	values.Set("limit", fmt.Sprintf("%d", limit))
+	if step > 0 {
+		values.Set("step", fmt.Sprintf("%d", step/int64(time.Second)))
+	}
 
 	queryURL.RawQuery = values.Encode()
-	level.Debug(c.logger).Log("msg", "Sending metrics range query request", "query", logQL, "start", start, "end", end, "limit", limit)
+	level.Debug(c.logger).Log("msg", "Sending metrics range query request", "query", logQL, "start", start, "end", end, "limit", limit, "step", step)
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return MetricsRangeQueryRes{}, fmt.Errorf("error creating request: %w", err)
