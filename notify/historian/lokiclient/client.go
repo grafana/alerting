@@ -336,8 +336,8 @@ func (c *HTTPLokiClient) MetricsRangeQuery(ctx context.Context, logQL string, st
 	values.Set("start", fmt.Sprintf("%d", start))
 	values.Set("end", fmt.Sprintf("%d", end))
 	values.Set("limit", fmt.Sprintf("%d", limit))
-	if step > 0 {
-		values.Set("step", fmt.Sprintf("%d", step/int64(time.Second)))
+	if stepSeconds := step / int64(time.Second); stepSeconds > 0 {
+		values.Set("step", fmt.Sprintf("%d", stepSeconds))
 	}
 
 	queryURL.RawQuery = values.Encode()

@@ -415,6 +415,20 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		require.False(t, params.Has("step"), "query params should not contain 'step' when zero: %#v", params)
 	})
 
+	t.Run("omits step parameter when below one second", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, defaultPageSize, int64(500*time.Millisecond))
+
+		require.NoError(t, err)
+		params := req.LastRequest.URL.Query()
+		require.False(t, params.Has("step"), "query params should not contain 'step' when below one second: %#v", params)
+	})
+
 	t.Run("parses metric range sample response", func(t *testing.T) {
 		body := `{"data":{"result":[{"metric":{"job":"my-app"},"values":[[1700000000.0,"1.5"],[1700000060.0,"2.0"]]}]}}`
 		req := instrumenttest.NewFakeRequester().WithResponse(&http.Response{
