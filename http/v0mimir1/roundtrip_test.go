@@ -21,6 +21,8 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
+
+	"github.com/grafana/alerting/receivers"
 )
 
 // TestHTTPHeadersJSONRoundTrip documents that Headers has a custom MarshalJSON
@@ -30,15 +32,13 @@ func TestHTTPHeadersJSONRoundTrip(t *testing.T) {
 	original := HTTPClientConfig{
 		FollowRedirects: true,
 		EnableHTTP2:     true,
-		HTTPHeaders: &Headers{
-			Headers: map[string]Header{
-				"X-Custom-Header": {Values: []string{"val1", "val2"}},
-				"X-Secret-Header": {Secrets: []commoncfg.Secret{"secret"}},
-			},
+		HTTPHeaders: Headers{
+			"X-Custom-Header": {Values: []string{"val1", "val2"}},
+			"X-Secret-Header": {Secrets: []commoncfg.Secret{"secret"}},
 		},
 	}
 
-	data, err := json.Marshal(original)
+	data, err := receivers.PlainSecretsJSON.Marshal(original)
 	require.NoError(t, err)
 
 	var got HTTPClientConfig
@@ -47,7 +47,7 @@ func TestHTTPHeadersJSONRoundTrip(t *testing.T) {
 	// FAILS: Headers.MarshalJSON inlines the map, but there is no UnmarshalJSON.
 	// The default decoder finds no struct field matching "X-Custom-Header", so
 	// HTTPHeaders.Headers is empty after the round-trip.
-	require.Equal(t, original.HTTPHeaders.Headers, got.HTTPHeaders.Headers)
+	require.Equal(t, original.HTTPHeaders, got.HTTPHeaders)
 }
 
 // TestOAuth2TLSConfigJSONKey documents that OAuth2.TLSConfig is missing a json

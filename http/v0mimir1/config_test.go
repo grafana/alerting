@@ -424,10 +424,8 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 		{
 			name: "invalid: http_headers with reserved header",
 			cfg: HTTPClientConfig{
-				HTTPHeaders: &Headers{
-					Headers: map[string]Header{
-						"User-Agent": {Values: []string{"custom-agent"}},
-					},
+				HTTPHeaders: Headers{
+					"User-Agent": {Values: []string{"custom-agent"}},
 				},
 			},
 			errMsg: `setting header "User-Agent" is not allowed`,
@@ -458,21 +456,21 @@ func TestHeadersValidate(t *testing.T) {
 		},
 		{
 			name: "valid: custom header",
-			cfg:  Headers{Headers: map[string]Header{"X-Custom": {Values: []string{"val"}}}},
+			cfg:  Headers{"X-Custom": {Values: []string{"val"}}},
 		},
 		{
 			name:   "invalid: Authorization header",
-			cfg:    Headers{Headers: map[string]Header{"Authorization": {Values: []string{"Bearer token"}}}},
+			cfg:    Headers{"Authorization": {Values: []string{"Bearer token"}}},
 			errMsg: `setting header "Authorization" is not allowed`,
 		},
 		{
 			name:   "invalid: User-Agent header",
-			cfg:    Headers{Headers: map[string]Header{"User-Agent": {Values: []string{"custom"}}}},
+			cfg:    Headers{"User-Agent": {Values: []string{"custom"}}},
 			errMsg: `setting header "User-Agent" is not allowed`,
 		},
 		{
 			name:   "invalid: Content-Type header",
-			cfg:    Headers{Headers: map[string]Header{"Content-Type": {Values: []string{"application/json"}}}},
+			cfg:    Headers{"Content-Type": {Values: []string{"application/json"}}},
 			errMsg: `setting header "Content-Type" is not allowed`,
 		},
 	}

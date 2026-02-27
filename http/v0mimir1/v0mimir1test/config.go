@@ -72,7 +72,7 @@ var ValidMimirHTTPConfigs = map[MimirIntegrationHTTPConfigOption]string{
 					"param1": "value1",
 					"param2": "value2"
 				},
-				"TLSConfig": {
+				"tls_config": {
                     "insecure_skip_verify": false
 				},
 				"proxy_url": ""
@@ -98,15 +98,14 @@ var ValidMimirHTTPConfigs = map[MimirIntegrationHTTPConfigOption]string{
 			"follow_redirects": true,
 			"enable_http2": true,
 			"http_headers": {
-				"headers": {
-					"X-Header-1": {
-						"secrets": ["value1"]
-					},
-					"X-Header-2": {
-						"values": ["value2"]
-					}
+				"X-Header-1": {
+					"secrets": ["value1"]
+				},
+				"X-Header-2": {
+					"values": ["value2"]
 				}
-			}
+			},
+			"proxy_url": ""
 		}
 	}`,
 	WithProxy: `{

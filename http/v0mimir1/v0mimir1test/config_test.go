@@ -6,6 +6,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 
@@ -18,8 +19,7 @@ func TestHttpConfigIdempotency(t *testing.T) {
 		HTTPConfig *v0mimir1.HTTPClientConfig `json:"http_config,omitempty" yaml:"http_config,omitempty"`
 	}
 	for _, opts := range slices.Sorted(maps.Keys(ValidMimirHTTPConfigs)) {
-		if opts == WithLegacyBearerTokenAuth || // Skip because it's a legacy format and is mapped to "authorization"
-			opts == WithHeaders { // Skip because handling of headers in JSON is inconsistent unmarshalling is different from marshaling
+		if opts == WithLegacyBearerTokenAuth { // Skip because it's a legacy format and is mapped to "authorization"
 			continue
 		}
 		t.Run(string(opts), func(t *testing.T) {
@@ -27,13 +27,14 @@ func TestHttpConfigIdempotency(t *testing.T) {
 			var f testCase
 			err := json.Unmarshal([]byte(expected), &f)
 			require.NoError(t, err)
+
 			data, err := definition.MarshalJSONWithSecrets(f)
 			require.NoError(t, err)
-			require.JSONEq(t, expected, string(data))
+			assert.JSONEq(t, expected, string(data))
 
 			t.Run("unmarshal JSON with YAML", func(t *testing.T) {
 				var actual testCase
-				err := yaml.Unmarshal(data, &actual)
+				err := yaml.Unmarshal([]byte(expected), &actual)
 				require.NoError(t, err)
 				require.Equal(t, f, actual)
 			})
