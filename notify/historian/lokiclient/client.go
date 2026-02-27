@@ -317,6 +317,61 @@ func (c *HTTPLokiClient) MetricsQuery(ctx context.Context, logQL string, ts int6
 	return result, nil
 }
 
+func (c *HTTPLokiClient) MetricsRangeQuery(ctx context.Context, logQL string, start, end, limit int64) (MetricsRangeQueryRes, error) {
+	if start > end {
+		return MetricsRangeQueryRes{}, fmt.Errorf("start time cannot be after end time")
+	}
+	start, end = ClampRange(start, end, c.cfg.MaxQueryLength.Nanoseconds())
+	if limit < 1 {
+		limit = defaultPageSize
+	}
+	if limit > maximumPageSize {
+		limit = maximumPageSize
+	}
+
+	queryURL := c.cfg.ReadPathURL.JoinPath("/loki/api/v1/query_range")
+
+	values := url.Values{}
+	values.Set("query", logQL)
+	values.Set("start", fmt.Sprintf("%d", start))
+	values.Set("end", fmt.Sprintf("%d", end))
+	values.Set("limit", fmt.Sprintf("%d", limit))
+
+	queryURL.RawQuery = values.Encode()
+	level.Debug(c.logger).Log("msg", "Sending metrics range query request", "query", logQL, "start", start, "end", end, "limit", limit)
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return MetricsRangeQueryRes{}, fmt.Errorf("error creating request: %w", err)
+	}
+
+	req = req.WithContext(ctx)
+	c.setAuthAndTenantHeaders(req)
+
+	res, err := c.client.Do(req)
+	if err != nil {
+		return MetricsRangeQueryRes{}, fmt.Errorf("error executing request: %w", err)
+	}
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			level.Warn(c.logger).Log("msg", "Failed to close response body", "err", err)
+		}
+	}()
+
+	data, err := c.handleLokiResponse(c.logger, res)
+	if err != nil {
+		return MetricsRangeQueryRes{}, err
+	}
+
+	result := MetricsRangeQueryRes{}
+	err = json.Unmarshal(data, &result)
+	if err != nil {
+		level.Error(c.logger).Log("msg", "Failed to parse response", "err", err, "data", string(data))
+		return MetricsRangeQueryRes{}, fmt.Errorf("error parsing request response: %w", err)
+	}
+
+	return result, nil
+}
+
 func (c *HTTPLokiClient) MaxQuerySize() int {
 	return c.cfg.MaxQuerySize
 }
@@ -335,6 +390,20 @@ type MetricsQueryRes struct {
 
 type MetricsQueryData struct {
 	Result []MetricSample `json:"result"`
+}
+
+type MetricsRangeQueryRes struct {
+	Data MetricsRangeQueryData `json:"data"`
+}
+
+type MetricsRangeQueryData struct {
+	Result []MetricRangeSample `json:"result"`
+}
+
+// MetricRangeSample represents a single matrix result from a Loki metrics range query.
+type MetricRangeSample struct {
+	Metric map[string]string   `json:"metric"`
+	Values []MetricSampleValue `json:"values"`
 }
 
 // MetricSample represents a single instant vector result from a Loki metrics query.
