@@ -416,11 +416,7 @@ func TestPagerDutyEmptySrcHref(t *testing.T) {
 		if image.Src == "" {
 			continue
 		}
-		expectedImages = append(expectedImages, pagerDutyImage{
-			Src:  image.Src,
-			Alt:  image.Alt,
-			Href: image.Href,
-		})
+		expectedImages = append(expectedImages, pagerDutyImage(image))
 	}
 
 	expectedLinks := make([]pagerDutyLink, 0, len(links))
