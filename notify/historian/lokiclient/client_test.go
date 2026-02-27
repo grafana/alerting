@@ -306,7 +306,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		client := createTestLokiClient(req)
 		now := time.Now().UTC().UnixNano()
 
-		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, defaultPageSize)
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, defaultPageSize, 0)
 
 		require.NoError(t, err)
 		require.Contains(t, req.LastRequest.URL.Path, "/loki/api/v1/query_range")
@@ -320,7 +320,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		now := time.Now().UTC().UnixNano()
 		start := now - 100
 
-		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, start, now, defaultPageSize)
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, start, now, defaultPageSize, 0)
 
 		require.NoError(t, err)
 		params := req.LastRequest.URL.Query()
@@ -338,7 +338,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		client := createTestLokiClient(req)
 		now := time.Now().UTC().UnixNano()
 
-		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, 1100)
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, 1100, 0)
 
 		require.NoError(t, err)
 		params := req.LastRequest.URL.Query()
@@ -353,7 +353,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		client := createTestLokiClient(req)
 		now := time.Now().UTC().UnixNano()
 
-		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, 0)
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, 0, 0)
 
 		require.NoError(t, err)
 		params := req.LastRequest.URL.Query()
@@ -367,7 +367,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		client := createTestLokiClient(req)
 		now := time.Now().UTC().UnixNano()
 
-		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, maximumPageSize+1000)
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, maximumPageSize+1000, 0)
 
 		require.NoError(t, err)
 		params := req.LastRequest.URL.Query()
@@ -379,10 +379,40 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		client := createTestLokiClient(req)
 		now := time.Now().UTC().UnixNano()
 
-		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now, now-100, defaultPageSize)
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now, now-100, defaultPageSize, 0)
 
 		require.Error(t, err)
 		require.ErrorContains(t, err, "start time cannot be after end time")
+	})
+
+	t.Run("passes along step parameter", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+		step := int64(30 * time.Second)
+
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, defaultPageSize, step)
+
+		require.NoError(t, err)
+		params := req.LastRequest.URL.Query()
+		require.True(t, params.Has("step"), "query params did not contain 'step': %#v", params)
+		require.Equal(t, fmt.Sprint(step), params.Get("step"))
+	})
+
+	t.Run("omits step parameter when zero", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, defaultPageSize, 0)
+
+		require.NoError(t, err)
+		params := req.LastRequest.URL.Query()
+		require.False(t, params.Has("step"), "query params should not contain 'step' when zero: %#v", params)
 	})
 
 	t.Run("parses metric range sample response", func(t *testing.T) {
@@ -396,7 +426,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		client := createTestLokiClient(req)
 		now := time.Now().UnixNano()
 
-		res, err := client.MetricsRangeQuery(context.Background(), `rate({job="my-app"}[5m])`, now-int64(time.Minute), now, defaultPageSize)
+		res, err := client.MetricsRangeQuery(context.Background(), `rate({job="my-app"}[5m])`, now-int64(time.Minute), now, defaultPageSize, 0)
 
 		require.NoError(t, err)
 		require.Len(t, res.Data.Result, 1)
