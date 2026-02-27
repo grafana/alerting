@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/grafana/alerting/definition"
+	"github.com/grafana/alerting/http/v0mimir1/v0mimir1test"
 	discordV0 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	emailV0 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	jiraV0 "github.com/grafana/alerting/receivers/jira/v0mimir1"
@@ -25,22 +26,9 @@ import (
 	wechatV0 "github.com/grafana/alerting/receivers/wechat/v0mimir1"
 )
 
-type MimirIntegrationHTTPConfigOption string
-
-const (
-	WithBasicAuth             = MimirIntegrationHTTPConfigOption("basic_auth")
-	WithLegacyBearerTokenAuth = MimirIntegrationHTTPConfigOption("bearer_token")
-	WithAuthorization         = MimirIntegrationHTTPConfigOption("authorization")
-	WithOAuth2                = MimirIntegrationHTTPConfigOption("oauth2")
-	WithTLS                   = MimirIntegrationHTTPConfigOption("tls_config")
-	WithHeaders               = MimirIntegrationHTTPConfigOption("headers")
-	WithProxy                 = MimirIntegrationHTTPConfigOption("proxy_config")
-	WithDefault               = MimirIntegrationHTTPConfigOption("default")
-)
-
 // GetMimirIntegration creates a new instance of the given integration type with selected http config options.
 // It panics if the configuration process encounters an issue.
-func GetMimirIntegration[T any](opts ...MimirIntegrationHTTPConfigOption) (T, error) {
+func GetMimirIntegration[T any](opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (T, error) {
 	var config T
 	cfg, err := GetRawConfigForMimirIntegration(reflect.TypeOf(config), opts...)
 	if err != nil {
@@ -55,7 +43,7 @@ func GetMimirIntegration[T any](opts ...MimirIntegrationHTTPConfigOption) (T, er
 
 // GetMimirIntegrationForType creates a new instance of the given integration type with selected http config options.
 // It panics if the configuration process encounters an issue.
-func GetMimirIntegrationForType(iType reflect.Type, opts ...MimirIntegrationHTTPConfigOption) (any, error) {
+func GetMimirIntegrationForType(iType reflect.Type, opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (any, error) {
 	cfg, err := GetRawConfigForMimirIntegration(iType, opts...)
 	if err != nil {
 		return nil, err
@@ -70,7 +58,7 @@ func GetMimirIntegrationForType(iType reflect.Type, opts ...MimirIntegrationHTTP
 
 // GetMimirReceiverWithIntegrations creates a Receiver with selected integrations configured from given types and options.
 // It returns a Receiver for testing purposes or an error if the configuration process encounters an issue.
-func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
+func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
 	receiver := definition.Receiver{Name: "receiver"}
 	receiverVal := reflect.ValueOf(&receiver).Elem()
 	receiverType := receiverVal.Type()
@@ -108,11 +96,11 @@ func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...MimirIntegr
 
 // GetMimirReceiverWithAllIntegrations creates a Receiver with all integrations configured from given types and options.
 // It returns a Receiver for testing purposes or an error if the configuration process encounters an issue.
-func GetMimirReceiverWithAllIntegrations(opts ...MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
+func GetMimirReceiverWithAllIntegrations(opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
 	return GetMimirReceiverWithIntegrations(slices.Collect(maps.Keys(AllValidMimirConfigs)), opts...)
 }
 
-func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...MimirIntegrationHTTPConfigOption) (string, error) {
+func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (string, error) {
 	cfg, ok := AllValidMimirConfigs[iType]
 	if !ok {
 		return "", fmt.Errorf("invalid config type [%s", iType.String())
@@ -121,10 +109,10 @@ func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...MimirIntegratio
 		return cfg, nil
 	}
 	if len(opts) == 0 {
-		opts = []MimirIntegrationHTTPConfigOption{WithDefault}
+		opts = []v0mimir1test.MimirIntegrationHTTPConfigOption{v0mimir1test.WithDefault}
 	}
 	for _, opt := range opts {
-		c, ok := ValidMimirHTTPConfigs[opt]
+		c, ok := v0mimir1test.ValidMimirHTTPConfigs[opt]
 		if !ok {
 			return "", fmt.Errorf("invalid option [%s]", opt)
 		}
@@ -135,129 +123,6 @@ func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...MimirIntegratio
 		cfg = string(bytes)
 	}
 	return cfg, nil
-}
-
-var ValidMimirHTTPConfigs = map[MimirIntegrationHTTPConfigOption]string{
-	WithBasicAuth: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "",
-			"basic_auth": {
-				"username": "test-username",
-				"password": "test-password"
-			}
-		}
-	}`,
-	WithLegacyBearerTokenAuth: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "",
-			"bearer_token": "test-token"
-		}
-	}`,
-	WithAuthorization: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "",
-			"authorization": {
-				"type": "bearer",
-				"credentials": "test-credentials"
-			}
-		}
-	}`,
-	WithOAuth2: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "",
-			"oauth2": {
-				"client_id": "test-client-id",
-				"client_secret": "test-client-secret",
-				"client_secret_file": "",
-				"client_secret_ref": "",
-				"token_url": "https://localhost/auth/token",
-				"scopes": ["scope1", "scope2"],
-				"endpoint_params": {
-					"param1": "value1",
-					"param2": "value2"
-				},
-				"TLSConfig": {
-                    "insecure_skip_verify": false
-				},
-				"proxy_url": ""
-			}
-	    }
-	}`,
-	WithTLS: `{
-		"http_config": {
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "",
-			"tls_config": {
-				"insecure_skip_verify": false,
-				"server_name": "test-server-name"
-			}
-	    }
-	}`,
-	WithHeaders: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"http_headers": {
-				"headers": {
-					"X-Header-1": {
-						"secrets": ["value1"]
-					},
-					"X-Header-2": {
-						"values": ["value2"]
-					}
-				}
-			}
-		}
-	}`,
-	WithProxy: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "http://localproxy:8080",
-			"no_proxy": "localhost",
-			"proxy_connect_header": {
-				"X-Proxy-Header": ["proxy-value"]
-			}
-		}
-	}`,
-	// This reflects the default
-	WithDefault: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": ""
-		}
-	}`,
 }
 
 var AllValidMimirConfigs = map[reflect.Type]string{

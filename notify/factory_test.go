@@ -17,6 +17,7 @@ import (
 	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/http/v0mimir1/v0mimir1test"
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/nfstatus"
@@ -233,7 +234,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 }
 
 func TestBuildPrometheusReceiverIntegrations(t *testing.T) {
-	receiver, err := notifytest.GetMimirReceiverWithAllIntegrations(notifytest.WithTLS, notifytest.WithAuthorization, notifytest.WithOAuth2)
+	receiver, err := notifytest.GetMimirReceiverWithAllIntegrations(v0mimir1test.WithTLS, v0mimir1test.WithAuthorization, v0mimir1test.WithOAuth2)
 	require.NoError(t, err)
 	err = definition.ValidateAlertmanagerConfig(receiver)
 	require.NoError(t, err)
