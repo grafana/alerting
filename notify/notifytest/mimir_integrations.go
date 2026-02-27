@@ -125,6 +125,45 @@ func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...v0mimir1test.Mi
 	return cfg, nil
 }
 
+// FullValidMimirReceiver builds a Receiver with all integration types populated
+// using GetFullValidConfig from each integration package.
+func FullValidMimirReceiver() definition.Receiver {
+	discord := discordV0.GetFullValidConfig()
+	email := emailV0.GetFullValidConfig()
+	jira := jiraV0.GetFullValidConfig()
+	opsgenie := opsgenieV0.GetFullValidConfig()
+	pagerduty := pagerdutyV0.GetFullValidConfig()
+	pushover := pushoverV0.GetFullValidConfig()
+	slack := slackV0.GetFullValidConfig()
+	sns := snsV0.GetFullValidConfig()
+	teamsV1 := msteamsV01.GetFullValidConfig()
+	teamsV2 := msteamsV02.GetFullValidConfig()
+	telegram := telegramV0.GetFullValidConfig()
+	victorops := victoropsV0.GetFullValidConfig()
+	webex := webexV0.GetFullValidConfig()
+	webhook := webhookV0.GetFullValidConfig()
+	wechat := wechatV0.GetFullValidConfig()
+
+	return definition.Receiver{
+		Name:             "test-receiver",
+		DiscordConfigs:   []*discordV0.Config{&discord},
+		EmailConfigs:     []*emailV0.Config{&email},
+		JiraConfigs:      []*jiraV0.Config{&jira},
+		OpsGenieConfigs:  []*opsgenieV0.Config{&opsgenie},
+		PagerdutyConfigs: []*pagerdutyV0.Config{&pagerduty},
+		PushoverConfigs:  []*pushoverV0.Config{&pushover},
+		SlackConfigs:     []*slackV0.Config{&slack},
+		SNSConfigs:       []*snsV0.Config{&sns},
+		MSTeamsConfigs:   []*msteamsV01.Config{&teamsV1},
+		MSTeamsV2Configs: []*msteamsV02.Config{&teamsV2},
+		TelegramConfigs:  []*telegramV0.Config{&telegram},
+		VictorOpsConfigs: []*victoropsV0.Config{&victorops},
+		WebexConfigs:     []*webexV0.Config{&webex},
+		WebhookConfigs:   []*webhookV0.Config{&webhook},
+		WechatConfigs:    []*wechatV0.Config{&wechat},
+	}
+}
+
 var AllValidMimirConfigs = map[reflect.Type]string{
 	reflect.TypeOf(discordV0.Config{}):   discordV0.FullValidConfigForTesting,
 	reflect.TypeOf(emailV0.Config{}):     emailV0.FullValidConfigForTesting,
