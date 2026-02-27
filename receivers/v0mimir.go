@@ -149,7 +149,7 @@ func (s *SecretURL) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, (*URL)(s))
 }
 
-func mustParseURL(s string) *URL {
+func MustParseURL(s string) *URL {
 	u, err := parseURL(s)
 	if err != nil {
 		panic(err)
