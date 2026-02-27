@@ -54,9 +54,10 @@ type Config struct {
 func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	type plain Config
 	type withFallback struct {
-		plain        `yaml:",inline" json:",inline"`
-		BotTokenJson receivers.Secret `yaml:"token"`
-		ChatIDJson   int64            `yaml:"chat"`
+		plain            `yaml:",inline" json:",inline"`
+		BotTokenJson     receivers.Secret `yaml:"token"`
+		BotTokenFileJson string           `yaml:"token_file"`
+		ChatIDJson       int64            `yaml:"chat"`
 	}
 	pl := withFallback{plain: plain(DefaultConfig)}
 	if err := unmarshal(&pl); err != nil {
@@ -65,6 +66,9 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	*c = Config(pl.plain)
 	if c.BotToken == "" && pl.BotTokenJson != "" {
 		c.BotToken = pl.BotTokenJson
+	}
+	if c.BotTokenFile == "" && pl.BotTokenFileJson != "" {
+		c.BotTokenFile = pl.BotTokenFileJson
 	}
 	if c.ChatID == 0 && pl.ChatIDJson != 0 {
 		c.ChatID = pl.ChatIDJson

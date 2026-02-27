@@ -82,6 +82,13 @@ chat: 123
 parse_mode: Markdown
 `,
 		},
+		{
+			name: "json token_file tag is supported",
+			in: `
+token_file: /file
+chat: 123
+`,
+		},
 	}
 
 	for _, tt := range tc {
