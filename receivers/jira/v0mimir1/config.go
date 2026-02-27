@@ -60,10 +60,18 @@ type Config struct {
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*c = DefaultConfig
-	type plain Config
-	if err := unmarshal((*plain)(c)); err != nil {
+	type Plain Config
+	type withFallback struct {
+		Plain            `yaml:",inline" json:",inline"`
+		CustomFieldsJson map[string]any `yaml:"custom_fields"`
+	}
+	pl := withFallback{Plain: Plain(DefaultConfig)}
+	if err := unmarshal(&pl); err != nil {
 		return err
+	}
+	*c = Config(pl.Plain)
+	if c.Fields == nil && pl.CustomFieldsJson != nil {
+		c.Fields = pl.CustomFieldsJson
 	}
 
 	if c.Project == "" {

@@ -20,6 +20,8 @@ import (
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	yamlv2 "gopkg.in/yaml.v2"
+	yamlv3 "gopkg.in/yaml.v3"
 
 	"github.com/prometheus/alertmanager/notify"
 
@@ -577,4 +579,41 @@ func allReceivers(r *GrafanaReceiverConfig) ([]NotifierConfig[any], int) {
 		recvs = append(recvs, configs...)
 	}
 	return recvs, missing
+}
+
+// TestReceiver_JSONRoundTrip verifies JSON marshal/unmarshal roundtrip for a
+// receiver with all integration types, using MarshalJSONWithSecrets to
+// preserve secret values in plain text.
+func TestReceiver_JSONRoundTrip(t *testing.T) {
+	original := notifytest.FullValidMimirReceiver()
+
+	integrations, err := ConfigReceiverToMimirIntegrations(original)
+	require.NoError(t, err)
+	for _, integration := range integrations {
+		t.Run(fmt.Sprintf("%s %s", integration.Schema.Type(), integration.Schema.Version), func(t *testing.T) {
+			data, err := integration.ConfigJSON()
+			require.NoError(t, err)
+
+			t.Run("JSON unmarshaled by JSON", func(t *testing.T) {
+				got := reflect.New(reflect.TypeOf(integration.Config)).Interface()
+				require.NoError(t, json.Unmarshal(data, got))
+
+				require.Equal(t, integration.Config, reflect.ValueOf(got).Elem().Interface())
+			})
+
+			t.Run("JSON unmarshaled by YAML v2", func(t *testing.T) {
+				got := reflect.New(reflect.TypeOf(integration.Config)).Interface()
+				require.NoError(t, yamlv2.Unmarshal(data, got))
+
+				require.Equal(t, integration.Config, reflect.ValueOf(got).Elem().Interface())
+			})
+
+			t.Run("JSON unmarshaled by YAML v3", func(t *testing.T) {
+				got := reflect.New(reflect.TypeOf(integration.Config)).Interface()
+				require.NoError(t, yamlv3.Unmarshal(data, got))
+
+				require.Equal(t, integration.Config, reflect.ValueOf(got).Elem().Interface())
+			})
+		})
+	}
 }

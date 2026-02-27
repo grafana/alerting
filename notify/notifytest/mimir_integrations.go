@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/grafana/alerting/definition"
+	"github.com/grafana/alerting/http/v0mimir1/v0mimir1test"
 	discordV0 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	emailV0 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	jiraV0 "github.com/grafana/alerting/receivers/jira/v0mimir1"
@@ -25,22 +26,9 @@ import (
 	wechatV0 "github.com/grafana/alerting/receivers/wechat/v0mimir1"
 )
 
-type MimirIntegrationHTTPConfigOption string
-
-const (
-	WithBasicAuth             = MimirIntegrationHTTPConfigOption("basic_auth")
-	WithLegacyBearerTokenAuth = MimirIntegrationHTTPConfigOption("bearer_token")
-	WithAuthorization         = MimirIntegrationHTTPConfigOption("authorization")
-	WithOAuth2                = MimirIntegrationHTTPConfigOption("oauth2")
-	WithTLS                   = MimirIntegrationHTTPConfigOption("tls_config")
-	WithHeaders               = MimirIntegrationHTTPConfigOption("headers")
-	WithProxy                 = MimirIntegrationHTTPConfigOption("proxy_config")
-	WithDefault               = MimirIntegrationHTTPConfigOption("default")
-)
-
 // GetMimirIntegration creates a new instance of the given integration type with selected http config options.
 // It panics if the configuration process encounters an issue.
-func GetMimirIntegration[T any](opts ...MimirIntegrationHTTPConfigOption) (T, error) {
+func GetMimirIntegration[T any](opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (T, error) {
 	var config T
 	cfg, err := GetRawConfigForMimirIntegration(reflect.TypeOf(config), opts...)
 	if err != nil {
@@ -55,7 +43,7 @@ func GetMimirIntegration[T any](opts ...MimirIntegrationHTTPConfigOption) (T, er
 
 // GetMimirIntegrationForType creates a new instance of the given integration type with selected http config options.
 // It panics if the configuration process encounters an issue.
-func GetMimirIntegrationForType(iType reflect.Type, opts ...MimirIntegrationHTTPConfigOption) (any, error) {
+func GetMimirIntegrationForType(iType reflect.Type, opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (any, error) {
 	cfg, err := GetRawConfigForMimirIntegration(iType, opts...)
 	if err != nil {
 		return nil, err
@@ -70,7 +58,7 @@ func GetMimirIntegrationForType(iType reflect.Type, opts ...MimirIntegrationHTTP
 
 // GetMimirReceiverWithIntegrations creates a Receiver with selected integrations configured from given types and options.
 // It returns a Receiver for testing purposes or an error if the configuration process encounters an issue.
-func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
+func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
 	receiver := definition.Receiver{Name: "receiver"}
 	receiverVal := reflect.ValueOf(&receiver).Elem()
 	receiverType := receiverVal.Type()
@@ -108,11 +96,11 @@ func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...MimirIntegr
 
 // GetMimirReceiverWithAllIntegrations creates a Receiver with all integrations configured from given types and options.
 // It returns a Receiver for testing purposes or an error if the configuration process encounters an issue.
-func GetMimirReceiverWithAllIntegrations(opts ...MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
+func GetMimirReceiverWithAllIntegrations(opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
 	return GetMimirReceiverWithIntegrations(slices.Collect(maps.Keys(AllValidMimirConfigs)), opts...)
 }
 
-func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...MimirIntegrationHTTPConfigOption) (string, error) {
+func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (string, error) {
 	cfg, ok := AllValidMimirConfigs[iType]
 	if !ok {
 		return "", fmt.Errorf("invalid config type [%s", iType.String())
@@ -121,10 +109,10 @@ func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...MimirIntegratio
 		return cfg, nil
 	}
 	if len(opts) == 0 {
-		opts = []MimirIntegrationHTTPConfigOption{WithDefault}
+		opts = []v0mimir1test.MimirIntegrationHTTPConfigOption{v0mimir1test.WithDefault}
 	}
 	for _, opt := range opts {
-		c, ok := ValidMimirHTTPConfigs[opt]
+		c, ok := v0mimir1test.ValidMimirHTTPConfigs[opt]
 		if !ok {
 			return "", fmt.Errorf("invalid option [%s]", opt)
 		}
@@ -137,127 +125,43 @@ func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...MimirIntegratio
 	return cfg, nil
 }
 
-var ValidMimirHTTPConfigs = map[MimirIntegrationHTTPConfigOption]string{
-	WithBasicAuth: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "",
-			"basic_auth": {
-				"username": "test-username",
-				"password": "test-password"
-			}
-		}
-	}`,
-	WithLegacyBearerTokenAuth: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "",
-			"bearer_token": "test-token"
-		}
-	}`,
-	WithAuthorization: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "",
-			"authorization": {
-				"type": "bearer",
-				"credentials": "test-credentials"
-			}
-		}
-	}`,
-	WithOAuth2: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "",
-			"oauth2": {
-				"client_id": "test-client-id",
-				"client_secret": "test-client-secret",
-				"client_secret_file": "",
-				"client_secret_ref": "",
-				"token_url": "https://localhost/auth/token",
-				"scopes": ["scope1", "scope2"],
-				"endpoint_params": {
-					"param1": "value1",
-					"param2": "value2"
-				},
-				"TLSConfig": {
-                    "insecure_skip_verify": false
-				},
-				"proxy_url": ""
-			}
-	    }
-	}`,
-	WithTLS: `{
-		"http_config": {
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "",
-			"tls_config": {
-				"insecure_skip_verify": false,
-				"server_name": "test-server-name"
-			}
-	    }
-	}`,
-	WithHeaders: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"http_headers": {
-				"headers": {
-					"X-Header-1": {
-						"secrets": ["value1"]
-					},
-					"X-Header-2": {
-						"values": ["value2"]
-					}
-				}
-			}
-		}
-	}`,
-	WithProxy: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": "http://localproxy:8080",
-			"no_proxy": "localhost",
-			"proxy_connect_header": {
-				"X-Proxy-Header": ["proxy-value"]
-			}
-		}
-	}`,
-	// This reflects the default
-	WithDefault: `{
-		"http_config": {
-			"tls_config": {
-				"insecure_skip_verify": false
-			},
-			"follow_redirects": true,
-			"enable_http2": true,
-			"proxy_url": ""
-		}
-	}`,
+// FullValidMimirReceiver builds a Receiver with all integration types populated
+// using GetFullValidConfig from each integration package.
+func FullValidMimirReceiver() definition.Receiver {
+	discord := discordV0.GetFullValidConfig()
+	email := emailV0.GetFullValidConfig()
+	jira := jiraV0.GetFullValidConfig()
+	opsgenie := opsgenieV0.GetFullValidConfig()
+	pagerduty := pagerdutyV0.GetFullValidConfig()
+	pushover := pushoverV0.GetFullValidConfig()
+	slack := slackV0.GetFullValidConfig()
+	sns := snsV0.GetFullValidConfig()
+	teamsV1 := msteamsV01.GetFullValidConfig()
+	teamsV2 := msteamsV02.GetFullValidConfig()
+	telegram := telegramV0.GetFullValidConfig()
+	victorops := victoropsV0.GetFullValidConfig()
+	webex := webexV0.GetFullValidConfig()
+	webhook := webhookV0.GetFullValidConfig()
+	wechat := wechatV0.GetFullValidConfig()
+
+	return definition.Receiver{
+		Name:             "test-receiver",
+		DiscordConfigs:   []*discordV0.Config{&discord},
+		EmailConfigs:     []*emailV0.Config{&email},
+		JiraConfigs:      []*jiraV0.Config{&jira},
+		OpsGenieConfigs:  []*opsgenieV0.Config{&opsgenie},
+		PagerdutyConfigs: []*pagerdutyV0.Config{&pagerduty},
+		PushoverConfigs:  []*pushoverV0.Config{&pushover},
+		SlackConfigs:     []*slackV0.Config{&slack},
+		SNSConfigs:       []*snsV0.Config{&sns},
+		MSTeamsConfigs:   []*msteamsV01.Config{&teamsV1},
+		MSTeamsV2Configs: []*msteamsV02.Config{&teamsV2},
+		TelegramConfigs:  []*telegramV0.Config{&telegram},
+		VictorOpsConfigs: []*victoropsV0.Config{&victorops},
+		WebexConfigs:     []*webexV0.Config{&webex},
+		WebhookConfigs:   []*webhookV0.Config{&webhook},
+		WechatConfigs:    []*wechatV0.Config{&wechat},
+	}
 }
 
 var AllValidMimirConfigs = map[reflect.Type]string{
@@ -270,12 +174,10 @@ var AllValidMimirConfigs = map[reflect.Type]string{
 	reflect.TypeOf(wechatV0.Config{}):    wechatV0.FullValidConfigForTesting,
 	reflect.TypeOf(pushoverV0.Config{}):  pushoverV0.FullValidConfigForTesting,
 	reflect.TypeOf(victoropsV0.Config{}): victoropsV0.FullValidConfigForTesting,
-	// all sigv4 fields of SNSConfig are different in yaml
-	reflect.TypeOf(snsV0.Config{}): snsV0.FullValidConfigForTesting,
-	// token and chat fields of TelegramConfig are different in yaml
-	reflect.TypeOf(telegramV0.Config{}): telegramV0.FullValidConfigForTesting,
-	reflect.TypeOf(webexV0.Config{}):    webexV0.FullValidConfigForTesting,
-	reflect.TypeOf(msteamsV01.Config{}): msteamsV01.FullValidConfigForTesting,
-	reflect.TypeOf(msteamsV02.Config{}): msteamsV02.FullValidConfigForTesting,
-	reflect.TypeOf(jiraV0.Config{}):     jiraV0.FullValidConfigForTesting,
+	reflect.TypeOf(snsV0.Config{}):       snsV0.FullValidConfigForTesting,
+	reflect.TypeOf(telegramV0.Config{}):  telegramV0.FullValidConfigForTesting,
+	reflect.TypeOf(webexV0.Config{}):     webexV0.FullValidConfigForTesting,
+	reflect.TypeOf(msteamsV01.Config{}):  msteamsV01.FullValidConfigForTesting,
+	reflect.TypeOf(msteamsV02.Config{}):  msteamsV02.FullValidConfigForTesting,
+	reflect.TypeOf(jiraV0.Config{}):      jiraV0.FullValidConfigForTesting,
 }

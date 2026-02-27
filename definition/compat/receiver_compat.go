@@ -4,6 +4,8 @@ import (
 	"reflect"
 
 	"github.com/prometheus/alertmanager/config"
+	commonconfig "github.com/prometheus/common/config"
+	"github.com/prometheus/common/sigv4"
 
 	"github.com/grafana/alerting/definition"
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
@@ -211,13 +213,19 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
 			APIUrl:         c.APIUrl,
-			Sigv4:          c.Sigv4,
-			TopicARN:       c.TopicARN,
-			PhoneNumber:    c.PhoneNumber,
-			TargetARN:      c.TargetARN,
-			Subject:        c.Subject,
-			Message:        c.Message,
-			Attributes:     c.Attributes,
+			Sigv4: sns_v0mimir1.SigV4Config{
+				Region:    c.Sigv4.Region,
+				AccessKey: c.Sigv4.AccessKey,
+				SecretKey: receivers.Secret(c.Sigv4.SecretKey),
+				Profile:   c.Sigv4.Profile,
+				RoleARN:   c.Sigv4.RoleARN,
+			},
+			TopicARN:    c.TopicARN,
+			PhoneNumber: c.PhoneNumber,
+			TargetARN:   c.TargetARN,
+			Subject:     c.Subject,
+			Message:     c.Message,
+			Attributes:  c.Attributes,
 		})
 	}
 
@@ -478,13 +486,19 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
 			APIUrl:         c.APIUrl,
-			Sigv4:          c.Sigv4,
-			TopicARN:       c.TopicARN,
-			PhoneNumber:    c.PhoneNumber,
-			TargetARN:      c.TargetARN,
-			Subject:        c.Subject,
-			Message:        c.Message,
-			Attributes:     c.Attributes,
+			Sigv4: sigv4.SigV4Config{
+				Region:    c.Sigv4.Region,
+				AccessKey: c.Sigv4.AccessKey,
+				SecretKey: commonconfig.Secret(c.Sigv4.SecretKey),
+				Profile:   c.Sigv4.Profile,
+				RoleARN:   c.Sigv4.RoleARN,
+			},
+			TopicARN:    c.TopicARN,
+			PhoneNumber: c.PhoneNumber,
+			TargetARN:   c.TargetARN,
+			Subject:     c.Subject,
+			Message:     c.Message,
+			Attributes:  c.Attributes,
 		})
 	}
 

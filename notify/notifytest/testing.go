@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/definition"
+	"github.com/grafana/alerting/http/v0mimir1/v0mimir1test"
 )
 
 // ForEachIntegrationTypeReceiver runs the given function for each integration type.
@@ -20,9 +21,9 @@ func ForEachIntegrationTypeReceiver(t *testing.T, f func(configType reflect.Type
 		return strings.Compare(r.Name(), r2.Name())
 	})
 	for _, iType := range keys {
-		cfg, err := GetRawConfigForMimirIntegration(iType, WithDefault)
+		cfg, err := GetRawConfigForMimirIntegration(iType, v0mimir1test.WithDefault)
 		require.NoError(t, err)
-		r, err := GetMimirReceiverWithIntegrations([]reflect.Type{iType}, WithDefault)
+		r, err := GetMimirReceiverWithIntegrations([]reflect.Type{iType}, v0mimir1test.WithDefault)
 		require.NoError(t, err)
 		f(iType, r, cfg)
 	}
