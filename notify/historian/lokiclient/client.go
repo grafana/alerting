@@ -211,9 +211,25 @@ func (c *HTTPLokiClient) setAuthAndTenantHeaders(req *http.Request) {
 }
 
 func (c *HTTPLokiClient) RangeQuery(ctx context.Context, logQL string, start, end, limit int64) (QueryRes, error) {
+	data, err := c.doRangeQueryRequest(ctx, logQL, start, end, limit, "Sending query request")
+	if err != nil {
+		return QueryRes{}, err
+	}
+
+	result := QueryRes{}
+	err = json.Unmarshal(data, &result)
+	if err != nil {
+		level.Error(c.logger).Log("msg", "Failed to parse response", "err", err, "data", string(data))
+		return QueryRes{}, fmt.Errorf("error parsing request response: %w", err)
+	}
+
+	return result, nil
+}
+
+func (c *HTTPLokiClient) doRangeQueryRequest(ctx context.Context, logQL string, start, end, limit int64, logMessage string) ([]byte, error) {
 	// Run the pre-flight checks for the query.
 	if start > end {
-		return QueryRes{}, fmt.Errorf("start time cannot be after end time")
+		return nil, fmt.Errorf("start time cannot be after end time")
 	}
 	start, end = ClampRange(start, end, c.cfg.MaxQueryLength.Nanoseconds())
 	if limit < 1 {
@@ -232,11 +248,10 @@ func (c *HTTPLokiClient) RangeQuery(ctx context.Context, logQL string, start, en
 	values.Set("limit", fmt.Sprintf("%d", limit))
 
 	queryURL.RawQuery = values.Encode()
-	level.Debug(c.logger).Log("msg", "Sending query request", "query", logQL, "start", start, "end", end, "limit", limit)
-	req, err := http.NewRequest(http.MethodGet,
-		queryURL.String(), nil)
+	level.Debug(c.logger).Log("msg", logMessage, "query", logQL, "start", start, "end", end, "limit", limit)
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
-		return QueryRes{}, fmt.Errorf("error creating request: %w", err)
+		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
 	req = req.WithContext(ctx)
@@ -244,7 +259,7 @@ func (c *HTTPLokiClient) RangeQuery(ctx context.Context, logQL string, start, en
 
 	res, err := c.client.Do(req)
 	if err != nil {
-		return QueryRes{}, fmt.Errorf("error executing request: %w", err)
+		return nil, fmt.Errorf("error executing request: %w", err)
 	}
 	defer func() {
 		if err := res.Body.Close(); err != nil {
@@ -254,17 +269,10 @@ func (c *HTTPLokiClient) RangeQuery(ctx context.Context, logQL string, start, en
 
 	data, err := c.handleLokiResponse(c.logger, res)
 	if err != nil {
-		return QueryRes{}, err
+		return nil, err
 	}
 
-	result := QueryRes{}
-	err = json.Unmarshal(data, &result)
-	if err != nil {
-		level.Error(c.logger).Log("msg", "Failed to parse response", "err", err, "data", string(data))
-		return QueryRes{}, fmt.Errorf("error parsing request response: %w", err)
-	}
-
-	return result, nil
+	return data, nil
 }
 
 func (c *HTTPLokiClient) MetricsQuery(ctx context.Context, logQL string, ts int64, limit int64) (MetricsQueryRes, error) {
@@ -318,46 +326,7 @@ func (c *HTTPLokiClient) MetricsQuery(ctx context.Context, logQL string, ts int6
 }
 
 func (c *HTTPLokiClient) MetricsRangeQuery(ctx context.Context, logQL string, start, end, limit int64) (MetricsRangeQueryRes, error) {
-	if start > end {
-		return MetricsRangeQueryRes{}, fmt.Errorf("start time cannot be after end time")
-	}
-	start, end = ClampRange(start, end, c.cfg.MaxQueryLength.Nanoseconds())
-	if limit < 1 {
-		limit = defaultPageSize
-	}
-	if limit > maximumPageSize {
-		limit = maximumPageSize
-	}
-
-	queryURL := c.cfg.ReadPathURL.JoinPath("/loki/api/v1/query_range")
-
-	values := url.Values{}
-	values.Set("query", logQL)
-	values.Set("start", fmt.Sprintf("%d", start))
-	values.Set("end", fmt.Sprintf("%d", end))
-	values.Set("limit", fmt.Sprintf("%d", limit))
-
-	queryURL.RawQuery = values.Encode()
-	level.Debug(c.logger).Log("msg", "Sending metrics range query request", "query", logQL, "start", start, "end", end, "limit", limit)
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return MetricsRangeQueryRes{}, fmt.Errorf("error creating request: %w", err)
-	}
-
-	req = req.WithContext(ctx)
-	c.setAuthAndTenantHeaders(req)
-
-	res, err := c.client.Do(req)
-	if err != nil {
-		return MetricsRangeQueryRes{}, fmt.Errorf("error executing request: %w", err)
-	}
-	defer func() {
-		if err := res.Body.Close(); err != nil {
-			level.Warn(c.logger).Log("msg", "Failed to close response body", "err", err)
-		}
-	}()
-
-	data, err := c.handleLokiResponse(c.logger, res)
+	data, err := c.doRangeQueryRequest(ctx, logQL, start, end, limit, "Sending metrics range query request")
 	if err != nil {
 		return MetricsRangeQueryRes{}, err
 	}
