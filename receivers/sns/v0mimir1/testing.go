@@ -1,16 +1,14 @@
 package v0mimir1
 
-import "github.com/prometheus/common/sigv4"
-
 const FullValidConfigForTesting = ` {
 	"http_config": {},
 	"topic_arn": "arn:aws:sns:us-east-1:123456789012:alerts",
 	"sigv4": {
-		"Region": "us-east-1",
-		"AccessKey": "secret-access-key",
-		"SecretKey": "secret-secret-key",
-		"Profile": "default",
-		"RoleARN": "arn:aws:iam::123456789012:role/role-name"
+		"region": "us-east-1",
+		"access_key": "secret-access-key",
+		"secret_key": "secret-secret-key",
+		"profile": "default",
+		"role_arn": "arn:aws:iam::123456789012:role/role-name"
 	},
 	"subject": "test subject",
 	"message": "test message",

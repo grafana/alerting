@@ -65,11 +65,11 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 type SigV4Config struct {
-	Region    string           `yaml:"region,omitempty"`
-	AccessKey string           `yaml:"access_key,omitempty"`
-	SecretKey receivers.Secret `yaml:"secret_key,omitempty"`
-	Profile   string           `yaml:"profile,omitempty"`
-	RoleARN   string           `yaml:"role_arn,omitempty"`
+	Region    string           `yaml:"region,omitempty" json:"region,omitempty"`
+	AccessKey string           `yaml:"access_key,omitempty" json:"access_key,omitempty"`
+	SecretKey receivers.Secret `yaml:"secret_key,omitempty" json:"secret_key,omitempty"`
+	Profile   string           `yaml:"profile,omitempty" json:"profile,omitempty"`
+	RoleARN   string           `yaml:"role_arn,omitempty" json:"role_arn,omitempty"`
 }
 
 func (c *SigV4Config) Validate() error {
@@ -110,14 +110,14 @@ var Schema = schema.IntegrationSchemaVersion{
 					Description:  "The AWS region. If blank, the region from the default credentials chain is used",
 					Element:      schema.ElementTypeInput,
 					InputType:    schema.InputTypeText,
-					PropertyName: "Region",
+					PropertyName: "region",
 				},
 				{
 					Label:        "Access key",
 					Description:  "The AWS API access_key. If blank the environment variable \"AWS_ACCESS_KEY_ID\" is used",
 					Element:      schema.ElementTypeInput,
 					InputType:    schema.InputTypeText,
-					PropertyName: "AccessKey",
+					PropertyName: "access_key",
 					Secure:       false,
 				},
 				{
@@ -125,7 +125,7 @@ var Schema = schema.IntegrationSchemaVersion{
 					Description:  "The AWS API secret_key. If blank the environment variable \"AWS_ACCESS_SECRET_ID\" is used",
 					Element:      schema.ElementTypeInput,
 					InputType:    schema.InputTypePassword,
-					PropertyName: "SecretKey",
+					PropertyName: "secret_key",
 					Secure:       true,
 				},
 				{
@@ -133,14 +133,14 @@ var Schema = schema.IntegrationSchemaVersion{
 					Description:  "Named AWS profile used to authenticate",
 					Element:      schema.ElementTypeInput,
 					InputType:    schema.InputTypeText,
-					PropertyName: "Profile",
+					PropertyName: "profile",
 				},
 				{
 					Label:        "Role ARN",
 					Description:  "AWS Role ARN, an alternative to using AWS API keys",
 					Element:      schema.ElementTypeInput,
 					InputType:    schema.InputTypeText,
-					PropertyName: "RoleARN",
+					PropertyName: "role_arn",
 				},
 			},
 		},

@@ -84,7 +84,7 @@ func TestGetSecretKeysForContactPointType(t *testing.T) {
 		{receiverType: mqtt.Type, version: schema.V1, expectedSecretFields: []string{"password", "tlsConfig.caCertificate", "tlsConfig.clientCertificate", "tlsConfig.clientKey"}},
 		{receiverType: jira.Type, version: schema.V1, expectedSecretFields: []string{"user", "password", "api_token"}},
 		{receiverType: victorops.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"api_key"}, httpConfigSecrets...)},
-		{receiverType: sns.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"sigv4.SecretKey"}, httpConfigSecrets...)},
+		{receiverType: sns.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"sigv4.secret_key"}, httpConfigSecrets...)},
 		{receiverType: telegram.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"token"}, httpConfigSecrets...)},
 		{receiverType: discord.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"webhook_url"}, httpConfigSecrets...)},
 		{receiverType: pagerduty.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"routing_key", "service_key"}, httpConfigSecrets...)},
