@@ -385,7 +385,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		require.ErrorContains(t, err, "start time cannot be after end time")
 	})
 
-	t.Run("passes along step parameter", func(t *testing.T) {
+	t.Run("passes along step parameter converted to seconds", func(t *testing.T) {
 		resp := okResponse()
 		t.Cleanup(func() { resp.Body.Close() })
 		req := instrumenttest.NewFakeRequester().WithResponse(resp)
@@ -398,7 +398,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		require.NoError(t, err)
 		params := req.LastRequest.URL.Query()
 		require.True(t, params.Has("step"), "query params did not contain 'step': %#v", params)
-		require.Equal(t, fmt.Sprint(step), params.Get("step"))
+		require.Equal(t, "30", params.Get("step"))
 	})
 
 	t.Run("omits step parameter when zero", func(t *testing.T) {
