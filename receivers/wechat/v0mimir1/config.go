@@ -70,6 +70,12 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		c.MessageType = "text"
 	}
 
+	return c.validate()
+}
+
+func (c *Config) Validate() error { return c.validate() }
+
+func (c *Config) validate() error {
 	if !wechatTypeMatcher.MatchString(c.MessageType) {
 		return fmt.Errorf("weChat message type %q does not match valid options %s", c.MessageType, wechatValidTypesRe)
 	}

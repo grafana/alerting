@@ -58,6 +58,12 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
+
+func (c *Config) Validate() error { return c.validate() }
+
+func (c *Config) validate() error {
 	if (c.TargetARN == "") != (c.TopicARN == "") != (c.PhoneNumber == "") {
 		return errors.New("must provide either a Target ARN, Topic ARN, or Phone Number for SNS config")
 	}
@@ -72,7 +78,9 @@ type SigV4Config struct {
 	RoleARN   string           `yaml:"role_arn,omitempty" json:"role_arn,omitempty"`
 }
 
-func (c *SigV4Config) Validate() error {
+func (c *SigV4Config) Validate() error { return c.validate() }
+
+func (c *SigV4Config) validate() error {
 	if (c.AccessKey == "") != (c.SecretKey == "") {
 		return fmt.Errorf("must provide a AWS SigV4 Access key and Secret Key if credentials are specified in the SigV4 config")
 	}
@@ -85,7 +93,7 @@ func (c *SigV4Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
-	return c.Validate()
+	return c.validate()
 }
 
 var Schema = schema.IntegrationSchemaVersion{

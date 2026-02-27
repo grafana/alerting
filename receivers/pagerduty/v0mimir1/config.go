@@ -73,14 +73,8 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
-	if c.RoutingKey == "" && c.ServiceKey == "" && c.RoutingKeyFile == "" && c.ServiceKeyFile == "" {
-		return errors.New("missing service or routing key in PagerDuty config")
-	}
-	if len(c.RoutingKey) > 0 && len(c.RoutingKeyFile) > 0 {
-		return errors.New("at most one of routing_key & routing_key_file must be configured")
-	}
-	if len(c.ServiceKey) > 0 && len(c.ServiceKeyFile) > 0 {
-		return errors.New("at most one of service_key & service_key_file must be configured")
+	if err := c.validate(); err != nil {
+		return err
 	}
 	if c.Details == nil {
 		c.Details = make(map[string]string)
@@ -92,6 +86,21 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		if _, ok := c.Details[k]; !ok {
 			c.Details[k] = v
 		}
+	}
+	return nil
+}
+
+func (c *Config) Validate() error { return c.validate() }
+
+func (c *Config) validate() error {
+	if c.RoutingKey == "" && c.ServiceKey == "" && c.RoutingKeyFile == "" && c.ServiceKeyFile == "" {
+		return errors.New("missing service or routing key in PagerDuty config")
+	}
+	if len(c.RoutingKey) > 0 && len(c.RoutingKeyFile) > 0 {
+		return errors.New("at most one of routing_key & routing_key_file must be configured")
+	}
+	if len(c.ServiceKey) > 0 && len(c.ServiceKeyFile) > 0 {
+		return errors.New("at most one of service_key & service_key_file must be configured")
 	}
 	return nil
 }

@@ -61,6 +61,12 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
+
+func (c *Config) Validate() error { return c.validate() }
+
+func (c *Config) validate() error {
 	if c.URL == nil && c.URLFile == "" {
 		return errors.New("one of url or url_file must be configured")
 	}

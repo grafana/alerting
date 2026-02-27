@@ -81,7 +81,12 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
 
+func (c *Config) Validate() error { return c.validate() }
+
+func (c *Config) validate() error {
 	if c.APIURL != nil && len(c.APIURLFile) > 0 {
 		return errors.New("at most one of api_url & api_url_file must be configured")
 	}
@@ -338,6 +343,12 @@ func (c *SlackAction) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
+
+func (c *SlackAction) Validate() error { return c.validate() }
+
+func (c *SlackAction) validate() error {
 	if c.Type == "" {
 		return errors.New("missing type in Slack action configuration")
 	}
@@ -373,6 +384,12 @@ func (c *SlackConfirmationField) UnmarshalYAML(unmarshal func(interface{}) error
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
+
+func (c *SlackConfirmationField) Validate() error { return c.validate() }
+
+func (c *SlackConfirmationField) validate() error {
 	if c.Text == "" {
 		return errors.New("missing text in Slack confirmation configuration")
 	}
@@ -395,6 +412,12 @@ func (c *SlackField) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
+
+func (c *SlackField) Validate() error { return c.validate() }
+
+func (c *SlackField) validate() error {
 	if c.Title == "" {
 		return errors.New("missing title in Slack field configuration")
 	}

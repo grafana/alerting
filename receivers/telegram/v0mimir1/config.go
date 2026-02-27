@@ -69,6 +69,12 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if c.ChatID == 0 && pl.ChatIDJson != 0 {
 		c.ChatID = pl.ChatIDJson
 	}
+	return c.validate()
+}
+
+func (c *Config) Validate() error { return c.validate() }
+
+func (c *Config) validate() error {
 	if c.BotToken == "" && c.BotTokenFile == "" {
 		return errors.New("missing bot_token or bot_token_file on telegram_config")
 	}

@@ -74,6 +74,12 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		c.Fields = pl.CustomFieldsJson
 	}
 
+	return c.validate()
+}
+
+func (c *Config) Validate() error { return c.validate() }
+
+func (c *Config) validate() error {
 	if c.Project == "" {
 		return errors.New("missing project in jira_config")
 	}

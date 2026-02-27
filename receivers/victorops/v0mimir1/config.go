@@ -61,7 +61,12 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
 
+func (c *Config) Validate() error { return c.validate() }
+
+func (c *Config) validate() error {
 	if c.RoutingKey == "" {
 		return errors.New("missing Routing key in VictorOps config")
 	}

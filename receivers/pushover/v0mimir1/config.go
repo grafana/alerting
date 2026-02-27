@@ -83,7 +83,12 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
 
+func (c *Config) Validate() error { return c.validate() }
+
+func (c *Config) validate() error {
 	if c.UserKey == "" && c.UserKeyFile == "" {
 		return errors.New("one of user_key or user_key_file must be configured")
 	}
