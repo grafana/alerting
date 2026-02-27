@@ -174,12 +174,10 @@ var AllValidMimirConfigs = map[reflect.Type]string{
 	reflect.TypeOf(wechatV0.Config{}):    wechatV0.FullValidConfigForTesting,
 	reflect.TypeOf(pushoverV0.Config{}):  pushoverV0.FullValidConfigForTesting,
 	reflect.TypeOf(victoropsV0.Config{}): victoropsV0.FullValidConfigForTesting,
-	// all sigv4 fields of SNSConfig are different in yaml
-	reflect.TypeOf(snsV0.Config{}): snsV0.FullValidConfigForTesting,
-	// token and chat fields of TelegramConfig are different in yaml
-	reflect.TypeOf(telegramV0.Config{}): telegramV0.FullValidConfigForTesting,
-	reflect.TypeOf(webexV0.Config{}):    webexV0.FullValidConfigForTesting,
-	reflect.TypeOf(msteamsV01.Config{}): msteamsV01.FullValidConfigForTesting,
-	reflect.TypeOf(msteamsV02.Config{}): msteamsV02.FullValidConfigForTesting,
-	reflect.TypeOf(jiraV0.Config{}):     jiraV0.FullValidConfigForTesting,
+	reflect.TypeOf(snsV0.Config{}):       snsV0.FullValidConfigForTesting,
+	reflect.TypeOf(telegramV0.Config{}):  telegramV0.FullValidConfigForTesting,
+	reflect.TypeOf(webexV0.Config{}):     webexV0.FullValidConfigForTesting,
+	reflect.TypeOf(msteamsV01.Config{}):  msteamsV01.FullValidConfigForTesting,
+	reflect.TypeOf(msteamsV02.Config{}):  msteamsV02.FullValidConfigForTesting,
+	reflect.TypeOf(jiraV0.Config{}):      jiraV0.FullValidConfigForTesting,
 }
