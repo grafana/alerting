@@ -7,6 +7,7 @@ import (
 
 	"github.com/grafana/alerting/definition"
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/receivers"
 	discord_v0mimir1 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	jira_v0mimir1 "github.com/grafana/alerting/receivers/jira/v0mimir1"
@@ -30,9 +31,9 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.DiscordConfigs {
 		def.DiscordConfigs = append(def.DiscordConfigs, &discord_v0mimir1.Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			WebhookURL:     c.WebhookURL,
+			WebhookURL:     (*receivers.SecretURL)(c.WebhookURL),
 			WebhookURLFile: c.WebhookURLFile,
 			Title:          c.Title,
 			Message:        c.Message,
@@ -41,15 +42,15 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.EmailConfigs {
 		def.EmailConfigs = append(def.EmailConfigs, &email_v0mimir1.Config{
-			NotifierConfig:   c.NotifierConfig,
+			NotifierConfig:   receivers.NotifierConfig(c.NotifierConfig),
 			To:               c.To,
 			From:             c.From,
 			Hello:            c.Hello,
-			Smarthost:        c.Smarthost,
+			Smarthost:        receivers.HostPort(c.Smarthost),
 			AuthUsername:     c.AuthUsername,
-			AuthPassword:     c.AuthPassword,
+			AuthPassword:     receivers.Secret(c.AuthPassword),
 			AuthPasswordFile: c.AuthPasswordFile,
-			AuthSecret:       c.AuthSecret,
+			AuthSecret:       receivers.Secret(c.AuthSecret),
 			AuthIdentity:     c.AuthIdentity,
 			Headers:          c.Headers,
 			HTML:             c.HTML,
@@ -61,19 +62,19 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.PagerdutyConfigs {
 		def.PagerdutyConfigs = append(def.PagerdutyConfigs, &pagerduty_v0mimir1.Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			ServiceKey:     c.ServiceKey,
+			ServiceKey:     receivers.Secret(c.ServiceKey),
 			ServiceKeyFile: c.ServiceKeyFile,
-			RoutingKey:     c.RoutingKey,
+			RoutingKey:     receivers.Secret(c.RoutingKey),
 			RoutingKeyFile: c.RoutingKeyFile,
-			URL:            c.URL,
+			URL:            (*receivers.URL)(c.URL),
 			Client:         c.Client,
 			ClientURL:      c.ClientURL,
 			Description:    c.Description,
 			Details:        c.Details,
-			Images:         c.Images,
-			Links:          c.Links,
+			Images:         pagerdutyImagesToLocal(c.Images),
+			Links:          pagerdutyLinksToLocal(c.Links),
 			Source:         c.Source,
 			Severity:       c.Severity,
 			Class:          c.Class,
@@ -84,9 +85,9 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.SlackConfigs {
 		def.SlackConfigs = append(def.SlackConfigs, &slack_v0mimir1.Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			APIURL:         c.APIURL,
+			APIURL:         (*receivers.SecretURL)(c.APIURL),
 			APIURLFile:     c.APIURLFile,
 			Channel:        c.Channel,
 			Username:       c.Username,
@@ -95,7 +96,7 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 			TitleLink:      c.TitleLink,
 			Pretext:        c.Pretext,
 			Text:           c.Text,
-			Fields:         c.Fields,
+			Fields:         slackFieldsToLocal(c.Fields),
 			ShortFields:    c.ShortFields,
 			Footer:         c.Footer,
 			Fallback:       c.Fallback,
@@ -106,15 +107,15 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 			ThumbURL:       c.ThumbURL,
 			LinkNames:      c.LinkNames,
 			MrkdwnIn:       c.MrkdwnIn,
-			Actions:        c.Actions,
+			Actions:        slackActionsToLocal(c.Actions),
 		})
 	}
 
 	for _, c := range r.WebhookConfigs {
 		def.WebhookConfigs = append(def.WebhookConfigs, &webhook_v0mimir1.Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			URL:            c.URL,
+			URL:            (*receivers.SecretURL)(c.URL),
 			URLFile:        c.URLFile,
 			MaxAlerts:      c.MaxAlerts,
 			Timeout:        c.Timeout,
@@ -132,11 +133,11 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 			}
 		}
 		def.OpsGenieConfigs = append(def.OpsGenieConfigs, &opsgenie_v0mimir1.Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			APIKey:         c.APIKey,
+			APIKey:         receivers.Secret(c.APIKey),
 			APIKeyFile:     c.APIKeyFile,
-			APIURL:         c.APIURL,
+			APIURL:         (*receivers.URL)(c.APIURL),
 			Message:        c.Message,
 			Description:    c.Description,
 			Source:         c.Source,
@@ -153,12 +154,12 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.WechatConfigs {
 		def.WechatConfigs = append(def.WechatConfigs, &wechat_v0mimir1.Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			APISecret:      c.APISecret,
+			APISecret:      receivers.Secret(c.APISecret),
 			CorpID:         c.CorpID,
 			Message:        c.Message,
-			APIURL:         c.APIURL,
+			APIURL:         (*receivers.URL)(c.APIURL),
 			ToUser:         c.ToUser,
 			ToParty:        c.ToParty,
 			ToTag:          c.ToTag,
@@ -169,11 +170,11 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.PushoverConfigs {
 		def.PushoverConfigs = append(def.PushoverConfigs, &pushover_v0mimir1.Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			UserKey:        c.UserKey,
+			UserKey:        receivers.Secret(c.UserKey),
 			UserKeyFile:    c.UserKeyFile,
-			Token:          c.Token,
+			Token:          receivers.Secret(c.Token),
 			TokenFile:      c.TokenFile,
 			Title:          c.Title,
 			Message:        c.Message,
@@ -191,11 +192,11 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.VictorOpsConfigs {
 		def.VictorOpsConfigs = append(def.VictorOpsConfigs, &victorops_v0mimir1.Config{
-			NotifierConfig:    c.NotifierConfig,
+			NotifierConfig:    receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:        httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			APIKey:            c.APIKey,
+			APIKey:            receivers.Secret(c.APIKey),
 			APIKeyFile:        c.APIKeyFile,
-			APIURL:            c.APIURL,
+			APIURL:            (*receivers.URL)(c.APIURL),
 			RoutingKey:        c.RoutingKey,
 			MessageType:       c.MessageType,
 			StateMessage:      c.StateMessage,
@@ -207,7 +208,7 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.SNSConfigs {
 		def.SNSConfigs = append(def.SNSConfigs, &sns_v0mimir1.Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
 			APIUrl:         c.APIUrl,
 			Sigv4:          c.Sigv4,
@@ -222,10 +223,10 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.TelegramConfigs {
 		def.TelegramConfigs = append(def.TelegramConfigs, &telegram_v0mimir1.Config{
-			NotifierConfig:       c.NotifierConfig,
+			NotifierConfig:       receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:           httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			APIUrl:               c.APIUrl,
-			BotToken:             c.BotToken,
+			APIUrl:               (*receivers.URL)(c.APIUrl),
+			BotToken:             receivers.Secret(c.BotToken),
 			BotTokenFile:         c.BotTokenFile,
 			ChatID:               c.ChatID,
 			Message:              c.Message,
@@ -236,9 +237,9 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.WebexConfigs {
 		def.WebexConfigs = append(def.WebexConfigs, &webex_v0mimir1.Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			APIURL:         c.APIURL,
+			APIURL:         (*receivers.URL)(c.APIURL),
 			Message:        c.Message,
 			RoomID:         c.RoomID,
 		})
@@ -246,9 +247,9 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.MSTeamsConfigs {
 		def.MSTeamsConfigs = append(def.MSTeamsConfigs, &teams_v0mimir1.Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			WebhookURL:     c.WebhookURL,
+			WebhookURL:     (*receivers.SecretURL)(c.WebhookURL),
 			WebhookURLFile: c.WebhookURLFile,
 			Title:          c.Title,
 			Summary:        c.Summary,
@@ -258,9 +259,9 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.MSTeamsV2Configs {
 		def.MSTeamsV2Configs = append(def.MSTeamsV2Configs, &teams_v0mimir2.Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			WebhookURL:     c.WebhookURL,
+			WebhookURL:     (*receivers.SecretURL)(c.WebhookURL),
 			WebhookURLFile: c.WebhookURLFile,
 			Title:          c.Title,
 			Text:           c.Text,
@@ -269,9 +270,9 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.JiraConfigs {
 		def.JiraConfigs = append(def.JiraConfigs, &jira_v0mimir1.Config{
-			NotifierConfig:    c.NotifierConfig,
+			NotifierConfig:    receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:        httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
-			APIURL:            c.APIURL,
+			APIURL:            (*receivers.URL)(c.APIURL),
 			Project:           c.Project,
 			Summary:           c.Summary,
 			Description:       c.Description,
@@ -295,9 +296,9 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.DiscordConfigs {
 		upstream.DiscordConfigs = append(upstream.DiscordConfigs, &config.DiscordConfig{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
-			WebhookURL:     c.WebhookURL,
+			WebhookURL:     (*config.SecretURL)(c.WebhookURL),
 			WebhookURLFile: c.WebhookURLFile,
 			Title:          c.Title,
 			Message:        c.Message,
@@ -306,15 +307,15 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.EmailConfigs {
 		upstream.EmailConfigs = append(upstream.EmailConfigs, &config.EmailConfig{
-			NotifierConfig:   c.NotifierConfig,
+			NotifierConfig:   config.NotifierConfig(c.NotifierConfig),
 			To:               c.To,
 			From:             c.From,
 			Hello:            c.Hello,
-			Smarthost:        c.Smarthost,
+			Smarthost:        config.HostPort(c.Smarthost),
 			AuthUsername:     c.AuthUsername,
-			AuthPassword:     c.AuthPassword,
+			AuthPassword:     config.Secret(c.AuthPassword),
 			AuthPasswordFile: c.AuthPasswordFile,
-			AuthSecret:       c.AuthSecret,
+			AuthSecret:       config.Secret(c.AuthSecret),
 			AuthIdentity:     c.AuthIdentity,
 			Headers:          c.Headers,
 			HTML:             c.HTML,
@@ -326,19 +327,19 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.PagerdutyConfigs {
 		upstream.PagerdutyConfigs = append(upstream.PagerdutyConfigs, &config.PagerdutyConfig{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
-			ServiceKey:     c.ServiceKey,
+			ServiceKey:     config.Secret(c.ServiceKey),
 			ServiceKeyFile: c.ServiceKeyFile,
-			RoutingKey:     c.RoutingKey,
+			RoutingKey:     config.Secret(c.RoutingKey),
 			RoutingKeyFile: c.RoutingKeyFile,
-			URL:            c.URL,
+			URL:            (*config.URL)(c.URL),
 			Client:         c.Client,
 			ClientURL:      c.ClientURL,
 			Description:    c.Description,
 			Details:        c.Details,
-			Images:         c.Images,
-			Links:          c.Links,
+			Images:         pagerdutyImagesToUpstream(c.Images),
+			Links:          pagerdutyLinksToUpstream(c.Links),
 			Source:         c.Source,
 			Severity:       c.Severity,
 			Class:          c.Class,
@@ -349,9 +350,9 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.SlackConfigs {
 		upstream.SlackConfigs = append(upstream.SlackConfigs, &config.SlackConfig{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
-			APIURL:         c.APIURL,
+			APIURL:         (*config.SecretURL)(c.APIURL),
 			APIURLFile:     c.APIURLFile,
 			Channel:        c.Channel,
 			Username:       c.Username,
@@ -360,7 +361,7 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 			TitleLink:      c.TitleLink,
 			Pretext:        c.Pretext,
 			Text:           c.Text,
-			Fields:         c.Fields,
+			Fields:         slackFieldsToUpstream(c.Fields),
 			ShortFields:    c.ShortFields,
 			Footer:         c.Footer,
 			Fallback:       c.Fallback,
@@ -371,15 +372,15 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 			ThumbURL:       c.ThumbURL,
 			LinkNames:      c.LinkNames,
 			MrkdwnIn:       c.MrkdwnIn,
-			Actions:        c.Actions,
+			Actions:        slackActionsToUpstream(c.Actions),
 		})
 	}
 
 	for _, c := range r.WebhookConfigs {
 		cfg := &config.WebhookConfig{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
-			URL:            c.URL,
+			URL:            (*config.SecretURL)(c.URL),
 			URLFile:        c.URLFile,
 			MaxAlerts:      c.MaxAlerts,
 			Timeout:        c.Timeout,
@@ -398,11 +399,11 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 			}
 		}
 		upstream.OpsGenieConfigs = append(upstream.OpsGenieConfigs, &config.OpsGenieConfig{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
-			APIKey:         c.APIKey,
+			APIKey:         config.Secret(c.APIKey),
 			APIKeyFile:     c.APIKeyFile,
-			APIURL:         c.APIURL,
+			APIURL:         (*config.URL)(c.APIURL),
 			Message:        c.Message,
 			Description:    c.Description,
 			Source:         c.Source,
@@ -419,12 +420,12 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.WechatConfigs {
 		upstream.WechatConfigs = append(upstream.WechatConfigs, &config.WechatConfig{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
-			APISecret:      c.APISecret,
+			APISecret:      config.Secret(c.APISecret),
 			CorpID:         c.CorpID,
 			Message:        c.Message,
-			APIURL:         c.APIURL,
+			APIURL:         (*config.URL)(c.APIURL),
 			ToUser:         c.ToUser,
 			ToParty:        c.ToParty,
 			ToTag:          c.ToTag,
@@ -435,11 +436,11 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.PushoverConfigs {
 		cfg := &config.PushoverConfig{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
-			UserKey:        c.UserKey,
+			UserKey:        config.Secret(c.UserKey),
 			UserKeyFile:    c.UserKeyFile,
-			Token:          c.Token,
+			Token:          config.Secret(c.Token),
 			TokenFile:      c.TokenFile,
 			Title:          c.Title,
 			Message:        c.Message,
@@ -458,11 +459,11 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.VictorOpsConfigs {
 		upstream.VictorOpsConfigs = append(upstream.VictorOpsConfigs, &config.VictorOpsConfig{
-			NotifierConfig:    c.NotifierConfig,
+			NotifierConfig:    config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:        c.HTTPConfig.ToCommonHTTPClientConfig(),
-			APIKey:            c.APIKey,
+			APIKey:            config.Secret(c.APIKey),
 			APIKeyFile:        c.APIKeyFile,
-			APIURL:            c.APIURL,
+			APIURL:            (*config.URL)(c.APIURL),
 			RoutingKey:        c.RoutingKey,
 			MessageType:       c.MessageType,
 			StateMessage:      c.StateMessage,
@@ -474,7 +475,7 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.SNSConfigs {
 		upstream.SNSConfigs = append(upstream.SNSConfigs, &config.SNSConfig{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
 			APIUrl:         c.APIUrl,
 			Sigv4:          c.Sigv4,
@@ -489,10 +490,10 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.TelegramConfigs {
 		upstream.TelegramConfigs = append(upstream.TelegramConfigs, &config.TelegramConfig{
-			NotifierConfig:       c.NotifierConfig,
+			NotifierConfig:       config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:           c.HTTPConfig.ToCommonHTTPClientConfig(),
-			APIUrl:               c.APIUrl,
-			BotToken:             c.BotToken,
+			APIUrl:               (*config.URL)(c.APIUrl),
+			BotToken:             config.Secret(c.BotToken),
 			BotTokenFile:         c.BotTokenFile,
 			ChatID:               c.ChatID,
 			Message:              c.Message,
@@ -503,9 +504,9 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.WebexConfigs {
 		upstream.WebexConfigs = append(upstream.WebexConfigs, &config.WebexConfig{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
-			APIURL:         c.APIURL,
+			APIURL:         (*config.URL)(c.APIURL),
 			Message:        c.Message,
 			RoomID:         c.RoomID,
 		})
@@ -513,9 +514,9 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.MSTeamsConfigs {
 		upstream.MSTeamsConfigs = append(upstream.MSTeamsConfigs, &config.MSTeamsConfig{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
-			WebhookURL:     c.WebhookURL,
+			WebhookURL:     (*config.SecretURL)(c.WebhookURL),
 			WebhookURLFile: c.WebhookURLFile,
 			Title:          c.Title,
 			Summary:        c.Summary,
@@ -525,9 +526,9 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.MSTeamsV2Configs {
 		upstream.MSTeamsV2Configs = append(upstream.MSTeamsV2Configs, &config.MSTeamsV2Config{
-			NotifierConfig: c.NotifierConfig,
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
-			WebhookURL:     c.WebhookURL,
+			WebhookURL:     (*config.SecretURL)(c.WebhookURL),
 			WebhookURLFile: c.WebhookURLFile,
 			Title:          c.Title,
 			Text:           c.Text,
@@ -536,9 +537,9 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.JiraConfigs {
 		upstream.JiraConfigs = append(upstream.JiraConfigs, &config.JiraConfig{
-			NotifierConfig:    c.NotifierConfig,
+			NotifierConfig:    config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:        c.HTTPConfig.ToCommonHTTPClientConfig(),
-			APIURL:            c.APIURL,
+			APIURL:            (*config.URL)(c.APIURL),
 			Project:           c.Project,
 			Summary:           c.Summary,
 			Description:       c.Description,
@@ -565,4 +566,108 @@ func setConfigDuration(ptr any, d pushover_v0mimir1.FractionalDuration) {
 		return
 	}
 	v.Elem().SetInt(int64(d))
+}
+
+func pagerdutyImagesToLocal(images []config.PagerdutyImage) []pagerduty_v0mimir1.PagerdutyImage {
+	if images == nil {
+		return nil
+	}
+	out := make([]pagerduty_v0mimir1.PagerdutyImage, len(images))
+	for i, img := range images {
+		out[i] = pagerduty_v0mimir1.PagerdutyImage(img)
+	}
+	return out
+}
+
+func pagerdutyLinksToLocal(links []config.PagerdutyLink) []pagerduty_v0mimir1.PagerdutyLink {
+	if links == nil {
+		return nil
+	}
+	out := make([]pagerduty_v0mimir1.PagerdutyLink, len(links))
+	for i, link := range links {
+		out[i] = pagerduty_v0mimir1.PagerdutyLink(link)
+	}
+	return out
+}
+
+func pagerdutyImagesToUpstream(images []pagerduty_v0mimir1.PagerdutyImage) []config.PagerdutyImage {
+	if images == nil {
+		return nil
+	}
+	out := make([]config.PagerdutyImage, len(images))
+	for i, img := range images {
+		out[i] = config.PagerdutyImage(img)
+	}
+	return out
+}
+
+func pagerdutyLinksToUpstream(links []pagerduty_v0mimir1.PagerdutyLink) []config.PagerdutyLink {
+	if links == nil {
+		return nil
+	}
+	out := make([]config.PagerdutyLink, len(links))
+	for i, link := range links {
+		out[i] = config.PagerdutyLink(link)
+	}
+	return out
+}
+
+func slackFieldsToLocal(fields []*config.SlackField) []*slack_v0mimir1.SlackField {
+	if fields == nil {
+		return nil
+	}
+	out := make([]*slack_v0mimir1.SlackField, len(fields))
+	for i, f := range fields {
+		out[i] = (*slack_v0mimir1.SlackField)(f)
+	}
+	return out
+}
+
+func slackFieldsToUpstream(fields []*slack_v0mimir1.SlackField) []*config.SlackField {
+	if fields == nil {
+		return nil
+	}
+	out := make([]*config.SlackField, len(fields))
+	for i, f := range fields {
+		out[i] = (*config.SlackField)(f)
+	}
+	return out
+}
+
+func slackActionsToLocal(actions []*config.SlackAction) []*slack_v0mimir1.SlackAction {
+	if actions == nil {
+		return nil
+	}
+	out := make([]*slack_v0mimir1.SlackAction, len(actions))
+	for i, a := range actions {
+		out[i] = &slack_v0mimir1.SlackAction{
+			Type:         a.Type,
+			Text:         a.Text,
+			URL:          a.URL,
+			Style:        a.Style,
+			Name:         a.Name,
+			Value:        a.Value,
+			ConfirmField: (*slack_v0mimir1.SlackConfirmationField)(a.ConfirmField),
+		}
+	}
+	return out
+}
+
+func slackActionsToUpstream(actions []*slack_v0mimir1.SlackAction) []*config.SlackAction {
+	if actions == nil {
+		return nil
+	}
+	out := make([]*config.SlackAction, len(actions))
+	for i, a := range actions {
+		out[i] = &config.SlackAction{
+			Type:         a.Type,
+			Text:         a.Text,
+			URL:          a.URL,
+			Style:        a.Style,
+			Name:         a.Name,
+			Value:        a.Value,
+			ConfirmField: (*config.SlackConfirmationField)(a.ConfirmField),
+		}
+	}
+	return out
 }

@@ -24,12 +24,13 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/alerting/receivers"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 )
@@ -44,7 +45,7 @@ func TestVictorOpsCustomFields(t *testing.T) {
 
 	conf := &Config{
 		APIKey:            `12345`,
-		APIURL:            &config.URL{URL: url},
+		APIURL:            &receivers.URL{URL: url},
 		EntityDisplayName: `{{ .CommonLabels.Message }}`,
 		StateMessage:      `{{ .CommonLabels.Message }}`,
 		RoutingKey:        `test`,
@@ -87,7 +88,7 @@ func TestVictorOpsCustomFields(t *testing.T) {
 func TestVictorOpsRetry(t *testing.T) {
 	notifier, err := New(
 		&Config{
-			APIKey:     config.Secret("secret"),
+			APIKey:     receivers.Secret("secret"),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -107,8 +108,8 @@ func TestVictorOpsRedactedURL(t *testing.T) {
 	secret := "secret"
 	notifier, err := New(
 		&Config{
-			APIURL:     &config.URL{URL: u},
-			APIKey:     config.Secret(secret),
+			APIURL:     &receivers.URL{URL: u},
+			APIKey:     receivers.Secret(secret),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -131,7 +132,7 @@ func TestVictorOpsReadingApiKeyFromFile(t *testing.T) {
 
 	notifier, err := New(
 		&Config{
-			APIURL:     &config.URL{URL: u},
+			APIURL:     &receivers.URL{URL: u},
 			APIKeyFile: f.Name(),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
@@ -204,7 +205,7 @@ func TestVictorOpsTemplating(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.cfg.HTTPConfig = &httpcfg.HTTPClientConfig{}
-			tc.cfg.APIURL = &config.URL{URL: u}
+			tc.cfg.APIURL = &receivers.URL{URL: u}
 			tc.cfg.APIKey = "test"
 			vo, err := New(tc.cfg, test.CreateTmpl(t), log.NewNopLogger())
 			require.NoError(t, err)

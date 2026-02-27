@@ -25,10 +25,11 @@ import (
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/receivers"
 )
 
 func TestWebhookRetry(t *testing.T) {
@@ -38,7 +39,7 @@ func TestWebhookRetry(t *testing.T) {
 	}
 	notifier, err := New(
 		&Config{
-			URL:        &config.SecretURL{URL: u},
+			URL:        &receivers.SecretURL{URL: u},
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -107,7 +108,7 @@ func TestWebhookRedactedURL(t *testing.T) {
 	secret := "secret"
 	notifier, err := New(
 		&Config{
-			URL:        &config.SecretURL{URL: u},
+			URL:        &receivers.SecretURL{URL: u},
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),

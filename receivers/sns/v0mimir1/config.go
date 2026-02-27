@@ -17,8 +17,9 @@ package v0mimir1
 import (
 	"errors"
 
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/common/sigv4"
+
+	"github.com/grafana/alerting/receivers"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/grafana/alerting/receivers/schema"
@@ -28,7 +29,7 @@ const Version = schema.V0mimir1
 
 // DefaultConfig defines default values for SNS configurations.
 var DefaultConfig = Config{
-	NotifierConfig: config.NotifierConfig{
+	NotifierConfig: receivers.NotifierConfig{
 		VSendResolved: true,
 	},
 	Subject: `{{ template "sns.default.subject" . }}`,
@@ -37,7 +38,7 @@ var DefaultConfig = Config{
 
 // Config configures notifications via SNS.
 type Config struct {
-	config.NotifierConfig `yaml:",inline" json:",inline"`
+	receivers.NotifierConfig `yaml:",inline" json:",inline"`
 
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 

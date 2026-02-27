@@ -27,11 +27,11 @@ import (
 	"github.com/go-kit/log/level"
 	commoncfg "github.com/prometheus/common/config"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 )
 
 // https://api.slack.com/reference/messaging/attachments#legacy_fields - 1024, no units given, assuming runes or characters.
@@ -77,19 +77,19 @@ type request struct {
 
 // attachment is used to display a richly-formatted message block.
 type attachment struct {
-	Title      string               `json:"title,omitempty"`
-	TitleLink  string               `json:"title_link,omitempty"`
-	Pretext    string               `json:"pretext,omitempty"`
-	Text       string               `json:"text"`
-	Fallback   string               `json:"fallback"`
-	CallbackID string               `json:"callback_id"`
-	Fields     []config.SlackField  `json:"fields,omitempty"`
-	Actions    []config.SlackAction `json:"actions,omitempty"`
-	ImageURL   string               `json:"image_url,omitempty"`
-	ThumbURL   string               `json:"thumb_url,omitempty"`
-	Footer     string               `json:"footer"`
-	Color      string               `json:"color,omitempty"`
-	MrkdwnIn   []string             `json:"mrkdwn_in,omitempty"`
+	Title      string        `json:"title,omitempty"`
+	TitleLink  string        `json:"title_link,omitempty"`
+	Pretext    string        `json:"pretext,omitempty"`
+	Text       string        `json:"text"`
+	Fallback   string        `json:"fallback"`
+	CallbackID string        `json:"callback_id"`
+	Fields     []SlackField  `json:"fields,omitempty"`
+	Actions    []SlackAction `json:"actions,omitempty"`
+	ImageURL   string        `json:"image_url,omitempty"`
+	ThumbURL   string        `json:"thumb_url,omitempty"`
+	Footer     string        `json:"footer"`
+	Color      string        `json:"color,omitempty"`
+	MrkdwnIn   []string      `json:"mrkdwn_in,omitempty"`
 }
 
 // Notify implements the Notifier interface.
@@ -131,7 +131,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	numFields := len(n.conf.Fields)
 	if numFields > 0 {
-		fields := make([]config.SlackField, numFields)
+		fields := make([]SlackField, numFields)
 		for index, field := range n.conf.Fields {
 			// Check if short was defined for the field otherwise fallback to the global setting
 			var short bool
@@ -142,7 +142,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 			}
 
 			// Rebuild the field by executing any templates and setting the new value for short
-			fields[index] = config.SlackField{
+			fields[index] = SlackField{
 				Title: tmplText(field.Title),
 				Value: tmplText(field.Value),
 				Short: &short,
@@ -153,9 +153,9 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	numActions := len(n.conf.Actions)
 	if numActions > 0 {
-		actions := make([]config.SlackAction, numActions)
+		actions := make([]SlackAction, numActions)
 		for index, action := range n.conf.Actions {
-			slackAction := config.SlackAction{
+			slackAction := SlackAction{
 				Type:  tmplText(action.Type),
 				Text:  tmplText(action.Text),
 				URL:   tmplText(action.URL),
@@ -165,7 +165,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 			}
 
 			if action.ConfirmField != nil {
-				slackAction.ConfirmField = &config.SlackConfirmationField{
+				slackAction.ConfirmField = &SlackConfirmationField{
 					Title:       tmplText(action.ConfirmField.Title),
 					Text:        tmplText(action.ConfirmField.Text),
 					OkText:      tmplText(action.ConfirmField.OkText),

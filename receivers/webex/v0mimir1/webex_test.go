@@ -26,11 +26,12 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/receivers"
 )
 
 func TestWebexRetry(t *testing.T) {
@@ -40,7 +41,7 @@ func TestWebexRetry(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
-			APIURL:     &config.URL{URL: testWebhookURL},
+			APIURL:     &receivers.URL{URL: testWebhookURL},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),
@@ -102,7 +103,7 @@ func TestWebexTemplating(t *testing.T) {
 			defer srv.Close()
 			u, _ := url.Parse(srv.URL)
 
-			tt.cfg.APIURL = &config.URL{URL: u}
+			tt.cfg.APIURL = &receivers.URL{URL: u}
 			tt.cfg.HTTPConfig = tt.commonCfg
 			notifierWebex, err := New(tt.cfg, test.CreateTmpl(t), log.NewNopLogger())
 			require.NoError(t, err)

@@ -17,8 +17,9 @@ package v0mimir1
 import (
 	"errors"
 
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/receivers"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/grafana/alerting/receivers/schema"
@@ -28,20 +29,20 @@ const Version = schema.V0mimir1
 
 // DefaultConfig defines default values for Webhook configurations.
 var DefaultConfig = Config{
-	NotifierConfig: config.NotifierConfig{
+	NotifierConfig: receivers.NotifierConfig{
 		VSendResolved: true,
 	},
 }
 
 // Config configures notifications via a generic webhook.
 type Config struct {
-	config.NotifierConfig `yaml:",inline" json:",inline"`
+	receivers.NotifierConfig `yaml:",inline" json:",inline"`
 
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
 	// URL to send POST request to.
-	URL     *config.SecretURL `yaml:"url" json:"url"`
-	URLFile string            `yaml:"url_file" json:"url_file"`
+	URL     *receivers.SecretURL `yaml:"url" json:"url"`
+	URLFile string               `yaml:"url_file" json:"url_file"`
 
 	// MaxAlerts is the maximum number of alerts to be sent per webhook message.
 	// Alerts exceeding this threshold will be truncated. Setting this to 0

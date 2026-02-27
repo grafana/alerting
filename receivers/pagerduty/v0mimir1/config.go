@@ -17,9 +17,8 @@ package v0mimir1
 import (
 	"errors"
 
-	"github.com/prometheus/alertmanager/config"
-
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 )
 
@@ -35,7 +34,7 @@ var DefaultPagerdutyDetails = map[string]string{
 
 // DefaultConfig defines default values for PagerDuty configurations.
 var DefaultConfig = Config{
-	NotifierConfig: config.NotifierConfig{
+	NotifierConfig: receivers.NotifierConfig{
 		VSendResolved: true,
 	},
 	Description: `{{ template "pagerduty.default.description" .}}`,
@@ -45,26 +44,26 @@ var DefaultConfig = Config{
 
 // Config configures notifications via PagerDuty.
 type Config struct {
-	config.NotifierConfig `yaml:",inline" json:",inline"`
+	receivers.NotifierConfig `yaml:",inline" json:",inline"`
 
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
-	ServiceKey     config.Secret           `yaml:"service_key,omitempty" json:"service_key,omitempty"`
-	ServiceKeyFile string                  `yaml:"service_key_file,omitempty" json:"service_key_file,omitempty"`
-	RoutingKey     config.Secret           `yaml:"routing_key,omitempty" json:"routing_key,omitempty"`
-	RoutingKeyFile string                  `yaml:"routing_key_file,omitempty" json:"routing_key_file,omitempty"`
-	URL            *config.URL             `yaml:"url,omitempty" json:"url,omitempty"`
-	Client         string                  `yaml:"client,omitempty" json:"client,omitempty"`
-	ClientURL      string                  `yaml:"client_url,omitempty" json:"client_url,omitempty"`
-	Description    string                  `yaml:"description,omitempty" json:"description,omitempty"`
-	Details        map[string]string       `yaml:"details,omitempty" json:"details,omitempty"`
-	Images         []config.PagerdutyImage `yaml:"images,omitempty" json:"images,omitempty"`
-	Links          []config.PagerdutyLink  `yaml:"links,omitempty" json:"links,omitempty"`
-	Source         string                  `yaml:"source,omitempty" json:"source,omitempty"`
-	Severity       string                  `yaml:"severity,omitempty" json:"severity,omitempty"`
-	Class          string                  `yaml:"class,omitempty" json:"class,omitempty"`
-	Component      string                  `yaml:"component,omitempty" json:"component,omitempty"`
-	Group          string                  `yaml:"group,omitempty" json:"group,omitempty"`
+	ServiceKey     receivers.Secret  `yaml:"service_key,omitempty" json:"service_key,omitempty"`
+	ServiceKeyFile string            `yaml:"service_key_file,omitempty" json:"service_key_file,omitempty"`
+	RoutingKey     receivers.Secret  `yaml:"routing_key,omitempty" json:"routing_key,omitempty"`
+	RoutingKeyFile string            `yaml:"routing_key_file,omitempty" json:"routing_key_file,omitempty"`
+	URL            *receivers.URL    `yaml:"url,omitempty" json:"url,omitempty"`
+	Client         string            `yaml:"client,omitempty" json:"client,omitempty"`
+	ClientURL      string            `yaml:"client_url,omitempty" json:"client_url,omitempty"`
+	Description    string            `yaml:"description,omitempty" json:"description,omitempty"`
+	Details        map[string]string `yaml:"details,omitempty" json:"details,omitempty"`
+	Images         []PagerdutyImage  `yaml:"images,omitempty" json:"images,omitempty"`
+	Links          []PagerdutyLink   `yaml:"links,omitempty" json:"links,omitempty"`
+	Source         string            `yaml:"source,omitempty" json:"source,omitempty"`
+	Severity       string            `yaml:"severity,omitempty" json:"severity,omitempty"`
+	Class          string            `yaml:"class,omitempty" json:"class,omitempty"`
+	Component      string            `yaml:"component,omitempty" json:"component,omitempty"`
+	Group          string            `yaml:"group,omitempty" json:"group,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -241,4 +240,17 @@ var Schema = schema.IntegrationSchemaVersion{
 		},
 		schema.V0HttpConfigOption(),
 	},
+}
+
+// PagerdutyLink is used to add link to an incident.
+type PagerdutyLink struct {
+	Href string `yaml:"href,omitempty" json:"href,omitempty"`
+	Text string `yaml:"text,omitempty" json:"text,omitempty"`
+}
+
+// PagerdutyImage is an image attached to an incident.
+type PagerdutyImage struct {
+	Src  string `yaml:"src,omitempty" json:"src,omitempty"`
+	Alt  string `yaml:"alt,omitempty" json:"alt,omitempty"`
+	Href string `yaml:"href,omitempty" json:"href,omitempty"`
 }

@@ -29,18 +29,19 @@ import (
 
 	"github.com/go-kit/log"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/receivers"
 )
 
 func TestJiraRetry(t *testing.T) {
 	notifier, err := New(
 		&Config{
-			APIURL: &config.URL{
+			APIURL: &receivers.URL{
 				URL: &url.URL{
 					Scheme: "https",
 					Host:   "example.atlassian.net",
@@ -123,7 +124,7 @@ func TestJiraTemplating(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.title, func(t *testing.T) {
-			tc.cfg.APIURL = &config.URL{URL: u}
+			tc.cfg.APIURL = &receivers.URL{URL: u}
 			tc.cfg.HTTPConfig = &httpcfg.HTTPClientConfig{}
 			pd, err := New(tc.cfg, test.CreateTmpl(t), log.NewNopLogger())
 			require.NoError(t, err)
@@ -565,7 +566,7 @@ func TestJiraNotify(t *testing.T) {
 			defer srv.Close()
 			u, _ := url.Parse(srv.URL)
 
-			tc.cfg.APIURL = &config.URL{URL: u}
+			tc.cfg.APIURL = &receivers.URL{URL: u}
 			tc.cfg.HTTPConfig = &httpcfg.HTTPClientConfig{}
 
 			notifier, err := New(tc.cfg, test.CreateTmpl(t), log.NewNopLogger())

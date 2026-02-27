@@ -17,9 +17,8 @@ package v0mimir1
 import (
 	"errors"
 
-	"github.com/prometheus/alertmanager/config"
-
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 )
 
@@ -27,7 +26,7 @@ const Version = schema.V0mimir1
 
 // DefaultConfig defines default values for Webex configurations.
 var DefaultConfig = Config{
-	NotifierConfig: config.NotifierConfig{
+	NotifierConfig: receivers.NotifierConfig{
 		VSendResolved: true,
 	},
 	Message: `{{ template "webex.default.message" . }}`,
@@ -35,11 +34,11 @@ var DefaultConfig = Config{
 
 // Config configures notifications via Webex.
 type Config struct {
-	config.NotifierConfig `yaml:",inline" json:",inline"`
-	HTTPConfig            *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
-	APIURL                *config.URL               `yaml:"api_url,omitempty" json:"api_url,omitempty"`
-	Message               string                    `yaml:"message,omitempty" json:"message,omitempty"`
-	RoomID                string                    `yaml:"room_id" json:"room_id"`
+	receivers.NotifierConfig `yaml:",inline" json:",inline"`
+	HTTPConfig               *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
+	APIURL                   *receivers.URL            `yaml:"api_url,omitempty" json:"api_url,omitempty"`
+	Message                  string                    `yaml:"message,omitempty" json:"message,omitempty"`
+	RoomID                   string                    `yaml:"room_id" json:"room_id"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.

@@ -16,6 +16,7 @@ import (
 	"github.com/prometheus/alertmanager/matchers/compat"
 	"github.com/prometheus/alertmanager/pkg/labels"
 
+	"github.com/grafana/alerting/receivers"
 	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	slack_v0mimir1 "github.com/grafana/alerting/receivers/slack/v0mimir1"
 )
@@ -120,7 +121,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 						Receiver: Receiver{
 							Name: "am",
 							EmailConfigs: []*email_v0mimir1.Config{{
-								Smarthost: config.HostPort{
+								Smarthost: receivers.HostPort{
 									Host: "test",
 									Port: "567",
 								},
@@ -346,7 +347,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 						Receiver: Receiver{
 							Name: "am",
 							EmailConfigs: []*email_v0mimir1.Config{{
-								Smarthost: config.HostPort{
+								Smarthost: receivers.HostPort{
 									Host: "test",
 									Port: "567",
 								},

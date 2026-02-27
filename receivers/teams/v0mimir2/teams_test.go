@@ -30,10 +30,11 @@ import (
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
+
+	"github.com/grafana/alerting/receivers"
 )
 
 // This is a test URL that has been modified to not be valid.
@@ -42,7 +43,7 @@ var testWebhookURL, _ = url.Parse("https://example.westeurope.logic.azure.com:44
 func TestMSTeamsV2Retry(t *testing.T) {
 	notifier, err := New(
 		&Config{
-			WebhookURL: &config.SecretURL{URL: testWebhookURL},
+			WebhookURL: &receivers.SecretURL{URL: testWebhookURL},
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -75,7 +76,7 @@ func TestNotifier_Notify_WithReason(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			notifier, err := New(
 				&Config{
-					WebhookURL: &config.SecretURL{URL: testWebhookURL},
+					WebhookURL: &receivers.SecretURL{URL: testWebhookURL},
 					HTTPConfig: &httpcfg.HTTPClientConfig{},
 				},
 				test.CreateTmpl(t),
@@ -154,7 +155,7 @@ func TestMSTeamsV2Templating(t *testing.T) {
 		},
 	} {
 		t.Run(tc.title, func(t *testing.T) {
-			tc.cfg.WebhookURL = &config.SecretURL{URL: u}
+			tc.cfg.WebhookURL = &receivers.SecretURL{URL: u}
 			tc.cfg.HTTPConfig = &httpcfg.HTTPClientConfig{}
 			pd, err := New(tc.cfg, test.CreateTmpl(t), log.NewNopLogger())
 			require.NoError(t, err)
@@ -191,7 +192,7 @@ func TestMSTeamsV2RedactedURL(t *testing.T) {
 	secret := "secret"
 	notifier, err := New(
 		&Config{
-			WebhookURL: &config.SecretURL{URL: u},
+			WebhookURL: &receivers.SecretURL{URL: u},
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),

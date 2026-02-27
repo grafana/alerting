@@ -7,6 +7,8 @@ import (
 	"github.com/modern-go/reflect2"
 	amcfg "github.com/prometheus/alertmanager/config"
 	commoncfg "github.com/prometheus/common/config"
+
+	"github.com/grafana/alerting/receivers"
 )
 
 // secretEncoder encodes Secret to plain text JSON,
@@ -57,13 +59,17 @@ func newPlainAPI() jsoniter.API {
 
 	extension := jsoniter.EncoderExtension{
 		// Value types
-		reflect2.TypeOfPtr((*amcfg.Secret)(nil)).Elem():     secretEnc,
-		reflect2.TypeOfPtr((*commoncfg.Secret)(nil)).Elem(): secretEnc,
-		reflect2.TypeOfPtr((*amcfg.SecretURL)(nil)).Elem():  secretURLEnc,
+		reflect2.TypeOfPtr((*amcfg.Secret)(nil)).Elem():        secretEnc,
+		reflect2.TypeOfPtr((*commoncfg.Secret)(nil)).Elem():    secretEnc,
+		reflect2.TypeOfPtr((*receivers.Secret)(nil)).Elem():    secretEnc,
+		reflect2.TypeOfPtr((*amcfg.SecretURL)(nil)).Elem():     secretURLEnc,
+		reflect2.TypeOfPtr((*receivers.SecretURL)(nil)).Elem(): secretURLEnc,
 		// Pointer types
-		reflect2.TypeOfPtr((*amcfg.Secret)(nil)):     &jsoniter.OptionalEncoder{ValueEncoder: secretEnc},
-		reflect2.TypeOfPtr((*commoncfg.Secret)(nil)): &jsoniter.OptionalEncoder{ValueEncoder: secretEnc},
-		reflect2.TypeOfPtr((*amcfg.SecretURL)(nil)):  &jsoniter.OptionalEncoder{ValueEncoder: secretURLEnc},
+		reflect2.TypeOfPtr((*amcfg.Secret)(nil)):        &jsoniter.OptionalEncoder{ValueEncoder: secretEnc},
+		reflect2.TypeOfPtr((*commoncfg.Secret)(nil)):    &jsoniter.OptionalEncoder{ValueEncoder: secretEnc},
+		reflect2.TypeOfPtr((*receivers.Secret)(nil)):    &jsoniter.OptionalEncoder{ValueEncoder: secretEnc},
+		reflect2.TypeOfPtr((*amcfg.SecretURL)(nil)):     &jsoniter.OptionalEncoder{ValueEncoder: secretURLEnc},
+		reflect2.TypeOfPtr((*receivers.SecretURL)(nil)): &jsoniter.OptionalEncoder{ValueEncoder: secretURLEnc},
 	}
 
 	api.RegisterExtension(extension)

@@ -20,9 +20,10 @@ import (
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/notify/test"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/receivers"
 )
 
 func TestPushoverRetry(t *testing.T) {
@@ -47,8 +48,8 @@ func TestPushoverRedactedURL(t *testing.T) {
 	key, token := "user_key", "token"
 	notifier, err := New(
 		&Config{
-			UserKey:    config.Secret(key),
-			Token:      config.Secret(token),
+			UserKey:    receivers.Secret(key),
+			Token:      receivers.Secret(token),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -73,7 +74,7 @@ func TestPushoverReadingUserKeyFromFile(t *testing.T) {
 	notifier, err := New(
 		&Config{
 			UserKeyFile: f.Name(),
-			Token:       config.Secret("token"),
+			Token:       receivers.Secret("token"),
 			HTTPConfig:  &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
@@ -97,7 +98,7 @@ func TestPushoverReadingTokenFromFile(t *testing.T) {
 
 	notifier, err := New(
 		&Config{
-			UserKey:    config.Secret("user key"),
+			UserKey:    receivers.Secret("user key"),
 			TokenFile:  f.Name(),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},

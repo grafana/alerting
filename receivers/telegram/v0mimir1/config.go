@@ -17,7 +17,7 @@ package v0mimir1
 import (
 	"errors"
 
-	"github.com/prometheus/alertmanager/config"
+	"github.com/grafana/alerting/receivers"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 	"github.com/grafana/alerting/receivers/schema"
@@ -27,7 +27,7 @@ const Version = schema.V0mimir1
 
 // DefaultConfig defines default values for Telegram configurations.
 var DefaultConfig = Config{
-	NotifierConfig: config.NotifierConfig{
+	NotifierConfig: receivers.NotifierConfig{
 		VSendResolved: true,
 	},
 	DisableNotifications: false,
@@ -37,17 +37,17 @@ var DefaultConfig = Config{
 
 // Config configures notifications via Telegram.
 type Config struct {
-	config.NotifierConfig `yaml:",inline" json:",inline"`
+	receivers.NotifierConfig `yaml:",inline" json:",inline"`
 
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
-	APIUrl               *config.URL   `yaml:"api_url" json:"api_url,omitempty"`
-	BotToken             config.Secret `yaml:"bot_token,omitempty" json:"token,omitempty"`
-	BotTokenFile         string        `yaml:"bot_token_file,omitempty" json:"token_file,omitempty"`
-	ChatID               int64         `yaml:"chat_id,omitempty" json:"chat,omitempty"`
-	Message              string        `yaml:"message,omitempty" json:"message,omitempty"`
-	DisableNotifications bool          `yaml:"disable_notifications,omitempty" json:"disable_notifications,omitempty"`
-	ParseMode            string        `yaml:"parse_mode,omitempty" json:"parse_mode,omitempty"`
+	APIUrl               *receivers.URL   `yaml:"api_url" json:"api_url,omitempty"`
+	BotToken             receivers.Secret `yaml:"bot_token,omitempty" json:"token,omitempty"`
+	BotTokenFile         string           `yaml:"bot_token_file,omitempty" json:"token_file,omitempty"`
+	ChatID               int64            `yaml:"chat_id,omitempty" json:"chat,omitempty"`
+	Message              string           `yaml:"message,omitempty" json:"message,omitempty"`
+	DisableNotifications bool             `yaml:"disable_notifications,omitempty" json:"disable_notifications,omitempty"`
+	ParseMode            string           `yaml:"parse_mode,omitempty" json:"parse_mode,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
