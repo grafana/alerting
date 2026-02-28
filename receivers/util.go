@@ -235,3 +235,23 @@ func GetExtraDataFromContext(ctx context.Context) ([]json.RawMessage, bool) {
 	v, ok := ctx.Value(ExtraDataKey).([]json.RawMessage)
 	return v, ok
 }
+
+// ApplyExtraData augments the extended Alert data with any extra data if provided in the context.
+// If there is no extra data in the context or the length of extra data doesn't match the number
+// of alerts, the function does nothing. This allows callers to safely use this helper without
+// needing to handle errors.
+func ApplyExtraData(ctx context.Context, alerts ExtraDataAlerts) {
+	extraData, ok := GetExtraDataFromContext(ctx)
+	if ok && alerts.Len() == len(extraData) {
+		for i, ed := range extraData {
+			alerts.SetExtraData(i, ed)
+		}
+	}
+}
+
+// ExtraDataAlerts is an interface that allows setting extra data on a slice of alerts.
+// This is implemented by templates.ExtendedAlerts.
+type ExtraDataAlerts interface {
+	Len() int
+	SetExtraData(index int, data json.RawMessage)
+}
