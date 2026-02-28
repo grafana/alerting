@@ -105,7 +105,7 @@ func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bo
 		Password: kn.settings.Password,
 	}
 
-	if err := kn.ns.SendWebhook(ctx, l, cmd); err != nil {
+	if _, err := kn.ns.SendWebhook(ctx, l, cmd); err != nil {
 		level.Error(l).Log("msg", "Failed to send notification to Kafka", "err", err, "body", body)
 		return false, err
 	}
@@ -150,7 +150,7 @@ func (kn *Notifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bo
 	// Can be implemented nicely using receivers. The v3 API can be used in streaming mode
 	// by setting “Transfer-Encoding: chunked” header.
 	// For as long as the connection is kept open, the server will keep accepting records.
-	if err := kn.ns.SendWebhook(ctx, l, cmd); err != nil {
+	if _, err := kn.ns.SendWebhook(ctx, l, cmd); err != nil {
 		level.Error(l).Log("msg", "Failed to send notification to Kafka", "err", err, "body", body)
 		return false, err
 	}

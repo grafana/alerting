@@ -142,7 +142,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		HTTPHeader: headers,
 	}
 
-	if err := n.ns.SendWebhook(ctx, l, cmd); err != nil {
+	if _, err := n.ns.SendWebhook(ctx, l, cmd); err != nil {
 		return false, err
 	}
 
