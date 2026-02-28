@@ -12,18 +12,17 @@ import (
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 
-	"github.com/prometheus/alertmanager/config"
-	commoncfg "github.com/prometheus/common/config"
-
 	"github.com/prometheus/alertmanager/notify"
 
 	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/http"
+	"github.com/grafana/alerting/http/v0mimir1"
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers"
+	webhook_v0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -143,9 +142,9 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			{
 				ConfigReceiver: ConfigReceiver{
 					Name: "test1",
-					WebhookConfigs: []*config.WebhookConfig{
+					WebhookConfigs: []*webhook_v0mimir1.Config{
 						{
-							HTTPConfig: &commoncfg.DefaultHTTPClientConfig,
+							HTTPConfig: &v0mimir1.DefaultHTTPClientConfig,
 						},
 					},
 				},
@@ -244,5 +243,5 @@ func TestBuildPrometheusReceiverIntegrations(t *testing.T) {
 	require.NoError(t, err)
 	integrations, err := BuildPrometheusReceiverIntegrations(receiver, tmpl, nil, log.NewNopLogger(), NoWrap, nil)
 	require.NoError(t, err)
-	require.Len(t, integrations, 14)
+	require.Len(t, integrations, 15)
 }

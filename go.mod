@@ -16,6 +16,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.4
 	github.com/google/go-cmp v0.7.0
+	github.com/google/uuid v1.6.0
 	github.com/grafana/dskit v0.0.0-20250818234656-8ff9c6532e85
 	github.com/grafana/loki/pkg/push v0.0.0-20250823105456-332df2b20000
 	github.com/json-iterator/go v1.1.12
@@ -25,6 +26,7 @@ require (
 	github.com/prometheus/alertmanager v0.28.2
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/common v0.64.0
+	github.com/prometheus/common/sigv4 v0.1.0
 	github.com/stretchr/testify v1.10.0
 	go.opentelemetry.io/otel v1.37.0
 	go.opentelemetry.io/otel/trace v1.37.0
@@ -32,6 +34,8 @@ require (
 	golang.org/x/oauth2 v0.31.0
 	golang.org/x/sync v0.17.0
 	gopkg.in/mail.v2 v2.3.1
+	gopkg.in/telebot.v3 v3.2.1
+	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -64,7 +68,6 @@ require (
 	github.com/gogo/status v1.1.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/grafana/otel-profiling-go v0.5.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.26.3 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -97,7 +100,6 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common/sigv4 v0.1.0 // indirect
 	github.com/prometheus/exporter-toolkit v0.11.0 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/rs/cors v1.10.1 // indirect
@@ -146,12 +148,10 @@ require (
 	google.golang.org/grpc v1.75.1 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
-	gopkg.in/telebot.v3 v3.2.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
 
 // Using a fork of the Alertmanager with Alerting Squad specific changes.
-replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.25.1-0.20260220111149-e5bb689fb805
+replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.25.1-0.20260225120258-18275ca76b0c
 
 replace github.com/Unknwon/com v1.0.1 => github.com/unknwon/com v1.0.1
 

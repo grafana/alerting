@@ -179,6 +179,238 @@ func TestLokiHTTPClient_Manual(t *testing.T) {
 	})
 }
 
+func TestLokiHTTPClient_MetricsQuery(t *testing.T) {
+	okResponse := func() *http.Response {
+		return &http.Response{
+			Status:        "200 OK",
+			StatusCode:    200,
+			Body:          io.NopCloser(bytes.NewBufferString(`{}`)),
+			ContentLength: int64(0),
+			Header:        make(http.Header, 0),
+		}
+	}
+
+	t.Run("hits instant query endpoint", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsQuery(context.Background(), `rate({from="state-history"}[5m])`, now, defaultPageSize)
+
+		require.NoError(t, err)
+		require.Contains(t, req.LastRequest.URL.Path, "/loki/api/v1/query")
+		require.NotContains(t, req.LastRequest.URL.Path, "query_range")
+	})
+
+	t.Run("passes along time parameter", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsQuery(context.Background(), `rate({from="state-history"}[5m])`, now, defaultPageSize)
+
+		require.NoError(t, err)
+		params := req.LastRequest.URL.Query()
+		require.True(t, params.Has("time"), "query params did not contain 'time': %#v", params)
+		require.Equal(t, fmt.Sprint(now), params.Get("time"))
+		require.False(t, params.Has("start"), "metrics query should not have 'start' param")
+		require.False(t, params.Has("end"), "metrics query should not have 'end' param")
+	})
+
+	t.Run("passes along page size", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsQuery(context.Background(), `rate({from="state-history"}[5m])`, now, 1100)
+
+		require.NoError(t, err)
+		params := req.LastRequest.URL.Query()
+		require.True(t, params.Has("limit"), "query params did not contain 'limit': %#v", params)
+		require.Equal(t, fmt.Sprint(1100), params.Get("limit"))
+	})
+
+	t.Run("uses default page size if limit not provided", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsQuery(context.Background(), `rate({from="state-history"}[5m])`, now, 0)
+
+		require.NoError(t, err)
+		params := req.LastRequest.URL.Query()
+		require.Equal(t, fmt.Sprint(defaultPageSize), params.Get("limit"))
+	})
+
+	t.Run("uses maximum page size if limit too big", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsQuery(context.Background(), `rate({from="state-history"}[5m])`, now, maximumPageSize+1000)
+
+		require.NoError(t, err)
+		params := req.LastRequest.URL.Query()
+		require.Equal(t, fmt.Sprint(maximumPageSize), params.Get("limit"))
+	})
+
+	t.Run("parses metric sample response", func(t *testing.T) {
+		body := `{"data":{"result":[{"metric":{"job":"my-app"},"value":[1700000000.123,"42.5"]}]}}`
+		req := instrumenttest.NewFakeRequester().WithResponse(&http.Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Body:       io.NopCloser(bytes.NewBufferString(body)),
+			Header:     make(http.Header, 0),
+		})
+		client := createTestLokiClient(req)
+
+		res, err := client.MetricsQuery(context.Background(), `rate({job="my-app"}[5m])`, time.Now().UnixNano(), defaultPageSize)
+
+		require.NoError(t, err)
+		require.Len(t, res.Data.Result, 1)
+		require.Equal(t, map[string]string{"job": "my-app"}, res.Data.Result[0].Metric)
+		ts, err := res.Data.Result[0].Value.Timestamp()
+		require.NoError(t, err)
+		require.InDelta(t, 1700000000.123, ts, 0.001)
+		val, err := res.Data.Result[0].Value.Value()
+		require.NoError(t, err)
+		require.Equal(t, "42.5", val)
+	})
+}
+
+func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
+	okResponse := func() *http.Response {
+		return &http.Response{
+			Status:        "200 OK",
+			StatusCode:    200,
+			Body:          io.NopCloser(bytes.NewBufferString(`{}`)),
+			ContentLength: int64(0),
+			Header:        make(http.Header, 0),
+		}
+	}
+
+	t.Run("hits query_range endpoint", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, defaultPageSize)
+
+		require.NoError(t, err)
+		require.Contains(t, req.LastRequest.URL.Path, "/loki/api/v1/query_range")
+	})
+
+	t.Run("passes along start and end parameters", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+		start := now - 100
+
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, start, now, defaultPageSize)
+
+		require.NoError(t, err)
+		params := req.LastRequest.URL.Query()
+		require.True(t, params.Has("start"), "query params did not contain 'start': %#v", params)
+		require.True(t, params.Has("end"), "query params did not contain 'end': %#v", params)
+		require.Equal(t, fmt.Sprint(start), params.Get("start"))
+		require.Equal(t, fmt.Sprint(now), params.Get("end"))
+		require.False(t, params.Has("time"), "metrics range query should not have 'time' param")
+	})
+
+	t.Run("passes along page size", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, 1100)
+
+		require.NoError(t, err)
+		params := req.LastRequest.URL.Query()
+		require.True(t, params.Has("limit"), "query params did not contain 'limit': %#v", params)
+		require.Equal(t, fmt.Sprint(1100), params.Get("limit"))
+	})
+
+	t.Run("uses default page size if limit not provided", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, 0)
+
+		require.NoError(t, err)
+		params := req.LastRequest.URL.Query()
+		require.Equal(t, fmt.Sprint(defaultPageSize), params.Get("limit"))
+	})
+
+	t.Run("uses maximum page size if limit too big", func(t *testing.T) {
+		resp := okResponse()
+		t.Cleanup(func() { resp.Body.Close() })
+		req := instrumenttest.NewFakeRequester().WithResponse(resp)
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, maximumPageSize+1000)
+
+		require.NoError(t, err)
+		params := req.LastRequest.URL.Query()
+		require.Equal(t, fmt.Sprint(maximumPageSize), params.Get("limit"))
+	})
+
+	t.Run("returns error if start is after end", func(t *testing.T) {
+		req := instrumenttest.NewFakeRequester()
+		client := createTestLokiClient(req)
+		now := time.Now().UTC().UnixNano()
+
+		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now, now-100, defaultPageSize)
+
+		require.Error(t, err)
+		require.ErrorContains(t, err, "start time cannot be after end time")
+	})
+
+	t.Run("parses metric range sample response", func(t *testing.T) {
+		body := `{"data":{"result":[{"metric":{"job":"my-app"},"values":[[1700000000.0,"1.5"],[1700000060.0,"2.0"]]}]}}`
+		req := instrumenttest.NewFakeRequester().WithResponse(&http.Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Body:       io.NopCloser(bytes.NewBufferString(body)),
+			Header:     make(http.Header, 0),
+		})
+		client := createTestLokiClient(req)
+		now := time.Now().UnixNano()
+
+		res, err := client.MetricsRangeQuery(context.Background(), `rate({job="my-app"}[5m])`, now-int64(time.Minute), now, defaultPageSize)
+
+		require.NoError(t, err)
+		require.Len(t, res.Data.Result, 1)
+		require.Equal(t, map[string]string{"job": "my-app"}, res.Data.Result[0].Metric)
+		require.Len(t, res.Data.Result[0].Values, 2)
+		ts, err := res.Data.Result[0].Values[0].Timestamp()
+		require.NoError(t, err)
+		require.InDelta(t, 1700000000.0, ts, 0.001)
+		val, err := res.Data.Result[0].Values[0].Value()
+		require.NoError(t, err)
+		require.Equal(t, "1.5", val)
+	})
+}
+
 func TestRow(t *testing.T) {
 	t.Run("marshal", func(t *testing.T) {
 		row := Sample{

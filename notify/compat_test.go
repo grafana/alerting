@@ -5,7 +5,6 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/prometheus/alertmanager/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -13,14 +12,17 @@ import (
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers/email"
+	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/receivers/teams"
+	teams_v0mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
+	teams_v0mimir2 "github.com/grafana/alerting/receivers/teams/v0mimir2"
 )
 
 func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 	t.Run("returns empty when no receivers", func(t *testing.T) {
 		r := &definition.PostableApiReceiver{
-			Receiver: config.Receiver{
+			Receiver: definition.Receiver{
 				Name: "test-receiver",
 			},
 		}
@@ -30,7 +32,7 @@ func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 	})
 	t.Run("converts receivers", func(t *testing.T) {
 		r := &definition.PostableApiReceiver{
-			Receiver: config.Receiver{
+			Receiver: definition.Receiver{
 				Name: "test-receiver",
 			},
 			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
@@ -97,7 +99,7 @@ func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 	})
 	receivers := []*definition.PostableApiReceiver{
 		{
-			Receiver: config.Receiver{
+			Receiver: definition.Receiver{
 				Name: "test-receiver",
 			},
 			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
@@ -116,7 +118,7 @@ func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 			},
 		},
 		{
-			Receiver: config.Receiver{
+			Receiver: definition.Receiver{
 				Name: "test-receiver2",
 			},
 			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
@@ -151,7 +153,7 @@ func TestConfigReceiverToMimirIntegrations(t *testing.T) {
 	idx := slices.IndexFunc(actual, func(e MimirIntegrationConfig) bool {
 		return e.Schema.Type() == email.Type
 	})
-	require.IsType(t, config.EmailConfig{}, actual[idx].Config)
+	require.IsType(t, email_v0mimir1.Config{}, actual[idx].Config)
 
 	t.Run("correctly maps teams versions", func(t *testing.T) {
 		found := 0
@@ -162,10 +164,10 @@ func TestConfigReceiverToMimirIntegrations(t *testing.T) {
 			switch ic.Schema.Version {
 			case schema.V0mimir1:
 				found++
-				require.IsType(t, config.MSTeamsConfig{}, ic.Config)
+				require.IsType(t, teams_v0mimir1.Config{}, ic.Config)
 			case schema.V0mimir2:
 				found++
-				require.IsType(t, config.MSTeamsV2Config{}, ic.Config)
+				require.IsType(t, teams_v0mimir2.Config{}, ic.Config)
 			case schema.V1:
 				require.Fail(t, "unexpected V1 version for msteams integration")
 			default:
