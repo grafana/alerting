@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"net/url"
+	"slices"
 	"testing"
 	"time"
 
@@ -62,6 +63,8 @@ func TestNewFactory(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
+
+			assert.ElementsMatch(t, slices.Collect(maps.Keys(tc.expected)), factory.Kinds())
 			// Validate the templates map
 			for kind, expectedTemplates := range tc.expected {
 				require.ElementsMatch(t, expectedTemplates, factory.templates[kind])

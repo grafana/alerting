@@ -15,6 +15,10 @@ import (
 	"github.com/prometheus/alertmanager/featurecontrol"
 	"github.com/prometheus/alertmanager/matchers/compat"
 	"github.com/prometheus/alertmanager/pkg/labels"
+
+	"github.com/grafana/alerting/receivers"
+	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
+	slack_v0mimir1 "github.com/grafana/alerting/receivers/slack/v0mimir1"
 )
 
 func Test_ApiReceiver_Marshaling(t *testing.T) {
@@ -26,11 +30,11 @@ func Test_ApiReceiver_Marshaling(t *testing.T) {
 		{
 			desc: "success AM",
 			input: PostableApiReceiver{
-				Receiver: config.Receiver{
+				Receiver: Receiver{
 					Name: "foo",
-					EmailConfigs: []*config.EmailConfig{{
+					EmailConfigs: []*email_v0mimir1.Config{{
 						To:      "test@test.com",
-						HTML:    config.DefaultEmailConfig.HTML,
+						HTML:    email_v0mimir1.DefaultConfig.HTML,
 						Headers: map[string]string{},
 					}},
 				},
@@ -39,7 +43,7 @@ func Test_ApiReceiver_Marshaling(t *testing.T) {
 		{
 			desc: "success GM",
 			input: PostableApiReceiver{
-				Receiver: config.Receiver{
+				Receiver: Receiver{
 					Name: "foo",
 				},
 				PostableGrafanaReceivers: PostableGrafanaReceivers{
@@ -114,12 +118,19 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: config.Receiver{
+						Receiver: Receiver{
 							Name: "am",
-							EmailConfigs: []*config.EmailConfig{{
-								To:      "test@test.com",
-								HTML:    config.DefaultEmailConfig.HTML,
-								Headers: map[string]string{},
+							EmailConfigs: []*email_v0mimir1.Config{{
+								Smarthost: receivers.HostPort{
+									Host: "test",
+									Port: "567",
+								},
+								Hello:      "localhost",
+								RequireTLS: func() *bool { b := true; return &b }(),
+								From:       "grafana",
+								To:         "test@test.com",
+								HTML:       email_v0mimir1.DefaultConfig.HTML,
+								Headers:    map[string]string{},
 							}},
 						},
 					},
@@ -142,7 +153,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: config.Receiver{
+						Receiver: Receiver{
 							Name: "graf",
 						},
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
@@ -168,11 +179,11 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: config.Receiver{
+						Receiver: Receiver{
 							Name: "am",
-							EmailConfigs: []*config.EmailConfig{{
+							EmailConfigs: []*email_v0mimir1.Config{{
 								To:      "test@test.com",
-								HTML:    config.DefaultEmailConfig.HTML,
+								HTML:    email_v0mimir1.DefaultConfig.HTML,
 								Headers: map[string]string{},
 							}},
 						},
@@ -197,7 +208,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: config.Receiver{
+						Receiver: Receiver{
 							Name: "graf",
 						},
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
@@ -213,7 +224,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 			input: PostableApiAlertingConfig{
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: config.Receiver{
+						Receiver: Receiver{
 							Name: "graf",
 						},
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
@@ -239,7 +250,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: config.Receiver{
+						Receiver: Receiver{
 							Name: "graf",
 						},
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
@@ -267,7 +278,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: config.Receiver{
+						Receiver: Receiver{
 							Name: "graf",
 						},
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
@@ -295,7 +306,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: config.Receiver{
+						Receiver: Receiver{
 							Name: "graf",
 						},
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
@@ -333,12 +344,19 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: config.Receiver{
+						Receiver: Receiver{
 							Name: "am",
-							EmailConfigs: []*config.EmailConfig{{
-								To:      "test@test.com",
-								HTML:    config.DefaultEmailConfig.HTML,
-								Headers: map[string]string{},
+							EmailConfigs: []*email_v0mimir1.Config{{
+								Smarthost: receivers.HostPort{
+									Host: "test",
+									Port: "567",
+								},
+								Hello:      "localhost",
+								RequireTLS: func() *bool { b := true; return &b }(),
+								From:       "grafana",
+								To:         "test@test.com",
+								HTML:       email_v0mimir1.DefaultConfig.HTML,
+								Headers:    map[string]string{},
 							}},
 						},
 					},
@@ -373,7 +391,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: config.Receiver{
+						Receiver: Receiver{
 							Name: "graf",
 						},
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
@@ -389,7 +407,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 			encoded, err := json.Marshal(tc.input)
 			require.Nil(t, err)
 
-			cfg, err := Load(encoded)
+			cfg, err := LoadCompat(encoded)
 			if tc.err {
 				require.Error(t, err)
 			} else {
@@ -402,7 +420,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 			encoded, err := yaml.Marshal(tc.input)
 			require.Nil(t, err)
 
-			cfg, err := Load(encoded)
+			cfg, err := LoadCompat(encoded)
 			if tc.err {
 				require.Error(t, err)
 			} else {
@@ -1419,11 +1437,11 @@ func TestPostableApiTemplateValidate(t *testing.T) {
 }
 
 func TestCopyIntegrations(t *testing.T) {
-	mimirEmail := &config.EmailConfig{
+	mimirEmail := &email_v0mimir1.Config{
 		From: "test",
 		To:   "test",
 	}
-	mimirSlack := &config.SlackConfig{
+	mimirSlack := &slack_v0mimir1.Config{
 		Title: "test",
 	}
 	grafana := &PostableGrafanaReceiver{
@@ -1441,12 +1459,12 @@ func TestCopyIntegrations(t *testing.T) {
 	t.Run("should copy all integrations from src to dest by reference", func(t *testing.T) {
 		dst := PostableApiReceiver{}
 		src := PostableApiReceiver{
-			Receiver: config.Receiver{
+			Receiver: Receiver{
 				Name: "source",
-				EmailConfigs: []*config.EmailConfig{
+				EmailConfigs: []*email_v0mimir1.Config{
 					mimirEmail,
 				},
-				SlackConfigs: []*config.SlackConfig{
+				SlackConfigs: []*slack_v0mimir1.Config{
 					mimirSlack,
 				},
 			},
@@ -1458,11 +1476,11 @@ func TestCopyIntegrations(t *testing.T) {
 		}
 		require.NoError(t, CopyIntegrations(&src, &dst))
 		require.Equal(t, PostableApiReceiver{
-			Receiver: config.Receiver{
-				EmailConfigs: []*config.EmailConfig{
+			Receiver: Receiver{
+				EmailConfigs: []*email_v0mimir1.Config{
 					mimirEmail,
 				},
-				SlackConfigs: []*config.SlackConfig{
+				SlackConfigs: []*slack_v0mimir1.Config{
 					mimirSlack,
 				},
 			},
@@ -1479,9 +1497,9 @@ func TestCopyIntegrations(t *testing.T) {
 
 	t.Run("should append to existing integrations", func(t *testing.T) {
 		dst := PostableApiReceiver{
-			Receiver: config.Receiver{
+			Receiver: Receiver{
 				Name: "dest",
-				SlackConfigs: []*config.SlackConfig{
+				SlackConfigs: []*slack_v0mimir1.Config{
 					mimirSlack,
 				},
 			},
@@ -1492,9 +1510,9 @@ func TestCopyIntegrations(t *testing.T) {
 			},
 		}
 		src := PostableApiReceiver{
-			Receiver: config.Receiver{
+			Receiver: Receiver{
 				Name: "source",
-				SlackConfigs: []*config.SlackConfig{
+				SlackConfigs: []*slack_v0mimir1.Config{
 					mimirSlack,
 				},
 			},
@@ -1506,9 +1524,9 @@ func TestCopyIntegrations(t *testing.T) {
 		}
 		require.NoError(t, CopyIntegrations(&src, &dst))
 		require.Equal(t, PostableApiReceiver{
-			Receiver: config.Receiver{
+			Receiver: Receiver{
 				Name: "dest",
-				SlackConfigs: []*config.SlackConfig{
+				SlackConfigs: []*slack_v0mimir1.Config{
 					mimirSlack,
 					mimirSlack,
 				},

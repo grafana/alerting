@@ -8,14 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	promCfg "github.com/prometheus/alertmanager/config"
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/definition"
 )
 
 // ForEachIntegrationTypeReceiver runs the given function for each integration type.
-func ForEachIntegrationTypeReceiver(t *testing.T, f func(configType reflect.Type, receiver promCfg.Receiver, rawConfig string)) {
+func ForEachIntegrationTypeReceiver(t *testing.T, f func(configType reflect.Type, receiver definition.Receiver, rawConfig string)) {
 	t.Helper()
 	keys := slices.SortedFunc(maps.Keys(AllValidMimirConfigs), func(r reflect.Type, r2 reflect.Type) int {
 		return strings.Compare(r.Name(), r2.Name())

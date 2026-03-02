@@ -42,10 +42,17 @@ func (e SnappyProtoEncoder) encode(s []Stream) ([]byte, error) {
 	for _, str := range s {
 		entries := make([]push.Entry, 0, len(str.Values))
 		for _, sample := range str.Values {
-			entries = append(entries, push.Entry{
+			entry := push.Entry{
 				Timestamp: sample.T,
 				Line:      sample.V,
-			})
+			}
+			if len(sample.Metadata) > 0 {
+				entry.StructuredMetadata = make(push.LabelsAdapter, 0, len(sample.Metadata))
+				for k, v := range sample.Metadata {
+					entry.StructuredMetadata = append(entry.StructuredMetadata, push.LabelAdapter{Name: k, Value: v})
+				}
+			}
+			entries = append(entries, entry)
 		}
 		body.Streams = append(body.Streams, push.Stream{
 			Labels:  labelsMapToString(str.Stream, ""),

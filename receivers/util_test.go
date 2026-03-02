@@ -1,8 +1,17 @@
 package receivers
 
 import (
+	"context"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/go-kit/log"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -105,4 +114,69 @@ func TestNewTLSConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+type connCounter struct {
+	net.Listener
+	active int32
+}
+
+func (c *connCounter) Accept() (net.Conn, error) {
+	conn, err := c.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+
+	atomic.AddInt32(&c.active, 1)
+	return &countedConn{Conn: conn, counter: &c.active}, nil
+}
+
+type countedConn struct {
+	net.Conn
+	counter *int32
+	closed  bool
+}
+
+func (c *countedConn) Close() error {
+	if !c.closed {
+		atomic.AddInt32(c.counter, -1)
+		c.closed = true
+	}
+	return c.Conn.Close()
+}
+
+func TestSenderDisablesKeepAlives(t *testing.T) {
+	// Create a listener that tracks connections
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	counter := &connCounter{Listener: l}
+
+	// Create test server with our counting listener
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	srv.Listener = counter
+	srv.Start()
+	defer srv.Close()
+
+	// Parse server URL
+	u, err := url.Parse(srv.URL)
+	require.NoError(t, err)
+
+	// Create sender
+	s := NewSender(log.NewNopLogger())
+
+	// Make multiple requests
+	for range 3 {
+		_, err = s.SendHTTPRequest(context.Background(), u, HTTPCfg{})
+		require.NoError(t, err)
+
+		// Give a short pause between requests
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Verify no connections are kept alive (activeConns should be 0)
+	assert.Eventually(t, func() bool {
+		return atomic.LoadInt32(&counter.active) == 0
+	}, time.Second, 10*time.Millisecond, "connections were kept alive when they should have been closed")
 }

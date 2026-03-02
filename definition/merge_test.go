@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir1"
 )
 
 func TestMergeOpts_Validate(t *testing.T) {
@@ -170,7 +172,7 @@ func TestMerge(t *testing.T) {
 			grafana: load(t, fullGrafanaConfig),
 			mimir: load(t, fullMimirConfig, func(p *PostableApiAlertingConfig) {
 				p.Receivers = append(p.Receivers, &PostableApiReceiver{
-					Receiver: config.Receiver{
+					Receiver: Receiver{
 						Name: "grafana-default-email",
 					},
 				})
@@ -198,7 +200,7 @@ func TestMerge(t *testing.T) {
 						},
 					})
 					p.Receivers = append(p.Receivers, &PostableApiReceiver{
-						Receiver: config.Receiver{
+						Receiver: Receiver{
 							Name: "grafana-default-email_mimir-12345",
 						},
 					})
@@ -215,14 +217,14 @@ func TestMerge(t *testing.T) {
 			name: "should append index suffix if rename still collides",
 			grafana: load(t, fullGrafanaConfig, func(p *PostableApiAlertingConfig) {
 				p.Receivers = append(p.Receivers, &PostableApiReceiver{
-					Receiver: config.Receiver{
+					Receiver: Receiver{
 						Name: "grafana-default-email_mimir-12345",
 					},
 				})
 			}),
 			mimir: load(t, fullMimirConfig, func(p *PostableApiAlertingConfig) {
 				p.Receivers = append(p.Receivers, &PostableApiReceiver{
-					Receiver: config.Receiver{
+					Receiver: Receiver{
 						Name: "grafana-default-email",
 					},
 				})
@@ -231,12 +233,12 @@ func TestMerge(t *testing.T) {
 				Config: *load(t, fullMergedConfig, func(p *PostableApiAlertingConfig) {
 					p.Receivers = append(p.Receivers,
 						&PostableApiReceiver{
-							Receiver: config.Receiver{
+							Receiver: Receiver{
 								Name: "grafana-default-email_mimir-12345",
 							},
 						},
 						&PostableApiReceiver{
-							Receiver: config.Receiver{
+							Receiver: Receiver{
 								Name: "grafana-default-email_mimir-12345_01",
 							},
 						},
@@ -345,7 +347,7 @@ func TestMerge(t *testing.T) {
 			tc.expected.Config.Global = nil
 
 			diff := cmp.Diff(tc.expected, result,
-				cmpopts.IgnoreUnexported(commoncfg.ProxyConfig{}, labels.Matcher{}),
+				cmpopts.IgnoreUnexported(commoncfg.ProxyConfig{}, httpcfg.ProxyConfig{}, labels.Matcher{}),
 				cmpopts.SortSlices(func(a, b *labels.Matcher) bool {
 					return a.Name < b.Name
 				}),
@@ -387,7 +389,7 @@ func TestMerge(t *testing.T) {
 		full.Global = nil
 
 		diff := cmp.Diff(MergeResult{Config: *full}, result,
-			cmpopts.IgnoreUnexported(commoncfg.ProxyConfig{}, labels.Matcher{}),
+			cmpopts.IgnoreUnexported(commoncfg.ProxyConfig{}, httpcfg.ProxyConfig{}, labels.Matcher{}),
 			cmpopts.SortSlices(func(a, b *labels.Matcher) bool {
 				return a.Name < b.Name
 			}),
@@ -500,7 +502,7 @@ func TestCheckIfMatchersUsed(t *testing.T) {
 func TestMergeReceivers(t *testing.T) {
 	r := func(name string) *PostableApiReceiver {
 		return &PostableApiReceiver{
-			Receiver: config.Receiver{
+			Receiver: Receiver{
 				Name: name,
 			},
 		}
