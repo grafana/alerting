@@ -1,6 +1,6 @@
 module github.com/grafana/alerting
 
-go 1.25.0
+go 1.24.0
 
 require (
 	github.com/Masterminds/sprig/v3 v3.2.1
@@ -167,4 +167,4 @@ replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20251124
 
 replace google.golang.org/genproto/googleapis/rpc => google.golang.org/genproto/googleapis/rpc v0.0.0-20251124214823-79d6a2a48846
 
-replace google.golang.org/genproto/googleapis/api => google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171
+replace google.golang.org/genproto/googleapis/api => google.golang.org/genproto/googleapis/api v0.0.0-20251124214823-79d6a2a48846
