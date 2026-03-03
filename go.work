@@ -1,5 +1,7 @@
 go 1.24.4
 
+toolchain go1.26.0
+
 use (
 	.
 	./testing/alerting-gen
