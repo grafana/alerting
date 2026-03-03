@@ -385,13 +385,13 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		require.ErrorContains(t, err, "start time cannot be after end time")
 	})
 
-	t.Run("passes along step parameter converted to seconds", func(t *testing.T) {
+	t.Run("passes along step parameter", func(t *testing.T) {
 		resp := okResponse()
 		t.Cleanup(func() { resp.Body.Close() })
 		req := instrumenttest.NewFakeRequester().WithResponse(resp)
 		client := createTestLokiClient(req)
 		now := time.Now().UTC().UnixNano()
-		step := int64(30 * time.Second)
+		step := int64(30)
 
 		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, defaultPageSize, step)
 
