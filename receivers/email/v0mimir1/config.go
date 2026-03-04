@@ -69,7 +69,12 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return c.validate()
 }
 
-func (c *Config) Validate() error { return c.validate() }
+func (c *Config) Validate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	return c.TLSConfig.Validate()
+}
 
 func (c *Config) validate() error {
 	if c.To == "" {

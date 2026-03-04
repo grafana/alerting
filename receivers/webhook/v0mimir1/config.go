@@ -64,7 +64,15 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return c.validate()
 }
 
-func (c *Config) Validate() error { return c.validate() }
+func (c *Config) Validate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	if c.HTTPConfig != nil {
+		return c.HTTPConfig.Validate()
+	}
+	return nil
+}
 
 func (c *Config) validate() error {
 	if c.URL == nil && c.URLFile == "" {
