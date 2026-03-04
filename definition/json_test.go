@@ -12,7 +12,7 @@ import (
 	"github.com/prometheus/alertmanager/timeinterval"
 	commoncfg "github.com/prometheus/common/config"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
 	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	webhook_v0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"

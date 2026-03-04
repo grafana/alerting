@@ -30,6 +30,12 @@ Grafana integration config has two inputs: settings and secure settings. Secure 
 **When adding a new secure field to a schema, ensure the decryption function is used to read and populate it in the config.**
 **When modifying a config struct, always update the corresponding schema to match.**
 
+### Schema field rules
+- `PropertyName` must equal the JSON tag of the corresponding struct field.
+- If a field's type is `Secret` or `SecretURL`, set `Secure: true` in the schema field.
+- Ignore struct fields whose name contains `File` or `Ref` (e.g. `PasswordFile`, `CAFile`, `PasswordRef`, `CARef`) — do not add them to the schema.
+- For inline-embedded structs (e.g. `ProxyConfig \`yaml:",inline"\``), expand their fields directly into the parent schema using `append(..., V0ProxyConfigOptions()...)` rather than nesting them in a subform.
+
 ## Architecture
 
 - `receivers/` - Notification channels with versioned integrations (see above)

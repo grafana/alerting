@@ -27,7 +27,7 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"

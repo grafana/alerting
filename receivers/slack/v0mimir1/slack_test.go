@@ -28,7 +28,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
 
 	"github.com/prometheus/alertmanager/notify"

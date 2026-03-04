@@ -1,4 +1,4 @@
-package v0mimir1test
+package v0mimirtest
 
 import (
 	"encoding/json"
@@ -11,12 +11,12 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/grafana/alerting/definition"
-	"github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/http/v0mimir"
 )
 
 func TestHttpConfigIdempotency(t *testing.T) {
 	type testCase struct {
-		HTTPConfig *v0mimir1.HTTPClientConfig `json:"http_config,omitempty" yaml:"http_config,omitempty"`
+		HTTPConfig *v0mimir.HTTPClientConfig `json:"http_config,omitempty" yaml:"http_config,omitempty"`
 	}
 	for _, opts := range slices.Sorted(maps.Keys(ValidMimirHTTPConfigs)) {
 		if opts == WithLegacyBearerTokenAuth { // Skip because it's a legacy format and is mapped to "authorization"

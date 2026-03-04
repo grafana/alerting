@@ -20,7 +20,7 @@ import (
 
 	"github.com/grafana/alerting/receivers"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers/schema"
 )
 
@@ -187,6 +187,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			Element:      schema.ElementTypeKeyValueMap,
 			PropertyName: "attributes",
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }

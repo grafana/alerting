@@ -19,7 +19,7 @@ import (
 
 	"github.com/prometheus/common/model"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 )
@@ -176,6 +176,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			Element:      schema.ElementTypeKeyValueMap,
 			PropertyName: "fields",
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }

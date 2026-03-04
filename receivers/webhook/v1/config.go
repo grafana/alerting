@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 
+	http2 "github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/templates"
@@ -298,7 +299,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			PropertyName:   "tlsConfig",
 			Description:    "TLS configuration options",
 			Element:        schema.ElementTypeSubform,
-			SubformOptions: schema.V1TLSSubformOptions(),
+			SubformOptions: http2.V1TLSSubformOptions(),
 		},
 		{
 			Label:        "HMAC Signature",
@@ -336,6 +337,6 @@ var Schema = schema.IntegrationSchemaVersion{
 				},
 			},
 		},
-		schema.V1HttpClientOption(), // New in 12.1.
+		http2.V1HttpClientOption(), // New in 12.1.
 	},
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/prometheus/common/sigv4"
 
 	"github.com/grafana/alerting/definition"
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
 	discord_v0mimir1 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"

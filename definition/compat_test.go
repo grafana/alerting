@@ -10,7 +10,7 @@ import (
 
 	"github.com/prometheus/alertmanager/pkg/labels"
 
-	"github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
 )
 
@@ -96,7 +96,7 @@ func TestLoadCompat(t *testing.T) {
 			globalConfig := c.Global
 
 			// All configs should have the default http config set except for Webex.
-			expectedHTTPConfig := v0mimir1.FromCommonHTTPClientConfig(globalConfig.HTTPConfig)
+			expectedHTTPConfig := v0mimir.FromCommonHTTPClientConfig(globalConfig.HTTPConfig)
 			require.Equal(t, expectedHTTPConfig, c.Receivers[0].DiscordConfigs[0].HTTPConfig)
 			require.Equal(t, expectedHTTPConfig, c.Receivers[0].MSTeamsConfigs[0].HTTPConfig)
 			require.Equal(t, expectedHTTPConfig, c.Receivers[0].OpsGenieConfigs[0].HTTPConfig)

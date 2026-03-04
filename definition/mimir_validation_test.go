@@ -9,7 +9,7 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 	"github.com/stretchr/testify/assert"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	discord_v0mimir1 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	teams_v0mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
