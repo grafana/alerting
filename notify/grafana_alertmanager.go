@@ -133,7 +133,7 @@ type (
 	InhibitRule      = config.InhibitRule
 	MuteTimeInterval = config.MuteTimeInterval
 	TimeInterval     = config.TimeInterval
-	Route            = config.Route
+	Route            = definition.Route
 	Integration      = nfstatus.Integration
 	DispatcherLimits = dispatch.Limits
 	Notifier         = notify.Notifier
@@ -793,7 +793,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 	timeMuteStage := notify.NewTimeMuteStage(ti, am.stageMetrics)
 	silencingStage := notify.NewMuteStage(am.silencer, am.stageMetrics)
 
-	am.route = dispatch.NewRoute(cfg.RoutingTree, nil)
+	am.route = dispatch.NewRoute(cfg.RoutingTree.AsAMRoute(), nil)
 
 	var dispatchTimer dispatch.TimerFactory
 	if am.opts.DispatchTimer == DispatchTimerSync {
