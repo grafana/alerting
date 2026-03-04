@@ -171,6 +171,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			Element:      schema.ElementTypeKeyValueMap,
 			PropertyName: "headers",
 		},
-		schema.V0TLSConfigOption("tls_config"),
+		httpcfg.V0TLSConfigOption("tls_config"),
 	},
 }

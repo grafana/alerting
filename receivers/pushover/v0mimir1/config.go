@@ -203,6 +203,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			Element:      schema.ElementTypeCheckbox,
 			PropertyName: "html",
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }

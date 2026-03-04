@@ -238,7 +238,7 @@ var Schema = schema.IntegrationSchemaVersion{
 			InputType:    schema.InputTypeText,
 			PropertyName: "group",
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }
 

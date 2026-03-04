@@ -237,6 +237,6 @@ var Schema = schema.IntegrationSchemaVersion{
 				},
 			},
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }

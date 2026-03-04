@@ -149,6 +149,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			InputType:    schema.InputTypeText,
 			PropertyName: "to_tag",
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }

@@ -146,6 +146,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			Element:      schema.ElementTypeKeyValueMap,
 			PropertyName: "custom_fields",
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }

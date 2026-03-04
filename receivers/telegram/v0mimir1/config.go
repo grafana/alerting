@@ -142,6 +142,6 @@ var Schema = schema.IntegrationSchemaVersion{
 				{Value: "HTML", Label: "HTML"},
 			},
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }

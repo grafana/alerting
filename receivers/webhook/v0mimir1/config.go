@@ -99,6 +99,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			InputType:    schema.InputTypeText,
 			PropertyName: "timeout",
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }

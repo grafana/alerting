@@ -105,6 +105,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			InputType:    schema.InputTypeText,
 			PropertyName: "text",
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }

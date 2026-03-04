@@ -88,6 +88,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			InputType:    schema.InputTypeText,
 			PropertyName: "message",
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }
