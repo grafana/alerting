@@ -61,13 +61,15 @@ func (c *TLSConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
-	return c.Validate()
+	return c.validate()
 }
 
-// Validate validates the TLSConfig to check that only one of the inlined or
+func (c *TLSConfig) Validate() error { return c.validate() }
+
+// validate validates the TLSConfig to check that only one of the inlined or
 // file-based fields for the TLS CA, client certificate, and client key are
 // used.
-func (c *TLSConfig) Validate() error {
+func (c *TLSConfig) validate() error {
 	if nonZeroCount(len(c.CA) > 0, len(c.CAFile) > 0, len(c.CARef) > 0) > 1 {
 		return errors.New("at most one of ca, ca_file & ca_ref must be configured")
 	}

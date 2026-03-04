@@ -74,8 +74,10 @@ type OAuth2 struct {
 	ProxyConfig     `yaml:",inline"`
 }
 
-// Validate validates the OAuth2 Config.
-func (o *OAuth2) Validate() error {
+func (o *OAuth2) Validate() error { return o.validate() }
+
+// validate validates the OAuth2 Config.
+func (o *OAuth2) validate() error {
 	if len(o.ClientID) == 0 {
 		return errors.New("oauth2 client_id must be configured")
 	}
@@ -94,7 +96,7 @@ func (o *OAuth2) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(o)); err != nil {
 		return err
 	}
-	return o.Validate()
+	return o.validate()
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface for OAuth2.
@@ -103,7 +105,7 @@ func (o *OAuth2) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, (*plain)(o)); err != nil {
 		return err
 	}
-	return o.Validate()
+	return o.validate()
 }
 
 // ReservedHeaders that change the connection, are set by Prometheus, or can
@@ -134,8 +136,10 @@ var ReservedHeaders = map[string]struct{}{
 // Headers represents the configuration for HTTP headers.
 type Headers map[string]Header
 
-// Validate validates the Headers config.
-func (h Headers) Validate() error {
+func (h Headers) Validate() error { return h.validate() }
+
+// validate validates the Headers config.
+func (h Headers) validate() error {
 	for n := range h {
 		if _, ok := ReservedHeaders[http.CanonicalHeaderKey(n)]; ok {
 			return fmt.Errorf("setting header %q is not allowed", http.CanonicalHeaderKey(n))
@@ -182,10 +186,12 @@ type HTTPClientConfig struct {
 	HTTPHeaders Headers `yaml:"http_headers,omitempty" json:"http_headers,omitempty"`
 }
 
-// Validate validates the HTTPClientConfig to check only one of BearerToken,
+func (c *HTTPClientConfig) Validate() error { return c.validate() }
+
+// validate validates the HTTPClientConfig to check only one of BearerToken,
 // BasicAuth and BearerTokenFile is configured. It also validates that ProxyURL
 // is set if ProxyConnectHeader is set.
-func (c *HTTPClientConfig) Validate() error {
+func (c *HTTPClientConfig) validate() error {
 	// Backwards compatibility with the bearer_token field.
 	if len(c.BearerToken) > 0 && len(c.BearerTokenFile) > 0 {
 		return errors.New("at most one of bearer_token & bearer_token_file must be configured")
@@ -232,15 +238,15 @@ func (c *HTTPClientConfig) Validate() error {
 		if c.BasicAuth != nil {
 			return errors.New("at most one of basic_auth, oauth2 & authorization must be configured")
 		}
-		if err := c.OAuth2.Validate(); err != nil {
+		if err := c.OAuth2.validate(); err != nil {
 			return err
 		}
 	}
-	if err := c.ProxyConfig.Validate(); err != nil {
+	if err := c.ProxyConfig.validate(); err != nil {
 		return err
 	}
 	if c.HTTPHeaders != nil {
-		if err := c.HTTPHeaders.Validate(); err != nil {
+		if err := c.HTTPHeaders.validate(); err != nil {
 			return err
 		}
 	}
@@ -254,7 +260,7 @@ func (c *HTTPClientConfig) UnmarshalYAML(unmarshal func(interface{}) error) erro
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
-	return c.Validate()
+	return c.validate()
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface for HTTPClientConfig.
@@ -264,7 +270,7 @@ func (c *HTTPClientConfig) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, (*plain)(c)); err != nil {
 		return err
 	}
-	return c.Validate()
+	return c.validate()
 }
 
 // nonZeroCount returns the amount of values that are non-zero.
