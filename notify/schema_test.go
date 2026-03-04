@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/grafana/alerting/http/v0mimir1/v0mimir1test"
+	"github.com/grafana/alerting/http/v0mimir/v0mimirtest"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers/alertmanager"
 	"github.com/grafana/alerting/receivers/dingding"
@@ -298,7 +298,7 @@ func TestV0IntegrationsSecrets(t *testing.T) {
 				expectedSecrets = append(expectedSecrets, path.String())
 			}
 			var secrets []string
-			for option := range maps.Keys(v0mimir1test.ValidMimirHTTPConfigs) {
+			for option := range maps.Keys(v0mimirtest.ValidMimirHTTPConfigs) {
 				cfg, err := notifytest.GetMimirIntegrationForType(configType, option)
 				require.NoError(t, err)
 				data, err := json.Marshal(cfg)

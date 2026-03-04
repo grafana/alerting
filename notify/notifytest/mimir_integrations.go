@@ -8,7 +8,7 @@ import (
 	"slices"
 
 	"github.com/grafana/alerting/definition"
-	"github.com/grafana/alerting/http/v0mimir1/v0mimir1test"
+	"github.com/grafana/alerting/http/v0mimir/v0mimirtest"
 	discordV0 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	emailV0 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	jiraV0 "github.com/grafana/alerting/receivers/jira/v0mimir1"
@@ -28,7 +28,7 @@ import (
 
 // GetMimirIntegration creates a new instance of the given integration type with selected http config options.
 // It panics if the configuration process encounters an issue.
-func GetMimirIntegration[T any](opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (T, error) {
+func GetMimirIntegration[T any](opts ...v0mimirtest.MimirIntegrationHTTPConfigOption) (T, error) {
 	var config T
 	cfg, err := GetRawConfigForMimirIntegration(reflect.TypeOf(config), opts...)
 	if err != nil {
@@ -43,7 +43,7 @@ func GetMimirIntegration[T any](opts ...v0mimir1test.MimirIntegrationHTTPConfigO
 
 // GetMimirIntegrationForType creates a new instance of the given integration type with selected http config options.
 // It panics if the configuration process encounters an issue.
-func GetMimirIntegrationForType(iType reflect.Type, opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (any, error) {
+func GetMimirIntegrationForType(iType reflect.Type, opts ...v0mimirtest.MimirIntegrationHTTPConfigOption) (any, error) {
 	cfg, err := GetRawConfigForMimirIntegration(iType, opts...)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func GetMimirIntegrationForType(iType reflect.Type, opts ...v0mimir1test.MimirIn
 
 // GetMimirReceiverWithIntegrations creates a Receiver with selected integrations configured from given types and options.
 // It returns a Receiver for testing purposes or an error if the configuration process encounters an issue.
-func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
+func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...v0mimirtest.MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
 	receiver := definition.Receiver{Name: "receiver"}
 	receiverVal := reflect.ValueOf(&receiver).Elem()
 	receiverType := receiverVal.Type()
@@ -96,11 +96,11 @@ func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...v0mimir1tes
 
 // GetMimirReceiverWithAllIntegrations creates a Receiver with all integrations configured from given types and options.
 // It returns a Receiver for testing purposes or an error if the configuration process encounters an issue.
-func GetMimirReceiverWithAllIntegrations(opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
+func GetMimirReceiverWithAllIntegrations(opts ...v0mimirtest.MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
 	return GetMimirReceiverWithIntegrations(slices.Collect(maps.Keys(AllValidMimirConfigs)), opts...)
 }
 
-func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...v0mimir1test.MimirIntegrationHTTPConfigOption) (string, error) {
+func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...v0mimirtest.MimirIntegrationHTTPConfigOption) (string, error) {
 	cfg, ok := AllValidMimirConfigs[iType]
 	if !ok {
 		return "", fmt.Errorf("invalid config type [%s", iType.String())
@@ -109,10 +109,10 @@ func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...v0mimir1test.Mi
 		return cfg, nil
 	}
 	if len(opts) == 0 {
-		opts = []v0mimir1test.MimirIntegrationHTTPConfigOption{v0mimir1test.WithDefault}
+		opts = []v0mimirtest.MimirIntegrationHTTPConfigOption{v0mimirtest.WithDefault}
 	}
 	for _, opt := range opts {
-		c, ok := v0mimir1test.ValidMimirHTTPConfigs[opt]
+		c, ok := v0mimirtest.ValidMimirHTTPConfigs[opt]
 		if !ok {
 			return "", fmt.Errorf("invalid option [%s]", opt)
 		}

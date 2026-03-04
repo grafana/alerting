@@ -1,4 +1,4 @@
-package v0mimir1test
+package v0mimirtest
 
 type MimirIntegrationHTTPConfigOption string
 

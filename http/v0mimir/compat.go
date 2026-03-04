@@ -1,4 +1,4 @@
-package v0mimir1
+package v0mimir
 
 import (
 	commoncfg "github.com/prometheus/common/config"
