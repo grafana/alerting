@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/grafana/alerting/http/v0mimir1/v0mimir1test"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers/alertmanager"
 	"github.com/grafana/alerting/receivers/dingding"
@@ -83,7 +84,7 @@ func TestGetSecretKeysForContactPointType(t *testing.T) {
 		{receiverType: mqtt.Type, version: schema.V1, expectedSecretFields: []string{"password", "tlsConfig.caCertificate", "tlsConfig.clientCertificate", "tlsConfig.clientKey"}},
 		{receiverType: jira.Type, version: schema.V1, expectedSecretFields: []string{"user", "password", "api_token"}},
 		{receiverType: victorops.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"api_key"}, httpConfigSecrets...)},
-		{receiverType: sns.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"sigv4.SecretKey"}, httpConfigSecrets...)},
+		{receiverType: sns.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"sigv4.secret_key"}, httpConfigSecrets...)},
 		{receiverType: telegram.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"token"}, httpConfigSecrets...)},
 		{receiverType: discord.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"webhook_url"}, httpConfigSecrets...)},
 		{receiverType: pagerduty.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"routing_key", "service_key"}, httpConfigSecrets...)},
@@ -297,7 +298,7 @@ func TestV0IntegrationsSecrets(t *testing.T) {
 				expectedSecrets = append(expectedSecrets, path.String())
 			}
 			var secrets []string
-			for option := range maps.Keys(notifytest.ValidMimirHTTPConfigs) {
+			for option := range maps.Keys(v0mimir1test.ValidMimirHTTPConfigs) {
 				cfg, err := notifytest.GetMimirIntegrationForType(configType, option)
 				require.NoError(t, err)
 				data, err := json.Marshal(cfg)

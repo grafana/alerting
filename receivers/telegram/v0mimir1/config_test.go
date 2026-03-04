@@ -74,6 +74,14 @@ parse_mode: invalid
 `,
 			expected: errors.New("unknown parse_mode on telegram_config, must be Markdown, MarkdownV2, HTML or empty string"),
 		},
+		{
+			name: "json tags are supported",
+			in: `
+token: xyz
+chat: 123
+parse_mode: Markdown
+`,
+		},
 	}
 
 	for _, tt := range tc {

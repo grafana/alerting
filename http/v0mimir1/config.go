@@ -70,7 +70,7 @@ type OAuth2 struct {
 	Scopes          []string          `yaml:"scopes,omitempty" json:"scopes,omitempty"`
 	TokenURL        string            `yaml:"token_url" json:"token_url"`
 	EndpointParams  map[string]string `yaml:"endpoint_params,omitempty" json:"endpoint_params,omitempty"`
-	TLSConfig       TLSConfig         `yaml:"tls_config,omitempty"`
+	TLSConfig       TLSConfig         `yaml:"tls_config,omitempty" json:"tls_config,omitempty"`
 	ProxyConfig     `yaml:",inline"`
 }
 
@@ -302,19 +302,11 @@ var ReservedHeaders = map[string]struct{}{
 }
 
 // Headers represents the configuration for HTTP headers.
-type Headers struct {
-	Headers map[string]Header `yaml:",inline"`
-}
-
-// MarshalJSON implements the json.Marshaler interface for Headers.
-func (h Headers) MarshalJSON() ([]byte, error) {
-	// Inline the Headers map when serializing JSON because json encoder doesn't support "inline" directive.
-	return json.Marshal(h.Headers)
-}
+type Headers map[string]Header
 
 // Validate validates the Headers config.
-func (h *Headers) Validate() error {
-	for n := range h.Headers {
+func (h Headers) Validate() error {
+	for n := range h {
 		if _, ok := ReservedHeaders[http.CanonicalHeaderKey(n)]; ok {
 			return fmt.Errorf("setting header %q is not allowed", http.CanonicalHeaderKey(n))
 		}
@@ -357,7 +349,7 @@ type HTTPClientConfig struct {
 	ProxyConfig `yaml:",inline"`
 	// HTTPHeaders specify headers to inject in the requests. Those headers
 	// could be marshalled back to the users.
-	HTTPHeaders *Headers `yaml:"http_headers,omitempty" json:"http_headers,omitempty"`
+	HTTPHeaders Headers `yaml:"http_headers,omitempty" json:"http_headers,omitempty"`
 }
 
 // Validate validates the HTTPClientConfig to check only one of BearerToken,
