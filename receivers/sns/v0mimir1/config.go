@@ -16,8 +16,7 @@ package v0mimir1
 
 import (
 	"errors"
-
-	"github.com/prometheus/common/sigv4"
+	"fmt"
 
 	"github.com/grafana/alerting/receivers"
 
@@ -43,7 +42,7 @@ type Config struct {
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
 	APIUrl      string            `yaml:"api_url,omitempty" json:"api_url,omitempty"`
-	Sigv4       sigv4.SigV4Config `yaml:"sigv4" json:"sigv4"`
+	Sigv4       SigV4Config       `yaml:"sigv4" json:"sigv4"`
 	TopicARN    string            `yaml:"topic_arn,omitempty" json:"topic_arn,omitempty"`
 	PhoneNumber string            `yaml:"phone_number,omitempty" json:"phone_number,omitempty"`
 	TargetARN   string            `yaml:"target_arn,omitempty" json:"target_arn,omitempty"`
@@ -63,6 +62,30 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return errors.New("must provide either a Target ARN, Topic ARN, or Phone Number for SNS config")
 	}
 	return nil
+}
+
+type SigV4Config struct {
+	Region    string           `yaml:"region,omitempty" json:"region,omitempty"`
+	AccessKey string           `yaml:"access_key,omitempty" json:"access_key,omitempty"`
+	SecretKey receivers.Secret `yaml:"secret_key,omitempty" json:"secret_key,omitempty"`
+	Profile   string           `yaml:"profile,omitempty" json:"profile,omitempty"`
+	RoleARN   string           `yaml:"role_arn,omitempty" json:"role_arn,omitempty"`
+}
+
+func (c *SigV4Config) Validate() error {
+	if (c.AccessKey == "") != (c.SecretKey == "") {
+		return fmt.Errorf("must provide a AWS SigV4 Access key and Secret Key if credentials are specified in the SigV4 config")
+	}
+	return nil
+}
+
+func (c *SigV4Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type plain SigV4Config
+	*c = SigV4Config{}
+	if err := unmarshal((*plain)(c)); err != nil {
+		return err
+	}
+	return c.Validate()
 }
 
 var Schema = schema.IntegrationSchemaVersion{
@@ -87,14 +110,14 @@ var Schema = schema.IntegrationSchemaVersion{
 					Description:  "The AWS region. If blank, the region from the default credentials chain is used",
 					Element:      schema.ElementTypeInput,
 					InputType:    schema.InputTypeText,
-					PropertyName: "Region",
+					PropertyName: "region",
 				},
 				{
 					Label:        "Access key",
 					Description:  "The AWS API access_key. If blank the environment variable \"AWS_ACCESS_KEY_ID\" is used",
 					Element:      schema.ElementTypeInput,
 					InputType:    schema.InputTypeText,
-					PropertyName: "AccessKey",
+					PropertyName: "access_key",
 					Secure:       false,
 				},
 				{
@@ -102,7 +125,7 @@ var Schema = schema.IntegrationSchemaVersion{
 					Description:  "The AWS API secret_key. If blank the environment variable \"AWS_ACCESS_SECRET_ID\" is used",
 					Element:      schema.ElementTypeInput,
 					InputType:    schema.InputTypePassword,
-					PropertyName: "SecretKey",
+					PropertyName: "secret_key",
 					Secure:       true,
 				},
 				{
@@ -110,14 +133,14 @@ var Schema = schema.IntegrationSchemaVersion{
 					Description:  "Named AWS profile used to authenticate",
 					Element:      schema.ElementTypeInput,
 					InputType:    schema.InputTypeText,
-					PropertyName: "Profile",
+					PropertyName: "profile",
 				},
 				{
 					Label:        "Role ARN",
 					Description:  "AWS Role ARN, an alternative to using AWS API keys",
 					Element:      schema.ElementTypeInput,
 					InputType:    schema.InputTypeText,
-					PropertyName: "RoleARN",
+					PropertyName: "role_arn",
 				},
 			},
 		},

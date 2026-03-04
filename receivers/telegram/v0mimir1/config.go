@@ -52,10 +52,22 @@ type Config struct {
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*c = DefaultConfig
 	type plain Config
-	if err := unmarshal((*plain)(c)); err != nil {
+	type withFallback struct {
+		plain        `yaml:",inline" json:",inline"`
+		BotTokenJson receivers.Secret `yaml:"token"`
+		ChatIDJson   int64            `yaml:"chat"`
+	}
+	pl := withFallback{plain: plain(DefaultConfig)}
+	if err := unmarshal(&pl); err != nil {
 		return err
+	}
+	*c = Config(pl.plain)
+	if c.BotToken == "" && pl.BotTokenJson != "" {
+		c.BotToken = pl.BotTokenJson
+	}
+	if c.ChatID == 0 && pl.ChatIDJson != 0 {
+		c.ChatID = pl.ChatIDJson
 	}
 	if c.BotToken == "" && c.BotTokenFile == "" {
 		return errors.New("missing bot_token or bot_token_file on telegram_config")
