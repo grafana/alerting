@@ -64,7 +64,9 @@ func (c *TLSConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return c.validate()
 }
 
-func (c *TLSConfig) Validate() error { return c.validate() }
+func (c *TLSConfig) Validate() error {
+	return c.validate()
+}
 
 // validate validates the TLSConfig to check that only one of the inlined or
 // file-based fields for the TLS CA, client certificate, and client key are

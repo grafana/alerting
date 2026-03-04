@@ -74,7 +74,18 @@ type OAuth2 struct {
 	ProxyConfig     `yaml:",inline"`
 }
 
-func (o *OAuth2) Validate() error { return o.validate() }
+func (o *OAuth2) Validate() error {
+	if err := o.validate(); err != nil {
+		return err
+	}
+	if err := o.ProxyConfig.Validate(); err != nil {
+		return fmt.Errorf("invalid proxy config: %w", err)
+	}
+	if err := o.TLSConfig.Validate(); err != nil {
+		return fmt.Errorf("invalid tls_config: %w", err)
+	}
+	return nil
+}
 
 // validate validates the OAuth2 Config.
 func (o *OAuth2) validate() error {
@@ -186,7 +197,28 @@ type HTTPClientConfig struct {
 	HTTPHeaders Headers `yaml:"http_headers,omitempty" json:"http_headers,omitempty"`
 }
 
-func (c *HTTPClientConfig) Validate() error { return c.validate() }
+func (c *HTTPClientConfig) Validate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	if c.OAuth2 != nil {
+		if err := c.OAuth2.Validate(); err != nil {
+			return fmt.Errorf("invalid oauth2: %w", err)
+		}
+	}
+	if err := c.ProxyConfig.Validate(); err != nil {
+		return fmt.Errorf("invalid proxy config: %w", err)
+	}
+	if c.HTTPHeaders != nil {
+		if err := c.HTTPHeaders.Validate(); err != nil {
+			return fmt.Errorf("invalid http_headers: %w", err)
+		}
+	}
+	if err := c.TLSConfig.Validate(); err != nil {
+		return fmt.Errorf("invalid tls_config: %w", err)
+	}
+	return nil
+}
 
 // validate validates the HTTPClientConfig to check only one of BearerToken,
 // BasicAuth and BearerTokenFile is configured. It also validates that ProxyURL
