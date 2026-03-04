@@ -185,6 +185,85 @@ func TestPutAlert(t *testing.T) {
 				}
 			},
 		}, {
+			title: "Removing NamespaceUIDLabel",
+			postableAlerts: amv2.PostableAlerts{
+				{
+					Alert: amv2.Alert{
+						Labels: amv2.LabelSet{"alertname": "Alert1", models.NamespaceUIDLabel: "some-uid"},
+					},
+				},
+			},
+			expAlerts: func(now time.Time) []*types.Alert {
+				return []*types.Alert{
+					{
+						Alert: model.Alert{
+							Annotations:  model.LabelSet{},
+							Labels:       model.LabelSet{"alertname": "Alert1"},
+							StartsAt:     now,
+							EndsAt:       now.Add(defaultResolveTimeout),
+							GeneratorURL: "",
+						},
+						UpdatedAt: now,
+						Timeout:   true,
+					},
+				}
+			},
+		}, {
+			title: "Removing labels with empty name",
+			postableAlerts: amv2.PostableAlerts{
+				{
+					Alert: amv2.Alert{
+						Labels:       amv2.LabelSet{"alertname": "Alert1", "": "empty-name-value"},
+						GeneratorURL: "http://localhost/url1",
+					},
+					StartsAt: strfmt.DateTime{},
+					EndsAt:   strfmt.DateTime{},
+				},
+			},
+			expAlerts: func(now time.Time) []*types.Alert {
+				return []*types.Alert{
+					{
+						Alert: model.Alert{
+							Annotations:  model.LabelSet{},
+							Labels:       model.LabelSet{"alertname": "Alert1"},
+							StartsAt:     now,
+							EndsAt:       now.Add(defaultResolveTimeout),
+							GeneratorURL: "http://localhost/url1",
+						},
+						UpdatedAt: now,
+						Timeout:   true,
+					},
+				}
+			},
+		}, {
+			title: "Removing annotations with empty name",
+			postableAlerts: amv2.PostableAlerts{
+				{
+					Annotations: amv2.LabelSet{"summary": "valid", "": "empty-name-annotation"},
+					Alert: amv2.Alert{
+						Labels:       amv2.LabelSet{"alertname": "Alert1"},
+						GeneratorURL: "http://localhost/url1",
+					},
+					StartsAt: strfmt.DateTime{},
+					EndsAt:   strfmt.DateTime{},
+				},
+			},
+			expAlerts: func(now time.Time) []*types.Alert {
+				return []*types.Alert{
+					{
+						Alert: model.Alert{
+							Annotations:  model.LabelSet{"summary": "valid"},
+							Labels:       model.LabelSet{"alertname": "Alert1"},
+							StartsAt:     now,
+							EndsAt:       now.Add(defaultResolveTimeout),
+							GeneratorURL: "http://localhost/url1",
+						},
+						UpdatedAt: now,
+						Timeout:   true,
+					},
+				}
+			},
+		}, {
 			title: "Allow spaces in label and annotation name",
 			postableAlerts: amv2.PostableAlerts{
 				{

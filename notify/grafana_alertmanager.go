@@ -909,7 +909,7 @@ func PostableAlertsToAlertmanagerAlerts(postableAlerts amv2.PostableAlerts, now 
 		}
 
 		for k, v := range a.Labels {
-			if len(v) == 0 || k == models.NamespaceUIDLabel { // Skip empty and namespace UID labels.
+			if models.FilterAlertmanagerLabel(k, v) {
 				continue
 			}
 
@@ -917,7 +917,7 @@ func PostableAlertsToAlertmanagerAlerts(postableAlerts amv2.PostableAlerts, now 
 		}
 
 		for k, v := range a.Annotations {
-			if len(v) == 0 { // Skip empty annotation.
+			if models.FilterAlertmanagerAnnotation(k, v) {
 				continue
 			}
 			alert.Annotations[model.LabelName(k)] = model.LabelValue(v)
