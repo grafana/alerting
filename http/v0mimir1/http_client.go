@@ -286,7 +286,7 @@ func V0HttpConfigOption() schema.Field {
 			Description:  "Configures the OAuth2 settings.",
 			PropertyName: "oauth2",
 			Element:      schema.ElementTypeSubform,
-			SubformOptions: []schema.Field{
+			SubformOptions: append([]schema.Field{
 				{
 					Label:        "Client ID",
 					Description:  "The OAuth2 client ID",
@@ -323,8 +323,8 @@ func V0HttpConfigOption() schema.Field {
 					Element:      schema.ElementTypeKeyValueMap,
 					PropertyName: "endpoint_params",
 				},
-				V0TLSConfigOption("TLSConfig"),
-			},
+				V0TLSConfigOption("tls_config"),
+			}, V0ProxyConfigOptions()...),
 		}
 	}
 	return schema.Field{

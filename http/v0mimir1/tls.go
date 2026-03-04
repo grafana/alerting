@@ -96,6 +96,7 @@ func (c *TLSConfig) usingClientKey() bool {
 }
 
 func V0TLSConfigOption(propertyName string) schema.Field {
+	// Fields CA, Cert and Key are not allowed in V0 integrations. The restriction comes from Mimir
 	return schema.Field{
 		Label:        "TLS config",
 		Description:  "Configures the TLS settings.",
