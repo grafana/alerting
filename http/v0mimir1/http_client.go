@@ -19,11 +19,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 
 	commoncfg "github.com/prometheus/common/config"
-	"golang.org/x/net/http/httpproxy"
+
+	"github.com/grafana/alerting/receivers/schema"
 )
 
 // DefaultHTTPClientConfig is the default HTTP client configuration.
@@ -104,176 +104,6 @@ func (o *OAuth2) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	return o.Validate()
-}
-
-// TLSConfig configures the options for TLS connections.
-type TLSConfig struct {
-	// Text of the CA cert to use for the targets.
-	CA string `yaml:"ca,omitempty" json:"ca,omitempty"`
-	// Text of the client cert file for the targets.
-	Cert string `yaml:"cert,omitempty" json:"cert,omitempty"`
-	// Text of the client key file for the targets.
-	Key commoncfg.Secret `yaml:"key,omitempty" json:"key,omitempty"`
-	// The CA cert to use for the targets.
-	CAFile string `yaml:"ca_file,omitempty" json:"ca_file,omitempty"`
-	// The client cert file for the targets.
-	CertFile string `yaml:"cert_file,omitempty" json:"cert_file,omitempty"`
-	// The client key file for the targets.
-	KeyFile string `yaml:"key_file,omitempty" json:"key_file,omitempty"`
-	// CARef is the name of the secret within the secret manager to use as the CA cert for the
-	// targets.
-	CARef string `yaml:"ca_ref,omitempty" json:"ca_ref,omitempty"`
-	// CertRef is the name of the secret within the secret manager to use as the client cert for
-	// the targets.
-	CertRef string `yaml:"cert_ref,omitempty" json:"cert_ref,omitempty"`
-	// KeyRef is the name of the secret within the secret manager to use as the client key for
-	// the targets.
-	KeyRef string `yaml:"key_ref,omitempty" json:"key_ref,omitempty"`
-	// Used to verify the hostname for the targets.
-	ServerName string `yaml:"server_name,omitempty" json:"server_name,omitempty"`
-	// Disable target certificate validation.
-	InsecureSkipVerify bool `yaml:"insecure_skip_verify" json:"insecure_skip_verify"`
-	// Minimum TLS version.
-	MinVersion commoncfg.TLSVersion `yaml:"min_version,omitempty" json:"min_version,omitempty"`
-	// Maximum TLS version.
-	MaxVersion commoncfg.TLSVersion `yaml:"max_version,omitempty" json:"max_version,omitempty"`
-}
-
-// UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (c *TLSConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	type plain TLSConfig
-	if err := unmarshal((*plain)(c)); err != nil {
-		return err
-	}
-	return c.Validate()
-}
-
-// Validate validates the TLSConfig to check that only one of the inlined or
-// file-based fields for the TLS CA, client certificate, and client key are
-// used.
-func (c *TLSConfig) Validate() error {
-	if nonZeroCount(len(c.CA) > 0, len(c.CAFile) > 0, len(c.CARef) > 0) > 1 {
-		return errors.New("at most one of ca, ca_file & ca_ref must be configured")
-	}
-	if nonZeroCount(len(c.Cert) > 0, len(c.CertFile) > 0, len(c.CertRef) > 0) > 1 {
-		return errors.New("at most one of cert, cert_file & cert_ref must be configured")
-	}
-	if nonZeroCount(len(c.Key) > 0, len(c.KeyFile) > 0, len(c.KeyRef) > 0) > 1 {
-		return errors.New("at most one of key and key_file must be configured")
-	}
-
-	if c.usingClientCert() && !c.usingClientKey() {
-		return errors.New("exactly one of key or key_file must be configured when a client certificate is configured")
-	} else if c.usingClientKey() && !c.usingClientCert() {
-		return errors.New("exactly one of cert or cert_file must be configured when a client key is configured")
-	}
-
-	return nil
-}
-
-func (c *TLSConfig) usingClientCert() bool {
-	return len(c.Cert) > 0 || len(c.CertFile) > 0 || len(c.CertRef) > 0
-}
-
-func (c *TLSConfig) usingClientKey() bool {
-	return len(c.Key) > 0 || len(c.KeyFile) > 0 || len(c.KeyRef) > 0
-}
-
-// ProxyHeader represents HTTP headers to send to proxies.
-type ProxyHeader map[string][]commoncfg.Secret
-
-func (h *ProxyHeader) HTTPHeader() http.Header {
-	if h == nil || *h == nil {
-		return nil
-	}
-
-	header := make(http.Header)
-
-	for name, values := range *h {
-		var s []string
-		if values != nil {
-			s = make([]string, 0, len(values))
-			for _, value := range values {
-				s = append(s, string(value))
-			}
-		}
-		header[name] = s
-	}
-
-	return header
-}
-
-// ProxyConfig configures proxy settings.
-type ProxyConfig struct {
-	// HTTP proxy server to use to connect to the targets.
-	ProxyURL commoncfg.URL `yaml:"proxy_url,omitempty" json:"proxy_url,omitempty"`
-	// NoProxy contains addresses that should not use a proxy.
-	NoProxy string `yaml:"no_proxy,omitempty" json:"no_proxy,omitempty"`
-	// ProxyFromEnvironment makes use of net/http ProxyFromEnvironment function
-	// to determine proxies.
-	ProxyFromEnvironment bool `yaml:"proxy_from_environment,omitempty" json:"proxy_from_environment,omitempty"`
-	// ProxyConnectHeader optionally specifies headers to send to
-	// proxies during CONNECT requests. Assume that at least _some_ of
-	// these headers are going to contain secrets and use Secret as the
-	// value type instead of string.
-	ProxyConnectHeader ProxyHeader `yaml:"proxy_connect_header,omitempty" json:"proxy_connect_header,omitempty"`
-
-	proxyFunc func(*http.Request) (*url.URL, error)
-}
-
-// Validate validates the ProxyConfig.
-func (c *ProxyConfig) Validate() error {
-	if len(c.ProxyConnectHeader) > 0 && (!c.ProxyFromEnvironment && (c.ProxyURL.URL == nil || c.ProxyURL.String() == "")) {
-		return errors.New("if proxy_connect_header is configured, proxy_url or proxy_from_environment must also be configured")
-	}
-	if c.ProxyFromEnvironment && c.ProxyURL.URL != nil && c.ProxyURL.String() != "" {
-		return errors.New("if proxy_from_environment is configured, proxy_url must not be configured")
-	}
-	if c.ProxyFromEnvironment && c.NoProxy != "" {
-		return errors.New("if proxy_from_environment is configured, no_proxy must not be configured")
-	}
-	if c.ProxyURL.URL == nil && c.NoProxy != "" {
-		return errors.New("if no_proxy is configured, proxy_url must also be configured")
-	}
-	return nil
-}
-
-// Proxy returns the Proxy URL for a request.
-func (c *ProxyConfig) Proxy() func(*http.Request) (*url.URL, error) {
-	if c == nil {
-		return nil
-	}
-	if c.proxyFunc != nil {
-		return c.proxyFunc
-	}
-	if c.ProxyFromEnvironment {
-		proxyFn := httpproxy.FromEnvironment().ProxyFunc()
-		c.proxyFunc = func(req *http.Request) (*url.URL, error) {
-			return proxyFn(req.URL)
-		}
-		return c.proxyFunc
-	}
-	if c.ProxyURL.URL != nil && c.ProxyURL.String() != "" {
-		if c.NoProxy == "" {
-			c.proxyFunc = http.ProxyURL(c.ProxyURL.URL)
-			return c.proxyFunc
-		}
-		proxy := &httpproxy.Config{
-			HTTPProxy:  c.ProxyURL.String(),
-			HTTPSProxy: c.ProxyURL.String(),
-			NoProxy:    c.NoProxy,
-		}
-		proxyFn := proxy.ProxyFunc()
-		c.proxyFunc = func(req *http.Request) (*url.URL, error) {
-			return proxyFn(req.URL)
-		}
-	}
-	return c.proxyFunc
-}
-
-// GetProxyConnectHeader returns the Proxy Connect Headers.
-func (c *ProxyConfig) GetProxyConnectHeader() http.Header {
-	return c.ProxyConnectHeader.HTTPHeader()
 }
 
 // ReservedHeaders that change the connection, are set by Prometheus, or can
@@ -447,4 +277,126 @@ func nonZeroCount[T comparable](values ...T) int {
 		}
 	}
 	return count
+}
+
+func V0HttpConfigOption() schema.Field {
+	oauth2ConfigOption := func() schema.Field {
+		return schema.Field{
+			Label:        "OAuth2",
+			Description:  "Configures the OAuth2 settings.",
+			PropertyName: "oauth2",
+			Element:      schema.ElementTypeSubform,
+			SubformOptions: []schema.Field{
+				{
+					Label:        "Client ID",
+					Description:  "The OAuth2 client ID",
+					Element:      schema.ElementTypeInput,
+					InputType:    schema.InputTypeText,
+					PropertyName: "client_id",
+					Required:     true,
+				},
+				{
+					Label:        "Client secret",
+					Description:  "The OAuth2 client secret",
+					Element:      schema.ElementTypeInput,
+					InputType:    schema.InputTypePassword,
+					PropertyName: "client_secret",
+					Required:     true,
+					Secure:       true,
+				},
+				{
+					Label:        "Token URL",
+					Description:  "The OAuth2 token exchange URL",
+					Element:      schema.ElementTypeInput,
+					InputType:    schema.InputTypeText,
+					PropertyName: "token_url",
+					Required:     true,
+				},
+				{
+					Label:        "Scopes",
+					Description:  "Comma-separated list of scopes",
+					Element:      schema.ElementStringArray,
+					PropertyName: "scopes",
+				},
+				{
+					Label:        "Additional parameters",
+					Element:      schema.ElementTypeKeyValueMap,
+					PropertyName: "endpoint_params",
+				},
+				V0TLSConfigOption("TLSConfig"),
+			},
+		}
+	}
+	return schema.Field{
+		Label:        "HTTP Config",
+		Description:  "Note that `basic_auth` and `bearer_token` options are mutually exclusive.",
+		PropertyName: "http_config",
+		Element:      schema.ElementTypeSubform,
+		SubformOptions: append([]schema.Field{
+			{
+				Label:        "Basic auth",
+				Description:  "Sets the `Authorization` header with the configured username and password.",
+				PropertyName: "basic_auth",
+				Element:      schema.ElementTypeSubform,
+				SubformOptions: []schema.Field{
+					{
+						Label:        "Username",
+						Element:      schema.ElementTypeInput,
+						InputType:    schema.InputTypeText,
+						PropertyName: "username",
+					},
+					{
+						Label:        "Password",
+						Element:      schema.ElementTypeInput,
+						InputType:    schema.InputTypePassword,
+						PropertyName: "password",
+						Secure:       true,
+					},
+				},
+			},
+			{
+				Label:        "Authorization",
+				Description:  "The HTTP authorization credentials for the targets.",
+				Element:      schema.ElementTypeSubform,
+				PropertyName: "authorization",
+				SubformOptions: []schema.Field{
+					{
+						Label:        "Type",
+						Element:      schema.ElementTypeInput,
+						InputType:    schema.InputTypeText,
+						PropertyName: "type",
+					},
+					{
+						Label:        "Credentials",
+						Element:      schema.ElementTypeInput,
+						InputType:    schema.InputTypePassword,
+						PropertyName: "credentials",
+						Secure:       true,
+					},
+				},
+			},
+			{
+				Label:        "Follow redirects",
+				Description:  "Whether the client should follow HTTP 3xx redirects.",
+				Element:      schema.ElementTypeCheckbox,
+				PropertyName: "follow_redirects",
+			},
+			{
+				Label:        "Enable HTTP2",
+				Description:  "Whether the client should configure HTTP2.",
+				Element:      schema.ElementTypeCheckbox,
+				PropertyName: "enable_http2",
+			},
+			{
+				Label:        "HTTP Headers",
+				Description:  "Headers to inject in the requests.",
+				Element:      schema.ElementTypeKeyValueMap,
+				PropertyName: "http_headers",
+			},
+		}, append(
+			V0ProxyConfigOptions(),
+			V0TLSConfigOption("tls_config"),
+			oauth2ConfigOption())...,
+		),
+	}
 }
