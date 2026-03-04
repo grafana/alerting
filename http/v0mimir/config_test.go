@@ -26,6 +26,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+func mustParseURL(s string) commoncfg.URL {
+	u, err := url.Parse(s)
+	if err != nil {
+		panic(err)
+	}
+	return commoncfg.URL{URL: u}
+}
+
 func TestTLSConfigValidate(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -114,7 +122,7 @@ func TestTLSConfigValidate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.cfg.Validate()
+			err := tc.cfg.validate()
 			if tc.errMsg == "" {
 				require.NoError(t, err)
 			} else {
@@ -180,7 +188,7 @@ func TestOAuth2Validate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.cfg.Validate()
+			err := tc.cfg.validate()
 			if tc.errMsg == "" {
 				require.NoError(t, err)
 			} else {
@@ -191,14 +199,6 @@ func TestOAuth2Validate(t *testing.T) {
 }
 
 func TestProxyConfigValidate(t *testing.T) {
-	mustParseURL := func(s string) commoncfg.URL {
-		u, err := url.Parse(s)
-		if err != nil {
-			panic(err)
-		}
-		return commoncfg.URL{URL: u}
-	}
-
 	tests := []struct {
 		name   string
 		cfg    ProxyConfig
@@ -268,7 +268,7 @@ func TestProxyConfigValidate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.cfg.Validate()
+			err := tc.cfg.validate()
 			if tc.errMsg == "" {
 				require.NoError(t, err)
 			} else {
@@ -434,7 +434,7 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.cfg.Validate()
+			err := tc.cfg.validate()
 			if tc.errMsg == "" {
 				require.NoError(t, err)
 			} else {
@@ -477,7 +477,7 @@ func TestHeadersValidate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := tc.cfg.Validate()
+			err := tc.cfg.validate()
 			if tc.errMsg == "" {
 				require.NoError(t, err)
 			} else {
