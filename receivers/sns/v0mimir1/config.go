@@ -66,7 +66,12 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if c.HTTPConfig != nil {
-		return c.HTTPConfig.Validate()
+		if err := c.HTTPConfig.Validate(); err != nil {
+			return err
+		}
+	}
+	if err := c.Sigv4.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

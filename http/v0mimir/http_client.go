@@ -198,7 +198,7 @@ type HTTPClientConfig struct {
 }
 
 func (c *HTTPClientConfig) Validate() error {
-	if err := c.validate(); err != nil {
+	if err := c.validateAuthConfig(); err != nil {
 		return err
 	}
 	if c.OAuth2 != nil {
@@ -220,10 +220,7 @@ func (c *HTTPClientConfig) Validate() error {
 	return nil
 }
 
-// validate validates the HTTPClientConfig to check only one of BearerToken,
-// BasicAuth and BearerTokenFile is configured. It also validates that ProxyURL
-// is set if ProxyConnectHeader is set.
-func (c *HTTPClientConfig) validate() error {
+func (c *HTTPClientConfig) validateAuthConfig() error {
 	// Backwards compatibility with the bearer_token field.
 	if len(c.BearerToken) > 0 && len(c.BearerTokenFile) > 0 {
 		return errors.New("at most one of bearer_token & bearer_token_file must be configured")
@@ -266,10 +263,20 @@ func (c *HTTPClientConfig) validate() error {
 			c.BearerTokenFile = ""
 		}
 	}
+	if c.OAuth2 != nil && c.BasicAuth != nil {
+		return errors.New("at most one of basic_auth, oauth2 & authorization must be configured")
+	}
+	return nil
+}
+
+// validate validates the HTTPClientConfig to check only one of BearerToken,
+// BasicAuth and BearerTokenFile is configured. It also validates that ProxyURL
+// is set if ProxyConnectHeader is set.
+func (c *HTTPClientConfig) validate() error {
+	if err := c.validateAuthConfig(); err != nil {
+		return err
+	}
 	if c.OAuth2 != nil {
-		if c.BasicAuth != nil {
-			return errors.New("at most one of basic_auth, oauth2 & authorization must be configured")
-		}
 		if err := c.OAuth2.validate(); err != nil {
 			return err
 		}
