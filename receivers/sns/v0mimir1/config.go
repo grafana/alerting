@@ -66,7 +66,12 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if c.HTTPConfig != nil {
-		return c.HTTPConfig.Validate()
+		if err := c.HTTPConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid http_config: %w", err)
+		}
+	}
+	if err := c.Sigv4.Validate(); err != nil {
+		return fmt.Errorf("invalid sigv4: %w", err)
 	}
 	return nil
 }
@@ -86,7 +91,9 @@ type SigV4Config struct {
 	RoleARN   string           `yaml:"role_arn,omitempty" json:"role_arn,omitempty"`
 }
 
-func (c *SigV4Config) Validate() error { return c.validate() }
+func (c *SigV4Config) Validate() error {
+	return c.validate()
+}
 
 func (c *SigV4Config) validate() error {
 	if (c.AccessKey == "") != (c.SecretKey == "") {

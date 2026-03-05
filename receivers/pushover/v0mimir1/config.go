@@ -16,6 +16,7 @@ package v0mimir1
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/grafana/alerting/receivers"
@@ -91,7 +92,9 @@ func (c *Config) Validate() error {
 		return err
 	}
 	if c.HTTPConfig != nil {
-		return c.HTTPConfig.Validate()
+		if err := c.HTTPConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid http_config: %w", err)
+		}
 	}
 	return nil
 }

@@ -73,7 +73,10 @@ func (c *Config) Validate() error {
 	if err := c.validate(); err != nil {
 		return err
 	}
-	return c.TLSConfig.Validate()
+	if err := c.TLSConfig.Validate(); err != nil {
+		return fmt.Errorf("invalid tls_config: %w", err)
+	}
+	return nil
 }
 
 func (c *Config) validate() error {

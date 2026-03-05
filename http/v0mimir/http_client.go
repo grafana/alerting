@@ -271,15 +271,15 @@ func (c *HTTPClientConfig) validate() error {
 			return errors.New("at most one of basic_auth, oauth2 & authorization must be configured")
 		}
 		if err := c.OAuth2.validate(); err != nil {
-			return err
+			return fmt.Errorf("invalid oauth2 config: %w", err)
 		}
 	}
 	if err := c.ProxyConfig.validate(); err != nil {
-		return err
+		return fmt.Errorf("invalid proxy config: %w", err)
 	}
 	if c.HTTPHeaders != nil {
 		if err := c.HTTPHeaders.validate(); err != nil {
-			return err
+			return fmt.Errorf("invalid http_headers: %w", err)
 		}
 	}
 	return nil

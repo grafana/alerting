@@ -428,7 +428,7 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 					"User-Agent": {Values: []string{"custom-agent"}},
 				},
 			},
-			errMsg: `setting header "User-Agent" is not allowed`,
+			errMsg: `invalid http_headers: setting header "User-Agent" is not allowed`,
 		},
 	}
 
