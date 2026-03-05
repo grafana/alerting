@@ -94,6 +94,22 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("invalid http_config: %w", err)
 		}
 	}
+	for i, action := range c.Actions {
+		if action == nil {
+			return fmt.Errorf("invalid actions[%d]: action cannot be nil", i)
+		}
+		if err := action.Validate(); err != nil {
+			return fmt.Errorf("invalid actions[%d]: %w", i, err)
+		}
+	}
+	for i, field := range c.Fields {
+		if field == nil {
+			return fmt.Errorf("invalid fields[%d]: field cannot be nil", i)
+		}
+		if err := field.Validate(); err != nil {
+			return fmt.Errorf("invalid fields[%d]: %w", i, err)
+		}
+	}
 	return nil
 }
 

@@ -301,4 +301,28 @@ func TestValidate(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, cfg.Validate())
 	})
+	t.Run("programmatic config validates actions", func(t *testing.T) {
+		cfg := Config{
+			Actions: []*SlackAction{
+				{
+					Type: "button",
+				},
+			},
+		}
+
+		err := cfg.Validate()
+		require.ErrorContains(t, err, "invalid actions[0]: missing text in Slack action configuration")
+	})
+	t.Run("programmatic config validates fields", func(t *testing.T) {
+		cfg := Config{
+			Fields: []*SlackField{
+				{
+					Title: "title only",
+				},
+			},
+		}
+
+		err := cfg.Validate()
+		require.ErrorContains(t, err, "invalid fields[0]: missing value in Slack field configuration")
+	})
 }
