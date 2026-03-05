@@ -89,6 +89,16 @@ func (c *Config) Validate() error {
 	if err := c.validate(); err != nil {
 		return err
 	}
+	for i, field := range c.Fields {
+		if err := field.Validate(); err != nil {
+			return fmt.Errorf("invalid fields[%d]: %w", i, err)
+		}
+	}
+	for i, action := range c.Actions {
+		if err := action.Validate(); err != nil {
+			return fmt.Errorf("invalid actions[%d]: %w", i, err)
+		}
+	}
 	if c.HTTPConfig != nil {
 		if err := c.HTTPConfig.Validate(); err != nil {
 			return fmt.Errorf("invalid http_config: %w", err)
@@ -357,7 +367,17 @@ func (c *SlackAction) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return c.validate()
 }
 
-func (c *SlackAction) Validate() error { return c.validate() }
+func (c *SlackAction) Validate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	if c.ConfirmField != nil {
+		if err := c.ConfirmField.Validate(); err != nil {
+			return fmt.Errorf("invalid confirm: %w", err)
+		}
+	}
+	return nil
+}
 
 func (c *SlackAction) validate() error {
 	if c.Type == "" {
