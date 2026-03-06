@@ -3,6 +3,8 @@ package definition
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -239,12 +241,17 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 }
 
 func TemplatesMapToPostableAPITemplates(templates map[string]string, kind TemplateKind) []PostableApiTemplate {
+	// Ensure a consistent ordering. This is important for:
+	// - Hash calculations for change detection.
+	// - Consistent template output since template definitions can override.
 	res := make([]PostableApiTemplate, 0, len(templates))
-	for k, v := range templates {
+	for _, k := range slices.SortedFunc(maps.Keys(templates), func(a, b string) int {
+		return strings.Compare(a, b)
+	}) {
 		res = append(res, PostableApiTemplate{
 			Name:    k,
 			Kind:    kind,
-			Content: v,
+			Content: templates[k],
 		})
 	}
 	return res
