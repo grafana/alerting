@@ -58,6 +58,25 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
+
+func (c *Config) Validate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	if c.HTTPConfig != nil {
+		if err := c.HTTPConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid http_config: %w", err)
+		}
+	}
+	if err := c.Sigv4.Validate(); err != nil {
+		return fmt.Errorf("invalid sigv4: %w", err)
+	}
+	return nil
+}
+
+func (c *Config) validate() error {
 	if (c.TargetARN == "") != (c.TopicARN == "") != (c.PhoneNumber == "") {
 		return errors.New("must provide either a Target ARN, Topic ARN, or Phone Number for SNS config")
 	}
@@ -73,6 +92,10 @@ type SigV4Config struct {
 }
 
 func (c *SigV4Config) Validate() error {
+	return c.validate()
+}
+
+func (c *SigV4Config) validate() error {
 	if (c.AccessKey == "") != (c.SecretKey == "") {
 		return fmt.Errorf("must provide a AWS SigV4 Access key and Secret Key if credentials are specified in the SigV4 config")
 	}
@@ -85,7 +108,7 @@ func (c *SigV4Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
-	return c.Validate()
+	return c.validate()
 }
 
 var Schema = schema.IntegrationSchemaVersion{

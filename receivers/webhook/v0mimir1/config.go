@@ -16,6 +16,7 @@ package v0mimir1
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/prometheus/common/model"
 
@@ -61,6 +62,22 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
+
+func (c *Config) Validate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	if c.HTTPConfig != nil {
+		if err := c.HTTPConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid http_config: %w", err)
+		}
+	}
+	return nil
+}
+
+func (c *Config) validate() error {
 	if c.URL == nil && c.URLFile == "" {
 		return errors.New("one of url or url_file must be configured")
 	}

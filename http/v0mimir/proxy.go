@@ -67,8 +67,10 @@ type ProxyConfig struct {
 	proxyFunc func(*http.Request) (*url.URL, error)
 }
 
-// Validate validates the ProxyConfig.
-func (c *ProxyConfig) Validate() error {
+func (c *ProxyConfig) Validate() error { return c.validate() }
+
+// validate validates the ProxyConfig.
+func (c *ProxyConfig) validate() error {
 	if len(c.ProxyConnectHeader) > 0 && (!c.ProxyFromEnvironment && (c.ProxyURL.URL == nil || c.ProxyURL.String() == "")) {
 		return errors.New("if proxy_connect_header is configured, proxy_url or proxy_from_environment must also be configured")
 	}

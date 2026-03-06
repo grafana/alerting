@@ -16,6 +16,7 @@ package v0mimir1
 
 import (
 	"errors"
+	"fmt"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
@@ -81,7 +82,32 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
 
+func (c *Config) Validate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	for i, field := range c.Fields {
+		if err := field.Validate(); err != nil {
+			return fmt.Errorf("invalid fields[%d]: %w", i, err)
+		}
+	}
+	for i, action := range c.Actions {
+		if err := action.Validate(); err != nil {
+			return fmt.Errorf("invalid actions[%d]: %w", i, err)
+		}
+	}
+	if c.HTTPConfig != nil {
+		if err := c.HTTPConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid http_config: %w", err)
+		}
+	}
+	return nil
+}
+
+func (c *Config) validate() error {
 	if c.APIURL != nil && len(c.APIURLFile) > 0 {
 		return errors.New("at most one of api_url & api_url_file must be configured")
 	}
@@ -338,6 +364,22 @@ func (c *SlackAction) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
+
+func (c *SlackAction) Validate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	if c.ConfirmField != nil {
+		if err := c.ConfirmField.Validate(); err != nil {
+			return fmt.Errorf("invalid confirm: %w", err)
+		}
+	}
+	return nil
+}
+
+func (c *SlackAction) validate() error {
 	if c.Type == "" {
 		return errors.New("missing type in Slack action configuration")
 	}
@@ -373,6 +415,12 @@ func (c *SlackConfirmationField) UnmarshalYAML(unmarshal func(interface{}) error
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
+
+func (c *SlackConfirmationField) Validate() error { return c.validate() }
+
+func (c *SlackConfirmationField) validate() error {
 	if c.Text == "" {
 		return errors.New("missing text in Slack confirmation configuration")
 	}
@@ -395,6 +443,12 @@ func (c *SlackField) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
+
+func (c *SlackField) Validate() error { return c.validate() }
+
+func (c *SlackField) validate() error {
 	if c.Title == "" {
 		return errors.New("missing title in Slack field configuration")
 	}

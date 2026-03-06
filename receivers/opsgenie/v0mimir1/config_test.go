@@ -16,6 +16,7 @@ package v0mimir1
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
@@ -117,4 +118,17 @@ api_url: http://example.com
 			}
 		})
 	}
+}
+
+func TestValidate(t *testing.T) {
+	t.Run("GetFullValidConfig is valid", func(t *testing.T) {
+		cfg := GetFullValidConfig()
+		require.NoError(t, cfg.Validate())
+	})
+	t.Run("FullValidConfigForTesting is valid", func(t *testing.T) {
+		var cfg Config
+		err := yaml.UnmarshalStrict([]byte(FullValidConfigForTesting), &cfg)
+		require.NoError(t, err)
+		require.NoError(t, cfg.Validate())
+	})
 }

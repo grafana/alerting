@@ -17,6 +17,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
@@ -105,4 +106,17 @@ http_config:
 	if strings.Contains(string(ycfg), "supersecret") {
 		t.Errorf("Found password in the YAML cfg: %s\n", ycfg)
 	}
+}
+
+func TestValidate(t *testing.T) {
+	t.Run("GetFullValidConfig is valid", func(t *testing.T) {
+		cfg := GetFullValidConfig()
+		require.NoError(t, cfg.Validate())
+	})
+	t.Run("FullValidConfigForTesting is valid", func(t *testing.T) {
+		var cfg Config
+		err := yaml.UnmarshalStrict([]byte(FullValidConfigForTesting), &cfg)
+		require.NoError(t, err)
+		require.NoError(t, cfg.Validate())
+	})
 }

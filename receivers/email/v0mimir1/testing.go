@@ -43,9 +43,8 @@ func GetFullValidConfig() Config {
 	cfg.Text = "Test"
 	cfg.RequireTLS = &requireTLS
 	cfg.TLSConfig = httpcfg.TLSConfig{
-		CA:   "ca-content",
-		Cert: "cert-content",
-		Key:  "key-content",
+		InsecureSkipVerify: true,
+		ServerName:         "smtp.example.com",
 	}
 	return cfg
 }
