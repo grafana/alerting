@@ -919,7 +919,7 @@ func TestCalculateConfigFingerprint(t *testing.T) {
 			name:  "time intervals",
 			field: "TimeIntervals",
 			mutator: func(cfg *NotificationsConfiguration) {
-				cfg.TimeIntervals[0].TimeIntervals[0].Weekdays[0].InclusiveRange.Begin = 0
+				cfg.TimeIntervals[0].TimeIntervals[0].Weekdays[0].Begin = 0
 			},
 		},
 		{
