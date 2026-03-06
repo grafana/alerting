@@ -11,20 +11,23 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/go-openapi/strfmt"
+	"github.com/stretchr/testify/require"
+
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/prometheus/alertmanager/provider/mem"
+	"github.com/prometheus/alertmanager/timeinterval"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/prometheus/common/model"
-	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/receivers"
+	"github.com/grafana/alerting/templates"
 )
 
 type withOptsFn func(opts *GrafanaAlertmanagerOpts)
@@ -869,4 +872,327 @@ func Test_GrafanaAlertmanagerOpts_Validate(t *testing.T) {
 		testOpts.DispatchTimer = DispatchTimerSync
 		require.NotNil(t, testOpts.Validate())
 	})
+}
+
+func TestCalculateConfigFingerprint(t *testing.T) {
+	baseA := richNotificationsConfiguration(t, "default")
+	baseB := richNotificationsConfiguration(t, "default")
+	require.Equal(t, CalculateConfigFingerprint(baseA), CalculateConfigFingerprint(baseB))
+
+	fieldGetters := map[string]func(ConfigFingerprint) uint64{
+		"RoutingTree":       func(fp ConfigFingerprint) uint64 { return fp.RoutingTree },
+		"InhibitRules":      func(fp ConfigFingerprint) uint64 { return fp.InhibitRules },
+		"MuteTimeIntervals": func(fp ConfigFingerprint) uint64 { return fp.MuteTimeIntervals },
+		"TimeIntervals":     func(fp ConfigFingerprint) uint64 { return fp.TimeIntervals },
+		"Templates":         func(fp ConfigFingerprint) uint64 { return fp.Templates },
+		"Receivers":         func(fp ConfigFingerprint) uint64 { return fp.Receivers },
+		"Limits":            func(fp ConfigFingerprint) uint64 { return fp.Limits },
+	}
+
+	cases := []struct {
+		name    string
+		field   string
+		mutator func(cfg *NotificationsConfiguration)
+	}{
+		{
+			name:  "routing tree",
+			field: "RoutingTree",
+			mutator: func(cfg *NotificationsConfiguration) {
+				cfg.RoutingTree.Routes[0].Match["cluster"] = "prod-us-west-2"
+			},
+		},
+		{
+			name:  "inhibit rules",
+			field: "InhibitRules",
+			mutator: func(cfg *NotificationsConfiguration) {
+				cfg.InhibitRules[0].Equal[0] = "service"
+			},
+		},
+		{
+			name:  "mute time intervals",
+			field: "MuteTimeIntervals",
+			mutator: func(cfg *NotificationsConfiguration) {
+				cfg.MuteTimeIntervals[0].TimeIntervals[0].Times[0].StartMinute++
+			},
+		},
+		{
+			name:  "time intervals",
+			field: "TimeIntervals",
+			mutator: func(cfg *NotificationsConfiguration) {
+				cfg.TimeIntervals[0].TimeIntervals[0].Weekdays[0].InclusiveRange.Begin = 0
+			},
+		},
+		{
+			name:  "templates",
+			field: "Templates",
+			mutator: func(cfg *NotificationsConfiguration) {
+				cfg.Templates[0].Template = `{{ define "custom.title" }}Alert changed: {{ .Status }}{{ end }}`
+			},
+		},
+		{
+			name:  "receivers",
+			field: "Receivers",
+			mutator: func(cfg *NotificationsConfiguration) {
+				cfg.Receivers[0].ReceiverConfig.Integrations[0].Name = "primary-webhook-v2"
+			},
+		},
+		{
+			name:  "limits",
+			field: "Limits",
+			mutator: func(cfg *NotificationsConfiguration) {
+				cfg.Limits.Templates.MaxTemplateOutputSize++
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			original := richNotificationsConfiguration(t, "default")
+			mutated := richNotificationsConfiguration(t, "default")
+			tc.mutator(&mutated)
+
+			originalFP := CalculateConfigFingerprint(original)
+			mutatedFP := CalculateConfigFingerprint(mutated)
+
+			require.NotEqual(t, originalFP.Overall, mutatedFP.Overall)
+			require.NotEqual(t, fieldGetters[tc.field](originalFP), fieldGetters[tc.field](mutatedFP))
+
+			for field, get := range fieldGetters {
+				if field == tc.field {
+					continue
+				}
+				require.Equal(t, get(originalFP), get(mutatedFP), "unexpected hash change for field %s", field)
+			}
+		})
+	}
+}
+
+type staticDispatcherLimits struct {
+	maxNumberOfAggregationGroups int
+}
+
+func (l staticDispatcherLimits) MaxNumberOfAggregationGroups() int {
+	return l.maxNumberOfAggregationGroups
+}
+
+func mustLabelMatcher(t *testing.T, mt labels.MatchType, name, value string) *labels.Matcher {
+	t.Helper()
+	m, err := labels.NewMatcher(mt, name, value)
+	require.NoError(t, err)
+	return m
+}
+
+func richNotificationsConfiguration(t *testing.T, rootReceiver string) NotificationsConfiguration {
+	t.Helper()
+
+	rootGroupWait := model.Duration(30 * time.Second)
+	rootGroupInterval := model.Duration(5 * time.Minute)
+	rootRepeatInterval := model.Duration(4 * time.Hour)
+	childGroupWait := model.Duration(1 * time.Minute)
+	childGroupInterval := model.Duration(10 * time.Minute)
+	childRepeatInterval := model.Duration(2 * time.Hour)
+
+	return NotificationsConfiguration{
+		RoutingTree: &Route{
+			Receiver:   rootReceiver,
+			GroupByStr: []string{"alertname", "cluster", "namespace"},
+			GroupBy:    []model.LabelName{"alertname", "cluster", "namespace"},
+			Match: map[string]string{
+				"team": "platform",
+				"env":  "prod",
+			},
+			Matchers: config.Matchers{
+				mustLabelMatcher(t, labels.MatchEqual, "service", "api"),
+				mustLabelMatcher(t, labels.MatchNotEqual, "severity", "none"),
+			},
+			MuteTimeIntervals:   []string{"non_business_hours"},
+			ActiveTimeIntervals: []string{"business_hours"},
+			Continue:            true,
+			GroupWait:           &rootGroupWait,
+			GroupInterval:       &rootGroupInterval,
+			RepeatInterval:      &rootRepeatInterval,
+			Routes: []*Route{
+				{
+					Receiver:   "database-team",
+					GroupByStr: []string{"alertname", "database"},
+					GroupBy:    []model.LabelName{"alertname", "database"},
+					Match: map[string]string{
+						"team":    "database",
+						"cluster": "prod-us-east-1",
+					},
+					Matchers: config.Matchers{
+						mustLabelMatcher(t, labels.MatchEqual, "component", "postgres"),
+					},
+					MuteTimeIntervals: []string{"db_maintenance"},
+					GroupWait:         &childGroupWait,
+					GroupInterval:     &childGroupInterval,
+					RepeatInterval:    &childRepeatInterval,
+					Routes: []*Route{
+						{
+							Receiver: "database-pager",
+							Match: map[string]string{
+								"severity": "critical",
+								"region":   "us-east-1",
+							},
+							Matchers: config.Matchers{
+								mustLabelMatcher(t, labels.MatchEqual, "tier", "backend"),
+							},
+						},
+					},
+				},
+			},
+		},
+		InhibitRules: []InhibitRule{
+			{
+				SourceMatch: map[string]string{
+					"severity": "critical",
+					"team":     "platform",
+				},
+				SourceMatchers: config.Matchers{
+					mustLabelMatcher(t, labels.MatchEqual, "environment", "prod"),
+				},
+				TargetMatch: map[string]string{
+					"severity": "warning",
+				},
+				TargetMatchers: config.Matchers{
+					mustLabelMatcher(t, labels.MatchEqual, "component", "api"),
+				},
+				Equal: []string{"alertname", "cluster", "namespace"},
+			},
+		},
+		MuteTimeIntervals: []MuteTimeInterval{
+			{
+				Name: "non_business_hours",
+				TimeIntervals: []timeinterval.TimeInterval{
+					{
+						Times: []timeinterval.TimeRange{
+							{StartMinute: 0, EndMinute: 540},
+							{StartMinute: 1080, EndMinute: 1440},
+						},
+						Weekdays: []timeinterval.WeekdayRange{
+							{InclusiveRange: timeinterval.InclusiveRange{Begin: 1, End: 5}},
+						},
+						Months: []timeinterval.MonthRange{
+							{InclusiveRange: timeinterval.InclusiveRange{Begin: 1, End: 12}},
+						},
+						Years: []timeinterval.YearRange{
+							{InclusiveRange: timeinterval.InclusiveRange{Begin: 2024, End: 2030}},
+						},
+					},
+				},
+			},
+			{
+				Name: "db_maintenance",
+				TimeIntervals: []timeinterval.TimeInterval{
+					{
+						Times: []timeinterval.TimeRange{
+							{StartMinute: 120, EndMinute: 240},
+						},
+						DaysOfMonth: []timeinterval.DayOfMonthRange{
+							{InclusiveRange: timeinterval.InclusiveRange{Begin: 1, End: 3}},
+						},
+						Weekdays: []timeinterval.WeekdayRange{
+							{InclusiveRange: timeinterval.InclusiveRange{Begin: 0, End: 0}},
+						},
+						Location: &timeinterval.Location{
+							Location: time.FixedZone("EST", -5*60*60),
+						},
+					},
+				},
+			},
+		},
+		TimeIntervals: []TimeInterval{
+			{
+				Name: "business_hours",
+				TimeIntervals: []timeinterval.TimeInterval{
+					{
+						Times: []timeinterval.TimeRange{
+							{StartMinute: 540, EndMinute: 1020},
+						},
+						Weekdays: []timeinterval.WeekdayRange{
+							{InclusiveRange: timeinterval.InclusiveRange{Begin: 1, End: 5}},
+						},
+						Months: []timeinterval.MonthRange{
+							{InclusiveRange: timeinterval.InclusiveRange{Begin: 1, End: 12}},
+						},
+						Years: []timeinterval.YearRange{
+							{InclusiveRange: timeinterval.InclusiveRange{Begin: 2024, End: 2030}},
+						},
+						Location: &timeinterval.Location{
+							Location: time.FixedZone("PST", -8*60*60),
+						},
+					},
+				},
+			},
+		},
+		Templates: []templates.TemplateDefinition{
+			{
+				Name:     "custom.title",
+				Template: `{{ define "custom.title" }}Alert: {{ .Status }}{{ end }}`,
+				Kind:     templates.GrafanaKind,
+			},
+			{
+				Name:     "custom.mimir.body",
+				Template: `{{ define "custom.mimir.body" }}{{ .Receiver }}{{ end }}`,
+				Kind:     templates.MimirKind,
+			},
+		},
+		Receivers: []*APIReceiver{
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "grafana-default",
+				},
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
+						{
+							UID:                   "integration-webhook-main",
+							Name:                  "primary-webhook",
+							Type:                  "webhook",
+							DisableResolveMessage: false,
+							Settings:              []byte(`{"url":"https://example.org/hooks/primary","httpMethod":"POST","maxAlerts":10}`),
+							SecureSettings: map[string]string{
+								"authorizationHeader": "Bearer token-a",
+								"password":            "secret-a",
+							},
+						},
+						{
+							UID:                   "integration-slack-main",
+							Name:                  "primary-slack",
+							Type:                  "slack",
+							DisableResolveMessage: true,
+							Settings:              []byte(`{"recipient":"#alerts-prod","title":"Critical alert","mentionUsers":"oncall"}`),
+							SecureSettings: map[string]string{
+								"url": "https://hooks.slack.com/services/T000/B000/XXX",
+							},
+						},
+					},
+				},
+			},
+			{
+				ConfigReceiver: ConfigReceiver{
+					Name: "grafana-fallback",
+				},
+				ReceiverConfig: models.ReceiverConfig{
+					Integrations: []*models.IntegrationConfig{
+						{
+							UID:                   "integration-email-fallback",
+							Name:                  "fallback-email",
+							Type:                  "email",
+							DisableResolveMessage: false,
+							Settings:              []byte(`{"singleEmail":true,"addresses":"oncall@example.org;ops@example.org"}`),
+							SecureSettings: map[string]string{
+								"password": "smtp-secret",
+							},
+						},
+					},
+				},
+			},
+		},
+		Limits: DynamicLimits{
+			Dispatcher: staticDispatcherLimits{maxNumberOfAggregationGroups: 250},
+			Templates: templates.Limits{
+				MaxTemplateOutputSize: 2 * 1024 * 1024,
+			},
+		},
+	}
 }
