@@ -528,6 +528,33 @@ func TestGetSearchJql(t *testing.T) {
 	}
 }
 
+func TestIssueSearchJSON(t *testing.T) {
+	t.Run("expand field should be omitted when empty", func(t *testing.T) {
+		search := issueSearch{
+			JQL:        "project=TEST",
+			MaxResults: 2,
+			Fields:     []string{"status"},
+		}
+		data, err := json.Marshal(search)
+		require.NoError(t, err)
+		// Verify the expand field is not present in the JSON
+		assert.NotContains(t, string(data), `"expand"`)
+	})
+
+	t.Run("expand field should be included when set", func(t *testing.T) {
+		search := issueSearch{
+			Expand:     "changelog",
+			JQL:        "project=TEST",
+			MaxResults: 2,
+			Fields:     []string{"status"},
+		}
+		data, err := json.Marshal(search)
+		require.NoError(t, err)
+		// Verify the expand field is present in the JSON
+		assert.Contains(t, string(data), `"expand":"changelog"`)
+	})
+}
+
 func TestNotify(t *testing.T) {
 	ctx := notify.WithGroupKey(context.Background(), "test_group")
 	groupKey, _ := notify.ExtractGroupKey(ctx)
