@@ -17,10 +17,10 @@ package v0mimir1
 import (
 	"errors"
 
-	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/common/model"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 )
 
@@ -28,7 +28,7 @@ const Version = schema.V0mimir1
 
 // DefaultConfig defines default values for Jira configurations.
 var DefaultConfig = Config{
-	NotifierConfig: config.NotifierConfig{
+	NotifierConfig: receivers.NotifierConfig{
 		VSendResolved: true,
 	},
 	Summary:     `{{ template "jira.default.summary" . }}`,
@@ -38,10 +38,10 @@ var DefaultConfig = Config{
 
 // Config configures notifications via JIRA.
 type Config struct {
-	config.NotifierConfig `yaml:",inline" json:",inline"`
-	HTTPConfig            *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
+	receivers.NotifierConfig `yaml:",inline" json:",inline"`
+	HTTPConfig               *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
-	APIURL *config.URL `yaml:"api_url,omitempty" json:"api_url,omitempty"`
+	APIURL *receivers.URL `yaml:"api_url,omitempty" json:"api_url,omitempty"`
 
 	Project     string   `yaml:"project,omitempty" json:"project,omitempty"`
 	Summary     string   `yaml:"summary,omitempty" json:"summary,omitempty"`
@@ -60,10 +60,18 @@ type Config struct {
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
 func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*c = DefaultConfig
-	type plain Config
-	if err := unmarshal((*plain)(c)); err != nil {
+	type Plain Config
+	type withFallback struct {
+		Plain            `yaml:",inline" json:",inline"`
+		CustomFieldsJson map[string]any `yaml:"custom_fields"`
+	}
+	pl := withFallback{Plain: Plain(DefaultConfig)}
+	if err := unmarshal(&pl); err != nil {
 		return err
+	}
+	*c = Config(pl.Plain)
+	if c.Fields == nil && pl.CustomFieldsJson != nil {
+		c.Fields = pl.CustomFieldsJson
 	}
 
 	if c.Project == "" {
@@ -107,7 +115,7 @@ var Schema = schema.IntegrationSchemaVersion{
 		{
 			Label:        "Summary",
 			Description:  "Issue summary template",
-			Placeholder:  config.DefaultJiraConfig.Summary,
+			Placeholder:  DefaultConfig.Summary,
 			Element:      schema.ElementTypeInput,
 			InputType:    schema.InputTypeText,
 			PropertyName: "summary",
@@ -115,7 +123,7 @@ var Schema = schema.IntegrationSchemaVersion{
 		{
 			Label:        "Description",
 			Description:  "Issue description template",
-			Placeholder:  config.DefaultJiraConfig.Description,
+			Placeholder:  DefaultConfig.Description,
 			Element:      schema.ElementTypeTextArea,
 			PropertyName: "description",
 		},
@@ -128,7 +136,7 @@ var Schema = schema.IntegrationSchemaVersion{
 		{
 			Label:        "Priority",
 			Description:  "Priority of the issue",
-			Placeholder:  config.DefaultJiraConfig.Priority,
+			Placeholder:  DefaultConfig.Priority,
 			Element:      schema.ElementTypeInput,
 			InputType:    schema.InputTypeText,
 			PropertyName: "priority",
@@ -168,6 +176,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			Element:      schema.ElementTypeKeyValueMap,
 			PropertyName: "fields",
 		},
-		schema.V0HttpConfigOption(),
+		httpcfg.V0HttpConfigOption(),
 	},
 }

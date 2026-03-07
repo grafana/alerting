@@ -16,8 +16,6 @@ package v0mimir1
 import (
 	"testing"
 
-	"github.com/prometheus/alertmanager/config"
-
 	"gopkg.in/yaml.v2"
 )
 
@@ -160,7 +158,7 @@ fields:
   value: slack field test
   short: false
 `
-	expected := []*config.SlackField{
+	expected := []*SlackField{
 		{
 			Title: "first",
 			Value: "hello",
@@ -221,7 +219,7 @@ actions:
     ok_text: yes
     dismiss_text: no
 `
-	expected := []*config.SlackAction{
+	expected := []*SlackAction{
 		{
 			Type:  "button",
 			Text:  "hello",
@@ -233,7 +231,7 @@ actions:
 			Text:  "hello",
 			Name:  "something",
 			Style: "default",
-			ConfirmField: &config.SlackConfirmationField{
+			ConfirmField: &SlackConfirmationField{
 				Title:       "please confirm",
 				Text:        "are you sure?",
 				OkText:      "yes",

@@ -35,7 +35,7 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir1"
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 )
 
 var tracer = otel.Tracer("github.com/prometheus/alertmanager/notify/webhook")

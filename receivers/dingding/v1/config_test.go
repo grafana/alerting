@@ -76,6 +76,18 @@ func TestNewConfig(t *testing.T) {
 				Message:     "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
 			},
 		},
+
+		{
+			name:     "Extracts all fields + override from secrets",
+			settings: FullValidConfigForTesting,
+			secrets:  receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
+			expectedConfig: Config{
+				URL:         "http://localhostsecret",
+				MessageType: "actionCard",
+				Title:       "Alerts firing: {{ len .Alerts.Firing }}",
+				Message:     "{{ len .Alerts.Firing }} alerts are firing, {{ len .Alerts.Resolved }} are resolved",
+			},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

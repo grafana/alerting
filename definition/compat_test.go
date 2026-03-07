@@ -10,7 +10,8 @@ import (
 
 	"github.com/prometheus/alertmanager/pkg/labels"
 
-	"github.com/grafana/alerting/http/v0mimir1"
+	"github.com/grafana/alerting/http/v0mimir"
+	"github.com/grafana/alerting/receivers"
 )
 
 func TestLoadCompat(t *testing.T) {
@@ -95,7 +96,7 @@ func TestLoadCompat(t *testing.T) {
 			globalConfig := c.Global
 
 			// All configs should have the default http config set except for Webex.
-			expectedHTTPConfig := v0mimir1.FromCommonHTTPClientConfig(globalConfig.HTTPConfig)
+			expectedHTTPConfig := v0mimir.FromCommonHTTPClientConfig(globalConfig.HTTPConfig)
 			require.Equal(t, expectedHTTPConfig, c.Receivers[0].DiscordConfigs[0].HTTPConfig)
 			require.Equal(t, expectedHTTPConfig, c.Receivers[0].MSTeamsConfigs[0].HTTPConfig)
 			require.Equal(t, expectedHTTPConfig, c.Receivers[0].OpsGenieConfigs[0].HTTPConfig)
@@ -109,11 +110,11 @@ func TestLoadCompat(t *testing.T) {
 			require.Equal(t, expectedHTTPConfig, c.Receivers[0].WechatConfigs[0].HTTPConfig)
 
 			if len(c.Receivers[0].EmailConfigs) > 0 {
-				require.Equal(t, c.Receivers[0].EmailConfigs[0].Smarthost, globalConfig.SMTPSmarthost)
+				require.Equal(t, c.Receivers[0].EmailConfigs[0].Smarthost, receivers.HostPort(globalConfig.SMTPSmarthost))
 				require.Equal(t, c.Receivers[0].EmailConfigs[0].From, globalConfig.SMTPFrom)
 				require.Equal(t, c.Receivers[0].EmailConfigs[0].AuthUsername, globalConfig.SMTPAuthUsername)
-				require.Equal(t, c.Receivers[0].EmailConfigs[0].AuthPassword, globalConfig.SMTPAuthPassword)
-				require.Equal(t, c.Receivers[0].EmailConfigs[0].AuthSecret, globalConfig.SMTPAuthSecret)
+				require.Equal(t, c.Receivers[0].EmailConfigs[0].AuthPassword, receivers.Secret(globalConfig.SMTPAuthPassword))
+				require.Equal(t, c.Receivers[0].EmailConfigs[0].AuthSecret, receivers.Secret(globalConfig.SMTPAuthSecret))
 				require.Equal(t, c.Receivers[0].EmailConfigs[0].AuthIdentity, globalConfig.SMTPAuthIdentity)
 				require.Equal(t, *c.Receivers[0].EmailConfigs[0].RequireTLS, globalConfig.SMTPRequireTLS)
 			}
