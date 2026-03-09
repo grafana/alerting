@@ -66,6 +66,20 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if err := unmarshal((*plain)(c)); err != nil {
 		return err
 	}
+	return c.validate()
+}
+
+func (c *Config) Validate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	if err := c.TLSConfig.Validate(); err != nil {
+		return fmt.Errorf("invalid tls_config: %w", err)
+	}
+	return nil
+}
+
+func (c *Config) validate() error {
 	if c.To == "" {
 		return errors.New("missing to address in email config")
 	}

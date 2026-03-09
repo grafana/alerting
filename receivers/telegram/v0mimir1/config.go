@@ -16,6 +16,7 @@ package v0mimir1
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/grafana/alerting/receivers"
 
@@ -69,6 +70,22 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if c.ChatID == 0 && pl.ChatIDJson != 0 {
 		c.ChatID = pl.ChatIDJson
 	}
+	return c.validate()
+}
+
+func (c *Config) Validate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	if c.HTTPConfig != nil {
+		if err := c.HTTPConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid http_config: %w", err)
+		}
+	}
+	return nil
+}
+
+func (c *Config) validate() error {
 	if c.BotToken == "" && c.BotTokenFile == "" {
 		return errors.New("missing bot_token or bot_token_file on telegram_config")
 	}
