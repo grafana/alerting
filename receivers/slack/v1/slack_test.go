@@ -1097,6 +1097,72 @@ func setupSlackForTests(t *testing.T, settings Config) (*Notifier, *slackRequest
 	return sn, sr, nil
 }
 
+func TestNotify_ExtraData(t *testing.T) {
+	settings := Config{
+		EndpointURL: APIURL,
+		URL:         APIURL,
+		Token:       "1234",
+		Recipient:   "#test",
+		Text:        `{{ range $i, $a := .Alerts }}Alert {{ $i }}: {{ printf "%s" $a.ExtraData }} {{ end }}`,
+		Title:       templates.DefaultMessageTitleEmbed,
+		Username:    "Grafana",
+		IconEmoji:   ":emoji:",
+		Color:       templates.DefaultMessageColor,
+	}
+
+	notifier, recorder, err := setupSlackForTests(t, settings)
+	require.NoError(t, err)
+
+	// Create test alerts
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		},
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+				Annotations: model.LabelSet{"ann1": "annv2"},
+			},
+		},
+	}
+
+	// Create extra data that will be passed via context
+	extraData1 := json.RawMessage(`{"customField": "customValue1", "priority": "high"}`)
+	extraData2 := json.RawMessage(`{"customField": "customValue2", "priority": "medium"}`)
+	extraDataSlice := []json.RawMessage{extraData1, extraData2}
+
+	// Create context with extra data
+	ctx := notify.WithGroupKey(context.Background(), "alertname")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+	ctx = context.WithValue(ctx, receivers.ExtraDataKey, extraDataSlice)
+
+	// Call Notify
+	ok, err := notifier.Notify(ctx, alerts...)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	// Get the request and verify extra data is present in the message
+	require.Equal(t, 1, recorder.requestCount)
+	r := recorder.messageRequest[0]
+
+	b, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+
+	message := slackMessage{}
+	require.NoError(t, json.Unmarshal(b, &message))
+
+	// Slack sends a single attachment with all alerts combined in Text
+	require.GreaterOrEqual(t, len(message.Attachments), 1)
+
+	// The Text field should contain the extra data from both alerts
+	require.Contains(t, message.Attachments[0].Text, "customField")
+	require.Contains(t, message.Attachments[0].Text, "customValue1")
+	require.Contains(t, message.Attachments[0].Text, "customValue2")
+}
+
 func TestSendSlackRequest(t *testing.T) {
 	tests := []struct {
 		name        string
