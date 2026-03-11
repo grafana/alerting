@@ -36,6 +36,7 @@ type NotificationHistoryLokiEntry struct {
 	SchemaVersion  int               `json:"schemaVersion"`
 	UUID           string            `json:"uuid"`
 	RuleUIDs       []string          `json:"ruleUIDs"`
+	FolderUIDs     []string          `json:"folderUIDs"`
 	Receiver       string            `json:"receiver"`
 	Integration    string            `json:"integration"`
 	IntegrationIdx int               `json:"integrationIdx"`
@@ -130,6 +131,7 @@ func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryE
 	now := time.Now()
 	alertsValues := make([]lokiclient.Sample, len(nhe.Alerts))
 	ruleUIDsMap := make(map[string]struct{})
+	folderUIDsMap := make(map[string]struct{})
 	for i, alert := range nhe.Alerts {
 		labels := prepareLabels(alert.Labels)
 		annotations := prepareLabels(alert.Annotations)
@@ -156,16 +158,19 @@ func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryE
 		ts := now.Add(time.Nanosecond * time.Duration(i))
 
 		ruleUID := entryAlert.Labels[models.RuleUIDLabel]
+		folderUID := entryAlert.Labels[models.NamespaceUIDLabel]
 		alertsValues[i] = lokiclient.Sample{
 			T: ts,
 			V: string(entryAlertJSON),
 			Metadata: map[string]string{
-				"uuid":     nhe.UUID,
-				"rule_uid": ruleUID,
+				"uuid":       nhe.UUID,
+				"rule_uid":   ruleUID,
+				"folder_uid": folderUID,
 			},
 		}
 
 		ruleUIDsMap[ruleUID] = struct{}{}
+		folderUIDsMap[folderUID] = struct{}{}
 	}
 
 	notificationErrStr := ""
@@ -179,11 +184,13 @@ func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryE
 	}
 
 	ruleUIDs := slices.Sorted(maps.Keys(ruleUIDsMap))
+	folderUIDs := slices.Sorted(maps.Keys(folderUIDsMap))
 
 	entry := NotificationHistoryLokiEntry{
 		SchemaVersion:  SchemaVersion,
 		UUID:           nhe.UUID,
 		RuleUIDs:       ruleUIDs,
+		FolderUIDs:     folderUIDs,
 		Receiver:       nhe.ReceiverName,
 		Integration:    nhe.IntegrationName,
 		IntegrationIdx: nhe.IntegrationIdx,
@@ -209,9 +216,10 @@ func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryE
 		T: now,
 		V: string(entryJSON),
 		Metadata: map[string]string{
-			"uuid":      nhe.UUID,
-			"receiver":  nhe.ReceiverName,
-			"rule_uids": strings.Join(ruleUIDs, ","),
+			"uuid":        nhe.UUID,
+			"receiver":    nhe.ReceiverName,
+			"rule_uids":   strings.Join(ruleUIDs, ","),
+			"folder_uids": strings.Join(folderUIDs, ","),
 		},
 	}
 

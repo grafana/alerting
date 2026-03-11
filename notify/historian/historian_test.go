@@ -39,7 +39,7 @@ var (
 	testAlerts       = []nfstatus.NotificationHistoryAlert{{
 		Alert: &types.Alert{
 			Alert: model.Alert{
-				Labels:       model.LabelSet{"alertname": "Alert1", alertingModels.RuleUIDLabel: "testRuleUID"},
+				Labels:       model.LabelSet{"alertname": "Alert1", alertingModels.RuleUIDLabel: "testRuleUID", alertingModels.NamespaceUIDLabel: "testFolderUID"},
 				Annotations:  model.LabelSet{"foo": "bar", "__private__": "baz"},
 				StartsAt:     testPipelineTime,
 				EndsAt:       testPipelineTime,
@@ -71,8 +71,8 @@ func TestRecord(t *testing.T) {
 						Values: []lokiclient.Sample{
 							{
 								T:        testNow,
-								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","ruleUIDs":["testRuleUID"],"receiver":"testReceiverName","integration":"testIntegrationName","integrationIdx":42,"groupKey":"testGroupKey","status":"resolved","groupLabels":{"foo":"bar"},"alertCount":1,"retry":false,"duration":1000000000,"pipelineTime":"2025-07-15T16:55:00Z"}`,
-								Metadata: map[string]string{"uuid": testUUID, "receiver": testReceiverName, "rule_uids": "testRuleUID"},
+								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","ruleUIDs":["testRuleUID"],"folderUIDs":["testFolderUID"],"receiver":"testReceiverName","integration":"testIntegrationName","integrationIdx":42,"groupKey":"testGroupKey","status":"resolved","groupLabels":{"foo":"bar"},"alertCount":1,"retry":false,"duration":1000000000,"pipelineTime":"2025-07-15T16:55:00Z"}`,
+								Metadata: map[string]string{"uuid": testUUID, "receiver": testReceiverName, "rule_uids": "testRuleUID", "folder_uids": "testFolderUID"},
 							},
 						},
 					},
@@ -84,8 +84,8 @@ func TestRecord(t *testing.T) {
 						Values: []lokiclient.Sample{
 							{
 								T:        testNow,
-								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","alertIndex":0,"status":"resolved","labels":{"__alert_rule_uid__":"testRuleUID","alertname":"Alert1"},"annotations":{"__private__":"baz","foo":"bar"},"startsAt":"2025-07-15T16:55:00Z","endsAt":"2025-07-15T16:55:00Z","enrichments":{"things":["foo","bar"]}}`,
-								Metadata: map[string]string{"uuid": testUUID, "rule_uid": "testRuleUID"},
+								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","alertIndex":0,"status":"resolved","labels":{"__alert_rule_namespace_uid__":"testFolderUID","__alert_rule_uid__":"testRuleUID","alertname":"Alert1"},"annotations":{"__private__":"baz","foo":"bar"},"startsAt":"2025-07-15T16:55:00Z","endsAt":"2025-07-15T16:55:00Z","enrichments":{"things":["foo","bar"]}}`,
+								Metadata: map[string]string{"uuid": testUUID, "rule_uid": "testRuleUID", "folder_uid": "testFolderUID"},
 							},
 						},
 					},
@@ -104,8 +104,8 @@ func TestRecord(t *testing.T) {
 						Values: []lokiclient.Sample{
 							{
 								T:        testNow,
-								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","ruleUIDs":["testRuleUID"],"receiver":"testReceiverName","integration":"testIntegrationName","integrationIdx":42,"groupKey":"testGroupKey","status":"resolved","groupLabels":{"foo":"bar"},"alertCount":1,"retry":true,"error":"test notification error","duration":1000000000,"pipelineTime":"2025-07-15T16:55:00Z"}`,
-								Metadata: map[string]string{"uuid": testUUID, "receiver": testReceiverName, "rule_uids": "testRuleUID"},
+								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","ruleUIDs":["testRuleUID"],"folderUIDs":["testFolderUID"],"receiver":"testReceiverName","integration":"testIntegrationName","integrationIdx":42,"groupKey":"testGroupKey","status":"resolved","groupLabels":{"foo":"bar"},"alertCount":1,"retry":true,"error":"test notification error","duration":1000000000,"pipelineTime":"2025-07-15T16:55:00Z"}`,
+								Metadata: map[string]string{"uuid": testUUID, "receiver": testReceiverName, "rule_uids": "testRuleUID", "folder_uids": "testFolderUID"},
 							},
 						},
 					},
@@ -117,8 +117,8 @@ func TestRecord(t *testing.T) {
 						Values: []lokiclient.Sample{
 							{
 								T:        testNow,
-								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","alertIndex":0,"status":"resolved","labels":{"__alert_rule_uid__":"testRuleUID","alertname":"Alert1"},"annotations":{"__private__":"baz","foo":"bar"},"startsAt":"2025-07-15T16:55:00Z","endsAt":"2025-07-15T16:55:00Z","enrichments":{"things":["foo","bar"]}}`,
-								Metadata: map[string]string{"uuid": testUUID, "rule_uid": "testRuleUID"},
+								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","alertIndex":0,"status":"resolved","labels":{"__alert_rule_namespace_uid__":"testFolderUID","__alert_rule_uid__":"testRuleUID","alertname":"Alert1"},"annotations":{"__private__":"baz","foo":"bar"},"startsAt":"2025-07-15T16:55:00Z","endsAt":"2025-07-15T16:55:00Z","enrichments":{"things":["foo","bar"]}}`,
+								Metadata: map[string]string{"uuid": testUUID, "rule_uid": "testRuleUID", "folder_uid": "testFolderUID"},
 							},
 						},
 					},
