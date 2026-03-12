@@ -158,7 +158,7 @@ func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryE
 		ts := now.Add(time.Nanosecond * time.Duration(i))
 
 		ruleUID := entryAlert.Labels[models.RuleUIDLabel]
-		folderUID := entryAlert.Labels[models.NamespaceUIDLabel]
+		folderUID := entryAlert.Annotations[models.NamespaceUIDLabel]
 		alertsValues[i] = lokiclient.Sample{
 			T: ts,
 			V: string(entryAlertJSON),

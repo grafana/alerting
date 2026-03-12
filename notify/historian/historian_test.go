@@ -39,8 +39,8 @@ var (
 	testAlerts       = []nfstatus.NotificationHistoryAlert{{
 		Alert: &types.Alert{
 			Alert: model.Alert{
-				Labels:       model.LabelSet{"alertname": "Alert1", alertingModels.RuleUIDLabel: "testRuleUID", alertingModels.NamespaceUIDLabel: "testFolderUID"},
-				Annotations:  model.LabelSet{"foo": "bar", "__private__": "baz"},
+				Labels:       model.LabelSet{"alertname": "Alert1", alertingModels.RuleUIDLabel: "testRuleUID"},
+				Annotations:  model.LabelSet{"foo": "bar", "__private__": "baz", alertingModels.NamespaceUIDLabel: "testFolderUID"},
 				StartsAt:     testPipelineTime,
 				EndsAt:       testPipelineTime,
 				GeneratorURL: "http://localhost/test",
@@ -84,7 +84,7 @@ func TestRecord(t *testing.T) {
 						Values: []lokiclient.Sample{
 							{
 								T:        testNow,
-								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","alertIndex":0,"status":"resolved","labels":{"__alert_rule_namespace_uid__":"testFolderUID","__alert_rule_uid__":"testRuleUID","alertname":"Alert1"},"annotations":{"__private__":"baz","foo":"bar"},"startsAt":"2025-07-15T16:55:00Z","endsAt":"2025-07-15T16:55:00Z","enrichments":{"things":["foo","bar"]}}`,
+								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","alertIndex":0,"status":"resolved","labels":{"__alert_rule_uid__":"testRuleUID","alertname":"Alert1"},"annotations":{"__alert_rule_namespace_uid__":"testFolderUID","__private__":"baz","foo":"bar"},"startsAt":"2025-07-15T16:55:00Z","endsAt":"2025-07-15T16:55:00Z","enrichments":{"things":["foo","bar"]}}`,
 								Metadata: map[string]string{"uuid": testUUID, "rule_uid": "testRuleUID", "folder_uid": "testFolderUID"},
 							},
 						},
@@ -117,7 +117,7 @@ func TestRecord(t *testing.T) {
 						Values: []lokiclient.Sample{
 							{
 								T:        testNow,
-								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","alertIndex":0,"status":"resolved","labels":{"__alert_rule_namespace_uid__":"testFolderUID","__alert_rule_uid__":"testRuleUID","alertname":"Alert1"},"annotations":{"__private__":"baz","foo":"bar"},"startsAt":"2025-07-15T16:55:00Z","endsAt":"2025-07-15T16:55:00Z","enrichments":{"things":["foo","bar"]}}`,
+								V:        `{"schemaVersion":2,"uuid":"00000000-0000-0000-0000-000000000001","alertIndex":0,"status":"resolved","labels":{"__alert_rule_uid__":"testRuleUID","alertname":"Alert1"},"annotations":{"__alert_rule_namespace_uid__":"testFolderUID","__private__":"baz","foo":"bar"},"startsAt":"2025-07-15T16:55:00Z","endsAt":"2025-07-15T16:55:00Z","enrichments":{"things":["foo","bar"]}}`,
 								Metadata: map[string]string{"uuid": testUUID, "rule_uid": "testRuleUID", "folder_uid": "testFolderUID"},
 							},
 						},
