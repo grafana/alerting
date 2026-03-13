@@ -134,6 +134,7 @@ func TestRecord(t *testing.T) {
 				h := createTestNotificationHistorian(req, writesTotal, writesFailed)
 				h.Record(context.Background(), nfstatus.NotificationHistoryEntry{
 					UUID:            testUUID,
+					Timestamp:       testNow,
 					Alerts:          testAlerts,
 					GroupKey:        testGroupKey,
 					Retry:           tc.retry,
@@ -176,6 +177,7 @@ func TestRecord(t *testing.T) {
 
 		nhe := nfstatus.NotificationHistoryEntry{
 			UUID:            testUUID,
+			Timestamp:       testNow,
 			Alerts:          testAlerts,
 			GroupKey:        testGroupKey,
 			Retry:           false,
