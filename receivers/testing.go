@@ -15,15 +15,24 @@ type NotificationServiceMock struct {
 	StatusCode   int
 }
 
-func (ns *NotificationServiceMock) SendWebhook(_ context.Context, _ log.Logger, cmd *SendWebhookSettings) error {
+func (ns *NotificationServiceMock) SendWebhook(_ context.Context, _ log.Logger, cmd *SendWebhookSettings) (*WebhookResponse, error) {
 	ns.WebhookCalls = append(ns.WebhookCalls, *cmd)
 	ns.Webhook = *cmd
 
-	if cmd.Validation != nil && ns.ResponseBody != nil && ns.StatusCode != 0 {
-		ns.ShouldError = cmd.Validation(ns.ResponseBody, 200)
+	var resp *WebhookResponse
+	if ns.ResponseBody != nil {
+		resp = &WebhookResponse{
+			StatusCode: ns.StatusCode,
+			Body:       ns.ResponseBody,
+			Headers:    make(map[string][]string),
+		}
 	}
 
-	return ns.ShouldError
+	if cmd.Validation != nil && ns.ResponseBody != nil && ns.StatusCode != 0 {
+		ns.ShouldError = cmd.Validation(ns.ResponseBody, ns.StatusCode)
+	}
+
+	return resp, ns.ShouldError
 }
 
 func (ns *NotificationServiceMock) SendEmail(_ context.Context, cmd *SendEmailSettings) error {
@@ -40,7 +49,7 @@ type Call struct {
 
 type MockWebhookSender struct {
 	Calls           []Call
-	SendWebhookFunc func(ctx context.Context, cmd *SendWebhookSettings) error
+	SendWebhookFunc func(ctx context.Context, cmd *SendWebhookSettings) (*WebhookResponse, error)
 }
 
 func NewMockWebhookSender() *MockWebhookSender {
@@ -49,7 +58,7 @@ func NewMockWebhookSender() *MockWebhookSender {
 	}
 }
 
-func (m *MockWebhookSender) SendWebhook(ctx context.Context, l log.Logger, cmd *SendWebhookSettings) error {
+func (m *MockWebhookSender) SendWebhook(ctx context.Context, l log.Logger, cmd *SendWebhookSettings) (*WebhookResponse, error) {
 	m.Calls = append(m.Calls, Call{
 		Method: "SendWebhook",
 		Args:   []interface{}{ctx, l, cmd},
@@ -58,5 +67,5 @@ func (m *MockWebhookSender) SendWebhook(ctx context.Context, l log.Logger, cmd *
 	if m.SendWebhookFunc != nil {
 		return m.SendWebhookFunc(ctx, cmd)
 	}
-	return nil
+	return &WebhookResponse{StatusCode: 200, Body: []byte("{}"), Headers: make(map[string][]string)}, nil
 }

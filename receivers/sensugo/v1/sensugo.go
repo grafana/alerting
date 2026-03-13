@@ -135,7 +135,7 @@ func (sn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 			"Authorization": fmt.Sprintf("Key %s", sn.settings.APIKey),
 		},
 	}
-	if err := sn.ns.SendWebhook(ctx, l, cmd); err != nil {
+	if _, err := sn.ns.SendWebhook(ctx, l, cmd); err != nil {
 		level.Error(l).Log("msg", "failed to send Sensu Go event", "err", err)
 		return false, err
 	}

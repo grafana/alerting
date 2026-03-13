@@ -326,7 +326,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		cmd.Validation = validateResponse(l)
 	}
 
-	if err := tn.ns.SendWebhook(ctx, l, cmd); err != nil {
+	if _, err := tn.ns.SendWebhook(ctx, l, cmd); err != nil {
 		return false, errors.Wrap(err, "send notification to Teams")
 	}
 
