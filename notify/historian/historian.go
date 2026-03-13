@@ -128,7 +128,7 @@ func (h *NotificationHistorian) Record(ctx context.Context, nhe nfstatus.Notific
 // 1. Contains a log line per notification, and contains metadata about the notification as a whole.
 // 2. Contains a log line per alert per notification, and a UUID linking back to the notification.
 func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryEntry) ([]lokiclient.Stream, error) {
-	now := time.Now()
+	now := nhe.Timestamp
 	alertsValues := make([]lokiclient.Sample, len(nhe.Alerts))
 	ruleUIDsMap := make(map[string]struct{})
 	folderUIDsMap := make(map[string]struct{})

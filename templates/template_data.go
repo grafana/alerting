@@ -24,6 +24,7 @@ import (
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/alerting/models"
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates/gomplate"
 	"github.com/grafana/alerting/utils"
 )
@@ -151,6 +152,11 @@ type ExtendedData struct {
 
 	// Most notifiers don't truncate alerts, but a nil or zero default is safe in those cases.
 	TruncatedAlerts *int `json:"truncatedAlerts,omitempty"`
+
+	// NotificationID uniquely identifies this notification attempt. It is a composite
+	// of UUID and timestamp in the form "<uuid>?ts=<unix_millis>", which can be used to
+	// link back to the notification history entry.
+	NotificationID string `json:"notificationID,omitempty"`
 
 	// Optional variables for templating, currently only used for webhook custom payloads.
 	Vars map[string]string `json:"-"`
@@ -382,6 +388,10 @@ func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l log.
 		data.GroupKey = groupKey.String()
 	} else {
 		level.Debug(l).Log("msg", "failed to extract group key from context", "err", err.Error())
+	}
+
+	if notificationID, ok := receivers.GetNotificationIDFromContext(ctx); ok {
+		data.NotificationID = notificationID
 	}
 
 	return func(name string) (s string) {
