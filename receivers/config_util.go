@@ -7,7 +7,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type DecryptFunc func(key string, fallback string) string
+type DecryptFunc func(key string, fallback string) (string, bool)
+
+// Get calls the DecryptFunc and returns only the decrypted value, discarding the availability flag.
+func (fn DecryptFunc) Get(key string, fallback string) string {
+	v, _ := fn(key, fallback)
+	return v
+}
 
 type CommaSeparatedStrings []string
 

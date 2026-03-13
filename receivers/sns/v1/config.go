@@ -64,8 +64,8 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		settings.Message = templates.DefaultMessageEmbed
 	}
 
-	settings.Sigv4.AccessKey = decryptFn("sigv4.access_key", settings.Sigv4.AccessKey)
-	settings.Sigv4.SecretKey = decryptFn("sigv4.secret_key", settings.Sigv4.SecretKey)
+	settings.Sigv4.AccessKey = decryptFn.Get("sigv4.access_key", settings.Sigv4.AccessKey)
+	settings.Sigv4.SecretKey = decryptFn.Get("sigv4.secret_key", settings.Sigv4.SecretKey)
 	if settings.Sigv4.AccessKey == "" && settings.Sigv4.SecretKey != "" || settings.Sigv4.AccessKey != "" && settings.Sigv4.SecretKey == "" {
 		return Config{}, errors.New("must specify both access key and secret key")
 	}
