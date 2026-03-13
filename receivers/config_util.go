@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/grafana/alerting/receivers/schema"
 )
 
 type DecryptFunc func(key string, fallback string) (string, bool)
@@ -15,6 +17,10 @@ type DecryptFunc func(key string, fallback string) (string, bool)
 func (fn DecryptFunc) Get(key string, fallback string) string {
 	v, _ := fn(key, fallback)
 	return v
+}
+
+func (fn DecryptFunc) GetPath(path schema.IntegrationFieldPath) (string, bool) {
+	return fn(path.String(), "")
 }
 
 // DecryptSecret resolves a Secret field by decrypting the value for the given
