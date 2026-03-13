@@ -69,8 +69,8 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		settings.ToUser = DefaultToUser
 	}
 
-	settings.URL = decryptFn("url", settings.URL)
-	settings.Secret = decryptFn("secret", settings.Secret)
+	settings.URL = decryptFn.Get("url", settings.URL)
+	settings.Secret = decryptFn.Get("secret", settings.Secret)
 
 	if len(settings.URL) == 0 && len(settings.Secret) == 0 {
 		return settings, errors.New("either url or secret is required")

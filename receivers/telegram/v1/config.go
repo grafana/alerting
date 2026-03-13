@@ -37,7 +37,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
-	settings.BotToken = decryptFn("bottoken", settings.BotToken)
+	settings.BotToken = decryptFn.Get("bottoken", settings.BotToken)
 	if settings.BotToken == "" {
 		return settings, errors.New("could not find Bot Token in settings")
 	}

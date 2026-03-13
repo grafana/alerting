@@ -66,7 +66,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
-	settings.Key = decryptFn("integrationKey", settings.Key)
+	settings.Key = decryptFn.Get("integrationKey", settings.Key)
 	if settings.Key == "" {
 		return Config{}, errors.New("could not find integration key property in settings")
 	}
