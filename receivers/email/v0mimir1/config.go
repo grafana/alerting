@@ -73,6 +73,12 @@ func (c *Config) Validate() error {
 	if err := c.validate(); err != nil {
 		return err
 	}
+	if c.Smarthost.String() == "" {
+		return errors.New("missing smarthost in email config")
+	}
+	if c.From == "" {
+		return errors.New("missing from address in email config")
+	}
 	if err := c.TLSConfig.Validate(); err != nil {
 		return fmt.Errorf("invalid tls_config: %w", err)
 	}
