@@ -134,7 +134,7 @@ func TestNewConfig(t *testing.T) {
 			name:              "Invalid webhook URL from secrets",
 			settings:          `{}`,
 			secrets:           map[string][]byte{"webhook_url": []byte("://invalid")},
-			expectedInitError: "invalid webhook_url",
+			expectedInitError: "invalid URL for webhook_url",
 		},
 		{
 			name:     "FullValidConfigForTesting is valid",

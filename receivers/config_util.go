@@ -45,7 +45,7 @@ func (fn DecryptFunc) DecryptSecretURL(key string) (SecretURL, bool, error) {
 	}
 	parsedURL, err := url.Parse(raw)
 	if err != nil {
-		return SecretURL{}, true, fmt.Errorf("invalid %s %q: %w", key, raw, err)
+		return SecretURL{}, true, fmt.Errorf("invalid URL for %s: %w", key, err)
 	}
 	return SecretURL{URL: parsedURL}, true, nil
 }

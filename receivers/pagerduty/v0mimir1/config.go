@@ -109,6 +109,18 @@ func NewConfig(jsonData json.RawMessage, decrypt receivers.DecryptFunc) (Config,
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to decrypt http_config: %w", err)
 	}
+	// Apply the same normalization as UnmarshalYAML.
+	if settings.Details == nil {
+		settings.Details = make(map[string]string)
+	}
+	if settings.Source == "" {
+		settings.Source = settings.Client
+	}
+	for k, v := range DefaultPagerdutyDetails {
+		if _, ok := settings.Details[k]; !ok {
+			settings.Details[k] = v
+		}
+	}
 	if err := settings.Validate(); err != nil {
 		return Config{}, err
 	}

@@ -301,6 +301,8 @@ func TestNewConfig(t *testing.T) {
 				Description:    DefaultConfig.Description,
 				Client:         DefaultConfig.Client,
 				ClientURL:      DefaultConfig.ClientURL,
+				Source:         DefaultConfig.Client,
+				Details:        DefaultPagerdutyDetails,
 			},
 		},
 		{
@@ -317,6 +319,8 @@ func TestNewConfig(t *testing.T) {
 				Description:    DefaultConfig.Description,
 				Client:         DefaultConfig.Client,
 				ClientURL:      DefaultConfig.ClientURL,
+				Source:         DefaultConfig.Client,
+				Details:        DefaultPagerdutyDetails,
 			},
 		},
 		{
@@ -337,7 +341,54 @@ func TestNewConfig(t *testing.T) {
 				Description:    DefaultConfig.Description,
 				Client:         DefaultConfig.Client,
 				ClientURL:      DefaultConfig.ClientURL,
+				Source:         DefaultConfig.Client,
+				Details:        DefaultPagerdutyDetails,
 			},
+		},
+		{
+			name: "Source defaults to Client when empty",
+			settings: `{
+				"url": "http://localhost",
+				"routing_key": "test-key",
+				"client": "custom-client"
+			}`,
+			expectedConfig: Config{
+				NotifierConfig: receivers.NotifierConfig{VSendResolved: true},
+				HTTPConfig:     &defaultHTTPConfig,
+				URL:            receivers.MustParseURL("http://localhost"),
+				RoutingKey:     "test-key",
+				Description:    DefaultConfig.Description,
+				Client:         "custom-client",
+				ClientURL:      DefaultConfig.ClientURL,
+				Source:         "custom-client",
+				Details:        DefaultPagerdutyDetails,
+			},
+		},
+		{
+			name: "Details merges with defaults",
+			settings: `{
+				"url": "http://localhost",
+				"routing_key": "test-key",
+				"details": {"custom_key": "custom_value"}
+			}`,
+			expectedConfig: func() Config {
+				details := make(map[string]string)
+				for k, v := range DefaultPagerdutyDetails {
+					details[k] = v
+				}
+				details["custom_key"] = "custom_value"
+				return Config{
+					NotifierConfig: receivers.NotifierConfig{VSendResolved: true},
+					HTTPConfig:     &defaultHTTPConfig,
+					URL:            receivers.MustParseURL("http://localhost"),
+					RoutingKey:     "test-key",
+					Description:    DefaultConfig.Description,
+					Client:         DefaultConfig.Client,
+					ClientURL:      DefaultConfig.ClientURL,
+					Source:         DefaultConfig.Client,
+					Details:        details,
+				}
+			}(),
 		},
 		{
 			name: "Secrets override settings",
@@ -359,6 +410,8 @@ func TestNewConfig(t *testing.T) {
 				Description:    DefaultConfig.Description,
 				Client:         DefaultConfig.Client,
 				ClientURL:      DefaultConfig.ClientURL,
+				Source:         DefaultConfig.Client,
+				Details:        DefaultPagerdutyDetails,
 			},
 		},
 		{
@@ -369,6 +422,12 @@ func TestNewConfig(t *testing.T) {
 				_ = json.Unmarshal([]byte(FullValidConfigForTesting), &cfg)
 				httpCfg := httpcfg.DefaultHTTPClientConfig
 				cfg.HTTPConfig = &httpCfg
+				// NewConfig merges DefaultPagerdutyDetails into Details
+				for k, v := range DefaultPagerdutyDetails {
+					if _, ok := cfg.Details[k]; !ok {
+						cfg.Details[k] = v
+					}
+				}
 				return cfg
 			}(),
 		},
