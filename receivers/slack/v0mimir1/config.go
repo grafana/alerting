@@ -15,6 +15,7 @@
 package v0mimir1
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -85,9 +86,35 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return c.validate()
 }
 
+// NewConfig creates a Config from raw JSON and a decrypt function for secure fields.
+func NewConfig(jsonData json.RawMessage, decrypt receivers.DecryptFunc) (Config, error) {
+	settings := DefaultConfig
+	var err error
+	if err := json.Unmarshal(jsonData, &settings); err != nil {
+		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
+	}
+	if apiURL, ok, err := decrypt.DecryptSecretURL("api_url"); ok {
+		if err != nil {
+			return Config{}, fmt.Errorf("failed to decrypt api_url: %w", err)
+		}
+		settings.APIURL = &apiURL
+	}
+	settings.HTTPConfig, err = httpcfg.DecryptHTTPConfig("http_config", settings.HTTPConfig, decrypt)
+	if err != nil {
+		return Config{}, fmt.Errorf("failed to decrypt http_config: %w", err)
+	}
+	if err := settings.Validate(); err != nil {
+		return Config{}, err
+	}
+	return settings, nil
+}
+
 func (c *Config) Validate() error {
 	if err := c.validate(); err != nil {
 		return err
+	}
+	if c.APIURL == nil {
+		return errors.New("missing api_url")
 	}
 	for i, field := range c.Fields {
 		if err := field.Validate(); err != nil {

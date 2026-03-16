@@ -14,10 +14,15 @@
 package v0mimir1
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
+	"github.com/grafana/alerting/receivers"
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 )
 
 func TestLoadSlackConfiguration(t *testing.T) {
@@ -291,14 +296,225 @@ func newBoolPointer(b bool) *bool {
 }
 
 func TestValidate(t *testing.T) {
-	t.Run("GetFullValidConfig is valid", func(t *testing.T) {
-		cfg := GetFullValidConfig()
-		require.NoError(t, cfg.Validate())
-	})
 	t.Run("FullValidConfigForTesting is valid", func(t *testing.T) {
 		var cfg Config
 		err := yaml.UnmarshalStrict([]byte(FullValidConfigForTesting), &cfg)
 		require.NoError(t, err)
 		require.NoError(t, cfg.Validate())
 	})
+	cases := []struct {
+		name        string
+		mutate      func(cfg *Config)
+		expectedErr string
+	}{
+		{
+			name:   "GetFullValidConfig is valid",
+			mutate: func(cfg *Config) {},
+		},
+		{
+			name:        "Missing api_url",
+			mutate:      func(cfg *Config) { cfg.APIURL = nil },
+			expectedErr: "missing api_url in slack config",
+		},
+		{
+			name: "Invalid field - missing title",
+			mutate: func(cfg *Config) {
+				cfg.Fields = []*SlackField{{Value: "val"}}
+			},
+			expectedErr: "invalid fields[0]: missing title",
+		},
+		{
+			name: "Invalid field - missing value",
+			mutate: func(cfg *Config) {
+				cfg.Fields = []*SlackField{{Title: "title"}}
+			},
+			expectedErr: "invalid fields[0]: missing value",
+		},
+		{
+			name: "Invalid action - missing type",
+			mutate: func(cfg *Config) {
+				cfg.Actions = []*SlackAction{{Text: "text", URL: "http://localhost"}}
+			},
+			expectedErr: "invalid actions[0]: missing type",
+		},
+		{
+			name: "Invalid action - missing text",
+			mutate: func(cfg *Config) {
+				cfg.Actions = []*SlackAction{{Type: "button", URL: "http://localhost"}}
+			},
+			expectedErr: "invalid actions[0]: missing text",
+		},
+		{
+			name: "Invalid action - missing name or url",
+			mutate: func(cfg *Config) {
+				cfg.Actions = []*SlackAction{{Type: "button", Text: "text"}}
+			},
+			expectedErr: "invalid actions[0]: missing name or url",
+		},
+		{
+			name: "Invalid action confirm - missing text",
+			mutate: func(cfg *Config) {
+				cfg.Actions = []*SlackAction{{
+					Type: "button", Text: "text", Name: "name",
+					ConfirmField: &SlackConfirmationField{Title: "title"},
+				}}
+			},
+			expectedErr: "invalid actions[0]: invalid confirm: missing text",
+		},
+		{
+			name: "Invalid http_config",
+			mutate: func(cfg *Config) {
+				cfg.HTTPConfig = &httpcfg.HTTPClientConfig{
+					BasicAuth: &httpcfg.BasicAuth{},
+					OAuth2:    &httpcfg.OAuth2{},
+				}
+			},
+			expectedErr: "invalid http_config",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			cfg := GetFullValidConfig()
+			c.mutate(&cfg)
+			err := cfg.Validate()
+
+			if c.expectedErr != "" {
+				require.ErrorContains(t, err, c.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestNewConfig(t *testing.T) {
+	defaultHTTPConfig := httpcfg.DefaultHTTPClientConfig
+
+	cases := []struct {
+		name              string
+		settings          string
+		secrets           map[string][]byte
+		expectedConfig    Config
+		expectedInitError string
+	}{
+		{
+			name:              "Error if empty",
+			settings:          "",
+			expectedInitError: "failed to unmarshal settings",
+		},
+		{
+			name:              "Error if missing api_url",
+			settings:          `{"channel": "#test"}`,
+			expectedInitError: "missing api_url in slack config",
+		},
+		{
+			name: "Minimal valid configuration",
+			settings: `{
+				"api_url": "http://slack.example.com/webhook"
+			}`,
+			expectedConfig: Config{
+				NotifierConfig: receivers.NotifierConfig{VSendResolved: false},
+				HTTPConfig:     &defaultHTTPConfig,
+				APIURL:         receivers.MustParseSecretURL("http://slack.example.com/webhook"),
+				Color:          DefaultConfig.Color,
+				Username:       DefaultConfig.Username,
+				Title:          DefaultConfig.Title,
+				TitleLink:      DefaultConfig.TitleLink,
+				IconEmoji:      DefaultConfig.IconEmoji,
+				IconURL:        DefaultConfig.IconURL,
+				Pretext:        DefaultConfig.Pretext,
+				Text:           DefaultConfig.Text,
+				Fallback:       DefaultConfig.Fallback,
+				CallbackID:     DefaultConfig.CallbackID,
+				Footer:         DefaultConfig.Footer,
+			},
+		},
+		{
+			name:     "Secret api_url from decrypt",
+			settings: `{}`,
+			secrets: map[string][]byte{
+				"api_url": []byte("http://slack.example.com/secret-webhook"),
+			},
+			expectedConfig: Config{
+				NotifierConfig: receivers.NotifierConfig{VSendResolved: false},
+				HTTPConfig:     &defaultHTTPConfig,
+				APIURL:         receivers.MustParseSecretURL("http://slack.example.com/secret-webhook"),
+				Color:          DefaultConfig.Color,
+				Username:       DefaultConfig.Username,
+				Title:          DefaultConfig.Title,
+				TitleLink:      DefaultConfig.TitleLink,
+				IconEmoji:      DefaultConfig.IconEmoji,
+				IconURL:        DefaultConfig.IconURL,
+				Pretext:        DefaultConfig.Pretext,
+				Text:           DefaultConfig.Text,
+				Fallback:       DefaultConfig.Fallback,
+				CallbackID:     DefaultConfig.CallbackID,
+				Footer:         DefaultConfig.Footer,
+			},
+		},
+		{
+			name: "Secret overrides setting",
+			settings: `{
+				"api_url": "http://original.example.com/webhook"
+			}`,
+			secrets: map[string][]byte{
+				"api_url": []byte("http://override.example.com/webhook"),
+			},
+			expectedConfig: Config{
+				NotifierConfig: receivers.NotifierConfig{VSendResolved: false},
+				HTTPConfig:     &defaultHTTPConfig,
+				APIURL:         receivers.MustParseSecretURL("http://override.example.com/webhook"),
+				Color:          DefaultConfig.Color,
+				Username:       DefaultConfig.Username,
+				Title:          DefaultConfig.Title,
+				TitleLink:      DefaultConfig.TitleLink,
+				IconEmoji:      DefaultConfig.IconEmoji,
+				IconURL:        DefaultConfig.IconURL,
+				Pretext:        DefaultConfig.Pretext,
+				Text:           DefaultConfig.Text,
+				Fallback:       DefaultConfig.Fallback,
+				CallbackID:     DefaultConfig.CallbackID,
+				Footer:         DefaultConfig.Footer,
+			},
+		},
+		{
+			name:     "FullValidConfigForTesting is valid",
+			settings: FullValidConfigForTesting,
+			expectedConfig: func() Config {
+				cfg := DefaultConfig
+				_ = json.Unmarshal([]byte(FullValidConfigForTesting), &cfg)
+				httpCfg := httpcfg.DefaultHTTPClientConfig
+				cfg.HTTPConfig = &httpCfg
+				// Validate() calls action.validate() which clears Name/Value/ConfirmField when URL is set
+				_ = cfg.Validate()
+				return cfg
+			}(),
+		},
+		{
+			name:     "GetFullValidConfig round-trips through JSON",
+			settings: func() string { b, _ := json.Marshal(GetFullValidConfig()); return string(b) }(),
+			secrets: map[string][]byte{
+				"api_url": []byte(GetFullValidConfig().APIURL.String()),
+			},
+			expectedConfig: func() Config {
+				cfg := GetFullValidConfig()
+				cfg.HTTPConfig = &defaultHTTPConfig
+				return cfg
+			}(),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			actual, err := NewConfig(json.RawMessage(c.settings), receiversTesting.DecryptForTesting(c.secrets))
+
+			if c.expectedInitError != "" {
+				require.ErrorContains(t, err, c.expectedInitError)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, c.expectedConfig, actual)
+		})
+	}
 }
