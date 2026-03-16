@@ -264,8 +264,11 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 		return err
 	}
 
-	decryptFn := func(key string, fallback string) string {
-		return decrypt(ctx, secureSettings, key, fallback)
+	decryptFn := func(key string, fallback string) (string, bool) {
+		if _, ok := secureSettings[key]; !ok {
+			return fallback, false
+		}
+		return decrypt(ctx, secureSettings, key, fallback), true
 	}
 
 	switch strings.ToLower(receiver.Type) {
@@ -516,7 +519,7 @@ func GetActiveReceiversMap(r *dispatch.Route) map[string]struct{} {
 	return receiversMap
 }
 
-func parseHTTPConfig(integration *models.IntegrationConfig, decryptFn func(key string, fallback string) string) (*http.HTTPClientConfig, error) {
+func parseHTTPConfig(integration *models.IntegrationConfig, decryptFn receivers.DecryptFunc) (*http.HTTPClientConfig, error) {
 	httpConfigSettings := struct {
 		HTTPConfig *http.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 	}{}
@@ -535,7 +538,7 @@ func parseHTTPConfig(integration *models.IntegrationConfig, decryptFn func(key s
 	return httpConfigSettings.HTTPConfig, nil
 }
 
-func newNotifierConfig[T interface{}](integration *models.IntegrationConfig, idx int, settings T, decryptFn func(key string, fallback string) string) (*NotifierConfig[T], error) {
+func newNotifierConfig[T interface{}](integration *models.IntegrationConfig, idx int, settings T, decryptFn receivers.DecryptFunc) (*NotifierConfig[T], error) {
 	httpClientConfig, err := parseHTTPConfig(integration, decryptFn)
 	if err != nil {
 		return nil, err
