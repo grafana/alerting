@@ -314,7 +314,7 @@ func TestValidate(t *testing.T) {
 		{
 			name:        "Missing api_url",
 			mutate:      func(cfg *Config) { cfg.APIURL = nil },
-			expectedErr: "missing api_url in slack config",
+			expectedErr: "missing api_url",
 		},
 		{
 			name: "Invalid field - missing title",
@@ -406,7 +406,7 @@ func TestNewConfig(t *testing.T) {
 		{
 			name:              "Error if missing api_url",
 			settings:          `{"channel": "#test"}`,
-			expectedInitError: "missing api_url in slack config",
+			expectedInitError: "missing api_url",
 		},
 		{
 			name: "Minimal valid configuration",
