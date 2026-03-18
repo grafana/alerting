@@ -240,6 +240,10 @@ func InitSchema(s IntegrationTypeSchema) IntegrationTypeSchema {
 
 type IntegrationFieldPath []string
 
+func NewIntegrationFieldPath(segments ...string) IntegrationFieldPath {
+	return segments
+}
+
 func ParseIntegrationPath(path string) IntegrationFieldPath {
 	return strings.Split(path, ".")
 }

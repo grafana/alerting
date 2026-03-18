@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -127,4 +128,65 @@ func TestNotify(t *testing.T) {
 			require.JSONEq(t, c.expMsg, notificationService.Webhook.Body)
 		})
 	}
+}
+
+func TestNotify_ExtraData(t *testing.T) {
+	tmpl := templates.ForTests(t)
+
+	externalURL, err := url.Parse("http://localhost")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+
+	settings := Config{
+		Message: `{{ range $i, $a := .Alerts }}Alert {{ $i }}: {{ printf "%s" $a.ExtraData }} {{ end }}`,
+		RoomID:  "someid",
+		APIURL:  DefaultAPIURL,
+		Token:   "abcdefgh0123456789",
+	}
+
+	// Create test alerts
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		},
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+				Annotations: model.LabelSet{"ann1": "annv2"},
+			},
+		},
+	}
+
+	// Create extra data that will be passed via context
+	extraData1 := json.RawMessage(`{"customField": "customValue1", "priority": "high"}`)
+	extraData2 := json.RawMessage(`{"customField": "customValue2", "priority": "medium"}`)
+	extraDataSlice := []json.RawMessage{extraData1, extraData2}
+
+	notificationService := receivers.MockNotificationService()
+
+	n := &Notifier{
+		Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+		ns:       notificationService,
+		tmpl:     tmpl,
+		settings: settings,
+		images:   &images2.UnavailableProvider{},
+	}
+
+	// Create context with extra data
+	ctx := notify.WithGroupKey(context.Background(), "alertname")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+	ctx = context.WithValue(ctx, receivers.ExtraDataKey, extraDataSlice)
+
+	// Call Notify
+	ok, err := n.Notify(ctx, alerts...)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	// Verify that extra data is present in the request body (markdown field)
+	require.Contains(t, notificationService.Webhook.Body, "customField")
+	require.Contains(t, notificationService.Webhook.Body, "customValue1")
+	require.Contains(t, notificationService.Webhook.Body, "customValue2")
 }

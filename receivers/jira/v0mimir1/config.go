@@ -15,7 +15,9 @@
 package v0mimir1
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/prometheus/common/model"
 
@@ -74,6 +76,42 @@ func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		c.Fields = pl.CustomFieldsJson
 	}
 
+	return c.validate()
+}
+
+// NewConfig creates a Config from raw JSON and a decrypt function for secure fields.
+func NewConfig(jsonData json.RawMessage, decrypt receivers.DecryptFunc) (Config, error) {
+	settings := DefaultConfig
+	var err error
+	if err := json.Unmarshal(jsonData, &settings); err != nil {
+		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
+	}
+	settings.HTTPConfig, err = httpcfg.DecryptHTTPConfig("http_config", settings.HTTPConfig, decrypt)
+	if err != nil {
+		return Config{}, fmt.Errorf("failed to decrypt http_config: %w", err)
+	}
+	if err := settings.Validate(); err != nil {
+		return Config{}, err
+	}
+	return settings, nil
+}
+
+func (c *Config) Validate() error {
+	if err := c.validate(); err != nil {
+		return err
+	}
+	if c.APIURL == nil {
+		return errors.New("missing api_url in jira_config")
+	}
+	if c.HTTPConfig != nil {
+		if err := c.HTTPConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid http_config: %w", err)
+		}
+	}
+	return nil
+}
+
+func (c *Config) validate() error {
 	if c.Project == "" {
 		return errors.New("missing project in jira_config")
 	}
