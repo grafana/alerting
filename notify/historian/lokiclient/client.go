@@ -451,7 +451,7 @@ func (c *HTTPLokiClient) handleLokiResponse(logger log.Logger, res *http.Respons
 		} else {
 			level.Error(logger).Log("msg", "Error response from Loki with an empty body", "status", res.StatusCode)
 		}
-		return nil, fmt.Errorf("received a non-200 response from loki, status: %d", res.StatusCode)
+		return nil, fmt.Errorf("received a non-200 response from loki, status: %d, body: %q", res.StatusCode, string(data))
 	}
 
 	return data, nil
