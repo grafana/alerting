@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/receivers"
 )
 
 var (
@@ -26,6 +29,7 @@ type NotificationHistoryAlert struct {
 
 type NotificationHistoryEntry struct {
 	UUID            string
+	Timestamp       time.Time
 	Alerts          []NotificationHistoryAlert
 	GroupKey        string
 	Retry           bool
@@ -43,6 +47,9 @@ func (e NotificationHistoryEntry) Validate() error {
 
 	if e.UUID == "" {
 		errs = append(errs, errors.New("missing UUID"))
+	}
+	if e.Timestamp.IsZero() {
+		errs = append(errs, errors.New("missing timestamp"))
 	}
 	if e.ReceiverName == "" {
 		errs = append(errs, errors.New("missing receiver name"))
@@ -179,11 +186,18 @@ type statusCaptureNotifier struct {
 
 // Notify implements the Notifier interface.
 func (n *statusCaptureNotifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
+	// Generate a notification ID so the receiver can link back to the history entry.
+	// The ID is a composite of UUID and timestamp.
+	nfUUID := newUUID()
+	nfTimestamp := time.Now()
+	notificationID := fmt.Sprintf("%s?ts=%d", nfUUID, nfTimestamp.UnixMilli())
+	ctx = context.WithValue(ctx, receivers.NotificationIDKey, notificationID)
+
 	start := time.Now()
 	info, retry, err := n.upstream.Notify(ctx, alerts...)
 	duration := time.Since(start)
 
-	go n.recordNotificationHistory(ctx, alerts, retry, err, duration, info)
+	go n.recordNotificationHistory(ctx, nfUUID, nfTimestamp, alerts, retry, err, duration, info)
 
 	n.mtx.Lock()
 	defer n.mtx.Unlock()
@@ -195,7 +209,7 @@ func (n *statusCaptureNotifier) Notify(ctx context.Context, alerts ...*types.Ale
 	return retry, err
 }
 
-func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, alerts []*types.Alert, retry bool, err error, duration time.Duration, info NotifyInfo) {
+func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, nfUUID string, nfTimestamp time.Time, alerts []*types.Alert, retry bool, err error, duration time.Duration, info NotifyInfo) {
 	if n.notificationHistorian == nil {
 		return
 	}
@@ -219,7 +233,8 @@ func (n *statusCaptureNotifier) recordNotificationHistory(ctx context.Context, a
 	}
 
 	entry := NotificationHistoryEntry{
-		UUID:            newUUID(),
+		UUID:            nfUUID,
+		Timestamp:       nfTimestamp,
 		Alerts:          entryAlerts,
 		GroupKey:        groupKey,
 		Retry:           retry,

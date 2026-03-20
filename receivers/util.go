@@ -229,10 +229,17 @@ func (s *defaultSender) SendHTTPRequest(ctx context.Context, url *url.URL, cfg H
 }
 
 type extraDataKey int
+type notificationIDKey int
 
 const (
-	ExtraDataKey extraDataKey = iota
+	ExtraDataKey      extraDataKey      = iota
+	NotificationIDKey notificationIDKey = iota
 )
+
+func GetNotificationIDFromContext(ctx context.Context) (string, bool) {
+	v, ok := ctx.Value(NotificationIDKey).(string)
+	return v, ok
+}
 
 func GetExtraDataFromContext(ctx context.Context) ([]json.RawMessage, bool) {
 	v, ok := ctx.Value(ExtraDataKey).([]json.RawMessage)

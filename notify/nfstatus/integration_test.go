@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -144,6 +145,11 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 
 	actual := notificationHistorian.Calls[0].Arguments.Get(1).(NotificationHistoryEntry)
 	actual.Duration = 0 // Zero out duration to make comparison easier.
+
+	assert.False(t, actual.Timestamp.IsZero(), "Timestamp should be set")
+	nfTimestamp := actual.Timestamp
+	actual.Timestamp = time.Time{} // Zero out for comparison.
+
 	expected := NotificationHistoryEntry{
 		UUID: "my-uuid",
 		Alerts: []NotificationHistoryAlert{{
@@ -161,6 +167,12 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 		PipelineTime:    testPipelineTime,
 	}
 	assert.Equal(t, expected, actual)
+
+	// Verify that the notification ID in context was the composite of UUID and timestamp.
+	capturedCtx := notificationHistorian.Calls[0].Arguments.Get(0).(context.Context)
+	notificationID, ok := receivers.GetNotificationIDFromContext(capturedCtx)
+	assert.True(t, ok)
+	assert.Equal(t, fmt.Sprintf("my-uuid?ts=%d", nfTimestamp.UnixMilli()), notificationID)
 }
 
 func TestNotificationHistoryEntry_Validate(t *testing.T) {
@@ -176,6 +188,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 			name: "valid entry passes validation",
 			entry: NotificationHistoryEntry{
 				UUID:         "test-uuid",
+				Timestamp:    now,
 				ReceiverName: "test-receiver",
 				GroupLabels:  model.LabelSet{"foo": "bar"},
 				PipelineTime: now,
@@ -187,6 +200,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 			name: "empty group labels is valid",
 			entry: NotificationHistoryEntry{
 				UUID:         "test-uuid",
+				Timestamp:    now,
 				ReceiverName: "test-receiver",
 				GroupLabels:  model.LabelSet{},
 				PipelineTime: now,
@@ -198,6 +212,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 			name: "missing UUID",
 			entry: NotificationHistoryEntry{
 				UUID:         "",
+				Timestamp:    now,
 				ReceiverName: "test-receiver",
 				GroupLabels:  model.LabelSet{"foo": "bar"},
 				PipelineTime: now,
@@ -207,9 +222,23 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 			expectedErrSubstr: []string{"missing UUID"},
 		},
 		{
+			name: "missing timestamp",
+			entry: NotificationHistoryEntry{
+				UUID:         "test-uuid",
+				Timestamp:    time.Time{},
+				ReceiverName: "test-receiver",
+				GroupLabels:  model.LabelSet{"foo": "bar"},
+				PipelineTime: now,
+				GroupKey:     "test-group-key",
+			},
+			wantErr:           true,
+			expectedErrSubstr: []string{"missing timestamp"},
+		},
+		{
 			name: "missing receiver name",
 			entry: NotificationHistoryEntry{
 				UUID:         "test-uuid",
+				Timestamp:    now,
 				ReceiverName: "",
 				GroupLabels:  model.LabelSet{"foo": "bar"},
 				PipelineTime: now,
@@ -222,6 +251,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 			name: "missing group labels",
 			entry: NotificationHistoryEntry{
 				UUID:         "test-uuid",
+				Timestamp:    now,
 				ReceiverName: "test-receiver",
 				GroupLabels:  nil,
 				PipelineTime: now,
@@ -234,6 +264,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 			name: "missing pipeline time",
 			entry: NotificationHistoryEntry{
 				UUID:         "test-uuid",
+				Timestamp:    now,
 				ReceiverName: "test-receiver",
 				GroupLabels:  model.LabelSet{"foo": "bar"},
 				PipelineTime: time.Time{},
@@ -246,6 +277,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 			name: "missing group key",
 			entry: NotificationHistoryEntry{
 				UUID:         "test-uuid",
+				Timestamp:    now,
 				ReceiverName: "test-receiver",
 				GroupLabels:  model.LabelSet{"foo": "bar"},
 				PipelineTime: now,
@@ -258,6 +290,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 			name: "multiple validation errors are joined",
 			entry: NotificationHistoryEntry{
 				UUID:         "",
+				Timestamp:    time.Time{},
 				ReceiverName: "",
 				GroupLabels:  nil,
 				PipelineTime: time.Time{},
@@ -266,6 +299,7 @@ func TestNotificationHistoryEntry_Validate(t *testing.T) {
 			wantErr: true,
 			expectedErrSubstr: []string{
 				"missing UUID",
+				"missing timestamp",
 				"missing receiver name",
 				"missing group labels",
 				"missing pipeline time",

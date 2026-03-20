@@ -1176,3 +1176,57 @@ func TestNotify_ExtraData(t *testing.T) {
 	// Check second alert's extra data
 	require.JSONEq(t, string(extraData2), string(webhookMsg.ExtendedData.Alerts[1].ExtraData))
 }
+
+func TestNotify_NotificationID(t *testing.T) {
+	tmpl := templates.ForTests(t)
+
+	externalURL, err := url.Parse("http://localhost")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+
+	orgID := int64(1)
+
+	settings := Config{
+		URL:        "http://localhost/test",
+		HTTPMethod: http.MethodPost,
+		Title:      templates.DefaultMessageTitleEmbed,
+		Message:    templates.DefaultMessageEmbed,
+	}
+
+	webhookSender := receivers.MockNotificationService()
+	pn := &Notifier{
+		Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+		ns:       webhookSender,
+		tmpl:     tmpl,
+		settings: settings,
+		images:   &images.UnavailableProvider{},
+		orgID:    orgID,
+	}
+
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				GeneratorURL: "http://localhost/test",
+				Labels:       model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations:  model.LabelSet{"ann1": "annv1", models.OrgIDAnnotation: model.LabelValue(fmt.Sprint(orgID))},
+			},
+		},
+	}
+
+	notificationID := "test-uuid-1234?ts=1741693512463"
+
+	ctx := notify.WithGroupKey(context.Background(), "alertname")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+	ctx = notify.WithReceiverName(ctx, "my_receiver")
+	ctx = context.WithValue(ctx, receivers.NotificationIDKey, notificationID)
+
+	ok, err := pn.Notify(ctx, alerts...)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	var webhookMsg webhookMessage
+	err = json.Unmarshal([]byte(webhookSender.Webhook.Body), &webhookMsg)
+	require.NoError(t, err)
+
+	require.Equal(t, notificationID, webhookMsg.NotificationID)
+}
