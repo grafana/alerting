@@ -56,7 +56,7 @@ var (
 			DialContext: (&net.Dialer{
 				Timeout: 30 * time.Second,
 			}).DialContext,
-			TLSHandshakeTimeout: 5 * time.Second,
+			TLSHandshakeTimeout: receivers.TLSHandshakeTimeout,
 		},
 	}
 )
