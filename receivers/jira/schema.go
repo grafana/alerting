@@ -6,7 +6,7 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Type schema.IntegrationType = "jira"
+const Type = schema.JiraType
 
 var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
 	Type:           Type,

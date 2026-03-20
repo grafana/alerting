@@ -7,7 +7,7 @@ import (
 	v1 "github.com/grafana/alerting/receivers/teams/v1"
 )
 
-const Type schema.IntegrationType = "teams"
+const Type = schema.TeamsType
 
 var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
 	Type:           Type,

@@ -6,7 +6,7 @@ import (
 	v1 "github.com/grafana/alerting/receivers/telegram/v1"
 )
 
-const Type schema.IntegrationType = "telegram"
+const Type = schema.TelegramType
 
 var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
 	Type:           Type,
