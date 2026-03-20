@@ -259,7 +259,11 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decode De
 
 // parseNotifier parses receivers and populates the corresponding field in GrafanaReceiverConfig. Returns an error if the configuration cannot be parsed.
 func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *models.IntegrationConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn, idx int) error {
-	if receiver.Version != schema.V1 {
+	version, err := schema.VersionFromString(string(receiver.Version))
+	if err != nil {
+		return fmt.Errorf("invalid receiver version: %s", receiver.Version)
+	}
+	if version != schema.V1 {
 		return fmt.Errorf("invalid receiver version: %s", receiver.Version)
 	}
 	secureSettings, err := decode(receiver.SecureSettings)
@@ -523,9 +527,6 @@ func GetActiveReceiversMap(r *dispatch.Route) map[string]struct{} {
 }
 
 func parseHTTPConfig(integration *models.IntegrationConfig, decryptFn receivers.DecryptFunc) (*http.HTTPClientConfig, error) {
-	if integration.Version != schema.V1 {
-		return nil, nil
-	}
 	httpConfigSettings := struct {
 		HTTPConfig *http.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 	}{}
