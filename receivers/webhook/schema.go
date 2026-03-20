@@ -6,7 +6,7 @@ import (
 	v1 "github.com/grafana/alerting/receivers/webhook/v1"
 )
 
-const Type schema.IntegrationType = "webhook"
+const Type = schema.WebhookType
 
 var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
 	Type:           Type,

@@ -6,7 +6,7 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Type schema.IntegrationType = "email"
+const Type = schema.EmailType
 
 var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
 	Type:           Type,

@@ -5,7 +5,7 @@ import (
 	v1 "github.com/grafana/alerting/receivers/threema/v1"
 )
 
-const Type schema.IntegrationType = "threema"
+const Type = schema.ThreemaType
 
 var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
 	Type:        Type,

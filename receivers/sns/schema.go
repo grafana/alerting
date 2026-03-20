@@ -6,7 +6,7 @@ import (
 	v1 "github.com/grafana/alerting/receivers/sns/v1"
 )
 
-const Type schema.IntegrationType = "sns"
+const Type = schema.SNSType
 
 var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
 	Type:           Type,
