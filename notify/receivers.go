@@ -259,6 +259,9 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decode De
 
 // parseNotifier parses receivers and populates the corresponding field in GrafanaReceiverConfig. Returns an error if the configuration cannot be parsed.
 func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *models.IntegrationConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn, idx int) error {
+	if receiver.Version != schema.V1 {
+		return fmt.Errorf("invalid receiver version: %s", receiver.Version)
+	}
 	secureSettings, err := decode(receiver.SecureSettings)
 	if err != nil {
 		return err
