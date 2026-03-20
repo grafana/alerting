@@ -32,6 +32,7 @@ import (
 	"github.com/grafana/alerting/receivers"
 	line "github.com/grafana/alerting/receivers/line/v1"
 	pushover "github.com/grafana/alerting/receivers/pushover/v1"
+	"github.com/grafana/alerting/receivers/schema"
 	telegram "github.com/grafana/alerting/receivers/telegram/v1"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	threema "github.com/grafana/alerting/receivers/threema/v1"
@@ -136,6 +137,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 			UID:      "invalid-test",
 			Name:     "invalid-test",
 			Type:     "slack",
+			Version:  schema.V1,
 			Settings: json.RawMessage(`{ "test" : "test" }`),
 		}
 		recCfg.Integrations = append(recCfg.Integrations, bad)
@@ -191,6 +193,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 			UID:      "test",
 			Name:     "test",
 			Type:     fmt.Sprintf("invalid-%d", rand.Uint32()),
+			Version:  schema.V1,
 			Settings: json.RawMessage(`{ "test" : "test" }`),
 		}
 		recCfg.Integrations = append(recCfg.Integrations, bad)
@@ -238,7 +241,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 				require.NotEmptyf(t, meta.Name, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
 				var notifierRaw *models.IntegrationConfig
 				for _, receiver := range recCfg.Integrations {
-					if receiver.Type == meta.Type && receiver.UID == meta.UID && receiver.Name == meta.Name {
+					if receiver.Type == meta.Type && receiver.UID == meta.UID && receiver.Name == meta.Name && receiver.Version == meta.Version {
 						notifierRaw = receiver
 						break
 					}

@@ -84,6 +84,7 @@ func TestPostableGrafanaReceiverToGrafanaIntegrationConfig(t *testing.T) {
 		UID:                   "test-uid",
 		Name:                  "test-name",
 		Type:                  "slack",
+		Version:               schema.V1,
 		DisableResolveMessage: false,
 		Settings:              json.RawMessage(`{ "data" : "test" }`),
 		SecureSettings: map[string]string{

@@ -6,6 +6,8 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/notify"
+
+	"github.com/grafana/alerting/receivers/schema"
 )
 
 // Base is the base implementation of a notifier. It contains the common fields across all notifier types.
@@ -33,6 +35,7 @@ type Metadata struct {
 	UID                   string
 	Name                  string
 	Type                  string
+	Version               schema.Version
 	DisableResolveMessage bool
 }
 

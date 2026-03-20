@@ -520,6 +520,9 @@ func GetActiveReceiversMap(r *dispatch.Route) map[string]struct{} {
 }
 
 func parseHTTPConfig(integration *models.IntegrationConfig, decryptFn receivers.DecryptFunc) (*http.HTTPClientConfig, error) {
+	if integration.Version != schema.V1 {
+		return nil, nil
+	}
 	httpConfigSettings := struct {
 		HTTPConfig *http.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 	}{}
@@ -549,6 +552,7 @@ func newNotifierConfig[T interface{}](integration *models.IntegrationConfig, idx
 			UID:                   integration.UID,
 			Name:                  integration.Name,
 			Type:                  integration.Type,
+			Version:               integration.Version,
 			DisableResolveMessage: integration.DisableResolveMessage,
 		},
 		Settings:         settings,
