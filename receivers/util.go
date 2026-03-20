@@ -30,6 +30,9 @@ const (
 
 	AlertStateAlerting AlertStateType = "alerting"
 	AlertStateOK       AlertStateType = "ok"
+
+	// TLSHandshakeTimeout is the maximum time to wait for a TLS handshake.
+	TLSHandshakeTimeout = 15 * time.Second
 )
 
 func GetAlertStatusColor(status model.AlertStatus) string {
@@ -192,7 +195,7 @@ func (s *defaultSender) SendHTTPRequest(ctx context.Context, url *url.URL, cfg H
 		DialContext: (&net.Dialer{
 			Timeout: 30 * time.Second,
 		}).DialContext,
-		TLSHandshakeTimeout: 5 * time.Second,
+		TLSHandshakeTimeout: TLSHandshakeTimeout,
 		// Disable keep alive since this is a short lived client
 		DisableKeepAlives: true,
 	}
