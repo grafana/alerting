@@ -192,7 +192,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		bad := &models.IntegrationConfig{
 			UID:      "test",
 			Name:     "test",
-			Type:     fmt.Sprintf("invalid-%d", rand.Uint32()),
+			Type:     schema.IntegrationType(fmt.Sprintf("invalid-%d", rand.Uint32())),
 			Version:  schema.V1,
 			Settings: json.RawMessage(`{ "test" : "test" }`),
 		}
@@ -216,7 +216,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, recCfg.Name, parsed.Name)
 
-		expectedNotifiers := make(map[string]struct{})
+		expectedNotifiers := make(map[schema.IntegrationType]struct{})
 		for _, notifier := range recCfg.Integrations {
 			expectedNotifiers[notifier.Type] = struct{}{}
 		}
@@ -255,13 +255,13 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
 			notifierRaw := cfg.GetRawNotifierConfig("")
-			notifierRaw.Type = strings.ToUpper(notifierRaw.Type)
+			notifierRaw.Type = schema.IntegrationType(strings.ToUpper(string(notifierRaw.Type)))
 			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
 		require.NoError(t, err)
 
-		expectedNotifiers := make(map[string]struct{})
+		expectedNotifiers := make(map[schema.IntegrationType]struct{})
 		for _, notifier := range recCfg.Integrations {
 			expectedNotifiers[notifier.Type] = struct{}{}
 		}

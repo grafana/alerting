@@ -42,7 +42,7 @@ func PostableGrafanaReceiverToIntegrationConfig(r *definition.PostableGrafanaRec
 	return &models.IntegrationConfig{
 		UID:                   r.UID,
 		Name:                  r.Name,
-		Type:                  r.Type,
+		Type:                  schema.IntegrationType(r.Type), // TODO validate type/version here
 		Version:               version,
 		DisableResolveMessage: r.DisableResolveMessage,
 		Settings:              json.RawMessage(r.Settings),

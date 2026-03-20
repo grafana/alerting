@@ -269,7 +269,7 @@ func (n NotifierConfigTest) GetRawNotifierConfig(name string) *models.Integratio
 	return &models.IntegrationConfig{
 		UID:                   fmt.Sprintf("%s-uid", name),
 		Name:                  name,
-		Type:                  string(n.NotifierType),
+		Type:                  n.NotifierType,
 		Version:               n.Version,
 		DisableResolveMessage: true,
 		Settings:              config,

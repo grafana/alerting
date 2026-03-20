@@ -14,7 +14,8 @@ import (
 type Base struct {
 	Index                 int
 	Name                  string
-	Type                  string
+	Type                  schema.IntegrationType
+	Version               schema.Version
 	UID                   string
 	DisableResolveMessage bool
 	logger                log.Logger
@@ -34,7 +35,7 @@ type Metadata struct {
 	Index                 int
 	UID                   string
 	Name                  string
-	Type                  string
+	Type                  schema.IntegrationType
 	Version               schema.Version
 	DisableResolveMessage bool
 }
@@ -45,6 +46,7 @@ func NewBase(cfg Metadata, logger log.Logger) *Base {
 		UID:                   cfg.UID,
 		Name:                  cfg.Name,
 		Type:                  cfg.Type,
+		Version:               cfg.Version,
 		DisableResolveMessage: cfg.DisableResolveMessage,
 		logger:                logger,
 	}

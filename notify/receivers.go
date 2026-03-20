@@ -271,8 +271,8 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 		return decrypt(ctx, secureSettings, key, fallback), true
 	}
 
-	switch strings.ToLower(receiver.Type) {
-	case "prometheus-alertmanager":
+	switch schema.IntegrationType(strings.ToLower(string(receiver.Type))) {
+	case schema.AlertManagerType:
 		cfg, err := alertmanager.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -282,7 +282,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.AlertmanagerConfigs = append(result.AlertmanagerConfigs, notifierConfig)
-	case "dingding":
+	case schema.DingDingType:
 		cfg, err := dingding.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -292,7 +292,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.DingdingConfigs = append(result.DingdingConfigs, notifierConfig)
-	case "discord":
+	case schema.DiscordType:
 		cfg, err := discord.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -302,7 +302,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.DiscordConfigs = append(result.DiscordConfigs, notifierConfig)
-	case "email":
+	case schema.EmailType:
 		cfg, err := email.NewConfig(receiver.Settings)
 		if err != nil {
 			return err
@@ -312,7 +312,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.EmailConfigs = append(result.EmailConfigs, notifierConfig)
-	case "googlechat":
+	case schema.GoogleChatType:
 		cfg, err := googlechat.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -322,7 +322,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.GooglechatConfigs = append(result.GooglechatConfigs, notifierConfig)
-	case "jira":
+	case schema.JiraType:
 		cfg, err := jira.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -332,7 +332,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.JiraConfigs = append(result.JiraConfigs, notifierConfig)
-	case "kafka":
+	case schema.KafkaType:
 		cfg, err := kafka.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -342,7 +342,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.KafkaConfigs = append(result.KafkaConfigs, notifierConfig)
-	case "line":
+	case "line": // schema.LineType is "LINE"; case-insensitive matching via ToLower
 		cfg, err := line.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -352,7 +352,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.LineConfigs = append(result.LineConfigs, notifierConfig)
-	case "mqtt":
+	case schema.MQTTType:
 		cfg, err := mqtt.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -362,7 +362,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.MqttConfigs = append(result.MqttConfigs, notifierConfig)
-	case "opsgenie":
+	case schema.OpsGenieType:
 		cfg, err := opsgenie.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -372,7 +372,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.OpsgenieConfigs = append(result.OpsgenieConfigs, notifierConfig)
-	case "pagerduty":
+	case schema.PagerDutyType:
 		cfg, err := pagerduty.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -382,7 +382,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.PagerdutyConfigs = append(result.PagerdutyConfigs, notifierConfig)
-	case "oncall":
+	case schema.OnCallType:
 		cfg, err := oncall.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -392,7 +392,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.OnCallConfigs = append(result.OnCallConfigs, notifierConfig)
-	case "pushover":
+	case schema.PushoverType:
 		cfg, err := pushover.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -402,7 +402,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.PushoverConfigs = append(result.PushoverConfigs, notifierConfig)
-	case "sensugo":
+	case schema.SensuGoType:
 		cfg, err := sensugo.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -412,7 +412,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.SensugoConfigs = append(result.SensugoConfigs, notifierConfig)
-	case "slack":
+	case schema.SlackType:
 		cfg, err := slack.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -422,7 +422,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.SlackConfigs = append(result.SlackConfigs, notifierConfig)
-	case "sns":
+	case schema.SNSType:
 		cfg, err := sns.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -432,7 +432,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.SNSConfigs = append(result.SNSConfigs, notifierConfig)
-	case "teams":
+	case schema.TeamsType:
 		cfg, err := teams.NewConfig(receiver.Settings)
 		if err != nil {
 			return err
@@ -442,7 +442,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.TeamsConfigs = append(result.TeamsConfigs, notifierConfig)
-	case "telegram":
+	case schema.TelegramType:
 		cfg, err := telegram.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -452,7 +452,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.TelegramConfigs = append(result.TelegramConfigs, notifierConfig)
-	case "threema":
+	case schema.ThreemaType:
 		cfg, err := threema.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -462,7 +462,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.ThreemaConfigs = append(result.ThreemaConfigs, notifierConfig)
-	case "victorops":
+	case schema.VictorOpsType:
 		cfg, err := victorops.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -472,7 +472,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.VictoropsConfigs = append(result.VictoropsConfigs, notifierConfig)
-	case "webhook":
+	case schema.WebhookType:
 		cfg, err := webhook.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -482,7 +482,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.WebhookConfigs = append(result.WebhookConfigs, notifierConfig)
-	case "wecom":
+	case schema.WeComType:
 		cfg, err := wecom.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
@@ -492,7 +492,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.WecomConfigs = append(result.WecomConfigs, notifierConfig)
-	case "webex":
+	case schema.WebexType:
 		cfg, err := webex.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
