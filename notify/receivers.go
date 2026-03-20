@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/prometheus/alertmanager/dispatch"
@@ -259,7 +258,17 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decode De
 
 // parseNotifier parses receivers and populates the corresponding field in GrafanaReceiverConfig. Returns an error if the configuration cannot be parsed.
 func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *models.IntegrationConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn, idx int) error {
-	if receiver.Version != schema.V1 {
+	// normalize the type to the original type and version
+	original, ok := OriginalTypeForAlias(receiver.Type)
+	if !ok {
+		return fmt.Errorf("invalid integration type: %s", receiver.Type)
+	}
+	ver, ok := GetSchemaVersionForIntegration(original, receiver.Version)
+	if !ok {
+		return fmt.Errorf("invalid version %s of integration %s", receiver.Version, original)
+	}
+
+	if ver.Version != schema.V1 {
 		return fmt.Errorf("invalid receiver version: %s", receiver.Version)
 	}
 	secureSettings, err := decode(receiver.SecureSettings)
@@ -274,7 +283,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 		return decrypt(ctx, secureSettings, key, fallback), true
 	}
 
-	switch schema.IntegrationType(strings.ToLower(string(receiver.Type))) {
+	switch original { //nolint:exhaustive // default case handles unknown types
 	case schema.AlertManagerType:
 		cfg, err := alertmanager.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
@@ -345,7 +354,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.KafkaConfigs = append(result.KafkaConfigs, notifierConfig)
-	case "line": // schema.LineType is "LINE"; case-insensitive matching via ToLower
+	case schema.LineType: // schema.LineType is "LINE"; case-insensitive matching via ToLower
 		cfg, err := line.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
