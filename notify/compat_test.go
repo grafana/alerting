@@ -83,7 +83,8 @@ func TestPostableGrafanaReceiverToGrafanaIntegrationConfig(t *testing.T) {
 	require.Equal(t, models.IntegrationConfig{
 		UID:                   "test-uid",
 		Name:                  "test-name",
-		Type:                  "slack",
+		Type:                  schema.SlackType,
+		Version:               schema.V1,
 		DisableResolveMessage: false,
 		Settings:              json.RawMessage(`{ "data" : "test" }`),
 		SecureSettings: map[string]string{

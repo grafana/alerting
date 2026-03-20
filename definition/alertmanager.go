@@ -393,6 +393,7 @@ type PostableGrafanaReceiver struct {
 	UID                   string            `json:"uid" yaml:"uid"`
 	Name                  string            `json:"name" yaml:"name"`
 	Type                  string            `json:"type" yaml:"type"`
+	Version               string            `json:"version,omitempty" yaml:"version,omitempty"`
 	DisableResolveMessage bool              `json:"disableResolveMessage" yaml:"disableResolveMessage"`
 	Settings              RawMessage        `json:"settings,omitempty" yaml:"settings,omitempty"`
 	SecureSettings        map[string]string `json:"secureSettings,omitempty" yaml:"secureSettings,omitempty"`
