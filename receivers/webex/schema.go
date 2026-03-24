@@ -8,15 +8,14 @@ import (
 
 const Type schema.IntegrationType = "webex"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:           Type,
-	Name:           "Cisco Webex Teams",
-	Description:    "Sends notifications to Cisco Webex Teams",
-	Heading:        "Webex settings",
-	Info:           "Notifications can be configured for any Cisco Webex Teams",
-	CurrentVersion: v1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v1.Schema,
-		v0mimir1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v1.Version, // currentVersion
+	"Cisco Webex Teams",
+	"Webex settings",
+	"Sends notifications to Cisco Webex Teams",
+	"Notifications can be configured for any Cisco Webex Teams", // info
+	false, // deprecated
+	v1.Schema,
+	v0mimir1.Schema,
+)

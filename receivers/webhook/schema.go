@@ -8,14 +8,14 @@ import (
 
 const Type schema.IntegrationType = "webhook"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:           Type,
-	Name:           "Webhook",
-	Description:    "Sends HTTP POST request to a URL",
-	Heading:        "Webhook settings",
-	CurrentVersion: v1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v1.Schema,
-		v0mimir1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v1.Version, // currentVersion
+	"Webhook",
+	"Webhook settings",
+	"Sends HTTP POST request to a URL",
+	"", // info
+	false, // deprecated
+	v1.Schema,
+	v0mimir1.Schema,
+)

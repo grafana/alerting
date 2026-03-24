@@ -115,7 +115,7 @@ func (c *Config) validate() error {
 	return nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
+var Schema = schema.LegacyIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
 	CanCreate: false,
 	Options: []schema.Field{
@@ -343,7 +343,7 @@ var Schema = schema.IntegrationSchemaVersion{
 		},
 		httpcfg.V0HttpConfigOption(),
 	},
-}
+})
 
 // SlackAction configures a single Slack action that is sent with each notification.
 // See https://api.slack.com/docs/message-attachments#action_fields and https://api.slack.com/docs/message-buttons

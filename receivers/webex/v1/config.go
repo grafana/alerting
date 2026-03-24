@@ -52,10 +52,11 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	return settings, err
 }
 
-var Schema = schema.IntegrationSchemaVersion{
-	Version:   Version,
-	CanCreate: true,
-	Options: []schema.Field{
+var Schema = schema.NewIntegrationSchemaVersion(
+	"", // typeAlias
+	Version,
+	true,  // canCreate
+	[]schema.Field{
 		{
 			Label:        "Cisco Webex API URL",
 			Element:      schema.ElementTypeInput,
@@ -93,4 +94,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			PropertyName: "message",
 		},
 	},
-}
+	"", // info
+	false, // deprecated
+)

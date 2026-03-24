@@ -7,14 +7,13 @@ import (
 
 const Type schema.IntegrationType = "wechat"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:        Type,
-	Name:        "WeChat",
-	Description: "Sends notifications to WeChat",
-	Heading:     "WeChat settings",
-
-	CurrentVersion: v0mimir1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v0mimir1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v0mimir1.Version, // currentVersion
+	"WeChat",
+	"WeChat settings",
+	"Sends notifications to WeChat",
+	"", // info
+	false, // deprecated
+	v0mimir1.Schema,
+)

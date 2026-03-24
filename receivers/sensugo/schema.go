@@ -7,13 +7,13 @@ import (
 
 const Type schema.IntegrationType = "sensugo"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:           Type,
-	Name:           "Sensu Go",
-	Description:    "Sends HTTP POST request to a Sensu Go API",
-	Heading:        "Sensu Go Settings",
-	CurrentVersion: v1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v1.Version, // currentVersion
+	"Sensu Go",
+	"Sensu Go Settings",
+	"Sends HTTP POST request to a Sensu Go API",
+	"", // info
+	false, // deprecated
+	v1.Schema,
+)

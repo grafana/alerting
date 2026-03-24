@@ -7,13 +7,13 @@ import (
 
 const Type schema.IntegrationType = "dingding"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:           Type,
-	Name:           "DingDing",
-	Description:    "Sends HTTP POST request to DingDing",
-	Heading:        "DingDing settings",
-	CurrentVersion: v1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v1.Version, // currentVersion
+	"DingDing",
+	"DingDing settings",
+	"Sends HTTP POST request to DingDing",
+	"", // info
+	false, // deprecated
+	v1.Schema,
+)

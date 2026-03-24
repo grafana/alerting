@@ -8,14 +8,14 @@ import (
 
 const Type schema.IntegrationType = "pushover"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:           Type,
-	Name:           "Pushover",
-	Description:    "Sends HTTP POST request to the Pushover API",
-	Heading:        "Pushover settings",
-	CurrentVersion: v1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v1.Schema,
-		v0mimir1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v1.Version, // currentVersion
+	"Pushover",
+	"Pushover settings",
+	"Sends HTTP POST request to the Pushover API",
+	"", // info
+	false, // deprecated
+	v1.Schema,
+	v0mimir1.Schema,
+)

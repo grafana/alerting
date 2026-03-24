@@ -8,14 +8,14 @@ import (
 
 const Type schema.IntegrationType = "sns"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:           Type,
-	Name:           "AWS SNS",
-	Description:    "Sends notifications to AWS Simple Notification Service",
-	Heading:        "AWS SNS settings",
-	CurrentVersion: v1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v1.Schema,
-		v0mimir1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v1.Version, // currentVersion
+	"AWS SNS",
+	"AWS SNS settings",
+	"Sends notifications to AWS Simple Notification Service",
+	"", // info
+	false, // deprecated
+	v1.Schema,
+	v0mimir1.Schema,
+)

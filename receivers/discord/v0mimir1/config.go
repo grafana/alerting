@@ -81,7 +81,7 @@ func (c *Config) validate() error {
 	return nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
+var Schema = schema.LegacyIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
 	CanCreate: false,
 	Options: []schema.Field{
@@ -112,4 +112,4 @@ var Schema = schema.IntegrationSchemaVersion{
 		},
 		httpcfg.V0HttpConfigOption(),
 	},
-}
+})

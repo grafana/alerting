@@ -7,13 +7,13 @@ import (
 
 const Type schema.IntegrationType = "oncall"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:           Type,
-	Name:           "Grafana IRM",
-	Description:    "Sends alerts to Grafana IRM",
-	Heading:        "Grafana IRM settings",
-	CurrentVersion: v1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v1.Version, // currentVersion
+	"Grafana IRM",
+	"Grafana IRM settings",
+	"Sends alerts to Grafana IRM",
+	"", // info
+	false, // deprecated
+	v1.Schema,
+)

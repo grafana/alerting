@@ -39,10 +39,11 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	return settings, nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
-	Version:   Version,
-	CanCreate: true,
-	Options: []schema.Field{
+var Schema = schema.NewIntegrationSchemaVersion(
+	"", // typeAlias
+	Version,
+	true,  // canCreate
+	[]schema.Field{
 		{
 			Label:        "Title",
 			Description:  "Templated title of the message",
@@ -82,4 +83,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			PropertyName: "use_discord_username",
 		},
 	},
-}
+	"", // info
+	false, // deprecated
+)

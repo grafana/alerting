@@ -8,14 +8,14 @@ import (
 
 const Type schema.IntegrationType = "email"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:           Type,
-	Name:           "Email",
-	Heading:        "Email settings",
-	Description:    "Sends notifications using Grafana server configured SMTP settings",
-	CurrentVersion: v1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v1.Schema,
-		v0mimir1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v1.Version, // currentVersion
+	"Email",
+	"Email settings",
+	"Sends notifications using Grafana server configured SMTP settings",
+	"", // info
+	false, // deprecated
+	v1.Schema,
+	v0mimir1.Schema,
+)

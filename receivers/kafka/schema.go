@@ -7,13 +7,13 @@ import (
 
 const Type schema.IntegrationType = "kafka"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:           Type,
-	Name:           "Kafka REST Proxy",
-	Description:    "Sends notifications to Kafka Rest Proxy",
-	Heading:        "Kafka settings",
-	CurrentVersion: v1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v1.Version, // currentVersion
+	"Kafka REST Proxy",
+	"Kafka settings",
+	"Sends notifications to Kafka Rest Proxy",
+	"", // info
+	false, // deprecated
+	v1.Schema,
+)

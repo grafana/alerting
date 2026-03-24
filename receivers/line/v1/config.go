@@ -37,11 +37,11 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	return settings, nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
-	TypeAlias: "line",
-	Version:   Version,
-	CanCreate: false,
-	Options: []schema.Field{
+var Schema = schema.NewIntegrationSchemaVersion(
+	"line", // typeAlias
+	Version,
+	false,  // canCreate
+	[]schema.Field{
 		{
 			Label:        "Token",
 			Element:      schema.ElementTypeInput,
@@ -68,4 +68,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			Placeholder:  templates.DefaultMessageEmbed,
 		},
 	},
-}
+	"", // info
+	false, // deprecated
+)

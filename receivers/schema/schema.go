@@ -61,6 +61,31 @@ type IntegrationTypeSchema struct {
 	Deprecated     bool                       `json:"deprecated,omitempty"`
 }
 
+func NewIntegrationTypeSchema(
+	integrationType IntegrationType,
+	currentVersion Version,
+	name string,
+	heading string,
+	description string,
+	info string,
+	deprecated bool,
+	versions ...func(schema *IntegrationTypeSchema) IntegrationSchemaVersion,
+) IntegrationTypeSchema {
+	s := IntegrationTypeSchema{
+		Type:           integrationType,
+		CurrentVersion: currentVersion,
+		Name:           name,
+		Heading:        heading,
+		Description:    description,
+		Info:           info,
+		Deprecated:     deprecated,
+	}
+	for _, version := range versions {
+		s.Versions = append(s.Versions, version(&s))
+	}
+	return s
+}
+
 // GetAllTypes returns a list of all types that are mentioned by the schema.
 // Includes the main schema's type and all aliases of its versions
 func (p IntegrationTypeSchema) GetAllTypes() []IntegrationType {
@@ -104,6 +129,16 @@ func (p IntegrationTypeSchema) GetCurrentVersion() IntegrationSchemaVersion {
 	return v
 }
 
+// LegacyIntegrationSchemaVersion wraps an IntegrationSchemaVersion struct literal into
+// a version factory function for use with NewIntegrationTypeSchema.
+// Use this for v0mimir versions that have no config parser.
+func LegacyIntegrationSchemaVersion(v IntegrationSchemaVersion) func(*IntegrationTypeSchema) IntegrationSchemaVersion {
+	return func(s *IntegrationTypeSchema) IntegrationSchemaVersion {
+		v.typeSchema = s
+		return v
+	}
+}
+
 // IntegrationSchemaVersion represents a version of a notifier plugin, including configuration options and metadata.
 type IntegrationSchemaVersion struct {
 	// Alternative type name for this particular version
@@ -120,6 +155,29 @@ type IntegrationSchemaVersion struct {
 	Deprecated bool `json:"deprecated,omitempty"`
 
 	typeSchema *IntegrationTypeSchema
+}
+
+// NewIntegrationSchemaVersion creates an IntegrationSchemaVersion and returns a factory function
+// for use with NewIntegrationTypeSchema.
+func NewIntegrationSchemaVersion(
+	typeAlias IntegrationType,
+	version Version,
+	canCreate bool,
+	options []Field,
+	info string,
+	deprecated bool,
+) func(*IntegrationTypeSchema) IntegrationSchemaVersion {
+	return func(s *IntegrationTypeSchema) IntegrationSchemaVersion {
+		return IntegrationSchemaVersion{
+			TypeAlias:  typeAlias,
+			Version:    version,
+			CanCreate:  canCreate,
+			Options:    options,
+			Info:       info,
+			Deprecated: deprecated,
+			typeSchema: s,
+		}
+	}
 }
 
 // GetTypeSchema returns the IntegrationTypeSchema that this version belongs to.

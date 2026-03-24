@@ -111,7 +111,7 @@ func (c *SigV4Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return c.validate()
 }
 
-var Schema = schema.IntegrationSchemaVersion{
+var Schema = schema.LegacyIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
 	CanCreate: false,
 	Options: []schema.Field{
@@ -212,4 +212,4 @@ var Schema = schema.IntegrationSchemaVersion{
 		},
 		httpcfg.V0HttpConfigOption(),
 	},
-}
+})

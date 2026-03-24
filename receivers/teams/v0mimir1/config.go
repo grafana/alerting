@@ -25,6 +25,7 @@ import (
 )
 
 const Version = schema.V0mimir1
+const TypeAlias schema.IntegrationType = "msteams"
 
 // DefaultConfig defines default values for MS Teams configurations.
 var DefaultConfig = Config{
@@ -83,7 +84,7 @@ func (c *Config) validate() error {
 	return nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
+var Schema = schema.LegacyIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	TypeAlias: "msteams",
 	Version:   Version,
 	CanCreate: false,
@@ -123,4 +124,4 @@ var Schema = schema.IntegrationSchemaVersion{
 		},
 		httpcfg.V0HttpConfigOption(),
 	},
-}
+})

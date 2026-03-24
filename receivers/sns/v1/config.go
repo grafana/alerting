@@ -72,10 +72,11 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	return settings, nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
-	Version:   Version,
-	CanCreate: true,
-	Options: []schema.Field{
+var Schema = schema.NewIntegrationSchemaVersion(
+	"", // typeAlias
+	Version,
+	true,  // canCreate
+	[]schema.Field{
 		{
 			Label:        "The Amazon SNS API URL",
 			Element:      schema.ElementTypeInput,
@@ -181,4 +182,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			PropertyName: "attributes",
 		},
 	},
-}
+	"", // info
+	false, // deprecated
+)

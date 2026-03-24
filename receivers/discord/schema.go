@@ -8,14 +8,14 @@ import (
 
 const Type schema.IntegrationType = "discord"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:           Type,
-	Name:           "Discord",
-	Heading:        "Discord settings",
-	Description:    "Sends notifications to Discord",
-	CurrentVersion: v1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v1.Schema,
-		v0mimir1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v1.Version, // currentVersion
+	"Discord",
+	"Discord settings",
+	"Sends notifications to Discord",
+	"", // info
+	false, // deprecated
+	v1.Schema,
+	v0mimir1.Schema,
+)

@@ -41,10 +41,11 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	return settings, nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
-	Version:   Version,
-	CanCreate: true,
-	Options: []schema.Field{
+var Schema = schema.NewIntegrationSchemaVersion(
+	"", // typeAlias
+	Version,
+	true,  // canCreate
+	[]schema.Field{
 		{
 			Label:        "Backend URL",
 			Element:      schema.ElementTypeInput,
@@ -97,4 +98,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			PropertyName: "message",
 		},
 	},
-}
+	"", // info
+	false, // deprecated
+)

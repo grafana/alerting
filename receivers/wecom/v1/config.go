@@ -89,10 +89,11 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	return settings, nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
-	Version:   Version,
-	CanCreate: true,
-	Options: []schema.Field{
+var Schema = schema.NewIntegrationSchemaVersion(
+	"", // typeAlias
+	Version,
+	true,  // canCreate
+	[]schema.Field{
 		{
 			Label:        "Webhook URL",
 			Description:  "Required if using GroupRobot",
@@ -175,4 +176,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			PropertyName: "touser",
 		},
 	},
-}
+	"", // info
+	false, // deprecated
+)

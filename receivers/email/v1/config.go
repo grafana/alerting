@@ -60,10 +60,11 @@ func splitEmails(emails string) []string {
 	})
 }
 
-var Schema = schema.IntegrationSchemaVersion{
-	Version:   Version,
-	CanCreate: true,
-	Options: []schema.Field{
+var Schema = schema.NewIntegrationSchemaVersion(
+	"", // typeAlias
+	Version,
+	true,  // canCreate
+	[]schema.Field{
 		{
 			Label:        "Single email",
 			Description:  "Send a single email to all recipients",
@@ -93,4 +94,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			Placeholder:  templates.DefaultMessageTitleEmbed,
 		},
 	},
-}
+	"", // info
+	false, // deprecated
+)

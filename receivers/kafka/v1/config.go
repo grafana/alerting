@@ -67,10 +67,11 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	return settings, nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
-	Version:   Version,
-	CanCreate: true,
-	Options: []schema.Field{
+var Schema = schema.NewIntegrationSchemaVersion(
+	"", // typeAlias
+	Version,
+	true,  // canCreate
+	[]schema.Field{
 		{
 			Label:        "Kafka REST Proxy",
 			Element:      schema.ElementTypeInput,
@@ -152,4 +153,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			Placeholder:  templates.DefaultMessageEmbed,
 		},
 	},
-}
+	"", // info
+	false, // deprecated
+)

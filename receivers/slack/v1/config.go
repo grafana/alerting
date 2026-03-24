@@ -78,10 +78,11 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	return settings, nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
-	Version:   Version,
-	CanCreate: true,
-	Options: []schema.Field{
+var Schema = schema.NewIntegrationSchemaVersion(
+	"", // typeAlias
+	Version,
+	true,  // canCreate
+	[]schema.Field{
 		{
 			Label:        "Recipient",
 			Element:      schema.ElementTypeInput,
@@ -213,4 +214,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			Placeholder:  `{{ template "slack.default.footer" . }}`,
 		},
 	},
-}
+	"", // info
+	false, // deprecated
+)

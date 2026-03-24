@@ -128,11 +128,11 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	}, nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
-	Version:    Version,
-	CanCreate:  true,
-	Deprecated: false,
-	Options: []schema.Field{
+var Schema = schema.NewIntegrationSchemaVersion(
+	"", // typeAlias
+	Version,
+	true,  // canCreate
+	[]schema.Field{
 		{
 			Label:        "API Key",
 			Element:      schema.ElementTypeInput,
@@ -231,4 +231,6 @@ var Schema = schema.IntegrationSchemaVersion{
 			},
 		},
 	},
-}
+	"", // info
+	false, // deprecated
+)

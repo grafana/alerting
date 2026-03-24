@@ -8,14 +8,14 @@ import (
 
 const Type schema.IntegrationType = "telegram"
 
-var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
-	Type:           Type,
-	Name:           "Telegram",
-	Description:    "Sends notifications to Telegram",
-	Heading:        "Telegram API settings",
-	CurrentVersion: v1.Version,
-	Versions: []schema.IntegrationSchemaVersion{
-		v1.Schema,
-		v0mimir1.Schema,
-	},
-})
+var Schema = schema.NewIntegrationTypeSchema(
+	Type,
+	v1.Version, // currentVersion
+	"Telegram",
+	"Telegram API settings",
+	"Sends notifications to Telegram",
+	"", // info
+	false, // deprecated
+	v1.Schema,
+	v0mimir1.Schema,
+)
