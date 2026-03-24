@@ -189,7 +189,7 @@ func OmitRestrictedHeaders(headers map[string]string) (map[string]string, []stri
 	return safeHeaders, omitted
 }
 
-var Schema = schema.IntegrationSchemaVersion{
+var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
 	CanCreate: true,
 	Options: []schema.Field{
@@ -343,4 +343,4 @@ var Schema = schema.IntegrationSchemaVersion{
 		},
 		http2.V1HttpClientOption(), // New in 12.1.
 	},
-}
+})

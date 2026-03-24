@@ -37,7 +37,7 @@ func NewConfig(jsonData json.RawMessage) (Config, error) {
 	return settings, nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
+var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
 	CanCreate: true,
 	Options: []schema.Field{
@@ -72,4 +72,4 @@ var Schema = schema.IntegrationSchemaVersion{
 			PropertyName: "message",
 		},
 	},
-}
+})

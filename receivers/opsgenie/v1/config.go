@@ -128,7 +128,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	}, nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
+var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:    Version,
 	CanCreate:  true,
 	Deprecated: false,
@@ -231,4 +231,4 @@ var Schema = schema.IntegrationSchemaVersion{
 			},
 		},
 	},
-}
+})
