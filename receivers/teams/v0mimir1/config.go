@@ -110,7 +110,7 @@ func (c *Config) validate() error {
 }
 
 var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
-	TypeAlias: "msteams",
+	TypeAlias: TypeAlias,
 	Version:   Version,
 	CanCreate: false,
 	Options: []schema.Field{
