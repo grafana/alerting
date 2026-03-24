@@ -13,6 +13,7 @@ import (
 	"github.com/go-kit/log"
 
 	"github.com/grafana/alerting/receivers"
+	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -56,7 +57,7 @@ func TestCreatePublishInput(t *testing.T) {
 		require.NoError(t, tmplErr)
 
 		require.Equal(t, "AWS SNS", snsNotifier.Name)
-		require.Equal(t, "sns", snsNotifier.Type)
+		require.Equal(t, schema.SNSType, snsNotifier.Type)
 		require.Equal(t, "1 body", *snsInput.Message)
 		require.Equal(t, "1 subject", *snsInput.Subject)
 	})
@@ -70,7 +71,7 @@ func TestCreatePublishInput(t *testing.T) {
 		snsNotifier := &Notifier{
 			Base: receivers.NewBase(receivers.Metadata{
 				Name:                  "AWS SNS",
-				Type:                  "sns",
+				Type:                  schema.SNSType,
 				UID:                   "",
 				DisableResolveMessage: false,
 			}, log.NewNopLogger()),
@@ -94,7 +95,7 @@ func TestCreatePublishInput(t *testing.T) {
 		require.NoError(t, tmplErr)
 
 		require.Equal(t, "AWS SNS", snsNotifier.Name)
-		require.Equal(t, "sns", snsNotifier.Type)
+		require.Equal(t, schema.SNSType, snsNotifier.Type)
 		require.Equal(t, stringWithManyCharacters[:1600], *snsInput.Message)
 		require.Equal(t, "true", *snsInput.MessageAttributes["truncated"].StringValue)
 	})
@@ -109,7 +110,7 @@ func TestCreatePublishInput(t *testing.T) {
 		snsNotifier := &Notifier{
 			Base: receivers.NewBase(receivers.Metadata{
 				Name:                  "AWS SNS",
-				Type:                  "sns",
+				Type:                  schema.SNSType,
 				UID:                   "",
 				DisableResolveMessage: false,
 			}, log.NewNopLogger()),
@@ -133,7 +134,7 @@ func TestCreatePublishInput(t *testing.T) {
 		require.NoError(t, tmplErr)
 
 		require.Equal(t, "AWS SNS", snsNotifier.Name)
-		require.Equal(t, "sns", snsNotifier.Type)
+		require.Equal(t, schema.SNSType, snsNotifier.Type)
 		require.Equal(t, "abcd", *snsInput.Message)
 		require.Equal(t, stringWithManyCharacters[:100], *snsInput.Subject)
 		require.Equal(t, "true", *snsInput.MessageAttributes["subject_truncated"].StringValue)

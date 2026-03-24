@@ -146,7 +146,7 @@ func TestGetAvailableNotifiers(t *testing.T) {
 	for _, notifier := range n {
 		t.Run(fmt.Sprintf("integration %s [%s]", notifier.Type, notifier.Name), func(t *testing.T) {
 			currentVersion := schema.V1
-			if notifier.Type == "wechat" {
+			if notifier.Type == schema.WeChatType {
 				currentVersion = schema.V0mimir1
 			}
 			t.Run(fmt.Sprintf("current version is %s", currentVersion), func(t *testing.T) {

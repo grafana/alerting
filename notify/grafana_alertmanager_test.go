@@ -27,6 +27,7 @@ import (
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/receivers"
+	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -1147,7 +1148,8 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 						{
 							UID:                   "integration-webhook-main",
 							Name:                  "primary-webhook",
-							Type:                  "webhook",
+							Type:                  schema.WebhookType,
+							Version:               schema.V1,
 							DisableResolveMessage: false,
 							Settings:              []byte(`{"url":"https://example.org/hooks/primary","httpMethod":"POST","maxAlerts":10}`),
 							SecureSettings: map[string]string{
@@ -1158,7 +1160,8 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 						{
 							UID:                   "integration-slack-main",
 							Name:                  "primary-slack",
-							Type:                  "slack",
+							Type:                  schema.SlackType,
+							Version:               schema.V1,
 							DisableResolveMessage: true,
 							Settings:              []byte(`{"recipient":"#alerts-prod","title":"Critical alert","mentionUsers":"oncall"}`),
 							SecureSettings: map[string]string{
@@ -1177,7 +1180,7 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 						{
 							UID:                   "integration-email-fallback",
 							Name:                  "fallback-email",
-							Type:                  "email",
+							Type:                  schema.EmailType,
 							DisableResolveMessage: false,
 							Settings:              []byte(`{"singleEmail":true,"addresses":"oncall@example.org;ops@example.org"}`),
 							SecureSettings: map[string]string{
