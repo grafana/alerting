@@ -5,7 +5,7 @@ import (
 	"github.com/grafana/alerting/receivers/wechat/v0mimir1"
 )
 
-const Type schema.IntegrationType = "wechat"
+const Type = schema.WeChatType
 
 var Schema = schema.InitSchema(schema.IntegrationTypeSchema{
 	Type:        Type,
