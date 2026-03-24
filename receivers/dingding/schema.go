@@ -5,7 +5,7 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Type schema.IntegrationType = "dingding"
+const Type = schema.DingDingType
 
 var Schema = schema.NewIntegrationTypeSchema(
 	Type,

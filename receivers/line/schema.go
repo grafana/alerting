@@ -5,7 +5,7 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Type schema.IntegrationType = "LINE"
+const Type = schema.LineType
 
 var Schema = schema.NewIntegrationTypeSchema(
 	Type,

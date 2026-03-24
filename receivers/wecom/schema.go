@@ -5,7 +5,7 @@ import (
 	v1 "github.com/grafana/alerting/receivers/wecom/v1"
 )
 
-const Type schema.IntegrationType = "wecom"
+const Type = schema.WeComType
 
 var Schema = schema.NewIntegrationTypeSchema(
 	Type,

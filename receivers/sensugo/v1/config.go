@@ -31,7 +31,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	if settings.URL == "" {
 		return settings, errors.New("could not find URL property in settings")
 	}
-	settings.APIKey = decryptFn("apikey", settings.APIKey)
+	settings.APIKey = decryptFn.Get("apikey", settings.APIKey)
 	if settings.APIKey == "" {
 		return settings, errors.New("could not find the API key property in settings")
 	}

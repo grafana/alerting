@@ -6,7 +6,7 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Type schema.IntegrationType = "discord"
+const Type = schema.DiscordType
 
 var Schema = schema.NewIntegrationTypeSchema(
 	Type,

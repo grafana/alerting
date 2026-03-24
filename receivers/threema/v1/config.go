@@ -45,7 +45,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	if len(settings.RecipientID) != 8 {
 		return settings, errors.New("invalid Threema Recipient ID: Must be 8 characters long")
 	}
-	settings.APISecret = decryptFn("api_secret", settings.APISecret)
+	settings.APISecret = decryptFn.Get("api_secret", settings.APISecret)
 	if settings.APISecret == "" {
 		return settings, errors.New("could not find Threema API secret in settings")
 	}

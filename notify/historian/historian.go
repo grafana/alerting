@@ -73,6 +73,7 @@ type NotificationHistorian struct {
 	writesTotal    prometheus.Counter
 	writesFailed   prometheus.Counter
 	logger         log.Logger
+	tracer         trace.Tracer
 }
 
 func NewNotificationHistorian(
@@ -91,6 +92,7 @@ func NewNotificationHistorian(
 		writesTotal:    writesTotal,
 		writesFailed:   writesFailed,
 		logger:         logger,
+		tracer:         tracer,
 	}
 }
 
@@ -111,17 +113,23 @@ func (h *NotificationHistorian) Record(ctx context.Context, nhe nfstatus.Notific
 	// This also prevents timeouts or other lingering objects (like transactions) from being
 	// incorrectly propagated here from other areas.
 	writeCtx, cancel := context.WithTimeout(context.Background(), NotificationHistoryWriteTimeout)
-	writeCtx = trace.ContextWithSpan(writeCtx, trace.SpanFromContext(ctx))
 	defer cancel()
 
-	level.Debug(h.logger).Log("msg", "Saving notification history")
+	writeCtx, span := h.tracer.Start(writeCtx, "ngalert.notification-historian.record",
+		trace.WithLinks(trace.LinkFromContext(ctx)),
+	)
+	defer span.End()
+
+	logger := log.With(h.logger, "traceID", span.SpanContext().TraceID())
+
+	level.Debug(logger).Log("msg", "Saving notification history")
 	h.writesTotal.Inc()
 
 	if err := h.client.Push(writeCtx, streams); err != nil {
-		level.Error(h.logger).Log("msg", "Failed to save notification history", "error", err)
+		level.Error(logger).Log("msg", "Failed to save notification history", "error", err)
 		h.writesFailed.Inc()
 	}
-	level.Debug(h.logger).Log("msg", "Done saving notification history")
+	level.Debug(logger).Log("msg", "Done saving notification history")
 }
 
 // prepareStreams prepares the data to be written to Loki. It is written to two streams:

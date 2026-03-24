@@ -6,7 +6,7 @@ import (
 	v1 "github.com/grafana/alerting/receivers/slack/v1"
 )
 
-const Type schema.IntegrationType = "slack"
+const Type = schema.SlackType
 
 var Schema = schema.NewIntegrationTypeSchema(
 	Type,

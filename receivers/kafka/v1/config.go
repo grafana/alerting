@@ -53,7 +53,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	if settings.Details == "" {
 		settings.Details = templates.DefaultMessageEmbed
 	}
-	settings.Password = decryptFn("password", settings.Password)
+	settings.Password = decryptFn.Get("password", settings.Password)
 
 	if settings.APIVersion == "" {
 		settings.APIVersion = apiVersionV2

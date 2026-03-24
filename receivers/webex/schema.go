@@ -6,7 +6,7 @@ import (
 	v1 "github.com/grafana/alerting/receivers/webex/v1"
 )
 
-const Type schema.IntegrationType = "webex"
+const Type = schema.WebexType
 
 var Schema = schema.NewIntegrationTypeSchema(
 	Type,

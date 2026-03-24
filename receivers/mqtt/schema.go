@@ -5,7 +5,7 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Type schema.IntegrationType = "mqtt"
+const Type = schema.MQTTType
 
 var Schema = schema.NewIntegrationTypeSchema(
 	Type,

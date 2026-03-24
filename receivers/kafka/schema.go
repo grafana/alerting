@@ -5,7 +5,7 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Type schema.IntegrationType = "kafka"
+const Type = schema.KafkaType
 
 var Schema = schema.NewIntegrationTypeSchema(
 	Type,

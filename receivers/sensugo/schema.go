@@ -5,7 +5,7 @@ import (
 	v1 "github.com/grafana/alerting/receivers/sensugo/v1"
 )
 
-const Type schema.IntegrationType = "sensugo"
+const Type = schema.SensuGoType
 
 var Schema = schema.NewIntegrationTypeSchema(
 	Type,

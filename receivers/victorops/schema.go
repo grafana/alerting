@@ -6,7 +6,7 @@ import (
 	v1 "github.com/grafana/alerting/receivers/victorops/v1"
 )
 
-const Type schema.IntegrationType = "victorops"
+const Type = schema.VictorOpsType
 
 var Schema = schema.NewIntegrationTypeSchema(
 	Type,

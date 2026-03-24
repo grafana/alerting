@@ -41,7 +41,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		settings.Message = templates.DefaultMessageEmbed
 	}
 
-	settings.Token = decryptFn("bot_token", settings.Token)
+	settings.Token = decryptFn.Get("bot_token", settings.Token)
 
 	u, err := url.Parse(settings.APIURL)
 	if err != nil {

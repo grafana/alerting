@@ -5,7 +5,7 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Type schema.IntegrationType = "oncall"
+const Type = schema.OnCallType
 
 var Schema = schema.NewIntegrationTypeSchema(
 	Type,
