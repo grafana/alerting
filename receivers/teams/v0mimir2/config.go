@@ -107,7 +107,7 @@ func (c *Config) validate() error {
 }
 
 var Schema = schema.LegacyIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
-	TypeAlias: "msteamsv2",
+	TypeAlias: TypeAlias,
 	Version:   Version,
 	CanCreate: false,
 	Options: []schema.Field{

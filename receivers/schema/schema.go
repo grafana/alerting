@@ -289,13 +289,6 @@ type ShowWhen struct {
 	Is    string `json:"is"`
 }
 
-func InitSchema(s IntegrationTypeSchema) IntegrationTypeSchema {
-	for i := range s.Versions {
-		s.Versions[i].typeSchema = &s
-	}
-	return s
-}
-
 type IntegrationFieldPath []string
 
 func NewIntegrationFieldPath(segments ...string) IntegrationFieldPath {
