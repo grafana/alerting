@@ -323,11 +323,11 @@ func TestIntegrationTypeFromMimirType(t *testing.T) {
 
 	actual, err = IntegrationTypeFromMimirType(teamsV0Mimir1.Config{})
 	require.NoError(t, err)
-	require.Equal(t, teamsV0Mimir1.Schema.TypeAlias, actual)
+	require.Equal(t, teamsV0Mimir1.TypeAlias, actual)
 
 	actual, err = IntegrationTypeFromMimirType(&teamsV0Mimir2.Config{})
 	require.NoError(t, err)
-	require.Equal(t, teamsV0Mimir2.Schema.TypeAlias, actual)
+	require.Equal(t, teamsV0Mimir2.TypeAlias, actual)
 
 	t.Run("error on unknown type", func(t *testing.T) {
 		_, err = IntegrationTypeFromMimirType(1)

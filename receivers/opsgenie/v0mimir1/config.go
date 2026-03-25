@@ -150,7 +150,7 @@ func (c *Config) validate() error {
 	return nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
+var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:    Version,
 	CanCreate:  false,
 	Deprecated: true,
@@ -281,4 +281,4 @@ var Schema = schema.IntegrationSchemaVersion{
 		},
 		httpcfg.V0HttpConfigOption(),
 	},
-}
+})

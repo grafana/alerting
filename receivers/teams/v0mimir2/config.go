@@ -27,6 +27,8 @@ import (
 
 const Version = schema.V0mimir2
 
+const TypeAlias = schema.IntegrationType("msteamsv2")
+
 // DefaultConfig defines default values for MS Teams V2 configurations.
 var DefaultConfig = Config{
 	NotifierConfig: receivers.NotifierConfig{
@@ -105,8 +107,8 @@ func (c *Config) validate() error {
 	return nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
-	TypeAlias: "msteamsv2",
+var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
+	TypeAlias: TypeAlias,
 	Version:   Version,
 	CanCreate: false,
 	Options: []schema.Field{
@@ -137,4 +139,4 @@ var Schema = schema.IntegrationSchemaVersion{
 		},
 		httpcfg.V0HttpConfigOption(),
 	},
-}
+})

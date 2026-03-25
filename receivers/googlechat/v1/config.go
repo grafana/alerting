@@ -40,7 +40,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	return settings, nil
 }
 
-var Schema = schema.IntegrationSchemaVersion{
+var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
 	CanCreate: true,
 	Options: []schema.Field{
@@ -81,4 +81,4 @@ var Schema = schema.IntegrationSchemaVersion{
 			PropertyName: "hide_version_info",
 		},
 	},
-}
+})

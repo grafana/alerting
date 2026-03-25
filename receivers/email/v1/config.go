@@ -60,7 +60,7 @@ func splitEmails(emails string) []string {
 	})
 }
 
-var Schema = schema.IntegrationSchemaVersion{
+var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
 	CanCreate: true,
 	Options: []schema.Field{
@@ -93,4 +93,4 @@ var Schema = schema.IntegrationSchemaVersion{
 			Placeholder:  templates.DefaultMessageTitleEmbed,
 		},
 	},
-}
+})
