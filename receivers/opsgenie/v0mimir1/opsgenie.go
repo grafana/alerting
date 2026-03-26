@@ -93,6 +93,8 @@ type opsGenieUpdateDescriptionMessage struct {
 	Description string `json:"description,omitempty"`
 }
 
+func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
+
 // Notify implements the Notifier interface.
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	requests, retry, err := n.createRequests(ctx, as...)

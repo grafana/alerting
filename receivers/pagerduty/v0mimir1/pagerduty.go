@@ -303,6 +303,8 @@ func (n *Notifier) notifyV2(
 	return retry, err
 }
 
+func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
+
 // Notify implements the Notifier interface.
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	key, err := notify.ExtractGroupKey(ctx)

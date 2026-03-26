@@ -92,6 +92,8 @@ type attachment struct {
 	MrkdwnIn   []string      `json:"mrkdwn_in,omitempty"`
 }
 
+func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
+
 // Notify implements the Notifier interface.
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var err error
