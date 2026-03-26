@@ -33,6 +33,7 @@ import (
 	opsgenie "github.com/grafana/alerting/receivers/opsgenie/v1"
 	pagerduty "github.com/grafana/alerting/receivers/pagerduty/v1"
 	pushover "github.com/grafana/alerting/receivers/pushover/v1"
+	"github.com/grafana/alerting/receivers/schema"
 	sensugo "github.com/grafana/alerting/receivers/sensugo/v1"
 	slack "github.com/grafana/alerting/receivers/slack/v1"
 	sns "github.com/grafana/alerting/receivers/sns/v1"
@@ -399,5 +400,91 @@ func BuildReceiverIntegrations(
 	}
 	integrations = append(integrations, mimir...)
 
+	return integrations, nil
+}
+
+// BuildReceiverIntegrationsWithManifests builds integrations for the provided API receiver using
+// the manifest-based factory for v1 (Grafana) integrations instead of the typed config switch.
+// Prometheus integrations are still built via BuildPrometheusReceiverIntegrations.
+func BuildReceiverIntegrationsWithManifests(
+	tenantID int64,
+	receiver *APIReceiver,
+	tmpls TemplatesProvider,
+	images images.Provider,
+	decryptFn GetDecryptedValueFn,
+	decodeFn DecodeSecretsFn,
+	emailSender receivers.EmailSender,
+	httpClientOptions []http.ClientOption,
+	wrapNotifierFunc WrapNotifierFunc,
+	version string,
+	logger log.Logger,
+	notificationHistorian nfstatus.NotificationHistorian,
+) ([]*Integration, error) {
+	var integrations []*Integration
+	if len(receiver.Integrations) > 0 {
+		tmpl, err := tmpls.GetTemplate(templates.GrafanaKind)
+		if err != nil {
+			return nil, err
+		}
+		opts := receivers.NotifierOpts{
+			Template:       tmpl,
+			Images:         images,
+			Logger:         logger,
+			EmailSender:    emailSender,
+			OrgID:          tenantID,
+			GrafanaVersion: version,
+			HttpOpts:       http.ToHTTPClientOption(httpClientOptions...),
+		}
+		for i, cfg := range receiver.Integrations {
+			meta := receivers.Metadata{
+				Index:                 i,
+				UID:                   cfg.UID,
+				Name:                  cfg.Name,
+				Type:                  cfg.Type,
+				Version:               cfg.Version,
+				DisableResolveMessage: cfg.DisableResolveMessage,
+			}
+
+			secureSettings, err := decodeFn(cfg.SecureSettings)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode secure settings for %q (UID: %q): %w", cfg.Name, cfg.UID, err)
+			}
+			decrypt := receivers.DecryptFunc(func(key string, fallback string) (string, bool) {
+				if _, ok := secureSettings[key]; !ok {
+					return fallback, false
+				}
+				return decryptFn(context.Background(), secureSettings, key, fallback), true
+			})
+
+			if cfg.Version == schema.V1 {
+				httpClientConfig, err := parseHTTPConfig(cfg, decrypt)
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse HTTP config for %q (UID: %q): %w", cfg.Name, cfg.UID, err)
+				}
+				client, err := http.NewClient(httpClientConfig, httpClientOptions...)
+				if err != nil {
+					return nil, fmt.Errorf("failed to create HTTP client for %q (UID: %q): %w", cfg.Name, cfg.UID, err)
+				}
+				opts.Sender = client
+			}
+
+			factory, ok := GetFactoryForIntegrationVersion(cfg.Type, cfg.Version)
+			if !ok {
+				return nil, fmt.Errorf("invalid integration type or version: %s %s", cfg.Type, cfg.Version)
+			}
+			n, err := factory.NewNotifier(cfg.Settings, decrypt, meta, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to build notifier for %q (UID: %q): %w", cfg.Name, cfg.UID, err)
+			}
+			rs, _ := n.(notify.ResolvedSender)
+			wrapped := wrapNotifierFunc(cfg.Name, nfstatus.NewNotifierAdapter(n))
+			integrations = append(integrations, NewIntegration(wrapped, rs, string(cfg.Type), i, cfg.Name, notificationHistorian, logger))
+		}
+	}
+	mimir, err := BuildPrometheusReceiverIntegrations(receiver.ConfigReceiver, tmpls, httpClientOptions, logger, wrapNotifierFunc, notificationHistorian)
+	if err != nil {
+		return nil, err
+	}
+	integrations = append(integrations, mimir...)
 	return integrations, nil
 }
