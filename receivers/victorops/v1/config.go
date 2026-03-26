@@ -45,6 +45,26 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	return settings, nil
 }
 
+var Factory = receivers.IntegrationVersionFactory{
+	Version: Version,
+	Type:    schema.VictorOpsType,
+	ValidateConfig: func(message json.RawMessage, decryptFunc receivers.DecryptFunc) error {
+		_, err := NewConfig(message, decryptFunc)
+		if err != nil {
+			return err
+		}
+		return nil
+	},
+	NewNotifier: func(message json.RawMessage, decryptFunc receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
+		cfg, err := NewConfig(message, decryptFunc)
+		if err != nil {
+			return nil, err
+		}
+		ch := New(cfg, m, opts.Template, opts.Sender, opts.Images, opts.Logger, opts.GrafanaVersion)
+		return ch, nil
+	},
+}
+
 var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
 	CanCreate: true,

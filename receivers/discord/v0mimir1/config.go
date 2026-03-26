@@ -137,3 +137,26 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 		httpcfg.V0HttpConfigOption(),
 	},
 })
+
+var Factory = receivers.IntegrationVersionFactory{
+	Version: Version,
+	Type:    schema.DiscordType,
+	ValidateConfig: func(message json.RawMessage, decryptFunc receivers.DecryptFunc) error {
+		_, err := NewConfig(message, decryptFunc)
+		if err != nil {
+			return err
+		}
+		return nil
+	},
+	NewNotifier: func(message json.RawMessage, decryptFunc receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
+		cfg, err := NewConfig(message, decryptFunc)
+		if err != nil {
+			return nil, err
+		}
+		ch, err := New(&cfg, opts.Template.Template, opts.Logger, opts.HttpOpts...)
+		if err != nil {
+			return nil, err
+		}
+		return ch, nil
+	},
+}

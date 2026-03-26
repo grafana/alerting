@@ -1,6 +1,7 @@
 package teams
 
 import (
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/receivers/teams/v0mimir1"
 	"github.com/grafana/alerting/receivers/teams/v0mimir2"
@@ -21,3 +22,5 @@ var Schema = schema.InitSchema(
 	v0mimir2.Schema,
 	v0mimir1.Schema,
 )
+
+var Manifest = receivers.NewManifest(Schema, v0mimir1.Factory, v0mimir2.Factory, v1.Factory)

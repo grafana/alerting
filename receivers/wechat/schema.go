@@ -1,6 +1,7 @@
 package wechat
 
 import (
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/receivers/wechat/v0mimir1"
 )
@@ -18,3 +19,5 @@ var Schema = schema.InitSchema(
 	},
 	v0mimir1.Schema,
 )
+
+var Manifest = receivers.NewManifest(Schema, v0mimir1.Factory)

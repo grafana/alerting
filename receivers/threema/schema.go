@@ -1,6 +1,7 @@
 package threema
 
 import (
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 	v1 "github.com/grafana/alerting/receivers/threema/v1"
 )
@@ -19,3 +20,5 @@ var Schema = schema.InitSchema(
 	},
 	v1.Schema,
 )
+
+var Manifest = receivers.NewManifest(Schema, v1.Factory)
