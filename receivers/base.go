@@ -27,7 +27,7 @@ func (n *Base) GetDisableResolveMessage() bool {
 
 func (n *Base) GetLogger(ctx context.Context) log.Logger {
 	gkey, _ := notify.GroupKey(ctx)
-	return log.With(n.logger, "receiver", n.Name, "integration", fmt.Sprintf("%s[%d]", n.Type, n.Index), "aggrGroup", gkey)
+	return log.With(n.logger, "receiver", n.Name, "integration", fmt.Sprintf("%s[%d]", n.Type, n.Index), "version", n.Version, "aggrGroup", gkey)
 }
 
 // Metadata contains the metadata of the notifier.
