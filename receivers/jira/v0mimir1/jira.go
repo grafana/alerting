@@ -119,6 +119,8 @@ func New(c *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg.HT
 	}, nil
 }
 
+func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
+
 // Notify implements the Notifier interface.
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	key, err := notify.ExtractGroupKey(ctx)

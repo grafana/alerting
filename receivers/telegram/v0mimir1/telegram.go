@@ -64,6 +64,8 @@ func New(conf *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg
 	}, nil
 }
 
+func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
+
 func (n *Notifier) Notify(ctx context.Context, alert ...*types.Alert) (bool, error) {
 	var (
 		err  error

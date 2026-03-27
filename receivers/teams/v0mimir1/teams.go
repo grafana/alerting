@@ -75,6 +75,8 @@ func New(c *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg.HT
 	return n, nil
 }
 
+func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
+
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	key, err := notify.ExtractGroupKey(ctx)
 	if err != nil {
