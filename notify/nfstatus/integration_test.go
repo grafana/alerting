@@ -163,6 +163,24 @@ func TestIntegrationWithNotificationHistorian(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
+func TestIntegrationSkipsHistorianForTestNotification(t *testing.T) {
+	notifier := &fakeNotifier{}
+	notificationHistorian := &mockNotificationHistorian{}
+	integration := NewIntegration(notifier, &fakeResolvedSender{}, "foo", 42, "bar", notificationHistorian, log.NewNopLogger())
+
+	ctx := notify.WithReceiverName(context.Background(), "testReceiver")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"key": "value"})
+	ctx = notify.WithGroupKey(ctx, "testGroupKey")
+	ctx = context.WithValue(ctx, TestNotificationKey, true)
+
+	_, err := integration.Notify(ctx)
+	assert.NoError(t, err)
+
+	// Give the goroutine time to run (or not).
+	time.Sleep(100 * time.Millisecond)
+	notificationHistorian.AssertNotCalled(t, "Record", mock.Anything, mock.Anything)
+}
+
 func TestNotificationHistoryEntry_Validate(t *testing.T) {
 	now := time.Now()
 
