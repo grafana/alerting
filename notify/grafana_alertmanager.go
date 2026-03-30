@@ -883,16 +883,16 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 	am.receivers = receivers
 
 	am.wg.Add(1)
-	go func() {
+	go func(d *dispatch.Dispatcher) {
 		defer am.wg.Done()
-		am.dispatcher.Run()
-	}()
+		d.Run()
+	}(am.dispatcher)
 
 	am.wg.Add(1)
-	go func() {
+	go func(i *inhibit.Inhibitor) {
 		defer am.wg.Done()
-		am.inhibitor.Run()
-	}()
+		i.Run()
+	}(am.inhibitor)
 
 	am.config = &cfg
 	am.configHash = CalculateConfigFingerprint(cfg)
