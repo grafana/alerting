@@ -86,7 +86,7 @@ func TestNewConfig(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			actual, err := NewConfig(json.RawMessage(c.settings))
+			actual, err := NewConfig(json.RawMessage(c.settings), nil)
 
 			if c.expectedInitError != "" {
 				require.ErrorContains(t, err, c.expectedInitError)

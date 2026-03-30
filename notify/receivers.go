@@ -315,7 +315,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 		}
 		result.DiscordConfigs = append(result.DiscordConfigs, notifierConfig)
 	case schema.EmailType:
-		cfg, err := email.NewConfig(receiver.Settings)
+		cfg, err := email.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
 		}
@@ -445,7 +445,7 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 		}
 		result.SNSConfigs = append(result.SNSConfigs, notifierConfig)
 	case schema.TeamsType:
-		cfg, err := teams.NewConfig(receiver.Settings)
+		cfg, err := teams.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {
 			return err
 		}
