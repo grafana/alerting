@@ -218,7 +218,7 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 		}
 		return nil
 	}
-	if err := d.ns.SendWebhook(ctx, l, cmd); err != nil {
+	if _, err := d.ns.SendWebhook(ctx, l, cmd); err != nil {
 		return false, err
 	}
 	return true, nil

@@ -23,6 +23,12 @@ type SendWebhookSettings struct {
 	HMACConfig *HMACConfig
 }
 
+type WebhookResponse struct {
+	StatusCode int
+	Body       []byte
+	Headers    map[string][]string
+}
+
 type WebhookSender interface {
-	SendWebhook(ctx context.Context, l log.Logger, cmd *SendWebhookSettings) error
+	SendWebhook(ctx context.Context, l log.Logger, cmd *SendWebhookSettings) (*WebhookResponse, error)
 }

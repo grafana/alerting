@@ -65,11 +65,16 @@ func TestNotify(t *testing.T) {
 			expMsg: []map[string]string{{
 				"chat_id":                  "someid",
 				"message_thread_id":        "threadid",
-				"parse_mode":               "Markdown",
 				"text":                     "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				"disable_web_page_preview": "true",
 				"protect_content":          "true",
 				"disable_notification":     "true",
+			}, {
+				"chat_id":                  "someid",
+				"message_id":               "123",
+				"parse_mode":               "Markdown",
+				"text":                     "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+				"disable_web_page_preview": "true",
 			}, {
 				"chat_id":              "someid",
 				"message_thread_id":    "threadid",
@@ -100,7 +105,11 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: []map[string]string{{
+				"chat_id": "someid",
+				"text":    "__Custom Firing__\n2 Firing\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
+			}, {
 				"chat_id":    "someid",
+				"message_id": "123",
 				"parse_mode": "HTML",
 				"text":       "__Custom Firing__\n2 Firing\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSource: a URL\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val2\nAnnotations:\n - ann1 = annv2\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval2\n",
 			}, {
@@ -132,9 +141,31 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: []map[string]string{{
+				"chat_id": "someid",
+				"text":    `**Firing**
+
+Value: [no value]
+Labels:
+ - alertname = alert1
+ - lbl1 = val1
+Annotations:
+ - ann1 = annv1
+Source: a URL
+Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1
+
+Value: [no value]
+Labels:
+ - alertname = alert2
+ - lbl1 = val2
+Annotations:
+ - ann1 = annv2
+Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert2&matcher=lbl1%3Dval2
+`,
+			}, {
 				"chat_id":    "someid",
+				"message_id": "123",
 				"parse_mode": "HTML",
-				"text": `**Firing**
+				"text":       `**Firing**
 
 Value: [no value]
 Labels:
@@ -178,7 +209,11 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 				},
 			},
 			expMsg: []map[string]string{{
+				"chat_id": "someid",
+				"text":    strings.Repeat("1", 4096-1) + "…",
+			}, {
 				"chat_id":    "someid",
+				"message_id": "123",
 				"parse_mode": "HTML",
 				"text":       strings.Repeat("1", 4096-1) + "…",
 			}},
@@ -189,6 +224,9 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			notificationService := receivers.MockNotificationService()
+			// Set up mock response for sendMessage with message_id
+			notificationService.StatusCode = 200
+			notificationService.ResponseBody = []byte(`{"ok":true,"result":{"message_id":123}}`)
 
 			n := &Notifier{
 				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
@@ -217,9 +255,19 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 				assert.Equal(t, "https://api.telegram.org/bot"+c.settings.BotToken+"/sendMessage", msgCmd.URL)
 			})
 			if len(c.expMsg) > 1 {
-				t.Run("should send one request per image", func(t *testing.T) {
-					for i, call := range notificationService.WebhookCalls[1:] {
-						assert.Equalf(t, "https://api.telegram.org/bot"+c.settings.BotToken+"/sendPhoto", call.URL, "request at index %d was expected to be sendPhoto", i)
+				t.Run("should send edit message and images", func(t *testing.T) {
+					if len(notificationService.WebhookCalls) > 1 {
+						secondCall := notificationService.WebhookCalls[1]
+						if strings.Contains(secondCall.URL, "/editMessageText") {
+							assert.Equal(t, "https://api.telegram.org/bot"+c.settings.BotToken+"/editMessageText", secondCall.URL, "second request should be editMessageText")
+							for i, call := range notificationService.WebhookCalls[2:] {
+								assert.Equalf(t, "https://api.telegram.org/bot"+c.settings.BotToken+"/sendPhoto", call.URL, "request at index %d was expected to be sendPhoto", i+2)
+							}
+						} else {
+							for i, call := range notificationService.WebhookCalls[1:] {
+								assert.Equalf(t, "https://api.telegram.org/bot"+c.settings.BotToken+"/sendPhoto", call.URL, "request at index %d was expected to be sendPhoto", i+1)
+							}
+						}
 					}
 				})
 			}
@@ -255,6 +303,140 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 				}
 				assert.Equalf(t, c.expMsg[i], data, "form-data at index %d does not match expected one", i)
 			}
+		})
+	}
+}
+
+func TestEditMessage(t *testing.T) {
+	tmpl := templates.ForTests(t)
+	provider := images.NewFakeProviderWithFile(t, 0)
+	externalURL, err := url.Parse("http://localhost")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+
+	cases := []struct {
+		name        string
+		settings    Config
+		messageID   int
+		alerts      []*types.Alert
+		expMsg      map[string]string
+		expMsgError error
+	}{
+		{
+			name: "Edit message with default template",
+			settings: Config{
+				BotToken:        "abcdefgh0123456789",
+				ChatID:          "someid",
+				MessageThreadID: "threadid",
+				Message:         templates.DefaultMessageEmbed,
+				ParseMode:       "HTML",
+			},
+			messageID: 12345,
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels: model.LabelSet{
+							"alertname": "alert1",
+							"severity":  "critical",
+						},
+						Annotations: model.LabelSet{
+							"summary": "Test alert",
+						},
+					},
+				},
+			},
+			expMsg: map[string]string{
+				"chat_id":    "someid",
+				"message_id": "12345",
+				"parse_mode": "HTML",
+				"text":       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - severity = critical\nAnnotations:\n - summary = Test alert\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=severity%3Dcritical\n",
+			},
+		},
+		{
+			name: "Edit message with Markdown formatting",
+			settings: Config{
+				BotToken:              "abcdefgh0123456789",
+				ChatID:                "someid",
+				Message:               templates.DefaultMessageEmbed,
+				ParseMode:             "Markdown",
+				DisableWebPagePreview: true,
+			},
+			messageID: 67890,
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels: model.LabelSet{
+							"alertname": "alert2",
+						},
+						Annotations: model.LabelSet{
+							"summary": "Another test alert",
+						},
+					},
+				},
+			},
+			expMsg: map[string]string{
+				"chat_id":                  "someid",
+				"message_id":               "67890",
+				"parse_mode":               "Markdown",
+				"text":                     "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert2\nAnnotations:\n - summary = Another test alert\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert2\n",
+				"disable_web_page_preview": "true",
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			notificationService := receivers.MockNotificationService()
+			// Set up mock response for sendMessage with message_id
+			notificationService.StatusCode = 200
+			notificationService.ResponseBody = []byte(`{"ok":true,"result":{"message_id":123}}`)
+
+			n := &Notifier{
+				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+				ns:       notificationService,
+				tmpl:     tmpl,
+				settings: c.settings,
+				images:   provider,
+			}
+
+			ctx := notify.WithGroupKey(context.Background(), "alertname")
+			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+
+			err := n.EditMessage(ctx, c.messageID, c.alerts...)
+			if c.expMsgError != nil {
+				require.Error(t, err)
+				require.Equal(t, c.expMsgError.Error(), err.Error())
+				return
+			}
+			require.NoError(t, err)
+
+			require.NotEmpty(t, notificationService.WebhookCalls, "webhook expected to be called but it wasn't")
+			require.Len(t, notificationService.WebhookCalls, 1, "expected 1 request to be made")
+
+			call := notificationService.WebhookCalls[0]
+			assert.Equal(t, "https://api.telegram.org/bot"+c.settings.BotToken+"/editMessageText", call.URL)
+
+			assert.Contains(t, call.HTTPHeader, "Content-Type")
+			mediaType, params, err := mime.ParseMediaType(call.HTTPHeader["Content-Type"])
+			assert.NoError(t, err)
+			assert.Equal(t, "multipart/form-data", mediaType)
+
+			reader := multipart.NewReader(strings.NewReader(call.Body), params["boundary"])
+			data := map[string]string{}
+			for {
+				p, err := reader.NextPart()
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				require.NoError(t, err)
+				slurp, err := io.ReadAll(p)
+				require.NoError(t, err)
+				fieldName := p.FormName()
+				if assert.NotEmpty(t, fieldName) {
+					data[fieldName] = string(slurp)
+				}
+			}
+			assert.Equal(t, c.expMsg, data)
 		})
 	}
 }
