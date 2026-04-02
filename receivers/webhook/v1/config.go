@@ -70,10 +70,10 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	if err != nil {
 		return settings, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
-	if rawSettings.URL == "" {
+	settings.URL = decryptFn("url", rawSettings.URL)
+	if settings.URL == "" {
 		return settings, errors.New("required field 'url' is not specified")
 	}
-	settings.URL = rawSettings.URL
 	settings.AuthorizationScheme = rawSettings.AuthorizationScheme
 
 	if rawSettings.HTTPMethod == "" {
@@ -199,6 +199,7 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			InputType:    schema.InputTypeText,
 			PropertyName: "url",
 			Required:     true,
+			Secure:       true,
 			Protected:    true,
 		},
 		{
