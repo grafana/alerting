@@ -29,10 +29,12 @@ type discordEmbedType string
 const (
 	discordRichEmbed discordEmbedType = "rich"
 
-	discordMaxEmbeds     = 10
-	discordMaxMessageLen = 2000
+	discordMaxEmbeds = 10
 	// https://discord.com/developers/docs/resources/message#embed-object-embed-limits
-	discordMaxTitleLen = 256
+	// Note: Discord's 6000-char total embed limit is not enforced here because
+	// title (256) + description (4096) + footer (~30) stays well under 6000.
+	discordMaxTitleLen       = 256
+	discordMaxDescriptionLen = 4096
 )
 
 type discordMessage struct {
@@ -44,10 +46,11 @@ type discordMessage struct {
 
 // discordLinkEmbed implements https://discord.com/developers/docs/resources/channel#embed-object
 type discordLinkEmbed struct {
-	Title string           `json:"title,omitempty"`
-	Type  discordEmbedType `json:"type,omitempty"`
-	URL   string           `json:"url,omitempty"`
-	Color int64            `json:"color,omitempty"`
+	Title       string           `json:"title,omitempty"`
+	Description string           `json:"description,omitempty"`
+	Type        discordEmbedType `json:"type,omitempty"`
+	URL         string           `json:"url,omitempty"`
+	Color       int64            `json:"color,omitempty"`
 
 	Footer *discordFooter `json:"footer,omitempty"`
 
@@ -117,16 +120,15 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 	var tmplErr error
 	tmpl, _ := templates.TmplText(ctx, d.tmpl, as, l, &tmplErr)
 
-	msg.Content = tmpl(d.settings.Message)
+	messageText := tmpl(d.settings.Message)
 	if tmplErr != nil {
 		level.Warn(l).Log("msg", "failed to template Discord notification content", "err", tmplErr.Error())
 		// Reset tmplErr for templating other fields.
 		tmplErr = nil
 	}
-	truncatedMsg, truncated := receivers.TruncateInRunes(msg.Content, discordMaxMessageLen)
+	messageText, truncated := receivers.TruncateInRunes(messageText, discordMaxDescriptionLen)
 	if truncated {
-		level.Warn(l).Log("msg", "Truncated content", "key", key, "max_runes", discordMaxMessageLen)
-		msg.Content = truncatedMsg
+		level.Warn(l).Log("msg", "Truncated content", "key", key, "max_runes", discordMaxDescriptionLen)
 	}
 
 	if d.settings.AvatarURL != "" {
@@ -156,6 +158,7 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 		level.Warn(l).Log("msg", "Truncated title", "key", key, "max_runes", discordMaxTitleLen)
 	}
 
+	linkEmbed.Description = messageText
 	linkEmbed.Footer = footer
 	linkEmbed.Type = discordRichEmbed
 
