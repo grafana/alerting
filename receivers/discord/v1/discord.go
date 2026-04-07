@@ -29,9 +29,10 @@ type discordEmbedType string
 const (
 	discordRichEmbed discordEmbedType = "rich"
 
-	discordMaxEmbeds     = 10
-	discordMaxMessageLen = 2000
+	discordMaxEmbeds = 10
 	// https://discord.com/developers/docs/resources/message#embed-object-embed-limits
+	// Note: Discord's 6000-char total embed limit is not enforced here because
+	// title (256) + description (4096) + footer (~30) stays well under 6000.
 	discordMaxTitleLen       = 256
 	discordMaxDescriptionLen = 4096
 )
