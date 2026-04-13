@@ -2,7 +2,7 @@
 
 ## Alerting
 
-- 
+- [FEATURE] Receivers: add Matrix receiver that posts alerts to a Matrix room via the Client-Server API.
 
 ## Scope Glossary
 

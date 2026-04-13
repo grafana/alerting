@@ -510,6 +510,7 @@ func TestHTTPConfig(t *testing.T) {
 					"apiUrl":         testServer.URL, // OpsGenie
 					"client_url":     testServer.URL, // PagerDuty
 					"endpointUrl":    testServer.URL, // Slack, Wecom
+					"homeserverUrl":  testServer.URL, // Matrix
 				})
 				require.NoError(t, err)
 				newSettings, err := MergeSettings(config.Settings, urlOverride)

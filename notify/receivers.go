@@ -25,6 +25,7 @@ import (
 	jira "github.com/grafana/alerting/receivers/jira/v1"
 	kafka "github.com/grafana/alerting/receivers/kafka/v1"
 	line "github.com/grafana/alerting/receivers/line/v1"
+	matrix "github.com/grafana/alerting/receivers/matrix/v1"
 	mqtt "github.com/grafana/alerting/receivers/mqtt/v1"
 	oncall "github.com/grafana/alerting/receivers/oncall/v1"
 	opsgenie "github.com/grafana/alerting/receivers/opsgenie/v1"
@@ -171,6 +172,7 @@ type GrafanaReceiverConfig struct {
 	JiraConfigs         []*NotifierConfig[jira.Config]
 	KafkaConfigs        []*NotifierConfig[kafka.Config]
 	LineConfigs         []*NotifierConfig[line.Config]
+	MatrixConfigs       []*NotifierConfig[matrix.Config]
 	OpsgenieConfigs     []*NotifierConfig[opsgenie.Config]
 	MqttConfigs         []*NotifierConfig[mqtt.Config]
 	PagerdutyConfigs    []*NotifierConfig[pagerduty.Config]
@@ -364,6 +366,16 @@ func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver 
 			return err
 		}
 		result.LineConfigs = append(result.LineConfigs, notifierConfig)
+	case schema.MatrixType:
+		cfg, err := matrix.NewConfig(receiver.Settings, decryptFn)
+		if err != nil {
+			return err
+		}
+		notifierConfig, err := newNotifierConfig(receiver, idx, cfg, decryptFn)
+		if err != nil {
+			return err
+		}
+		result.MatrixConfigs = append(result.MatrixConfigs, notifierConfig)
 	case schema.MQTTType:
 		cfg, err := mqtt.NewConfig(receiver.Settings, decryptFn)
 		if err != nil {

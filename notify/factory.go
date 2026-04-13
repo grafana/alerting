@@ -28,6 +28,7 @@ import (
 	jira "github.com/grafana/alerting/receivers/jira/v1"
 	kafka "github.com/grafana/alerting/receivers/kafka/v1"
 	line "github.com/grafana/alerting/receivers/line/v1"
+	matrix "github.com/grafana/alerting/receivers/matrix/v1"
 	mqtt "github.com/grafana/alerting/receivers/mqtt/v1"
 	oncall "github.com/grafana/alerting/receivers/oncall/v1"
 	opsgenie "github.com/grafana/alerting/receivers/opsgenie/v1"
@@ -138,6 +139,11 @@ func BuildGrafanaReceiverIntegrations(
 	for i, cfg := range receiver.LineConfigs {
 		ci(i, cfg.Metadata, cfg.HTTPClientConfig, func(cli *http.Client) notificationChannel {
 			return line.New(cfg.Settings, cfg.Metadata, tmpl, cli, logger)
+		})
+	}
+	for i, cfg := range receiver.MatrixConfigs {
+		ci(i, cfg.Metadata, cfg.HTTPClientConfig, func(cli *http.Client) notificationChannel {
+			return matrix.New(cfg.Settings, cfg.Metadata, tmpl, cli, logger)
 		})
 	}
 	for i, cfg := range receiver.MqttConfigs {

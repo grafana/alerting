@@ -9,6 +9,7 @@ const (
 	JiraType         IntegrationType = "jira"
 	KafkaType        IntegrationType = "kafka"
 	LineType         IntegrationType = "LINE"
+	MatrixType       IntegrationType = "matrix"
 	MQTTType         IntegrationType = "mqtt"
 	OnCallType       IntegrationType = "oncall"
 	OpsGenieType     IntegrationType = "opsgenie"
