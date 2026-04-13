@@ -23,6 +23,8 @@ import (
 	kafkav1 "github.com/grafana/alerting/receivers/kafka/v1"
 	"github.com/grafana/alerting/receivers/line"
 	linev1 "github.com/grafana/alerting/receivers/line/v1"
+	"github.com/grafana/alerting/receivers/matrix"
+	matrixv1 "github.com/grafana/alerting/receivers/matrix/v1"
 	"github.com/grafana/alerting/receivers/mqtt"
 	mqttv1 "github.com/grafana/alerting/receivers/mqtt/v1"
 	"github.com/grafana/alerting/receivers/oncall"
@@ -104,6 +106,12 @@ var AllKnownV1ConfigsForTesting = map[schema.IntegrationType]NotifierConfigTest{
 		Version:      schema.V1,
 		Config:       linev1.FullValidConfigForTesting,
 		Secrets:      linev1.FullValidSecretsForTesting,
+	},
+	matrix.Type: {
+		NotifierType: matrix.Type,
+		Version:      schema.V1,
+		Config:       matrixv1.FullValidConfigForTesting,
+		Secrets:      matrixv1.FullValidSecretsForTesting,
 	},
 	mqtt.Type: {
 		NotifierType:                mqtt.Type,

@@ -19,6 +19,7 @@ import (
 	jiraV0 "github.com/grafana/alerting/receivers/jira/v0mimir1"
 	"github.com/grafana/alerting/receivers/kafka"
 	"github.com/grafana/alerting/receivers/line"
+	"github.com/grafana/alerting/receivers/matrix"
 	"github.com/grafana/alerting/receivers/mqtt"
 	"github.com/grafana/alerting/receivers/oncall"
 	"github.com/grafana/alerting/receivers/opsgenie"
@@ -71,6 +72,7 @@ func initSchemas() {
 		jira.Schema,
 		kafka.Schema,
 		line.Schema,
+		matrix.Schema,
 		mqtt.Schema,
 		oncall.Schema,
 		opsgenie.Schema,
