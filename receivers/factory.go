@@ -29,6 +29,7 @@ type NotifierOpts struct {
 // NotificationChannel is the interface that all notifiers must satisfy.
 type NotificationChannel interface {
 	notify.Notifier
+	notify.ResolvedSender
 }
 
 type ValidateIntegrationFunc func(json.RawMessage, DecryptFunc) error
