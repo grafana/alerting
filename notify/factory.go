@@ -422,12 +422,7 @@ func BuildReceiverIntegrationsWithManifests(
 ) ([]*Integration, error) {
 	var integrations []*Integration
 	if len(receiver.Integrations) > 0 {
-		tmpl, err := tmpls.GetTemplate(templates.GrafanaKind)
-		if err != nil {
-			return nil, err
-		}
 		opts := receivers.NotifierOpts{
-			Template:       tmpl,
 			Images:         images,
 			Logger:         logger,
 			EmailSender:    emailSender,
@@ -435,9 +430,24 @@ func BuildReceiverIntegrationsWithManifests(
 			GrafanaVersion: version,
 			HttpOpts:       http.ToHTTPClientOption(httpClientOptions...),
 		}
-		for i, cfg := range receiver.Integrations {
+		// Track per-type indices so that integrations of the same type get consecutive indices (0, 1, 2…).
+		// This matches BuildGrafanaReceiverIntegrations behavior and preserves notification log management (see createReceiverStage).
+		typeCounters := make(map[schema.IntegrationType]int)
+		for _, cfg := range receiver.Integrations {
+			idx := typeCounters[cfg.Type]
+			typeCounters[cfg.Type]++
+
+			kind := templates.GrafanaKind
+			if cfg.Version != schema.V1 {
+				kind = templates.MimirKind
+			}
+			tmpl, err := tmpls.GetTemplate(kind)
+			if err != nil {
+				return nil, err
+			}
+
 			meta := receivers.Metadata{
-				Index:                 i,
+				Index:                 idx,
 				UID:                   cfg.UID,
 				Name:                  cfg.Name,
 				Type:                  cfg.Type,
@@ -457,6 +467,7 @@ func BuildReceiverIntegrationsWithManifests(
 			})
 
 			opts := opts
+			opts.Template = tmpl
 			// v0 do not use sender. Instead, each v0 factory creates its own HTTP client internally,
 			// combining the shared httpClientOptions (passed as variadic args to New()) with the
 			// per-integration HTTP config embedded in the typed config struct.
@@ -481,9 +492,8 @@ func BuildReceiverIntegrationsWithManifests(
 			if err != nil {
 				return nil, fmt.Errorf("failed to build notifier for %q (UID: %q): %w", cfg.Name, cfg.UID, err)
 			}
-			rs, _ := n.(notify.ResolvedSender)
 			wrapped := wrapNotifierFunc(cfg.Name, nfstatus.NewNotifierAdapter(n))
-			integrations = append(integrations, NewIntegration(wrapped, rs, string(cfg.Type), i, cfg.Name, notificationHistorian, logger))
+			integrations = append(integrations, NewIntegration(wrapped, n, string(cfg.Type), idx, cfg.Name, notificationHistorian, logger))
 		}
 	}
 	mimir, err := BuildPrometheusReceiverIntegrations(receiver.ConfigReceiver, tmpls, httpClientOptions, logger, wrapNotifierFunc, notificationHistorian)

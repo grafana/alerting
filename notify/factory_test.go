@@ -304,6 +304,27 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 		require.NoError(t, err)
 		require.Empty(t, integrations)
 	})
+
+	t.Run("should use per-type index for integrations of the same type", func(t *testing.T) {
+		webhookCfg := notifytest.AllKnownV1ConfigsForTesting[schema.WebhookType]
+		emailCfg := notifytest.AllKnownV1ConfigsForTesting[schema.EmailType]
+		recCfg := &APIReceiver{
+			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+			ReceiverConfig: models.ReceiverConfig{
+				Integrations: []*models.IntegrationConfig{
+					webhookCfg.GetRawNotifierConfig("webhook-0"),
+					emailCfg.GetRawNotifierConfig("email-0"),
+					webhookCfg.GetRawNotifierConfig("webhook-1"),
+				},
+			},
+		}
+		integrations, err := build(t, recCfg, noopWrapper)
+		require.NoError(t, err)
+		require.Len(t, integrations, 3)
+		require.Equal(t, "webhook[0]", integrations[0].String())
+		require.Equal(t, "email[0]", integrations[1].String())
+		require.Equal(t, "webhook[1]", integrations[2].String())
+	})
 }
 
 func TestBuildPrometheusReceiverIntegrations(t *testing.T) {
