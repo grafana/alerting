@@ -406,6 +406,8 @@ func BuildReceiverIntegrations(
 // BuildReceiverIntegrationsWithManifests builds integrations for the provided API receiver using
 // the manifest-based factory for v1 (Grafana) integrations instead of the typed config switch.
 // Prometheus integrations are still built via BuildPrometheusReceiverIntegrations.
+// Unlike BuildGrafanaReceiverIntegrations, this function is fail-fast: it returns on the first
+// error without returning partial results.
 func BuildReceiverIntegrationsWithManifests(
 	tenantID int64,
 	receiver *APIReceiver,
