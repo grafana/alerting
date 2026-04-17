@@ -99,10 +99,6 @@ var Factory = receivers.IntegrationVersionFactory{
 		if err != nil {
 			return nil, err
 		}
-		ch := New(cfg, m, opts.Template, opts.Sender, opts.Images, opts.Logger, opts.GrafanaVersion)
-		if err != nil {
-			return nil, err
-		}
-		return ch, nil
+		return New(cfg, m, opts.Template, opts.Sender, opts.Images, opts.Logger, opts.GrafanaVersion), nil
 	},
 }
