@@ -17,7 +17,6 @@ import (
 	"github.com/go-openapi/strfmt"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/grafana/alerting/utils/hash"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/dispatch"
@@ -34,6 +33,8 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/model"
+
+	"github.com/grafana/alerting/utils/hash"
 
 	"github.com/grafana/alerting/cluster"
 	"github.com/grafana/alerting/definition"
@@ -250,6 +251,8 @@ type GrafanaAlertmanagerOpts struct {
 	NotificationHistorian nfstatus.NotificationHistorian
 
 	DispatchTimer DispatchTimer
+
+	BuildWithManifestBuilder bool
 }
 
 func (c *GrafanaAlertmanagerOpts) Validate() error {
@@ -831,6 +834,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		am.opts.Version,
 		am.logger,
 		am.opts.NotificationHistorian,
+		am.opts.BuildWithManifestBuilder,
 	)
 	if err != nil {
 		return err
@@ -1073,6 +1077,22 @@ func (am *GrafanaAlertmanager) tenantString() string {
 }
 
 func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpls TemplatesProvider) ([]*Integration, error) {
+	if am.opts.BuildWithManifestBuilder {
+		return BuildReceiverIntegrationsWithManifests(
+			am.opts.TenantID,
+			receiver,
+			tmpls,
+			am.opts.ImageProvider,
+			am.opts.Decrypter,
+			DecodeSecretsFromBase64,
+			am.opts.EmailSender,
+			nil,
+			NoWrap,
+			am.opts.Version,
+			am.logger,
+			am.opts.NotificationHistorian,
+		)
+	}
 	return BuildReceiverIntegrations(
 		am.opts.TenantID,
 		receiver,
