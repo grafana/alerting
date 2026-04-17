@@ -277,6 +277,16 @@ func ValidateAPIReceiver(ctx context.Context, api *APIReceiver, decode DecodeSec
 }
 
 func ValidateIntegrationConfig(ctx context.Context, cfg *models.IntegrationConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn) error {
+	if cfg.Type == "" {
+		return fmt.Errorf("type should not be an empty string")
+	}
+	if cfg.Settings == nil {
+		return fmt.Errorf("settings should not be empty")
+	}
+	if cfg.Version == "" {
+		return fmt.Errorf("version should not be an empty string")
+	}
+
 	secureSettings, err := decode(cfg.SecureSettings)
 	if err != nil {
 		return err
