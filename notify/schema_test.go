@@ -355,6 +355,15 @@ func TestGetFactoryForIntegrationVersion(t *testing.T) {
 		}
 	})
 
+	t.Run("should resolve alias types", func(t *testing.T) {
+		// "msteams" is an alias for the canonical "teams" type at V0mimir1
+		_, ok := GetFactoryForIntegrationVersion("msteams", schema.V0mimir1)
+		require.True(t, ok)
+		// "msteamsv2" is an alias for the canonical "teams" type at V0mimir2
+		_, ok = GetFactoryForIntegrationVersion("msteamsv2", schema.V0mimir2)
+		require.True(t, ok)
+	})
+
 	t.Run("should return false for unknown type", func(t *testing.T) {
 		_, ok := GetFactoryForIntegrationVersion("unknown-type", schema.V1)
 		require.False(t, ok)

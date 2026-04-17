@@ -268,11 +268,14 @@ func IntegrationTypeFromMimirTypeReflect(t reflect.Type) (schema.IntegrationType
 
 func GetFactoryForIntegrationVersion(t schema.IntegrationType, v schema.Version) (receivers.IntegrationVersionFactory, bool) {
 	initSchemaOnce.Do(initSchemas)
-	_, ok := allSchemas[t]
+	if canonical, ok := aliasToType[t]; ok {
+		t = canonical
+	}
+	sch, ok := allSchemas[t]
 	if !ok {
 		return receivers.IntegrationVersionFactory{}, false
 	}
-	return allSchemas[t].GetFactoryForVersion(v)
+	return sch.GetFactoryForVersion(v)
 }
 
 // TODO make it more efficient and self maintained
