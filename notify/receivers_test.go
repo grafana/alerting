@@ -657,3 +657,112 @@ func TestReceiver_JSONRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateAPIReceiver(t *testing.T) {
+	ctx := context.Background()
+	decrypt := GetDecryptedValueFnForTesting
+
+	t.Run("accepts valid configs for all known integrations", func(t *testing.T) {
+		for key, cfg := range notifytest.AllKnownConfigsForTesting {
+			t.Run(fmt.Sprintf("%s %s", key.Type, key.Version), func(t *testing.T) {
+				raw := cfg.GetRawNotifierConfig("")
+				api := &APIReceiver{
+					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+					ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+				}
+				require.NoError(t, ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt))
+			})
+		}
+	})
+
+	t.Run("returns error when receiver name is empty", func(t *testing.T) {
+		api := &APIReceiver{}
+		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "receiver name is required")
+	})
+
+	t.Run("returns error for unknown integration type", func(t *testing.T) {
+		raw := &models.IntegrationConfig{
+			Name:     "test",
+			Type:     "unknown-type",
+			Version:  schema.V1,
+			Settings: json.RawMessage(`{}`),
+		}
+		api := &APIReceiver{
+			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+			ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+		}
+		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
+		require.ErrorContains(t, err, "invalid integration config at index 0")
+		require.ErrorContains(t, err, "invalid integration type or version")
+	})
+
+	t.Run("returns error for unknown integration version", func(t *testing.T) {
+		raw := &models.IntegrationConfig{
+			Name:     "test",
+			Type:     schema.WebhookType,
+			Version:  "v99",
+			Settings: json.RawMessage(`{}`),
+		}
+		api := &APIReceiver{
+			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+			ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+		}
+		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
+		require.ErrorContains(t, err, "invalid integration config at index 0")
+		require.ErrorContains(t, err, "invalid integration type or version")
+	})
+
+	t.Run("returns error when integration config is invalid", func(t *testing.T) {
+		// webhook v1 requires a non-empty URL
+		raw := &models.IntegrationConfig{
+			Name:     "test",
+			Type:     schema.WebhookType,
+			Version:  schema.V1,
+			Settings: json.RawMessage(`{"url": ""}`),
+		}
+		api := &APIReceiver{
+			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+			ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+		}
+		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
+		require.ErrorContains(t, err, "invalid integration config at index 0")
+	})
+
+	t.Run("returns error when secure settings cannot be decoded", func(t *testing.T) {
+		raw := &models.IntegrationConfig{
+			Name:           "test",
+			Type:           schema.WebhookType,
+			Version:        schema.V1,
+			Settings:       json.RawMessage(`{"url": "http://localhost"}`),
+			SecureSettings: map[string]string{"key": "not-valid-base64!!!"},
+		}
+		api := &APIReceiver{
+			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+			ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+		}
+		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
+		require.ErrorContains(t, err, "invalid integration config at index 0")
+	})
+
+	t.Run("collects errors from multiple invalid integrations", func(t *testing.T) {
+		makeInvalid := func(name string) *models.IntegrationConfig {
+			return &models.IntegrationConfig{
+				Name:     name,
+				Type:     "unknown-type",
+				Version:  schema.V1,
+				Settings: json.RawMessage(`{}`),
+			}
+		}
+		api := &APIReceiver{
+			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+			ReceiverConfig: models.ReceiverConfig{
+				Integrations: []*models.IntegrationConfig{makeInvalid("a"), makeInvalid("b")},
+			},
+		}
+		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
+		require.ErrorContains(t, err, "invalid integration config at index 0")
+		require.ErrorContains(t, err, "invalid integration config at index 1")
+	})
+}
