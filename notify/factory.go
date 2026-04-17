@@ -483,7 +483,14 @@ func BuildReceiverIntegrationsWithManifests(
 				if err != nil {
 					return nil, fmt.Errorf("failed to create HTTP client for %q (UID: %q): %w", cfg.Name, cfg.UID, err)
 				}
-				opts.Sender = client
+				// Jira's getIssueTransitionByName uses GET, which Client.SendWebhook rejects (POST/PUT only).
+				// ForkedSender handles GET by bypassing Client.SendWebhook and making the request directly.
+				// TODO remove it once the GET is supported by the client
+				if cfg.Type == schema.JiraType {
+					opts.Sender = http.NewForkedSender(client)
+				} else {
+					opts.Sender = client
+				}
 			}
 
 			factory, ok := GetFactoryForIntegrationVersion(cfg.Type, cfg.Version)
