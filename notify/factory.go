@@ -456,7 +456,12 @@ func BuildReceiverIntegrationsWithManifests(
 				return decryptFn(context.Background(), secureSettings, key, fallback), true
 			})
 
+			opts := opts
+			// v0 do not use sender. Instead, each v0 factory creates its own HTTP client internally,
+			// combining the shared httpClientOptions (passed as variadic args to New()) with the
+			// per-integration HTTP config embedded in the typed config struct.
 			if cfg.Version == schema.V1 {
+				// TODO refactor this down to config factory, and use the same approach as in V0
 				httpClientConfig, err := parseHTTPConfig(cfg, decrypt)
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse HTTP config for %q (UID: %q): %w", cfg.Name, cfg.UID, err)
