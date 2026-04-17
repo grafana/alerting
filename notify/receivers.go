@@ -265,7 +265,7 @@ func ValidateAPIReceiver(ctx context.Context, api *APIReceiver, decode DecodeSec
 		errs = append(errs, err)
 	}
 	for idx, integration := range api.Integrations {
-		err := validateIntegrationConfig(ctx, integration, decode, decrypt)
+		err := ValidateIntegrationConfig(ctx, integration, decode, decrypt)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("invalid integration config at index %d: %w", idx, err))
 		}
@@ -276,7 +276,7 @@ func ValidateAPIReceiver(ctx context.Context, api *APIReceiver, decode DecodeSec
 	return nil
 }
 
-func validateIntegrationConfig(ctx context.Context, cfg *models.IntegrationConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn) error {
+func ValidateIntegrationConfig(ctx context.Context, cfg *models.IntegrationConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn) error {
 	secureSettings, err := decode(cfg.SecureSettings)
 	if err != nil {
 		return err
