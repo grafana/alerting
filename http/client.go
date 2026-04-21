@@ -16,6 +16,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"golang.org/x/oauth2"
+	"golang.org/x/time/rate"
 
 	commoncfg "github.com/prometheus/common/config"
 
@@ -24,10 +25,17 @@ import (
 
 var ErrInvalidMethod = errors.New("webhook only supports HTTP methods PUT or POST")
 
+// ErrWebhookRateLimited is returned from SendWebhook when a rate limiter rejects the call.
+// Mirrors ErrEmailRateLimited semantics: reject immediately, do not retry.
+var ErrWebhookRateLimited = errors.New("webhook notifications are rate limited")
+
 type clientConfiguration struct {
 	userAgent    string
 	dialer       net.Dialer // We use Dialer here instead of DialContext as our mqtt client doesn't support DialContext.
 	customDialer bool
+	// rateLimiter, when non-nil, is consulted once per SendWebhook call.
+	// The caller owns the limiter and may mutate its rate/burst at runtime.
+	rateLimiter *rate.Limiter
 }
 
 // defaultDialTimeout is the default timeout for the dialer, 30 seconds to match http.DefaultTransport.
@@ -38,14 +46,18 @@ type Client struct {
 	oauth2TokenSource oauth2.TokenSource
 }
 
-func NewClient(httpClientConfig *HTTPClientConfig, opts ...ClientOption) (*Client, error) {
+// NewClient builds a Client for a specific integration type. The integrationType is passed
+// through to each ClientOption so options can vary their behavior per integration (e.g.
+// WithRateLimiterByType selects a limiter from a per-type map). Pass "" for standalone
+// clients that are not tied to a particular integration.
+func NewClient(httpClientConfig *HTTPClientConfig, integrationType string, opts ...ClientOption) (*Client, error) {
 	cfg := clientConfiguration{
 		userAgent: "Grafana",
 		dialer:    net.Dialer{},
 	}
 	for _, opt := range opts {
 		if opt != nil {
-			opt(&cfg)
+			opt(&cfg, integrationType)
 		}
 	}
 	if cfg.dialer.Timeout == 0 {
@@ -73,18 +85,54 @@ func NewClient(httpClientConfig *HTTPClientConfig, opts ...ClientOption) (*Clien
 	return client, nil
 }
 
-type ClientOption func(*clientConfiguration)
+// ClientOption configures a Client. The second argument is the integration type the
+// Client is being built for (e.g. "slack", "webhook"); most options ignore it, but
+// options like WithRateLimiterByType use it to select per-type behavior. For standalone
+// clients not tied to a specific integration, NewClient is called with "".
+type ClientOption func(*clientConfiguration, string)
 
 func WithUserAgent(userAgent string) ClientOption {
-	return func(c *clientConfiguration) {
+	return func(c *clientConfiguration, _ string) {
 		c.userAgent = userAgent
 	}
 }
 
 func WithDialer(dialer net.Dialer) ClientOption {
-	return func(c *clientConfiguration) {
+	return func(c *clientConfiguration, _ string) {
 		c.dialer = dialer
 		c.customDialer = true
+	}
+}
+
+// WithRateLimiter installs a rate limiter on the client unconditionally. Each SendWebhook
+// call consumes one token via Allow(); when no token is available the call is rejected
+// with ErrWebhookRateLimited without contacting the upstream. A nil limiter disables
+// rate limiting (same as not passing this option).
+//
+// The caller owns the limiter's lifetime and may reconfigure it in place via
+// SetLimit/SetBurst. Use WithRateLimiterByType instead when the limiter should be chosen
+// per integration type.
+func WithRateLimiter(limiter *rate.Limiter) ClientOption {
+	return func(c *clientConfiguration, _ string) {
+		c.rateLimiter = limiter
+	}
+}
+
+// WithRateLimiterByType installs a rate limiter chosen from the given map by the Client's
+// integration type. When the type has no entry, the option is a no-op and no rate limiting
+// is applied to that Client. The typical use is a per-tenant map of limiters (one bucket
+// per integration type) that the factory consults when building Clients for each
+// receiver — giving a single shared bucket per integration type independent of how many
+// receivers reuse the same integration.
+//
+// The caller owns each limiter's lifetime and may reconfigure it in place via
+// SetLimit/SetBurst. To avoid data races, pass a snapshot of the map when the underlying
+// source can mutate concurrently (the option retains the reference).
+func WithRateLimiterByType(limiters map[string]*rate.Limiter) ClientOption {
+	return func(c *clientConfiguration, integrationType string) {
+		if lim, ok := limiters[integrationType]; ok && lim != nil {
+			c.rateLimiter = lim
+		}
 	}
 }
 
@@ -94,7 +142,10 @@ func ToHTTPClientOption(option ...ClientOption) []commoncfg.HTTPClientOption {
 		if opt == nil {
 			continue
 		}
-		opt(&cfg)
+		// No integration type context at conversion time — options that depend on the type
+		// have no effect here, which is correct: ToHTTPClientOption converts only to the
+		// subset supported by upstream (user-agent, dialer).
+		opt(&cfg, "")
 	}
 	result := make([]commoncfg.HTTPClientOption, 0, len(option))
 	if cfg.userAgent != "" {
@@ -107,6 +158,9 @@ func ToHTTPClientOption(option ...ClientOption) []commoncfg.HTTPClientOption {
 }
 
 func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receivers.SendWebhookSettings) error {
+	if ns.cfg.rateLimiter != nil && !ns.cfg.rateLimiter.Allow() {
+		return ErrWebhookRateLimited
+	}
 	// This method was moved from https://github.com/grafana/grafana/blob/71d04a326be9578e2d678f23c1efa61768e0541f/pkg/services/notifications/webhook.go#L38
 	if webhook.HTTPMethod == "" {
 		webhook.HTTPMethod = http.MethodPost
