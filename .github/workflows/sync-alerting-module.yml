@@ -106,6 +106,7 @@ jobs:
         if: steps.check.outputs.status != '200' && steps.check.outputs.status != '404'
         env:
           TARGET_REPO: ${{ matrix.repo }}
+          BRANCH_STATUS: ${{ steps.check.outputs.status }}
         run: |
-          echo "::error::Unexpected status ${{ steps.check.outputs.status }} when checking branch in ${TARGET_REPO}"
+          echo "::error::Unexpected status ${BRANCH_STATUS} when checking branch in ${TARGET_REPO}"
           exit 1
