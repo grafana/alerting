@@ -23,7 +23,7 @@ jobs:
     steps:
       - id: matrix
         env:
-          TARGETS: ${{ vars.lre }}
+          TARGETS: ${{ vars.ALERTING_SYNC_TARGETS }}
         run: |
           if [ -z "$TARGETS" ]; then
             echo "::error::ALERTING_SYNC_TARGETS is empty or not set"
