@@ -143,10 +143,7 @@ var Factory = receivers.IntegrationVersionFactory{
 	Type:    schema.DiscordType,
 	ValidateConfig: func(message json.RawMessage, decryptFunc receivers.DecryptFunc) error {
 		_, err := NewConfig(message, decryptFunc)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	},
 	NewNotifier: func(message json.RawMessage, decryptFunc receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
 		cfg, err := NewConfig(message, decryptFunc)
