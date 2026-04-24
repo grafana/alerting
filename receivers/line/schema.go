@@ -1,6 +1,7 @@
 package line
 
 import (
+	"github.com/grafana/alerting/receivers"
 	v1 "github.com/grafana/alerting/receivers/line/v1"
 	"github.com/grafana/alerting/receivers/schema"
 )
@@ -18,3 +19,5 @@ var Schema = schema.InitSchema(
 	},
 	v1.Schema,
 )
+
+var Manifest = receivers.NewManifest(Schema, v1.Factory)

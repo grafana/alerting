@@ -193,11 +193,7 @@ func (c *HTTPLokiClient) Push(ctx context.Context, s []Stream) error {
 	}()
 
 	_, err = c.handleLokiResponse(c.logger, resp)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return err
 }
 
 func (c *HTTPLokiClient) setAuthAndTenantHeaders(req *http.Request) {

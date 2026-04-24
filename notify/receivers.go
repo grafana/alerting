@@ -256,6 +256,56 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decode De
 	return result, nil
 }
 
+func ValidateAPIReceiver(ctx context.Context, api *APIReceiver, decode DecodeSecretsFn, decrypt GetDecryptedValueFn) error {
+	var errs []error
+	if api.Name == "" {
+		errs = append(errs, fmt.Errorf("receiver name is required"))
+	}
+	if err := api.Validate(); err != nil {
+		errs = append(errs, err)
+	}
+	for idx, integration := range api.Integrations {
+		err := ValidateIntegrationConfig(ctx, integration, decode, decrypt)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("invalid integration config at index %d: %w", idx, err))
+		}
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+func ValidateIntegrationConfig(ctx context.Context, cfg *models.IntegrationConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn) error {
+	if cfg.Type == "" {
+		return fmt.Errorf("type should not be an empty string")
+	}
+	if cfg.Settings == nil {
+		return fmt.Errorf("settings should not be empty")
+	}
+	if cfg.Version == "" {
+		return fmt.Errorf("version should not be an empty string")
+	}
+
+	secureSettings, err := decode(cfg.SecureSettings)
+	if err != nil {
+		return err
+	}
+
+	decryptFn := func(key string, fallback string) (string, bool) {
+		if _, ok := secureSettings[key]; !ok {
+			return fallback, false
+		}
+		return decrypt(ctx, secureSettings, key, fallback), true
+	}
+
+	factory, ok := GetFactoryForIntegrationVersion(cfg.Type, cfg.Version)
+	if !ok {
+		return fmt.Errorf("invalid integration type or version: %s %s", cfg.Type, cfg.Version)
+	}
+	return factory.ValidateConfig(cfg.Settings, decryptFn)
+}
+
 // parseNotifier parses receivers and populates the corresponding field in GrafanaReceiverConfig. Returns an error if the configuration cannot be parsed.
 func parseNotifier(ctx context.Context, result *GrafanaReceiverConfig, receiver *models.IntegrationConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn, idx int) error {
 	// normalize the type to the original type and version

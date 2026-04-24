@@ -301,6 +301,22 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	},
 })
 
+var Factory = receivers.IntegrationVersionFactory{
+	Version: Version,
+	Type:    schema.PagerDutyType,
+	ValidateConfig: func(raw json.RawMessage, decryptFn receivers.DecryptFunc) error {
+		_, err := NewConfig(raw, decryptFn)
+		return err
+	},
+	NewNotifier: func(raw json.RawMessage, decryptFn receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
+		cfg, err := NewConfig(raw, decryptFn)
+		if err != nil {
+			return nil, err
+		}
+		return New(&cfg, opts.Template.Template, opts.Logger, opts.HttpOpts...)
+	},
+}
+
 // PagerdutyLink is used to add link to an incident.
 type PagerdutyLink struct {
 	Href string `yaml:"href,omitempty" json:"href,omitempty"`

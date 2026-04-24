@@ -1,6 +1,7 @@
 package webex
 
 import (
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/receivers/webex/v0mimir1"
 	v1 "github.com/grafana/alerting/receivers/webex/v1"
@@ -20,3 +21,5 @@ var Schema = schema.InitSchema(
 	v1.Schema,
 	v0mimir1.Schema,
 )
+
+var Manifest = receivers.NewManifest(Schema, v0mimir1.Factory, v1.Factory)

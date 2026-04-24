@@ -246,3 +246,19 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 		httpcfg.V0HttpConfigOption(),
 	},
 })
+
+var Factory = receivers.IntegrationVersionFactory{
+	Version: Version,
+	Type:    schema.PushoverType,
+	ValidateConfig: func(raw json.RawMessage, decryptFn receivers.DecryptFunc) error {
+		_, err := NewConfig(raw, decryptFn)
+		return err
+	},
+	NewNotifier: func(raw json.RawMessage, decryptFn receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
+		cfg, err := NewConfig(raw, decryptFn)
+		if err != nil {
+			return nil, err
+		}
+		return New(&cfg, opts.Template.Template, opts.Logger, opts.HttpOpts...)
+	},
+}

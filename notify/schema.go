@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/alertmanager"
 	"github.com/grafana/alerting/receivers/dingding"
 	"github.com/grafana/alerting/receivers/discord"
@@ -56,40 +57,40 @@ var (
 
 // map of all known types including aliases and schema factories
 var (
-	allSchemas     map[schema.IntegrationType]schema.IntegrationTypeSchema
+	allSchemas     map[schema.IntegrationType]receivers.Manifest
 	aliasToType    map[schema.IntegrationType]schema.IntegrationType
 	initSchemaOnce sync.Once
 )
 
 func initSchemas() {
-	all := []schema.IntegrationTypeSchema{
-		alertmanager.Schema,
-		dingding.Schema,
-		discord.Schema,
-		email.Schema,
-		googlechat.Schema,
-		jira.Schema,
-		kafka.Schema,
-		line.Schema,
-		mqtt.Schema,
-		oncall.Schema,
-		opsgenie.Schema,
-		pagerduty.Schema,
-		pushover.Schema,
-		sensugo.Schema,
-		slack.Schema,
-		sns.Schema,
-		teams.Schema,
-		telegram.Schema,
-		threema.Schema,
-		victorops.Schema,
-		webex.Schema,
-		webhook.Schema,
-		wechat.Schema,
-		wecom.Schema,
+	all := []receivers.Manifest{
+		alertmanager.Manifest,
+		dingding.Manifest,
+		discord.Manifest,
+		email.Manifest,
+		googlechat.Manifest,
+		jira.Manifest,
+		kafka.Manifest,
+		line.Manifest,
+		mqtt.Manifest,
+		oncall.Manifest,
+		opsgenie.Manifest,
+		pagerduty.Manifest,
+		pushover.Manifest,
+		sensugo.Manifest,
+		slack.Manifest,
+		sns.Manifest,
+		teams.Manifest,
+		telegram.Manifest,
+		threema.Manifest,
+		victorops.Manifest,
+		webex.Manifest,
+		webhook.Manifest,
+		wechat.Manifest,
+		wecom.Manifest,
 	}
 
-	allSch := make(map[schema.IntegrationType]schema.IntegrationTypeSchema, len(all))
+	allSch := make(map[schema.IntegrationType]receivers.Manifest, len(all))
 	aliases := make(map[schema.IntegrationType]schema.IntegrationType)
 	for _, sch := range all {
 		if _, ok := allSch[sch.Type]; ok {
@@ -126,7 +127,7 @@ func GetSchemaForAllIntegrations() []schema.IntegrationTypeSchema {
 		if _, ok := seen[t]; ok {
 			continue
 		}
-		result = append(result, sch)
+		result = append(result, sch.IntegrationTypeSchema)
 		for _, t := range sch.GetAllTypes() {
 			seen[t] = struct{}{}
 		}
@@ -143,11 +144,11 @@ func GetSchemaForIntegration(integrationType schema.IntegrationType) (schema.Int
 	get := func(t schema.IntegrationType) (schema.IntegrationTypeSchema, bool) {
 		sch, ok := allSchemas[t]
 		if ok {
-			return sch, true
+			return sch.IntegrationTypeSchema, true
 		}
 		original, ok := aliasToType[t]
 		if ok {
-			return allSchemas[original], true
+			return allSchemas[original].IntegrationTypeSchema, true
 		}
 		return schema.IntegrationTypeSchema{}, false
 	}
@@ -263,6 +264,18 @@ func IntegrationTypeFromMimirTypeReflect(t reflect.Type) (schema.IntegrationType
 		return IntegrationTypeFromMimirTypeReflect(t.Elem())
 	}
 	return "", errors.New("not a struct or slice")
+}
+
+func GetFactoryForIntegrationVersion(t schema.IntegrationType, v schema.Version) (receivers.IntegrationVersionFactory, bool) {
+	initSchemaOnce.Do(initSchemas)
+	if canonical, ok := aliasToType[t]; ok {
+		t = canonical
+	}
+	sch, ok := allSchemas[t]
+	if !ok {
+		return receivers.IntegrationVersionFactory{}, false
+	}
+	return sch.GetFactoryForVersion(v)
 }
 
 // TODO make it more efficient and self maintained

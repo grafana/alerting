@@ -1,6 +1,7 @@
 package jira
 
 import (
+	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/jira/v0mimir1"
 	v1 "github.com/grafana/alerting/receivers/jira/v1"
 	"github.com/grafana/alerting/receivers/schema"
@@ -19,3 +20,5 @@ var Schema = schema.InitSchema(
 	v1.Schema,
 	v0mimir1.Schema,
 )
+
+var Manifest = receivers.NewManifest(Schema, v0mimir1.Factory, v1.Factory)

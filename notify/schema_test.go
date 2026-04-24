@@ -345,6 +345,36 @@ func TestIntegrationTypeFromMimirType(t *testing.T) {
 	})
 }
 
+func TestGetFactoryForIntegrationVersion(t *testing.T) {
+	t.Run("should return factory for all known integration versions", func(t *testing.T) {
+		for key := range notifytest.AllKnownConfigsForTesting {
+			t.Run(fmt.Sprintf("%s-%s", key.Type, key.Version), func(t *testing.T) {
+				_, ok := GetFactoryForIntegrationVersion(key.Type, key.Version)
+				require.True(t, ok)
+			})
+		}
+	})
+
+	t.Run("should resolve alias types", func(t *testing.T) {
+		// "msteams" is an alias for the canonical "teams" type at V0mimir1
+		_, ok := GetFactoryForIntegrationVersion("msteams", schema.V0mimir1)
+		require.True(t, ok)
+		// "msteamsv2" is an alias for the canonical "teams" type at V0mimir2
+		_, ok = GetFactoryForIntegrationVersion("msteamsv2", schema.V0mimir2)
+		require.True(t, ok)
+	})
+
+	t.Run("should return false for unknown type", func(t *testing.T) {
+		_, ok := GetFactoryForIntegrationVersion("unknown-type", schema.V1)
+		require.False(t, ok)
+	})
+
+	t.Run("should return false for known type with unknown version", func(t *testing.T) {
+		_, ok := GetFactoryForIntegrationVersion(schema.WebhookType, "v99")
+		require.False(t, ok)
+	})
+}
+
 func unique(slice []string) []string {
 	keys := make(map[string]struct{}, len(slice))
 	list := make([]string, 0, len(slice))

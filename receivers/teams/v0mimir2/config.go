@@ -107,6 +107,26 @@ func (c *Config) validate() error {
 	return nil
 }
 
+var Factory = receivers.IntegrationVersionFactory{
+	Version: Version,
+	Type:    TypeAlias,
+	ValidateConfig: func(message json.RawMessage, decryptFunc receivers.DecryptFunc) error {
+		_, err := NewConfig(message, decryptFunc)
+		return err
+	},
+	NewNotifier: func(message json.RawMessage, decryptFunc receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
+		cfg, err := NewConfig(message, decryptFunc)
+		if err != nil {
+			return nil, err
+		}
+		ch, err := New(&cfg, opts.Template.Template, opts.Logger, opts.HttpOpts...)
+		if err != nil {
+			return nil, err
+		}
+		return ch, nil
+	},
+}
+
 var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	TypeAlias: TypeAlias,
 	Version:   Version,

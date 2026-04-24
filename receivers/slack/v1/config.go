@@ -214,3 +214,19 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 		},
 	},
 })
+
+var Factory = receivers.IntegrationVersionFactory{
+	Version: Version,
+	Type:    schema.SlackType,
+	ValidateConfig: func(raw json.RawMessage, decryptFn receivers.DecryptFunc) error {
+		_, err := NewConfig(raw, decryptFn)
+		return err
+	},
+	NewNotifier: func(raw json.RawMessage, decryptFn receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
+		cfg, err := NewConfig(raw, decryptFn)
+		if err != nil {
+			return nil, err
+		}
+		return New(cfg, m, opts.Template, opts.Sender, opts.Images, opts.Logger, opts.GrafanaVersion), nil
+	},
+}

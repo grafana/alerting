@@ -2,6 +2,7 @@ package notify
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"net"
@@ -23,6 +24,7 @@ import (
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers"
+	"github.com/grafana/alerting/receivers/schema"
 	webhook_v0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
 	"github.com/grafana/alerting/templates"
 )
@@ -177,12 +179,38 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			version,
 			log.NewNopLogger(),
 			nil,
+			true,
 		)
 		require.NoError(t, err)
 		require.Contains(t, actual, "test1")
 		require.Equal(t, "webhook[0]", actual["test1"][0].String())
 		require.Contains(t, actual, "test2")
 		require.Equal(t, "email[0]", actual["test2"][0].String())
+
+		t.Run("legacy way", func(t *testing.T) {
+			actual, err := BuildReceiversIntegrations(
+				orgID,
+				apiReceivers,
+				tmpl,
+				imageProvider,
+				NoopDecrypt,
+				DecodeSecretsFromBase64,
+				emailService,
+				nil,
+				func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
+					return n
+				},
+				version,
+				log.NewNopLogger(),
+				nil,
+				false,
+			)
+			require.NoError(t, err)
+			require.Contains(t, actual, "test1")
+			require.Equal(t, "webhook[0]", actual["test1"][0].String())
+			require.Contains(t, actual, "test2")
+			require.Equal(t, "email[0]", actual["test2"][0].String())
+		})
 	})
 
 	t.Run("should ignore duplicates", func(t *testing.T) {
@@ -224,12 +252,105 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			version,
 			log.NewNopLogger(),
 			nil,
+			true,
 		)
 		require.NoError(t, err)
 		require.Contains(t, actual, "test")
 		integrations := actual["test"]
 		require.Len(t, integrations, 1)
 		require.Equal(t, "webhook[0]", integrations[0].String())
+	})
+}
+
+func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
+	var orgID = rand.Int63()
+	var version = fmt.Sprintf("Grafana v%d", rand.Uint32())
+	imageProvider := &images.URLProvider{}
+	cfg, err := templates.NewConfig("grafana", "http://localhost", "", templates.DefaultLimits)
+	require.NoError(t, err)
+	tmpl, err := templates.NewFactory(nil, cfg, log.NewNopLogger())
+	require.NoError(t, err)
+	emailService := receivers.MockNotificationService()
+
+	noopWrapper := func(_ string, n nfstatus.Notifier) nfstatus.Notifier { return n }
+
+	build := func(t *testing.T, receiver *APIReceiver, wrapper WrapNotifierFunc) ([]*Integration, error) {
+		t.Helper()
+		return BuildReceiverIntegrationsWithManifests(
+			orgID, receiver, tmpl, imageProvider,
+			GetDecryptedValueFnForTesting, DecodeSecretsFromBase64,
+			emailService, nil, wrapper, version, log.NewNopLogger(), nil,
+		)
+	}
+
+	t.Run("should build all known integrations across all versions", func(t *testing.T) {
+		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		for _, c := range notifytest.AllKnownConfigsForTesting {
+			recCfg.Integrations = append(recCfg.Integrations, c.GetRawNotifierConfig(""))
+		}
+
+		wrapped := 0
+		integrations, err := build(t, recCfg, func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
+			wrapped++
+			return n
+		})
+		require.NoError(t, err)
+		require.Len(t, integrations, len(notifytest.AllKnownConfigsForTesting))
+		require.Equal(t, len(notifytest.AllKnownConfigsForTesting), wrapped, "wrap function should be called once per integration")
+	})
+
+	t.Run("should return error for unknown integration type", func(t *testing.T) {
+		recCfg := &APIReceiver{
+			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+			ReceiverConfig: models.ReceiverConfig{
+				Integrations: []*models.IntegrationConfig{
+					{UID: "uid", Name: "test", Type: "unknown-type", Version: schema.V1, Settings: json.RawMessage(`{}`)},
+				},
+			},
+		}
+		_, err := build(t, recCfg, noopWrapper)
+		require.ErrorContains(t, err, "invalid integration type or version")
+	})
+
+	t.Run("should return error for unknown version", func(t *testing.T) {
+		recCfg := &APIReceiver{
+			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+			ReceiverConfig: models.ReceiverConfig{
+				Integrations: []*models.IntegrationConfig{
+					{UID: "uid", Name: "test", Type: schema.WebhookType, Version: "v99", Settings: json.RawMessage(`{}`)},
+				},
+			},
+		}
+		_, err := build(t, recCfg, noopWrapper)
+		require.ErrorContains(t, err, "invalid integration type or version")
+	})
+
+	t.Run("should not produce any integrations when receiver has no Grafana integrations", func(t *testing.T) {
+		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		integrations, err := build(t, recCfg, noopWrapper)
+		require.NoError(t, err)
+		require.Empty(t, integrations)
+	})
+
+	t.Run("should use per-type index for integrations of the same type", func(t *testing.T) {
+		webhookCfg := notifytest.AllKnownV1ConfigsForTesting[schema.WebhookType]
+		emailCfg := notifytest.AllKnownV1ConfigsForTesting[schema.EmailType]
+		recCfg := &APIReceiver{
+			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
+			ReceiverConfig: models.ReceiverConfig{
+				Integrations: []*models.IntegrationConfig{
+					webhookCfg.GetRawNotifierConfig("webhook-0"),
+					emailCfg.GetRawNotifierConfig("email-0"),
+					webhookCfg.GetRawNotifierConfig("webhook-1"),
+				},
+			},
+		}
+		integrations, err := build(t, recCfg, noopWrapper)
+		require.NoError(t, err)
+		require.Len(t, integrations, 3)
+		require.Equal(t, "webhook[0]", integrations[0].String())
+		require.Equal(t, "email[0]", integrations[1].String())
+		require.Equal(t, "webhook[1]", integrations[2].String())
 	})
 }
 
