@@ -1,0 +1,114 @@
+name: Sync Alerting Module
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '.github/**'
+
+permissions: {}
+
+concurrency:
+  group: sync-alerting-module
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+    steps:
+      - id: matrix
+        env:
+          TARGETS: ${{ vars.lre }}
+        run: |
+          if [ -z "$TARGETS" ]; then
+            echo "::error::ALERTING_SYNC_TARGETS is empty or not set"
+            exit 1
+          fi
+
+          JSON=$(echo "$TARGETS" | tr ',' '\n' | \
+            jq -cRn '[inputs | gsub("^\\s+|\\s+$"; "") | select(length > 0) | {repo: ("grafana/" + .)}] | {include: .}')
+
+          COUNT=$(echo "$JSON" | jq '.include | length')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "::error::ALERTING_SYNC_TARGETS produced zero valid repos"
+            exit 1
+          fi
+
+          echo "value=$JSON" >> "$GITHUB_OUTPUT"
+
+  sync:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write      # required by get-vault-secrets
+      pull-requests: write # required to comment on the merged PR
+
+    strategy:
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      fail-fast: false
+
+    steps:
+      - id: get-secrets
+        uses: grafana/shared-workflows/actions/get-vault-secrets@main # zizmor: ignore[unpinned-uses]
+        with:
+          repo_secrets: |
+            GITHUB_APP_ID=alerting-team:app-id
+            GITHUB_APP_PRIVATE_KEY=alerting-team:private-key
+
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@0d564482f06ca65fa9e77e2510873638c82206f2 # 1.11.5
+        with:
+          app-id: ${{ env.GITHUB_APP_ID }}
+          private-key: ${{ env.GITHUB_APP_PRIVATE_KEY }}
+          owner: grafana
+
+      - name: Check for existing sync branch
+        id: check
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+          TARGET_REPO: ${{ matrix.repo }}
+        run: |
+          # curl writes "000" to STATUS on connection failure; || true prevents abort on non-zero exit
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/${TARGET_REPO}/branches/alerting%2Fupdate-alerting-module") || true
+
+          if [ -z "$STATUS" ] || [ "$STATUS" = "000" ]; then
+            echo "::error::curl failed when checking branch in ${TARGET_REPO}"
+            exit 1
+          fi
+
+          echo "status=$STATUS" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger Update Alerting Module workflow
+        if: steps.check.outputs.status == '404'
+        env:
+          GH_TOKEN: ${{ steps.generate_token.outputs.token }}
+          TARGET_REPO: ${{ matrix.repo }}
+        run: |
+          gh workflow run "Update Alerting Module" --repo "$TARGET_REPO"
+
+      - name: Comment sync skipped
+        if: steps.check.outputs.status == '200'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_REPO: ${{ matrix.repo }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment "$PR_NUMBER" \
+            --repo grafana/alerting \
+            --body "Sync to \`${TARGET_REPO}\` skipped — branch \`alerting/update-alerting-module\` already exists there. Trigger manually once that branch is merged."
+
+      - name: Fail on unexpected branch check status
+        if: steps.check.outputs.status != '200' && steps.check.outputs.status != '404'
+        env:
+          TARGET_REPO: ${{ matrix.repo }}
+        run: |
+          echo "::error::Unexpected status ${{ steps.check.outputs.status }} when checking branch in ${TARGET_REPO}"
+          exit 1
