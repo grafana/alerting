@@ -89,7 +89,7 @@ func BuildGrafanaReceiverIntegrations(
 		integrations []*Integration
 		errs         error
 		ci           = func(idx int, cfg receivers.Metadata, httpClientConfig *http.HTTPClientConfig, newInt func(cli *http.Client) notificationChannel) {
-			client, err := http.NewClient(httpClientConfig, httpClientOptions...)
+			client, err := http.NewClient(httpClientConfig, cfg.Type, httpClientOptions...)
 			if err != nil {
 				errs = errors.Join(errs, fmt.Errorf("failed to create HTTP client for %q notifier %q (UID: %q): %w", cfg.Type, cfg.Name, cfg.UID, err))
 				return
