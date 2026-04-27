@@ -25,6 +25,8 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 	"gopkg.in/telebot.v3"
 
+	"github.com/grafana/alerting/receivers"
+
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
@@ -66,7 +68,14 @@ func New(conf *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg
 
 func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 
-func (n *Notifier) Notify(ctx context.Context, alert ...*types.Alert) (bool, error) {
+func (n *Notifier) Notify(ctx context.Context, alert ...*types.Alert) (retry bool, retErr error) {
+	defer func() {
+		if retErr != nil {
+			receivers.LogNotificationFailed(n.logger, len(alert), retErr)
+		} else {
+			receivers.LogNotificationSent(n.logger, len(alert))
+		}
+	}()
 	var (
 		err  error
 		data = notify.GetTemplateData(ctx, n.tmpl, alert, n.logger)

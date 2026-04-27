@@ -136,10 +136,11 @@ func (sn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		},
 	}
 	if err := sn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "failed to send Sensu Go event", "err", err)
+		sn.LogNotificationFailed(ctx, len(as), err)
 		return false, err
 	}
 
+	sn.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 

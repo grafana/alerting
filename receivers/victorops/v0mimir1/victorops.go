@@ -27,6 +27,8 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 
+	"github.com/grafana/alerting/receivers"
+
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
@@ -70,7 +72,14 @@ const (
 func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 
 // Notify implements the Notifier interface.
-func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (retry bool, retErr error) {
+	defer func() {
+		if retErr != nil {
+			receivers.LogNotificationFailed(n.logger, len(as), retErr)
+		} else {
+			receivers.LogNotificationSent(n.logger, len(as))
+		}
+	}()
 	var err error
 	var (
 		data   = notify.GetTemplateData(ctx, n.tmpl, as, n.logger)

@@ -141,10 +141,11 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	}
 
 	if err := gcn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "failed to send Google Hangouts Chat alert", "err", err)
+		gcn.LogNotificationFailed(ctx, len(as), err)
 		return false, err
 	}
 
+	gcn.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 

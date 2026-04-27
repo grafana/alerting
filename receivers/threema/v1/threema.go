@@ -63,10 +63,11 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		},
 	}
 	if err := tn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "Failed to send threema notification", "err", err)
+		tn.LogNotificationFailed(ctx, len(as), err)
 		return false, err
 	}
 
+	tn.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 

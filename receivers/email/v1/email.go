@@ -113,9 +113,11 @@ func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 	}
 
 	if err := en.ns.SendEmail(ctx, cmd); err != nil {
+		en.LogNotificationFailed(ctx, len(alerts), err)
 		return false, err
 	}
 
+	en.LogNotificationSent(ctx, len(alerts))
 	return true, nil
 }
 

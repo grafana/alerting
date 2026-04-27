@@ -88,9 +88,11 @@ func (on *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	if err := on.ns.SendWebhook(ctx, l, cmd); err != nil {
+		on.LogNotificationFailed(ctx, len(as), err)
 		return false, fmt.Errorf("send notification to Opsgenie: %w", err)
 	}
 
+	on.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 

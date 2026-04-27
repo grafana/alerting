@@ -109,10 +109,11 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	)
 
 	if err != nil {
-		level.Error(l).Log("msg", "Failed to publish MQTT message", "err", err.Error())
+		n.LogNotificationFailed(ctx, len(as), err)
 		return false, fmt.Errorf("failed to publish MQTT message: %s", err.Error())
 	}
 
+	n.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 

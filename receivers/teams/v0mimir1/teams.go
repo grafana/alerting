@@ -77,7 +77,14 @@ func New(c *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg.HT
 
 func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 
-func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (retry bool, retErr error) {
+	defer func() {
+		if retErr != nil {
+			receivers.LogNotificationFailed(n.logger, len(as), retErr)
+		} else {
+			receivers.LogNotificationSent(n.logger, len(as))
+		}
+	}()
 	key, err := notify.ExtractGroupKey(ctx)
 	if err != nil {
 		return false, err

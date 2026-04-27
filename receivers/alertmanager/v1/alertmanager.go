@@ -92,10 +92,11 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	if numErrs == len(n.settings.URLs) {
 		// All attempts to send alerts have failed
-		level.Warn(l).Log("msg", "all attempts to send to Alertmanager failed")
+		n.LogNotificationFailed(ctx, len(as), lastErr)
 		return false, fmt.Errorf("failed to send alert to Alertmanager: %w", lastErr)
 	}
 
+	n.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 
