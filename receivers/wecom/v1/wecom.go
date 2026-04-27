@@ -89,10 +89,11 @@ func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	}
 
 	if err = w.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "failed to send WeCom webhook", "err", err)
+		w.LogNotificationFailed(ctx, len(as), err)
 		return false, err
 	}
 
+	w.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 

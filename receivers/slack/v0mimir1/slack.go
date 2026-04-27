@@ -31,6 +31,8 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 
+	"github.com/grafana/alerting/receivers"
+
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 )
 
@@ -95,7 +97,14 @@ type attachment struct {
 func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 
 // Notify implements the Notifier interface.
-func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (retry bool, retErr error) {
+	defer func() {
+		if retErr != nil {
+			receivers.LogNotificationFailed(n.logger, len(as), retErr)
+		} else {
+			receivers.LogNotificationSent(n.logger, len(as))
+		}
+	}()
 	var err error
 	var (
 		data     = notify.GetTemplateData(ctx, n.tmpl, as, n.logger)
@@ -216,7 +225,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	// Use a retrier to generate an error message for non-200 responses and
 	// classify them as retriable or not.
-	retry, err := n.retrier.Check(resp.StatusCode, resp.Body)
+	retry, err = n.retrier.Check(resp.StatusCode, resp.Body)
 	if err != nil {
 		err = fmt.Errorf("channel %q: %w", req.Channel, err)
 		return retry, notify.NewErrorWithReason(notify.GetFailureReasonFromStatusCode(resp.StatusCode), err)

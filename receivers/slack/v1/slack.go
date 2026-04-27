@@ -186,7 +186,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 
 	slackResp, err := sn.sendSlackMessage(ctx, m, l)
 	if err != nil {
-		level.Error(l).Log("msg", "Failed to send Slack message", "err", err)
+		sn.LogNotificationFailed(ctx, len(alerts), err)
 		return false, fmt.Errorf("failed to send Slack message: %w", err)
 	}
 
@@ -263,6 +263,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 		}
 	}
 
+	sn.LogNotificationSent(ctx, len(alerts))
 	return true, nil
 }
 

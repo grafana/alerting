@@ -103,9 +103,11 @@ func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		},
 	}
 	if err := pn.ns.SendWebhook(ctx, l, cmd); err != nil {
+		pn.LogNotificationFailed(ctx, len(as), err)
 		return false, fmt.Errorf("send notification to Pagerduty: %w", err)
 	}
 
+	pn.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 

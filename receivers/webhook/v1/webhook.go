@@ -167,9 +167,11 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	if err := wn.ns.SendWebhook(ctx, l, cmd); err != nil {
+		wn.LogNotificationFailed(ctx, len(as), err)
 		return false, err
 	}
 
+	wn.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 

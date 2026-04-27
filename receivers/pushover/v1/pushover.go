@@ -74,10 +74,11 @@ func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	if err := pn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "failed to send pushover notification", "err", err)
+		pn.LogNotificationFailed(ctx, len(as), err)
 		return false, err
 	}
 
+	pn.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 func (pn *Notifier) SendResolved() bool {

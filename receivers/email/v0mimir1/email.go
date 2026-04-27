@@ -39,6 +39,8 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 
+	"github.com/grafana/alerting/receivers"
+
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 )
 
@@ -129,7 +131,14 @@ func (n *Email) auth(mechs string) (smtp.Auth, error) {
 func (n *Email) SendResolved() bool { return n.conf.SendResolved() }
 
 // Notify implements the Notifier interface.
-func (n *Email) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (n *Email) Notify(ctx context.Context, as ...*types.Alert) (retry bool, retErr error) {
+	defer func() {
+		if retErr != nil {
+			receivers.LogNotificationFailed(n.logger, len(as), retErr)
+		} else {
+			receivers.LogNotificationSent(n.logger, len(as))
+		}
+	}()
 	var (
 		c       *smtp.Client
 		conn    net.Conn

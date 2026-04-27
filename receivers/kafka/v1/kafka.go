@@ -106,9 +106,10 @@ func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bo
 	}
 
 	if err := kn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "Failed to send notification to Kafka", "err", err, "body", body)
+		kn.LogNotificationFailed(ctx, len(as), err, receivers.WithRequestBody(body))
 		return false, err
 	}
+	kn.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 
@@ -151,9 +152,10 @@ func (kn *Notifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bo
 	// by setting “Transfer-Encoding: chunked” header.
 	// For as long as the connection is kept open, the server will keep accepting records.
 	if err := kn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		level.Error(l).Log("msg", "Failed to send notification to Kafka", "err", err, "body", body)
+		kn.LogNotificationFailed(ctx, len(as), err, receivers.WithRequestBody(body))
 		return false, err
 	}
+	kn.LogNotificationSent(ctx, len(as))
 	return true, nil
 }
 
