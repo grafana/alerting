@@ -33,8 +33,6 @@ import (
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 
-	"github.com/grafana/alerting/receivers"
-
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 )
 
@@ -127,9 +125,9 @@ func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (retry bool, retErr error) {
 	defer func() {
 		if retErr != nil {
-			receivers.LogNotificationFailed(n.logger, len(as), retErr)
+			level.Warn(n.logger).Log("msg", "Failed to send notification", "alerts", len(as), "err", retErr)
 		} else {
-			receivers.LogNotificationSent(n.logger, len(as))
+			level.Debug(n.logger).Log("msg", "Notification sent", "alerts", len(as))
 		}
 	}()
 	key, err := notify.ExtractGroupKey(ctx)

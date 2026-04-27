@@ -64,12 +64,12 @@ func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	publishOutput, err := snsClient.Publish(publishInput)
 	if err != nil {
-		s.LogNotificationFailed(ctx, len(as), err)
+		level.Warn(l).Log("msg", "Failed to send notification", "alerts", len(as), "err", err)
 		return true, err
 	}
 
 	level.Debug(l).Log("msg", "Message successfully published", "messageId", publishOutput.MessageId, "sequenceNumber", publishOutput.SequenceNumber)
-	s.LogNotificationSent(ctx, len(as))
+	level.Debug(l).Log("msg", "Notification sent", "alerts", len(as))
 	return true, nil
 }
 

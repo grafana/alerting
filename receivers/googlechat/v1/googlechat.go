@@ -141,11 +141,11 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	}
 
 	if err := gcn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		gcn.LogNotificationFailed(ctx, len(as), err)
+		level.Warn(l).Log("msg", "Failed to send notification", "alerts", len(as), "err", err)
 		return false, err
 	}
 
-	gcn.LogNotificationSent(ctx, len(as))
+	level.Debug(l).Log("msg", "Notification sent", "alerts", len(as))
 	return true, nil
 }
 

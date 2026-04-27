@@ -74,11 +74,11 @@ func (pn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}
 
 	if err := pn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		pn.LogNotificationFailed(ctx, len(as), err)
+		level.Warn(l).Log("msg", "Failed to send notification", "alerts", len(as), "err", err)
 		return false, err
 	}
 
-	pn.LogNotificationSent(ctx, len(as))
+	level.Debug(l).Log("msg", "Notification sent", "alerts", len(as))
 	return true, nil
 }
 func (pn *Notifier) SendResolved() bool {
