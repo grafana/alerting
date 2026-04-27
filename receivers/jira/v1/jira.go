@@ -97,8 +97,14 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		return shouldRetry, fmt.Errorf("failed to %s request to %q: %w", method, path, err)
 	}
 
+	shouldRetry, err = n.transitionIssue(ctx, logger, existingIssue, alerts.HasFiring())
+	if err != nil {
+		n.LogNotificationFailed(ctx, len(as), err)
+		return shouldRetry, err
+	}
+
 	n.LogNotificationSent(ctx, len(as))
-	return n.transitionIssue(ctx, logger, existingIssue, alerts.HasFiring())
+	return shouldRetry, nil
 }
 
 func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logger, groupID string, as ...*types.Alert) issue {
