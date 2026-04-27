@@ -46,7 +46,7 @@ func WithResponseBody(body string) LogOption {
 	}
 }
 
-// LogNotificationSent logs a successful notification dispatch at DEBUG level
+// LogNotificationSent logs a successful notification dispatch at INFO level
 // using the provided logger directly. Use this from notifiers that do not
 // embed *Base; from notifiers that do, prefer (*Base).LogNotificationSent.
 func LogNotificationSent(logger log.Logger, alertCount int, opts ...LogOption) {
@@ -57,10 +57,10 @@ func LogNotificationSent(logger log.Logger, alertCount int, opts ...LogOption) {
 	for _, opt := range opts {
 		opt(&kv)
 	}
-	level.Debug(logger).Log(kv...)
+	level.Info(logger).Log(kv...)
 }
 
-// LogNotificationFailed logs a failed notification dispatch at WARN level
+// LogNotificationFailed logs a failed notification dispatch at ERROR level
 // using the provided logger directly. Use this from notifiers that do not
 // embed *Base; from notifiers that do, prefer (*Base).LogNotificationFailed.
 func LogNotificationFailed(logger log.Logger, alertCount int, err error, opts ...LogOption) {
@@ -72,10 +72,10 @@ func LogNotificationFailed(logger log.Logger, alertCount int, err error, opts ..
 	for _, opt := range opts {
 		opt(&kv)
 	}
-	level.Warn(logger).Log(kv...)
+	level.Error(logger).Log(kv...)
 }
 
-// LogNotificationSent logs a successful notification dispatch at DEBUG level.
+// LogNotificationSent logs a successful notification dispatch at INFO level.
 // Call this at the success exit of Notify so operators can confirm delivery
 // in log aggregation tools rather than inferring it from the absence of an
 // error.
@@ -83,7 +83,7 @@ func (n *Base) LogNotificationSent(ctx context.Context, alertCount int, opts ...
 	LogNotificationSent(n.GetLogger(ctx), alertCount, opts...)
 }
 
-// LogNotificationFailed logs a failed notification dispatch at WARN level.
+// LogNotificationFailed logs a failed notification dispatch at ERROR level.
 // Call this at the failure exit of Notify so operators can find failures
 // across every integration with a single message-grep.
 func (n *Base) LogNotificationFailed(ctx context.Context, alertCount int, err error, opts ...LogOption) {

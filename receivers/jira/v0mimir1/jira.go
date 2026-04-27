@@ -125,10 +125,11 @@ func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 
 // Notify implements the Notifier interface.
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (retry bool, retErr error) {
+	notificationSent := false
 	defer func() {
 		if retErr != nil {
 			receivers.LogNotificationFailed(n.logger, len(as), retErr)
-		} else {
+		} else if notificationSent {
 			receivers.LogNotificationSent(n.logger, len(as))
 		}
 	}()
@@ -181,6 +182,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (retry bool, 
 	if err != nil {
 		return shouldRetry, fmt.Errorf("failed to %s request to %q: %w", method, path, err)
 	}
+	notificationSent = true
 
 	return n.transitionIssue(ctx, logger, existingIssue, alerts.HasFiring())
 }

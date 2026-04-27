@@ -329,18 +329,24 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	var (
 		respStatusCode int
 		respBody       []byte
+		validationRan  bool
 	)
 	cmd.Validation = func(body []byte, statusCode int) error {
+		validationRan = true
 		respStatusCode = statusCode
 		respBody = body
 		return inner(body, statusCode)
 	}
 
 	if err := tn.ns.SendWebhook(ctx, l, cmd); err != nil {
-		tn.LogNotificationFailed(ctx, len(as), err,
-			receivers.WithStatusCode(respStatusCode),
-			receivers.WithResponseBody(string(respBody)),
-		)
+		opts := []receivers.LogOption(nil)
+		if validationRan {
+			opts = append(opts,
+				receivers.WithStatusCode(respStatusCode),
+				receivers.WithResponseBody(string(respBody)),
+			)
+		}
+		tn.LogNotificationFailed(ctx, len(as), err, opts...)
 		return false, errors.Wrap(err, "send notification to Teams")
 	}
 

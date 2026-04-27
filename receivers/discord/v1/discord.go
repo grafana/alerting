@@ -210,10 +210,12 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 	var (
 		respStatusCode int
 		respBody       []byte
+		respReceived   bool
 	)
 	cmd.Validation = func(body []byte, statusCode int) error {
 		respStatusCode = statusCode
 		respBody = body
+		respReceived = true
 		if statusCode/100 != 2 {
 			errBody := discordError{}
 			if err := json.Unmarshal(body, &errBody); err == nil {
@@ -224,10 +226,14 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 		return nil
 	}
 	if err := d.ns.SendWebhook(ctx, l, cmd); err != nil {
-		d.LogNotificationFailed(ctx, len(as), err,
-			receivers.WithStatusCode(respStatusCode),
-			receivers.WithResponseBody(string(respBody)),
-		)
+		opts := []receivers.LogOption{}
+		if respReceived {
+			opts = append(opts,
+				receivers.WithStatusCode(respStatusCode),
+				receivers.WithResponseBody(string(respBody)),
+			)
+		}
+		d.LogNotificationFailed(ctx, len(as), err, opts...)
 		return false, err
 	}
 	d.LogNotificationSent(ctx, len(as))
