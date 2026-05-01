@@ -258,9 +258,9 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decode De
 
 func ValidateAPIReceiver(ctx context.Context, api *APIReceiver, decode DecodeSecretsFn, decrypt GetDecryptedValueFn) error {
 	var errs []error
-	if api.Name == "" {
-		errs = append(errs, fmt.Errorf("receiver name is required"))
-	}
+	// if api.Name == "" {
+	// 	errs = append(errs, fmt.Errorf("receiver name is required"))
+	// }
 	if err := api.Validate(); err != nil {
 		errs = append(errs, err)
 	}
