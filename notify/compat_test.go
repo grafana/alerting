@@ -17,6 +17,7 @@ import (
 	"github.com/grafana/alerting/receivers/teams"
 	teams_v0mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
 	teams_v0mimir2 "github.com/grafana/alerting/receivers/teams/v0mimir2"
+	webhookV0 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
 )
 
 func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
@@ -181,5 +182,96 @@ func TestConfigReceiverToMimirIntegrations(t *testing.T) {
 		actual, err = ConfigReceiverToMimirIntegrations(ConfigReceiver{Name: "empty"})
 		require.NoError(t, err)
 		require.Empty(t, actual)
+	})
+}
+
+func TestPostableMimirReceiverToPostableGrafanaReceiver(t *testing.T) {
+	t.Run("returns original pointer when receiver has only Grafana integrations", func(t *testing.T) {
+		receiver := &definition.PostableApiReceiver{
+			Receiver: definition.Receiver{Name: "test"},
+			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{
+					{UID: "grafana-uid", Name: "test", Type: "email"},
+				},
+			},
+		}
+		result, err := PostableMimirReceiverToPostableGrafanaReceiver(receiver)
+		require.NoError(t, err)
+		assert.Same(t, receiver, result)
+	})
+
+	t.Run("converts Mimir integrations to Grafana integrations", func(t *testing.T) {
+		wh := webhookV0.GetFullValidConfig()
+		receiver := &definition.PostableApiReceiver{
+			Receiver: definition.Receiver{
+				Name:           "test-receiver",
+				WebhookConfigs: []*webhookV0.Config{&wh},
+			},
+		}
+
+		mimirConfigs, err := ConfigReceiverToMimirIntegrations(receiver.Receiver)
+		require.NoError(t, err)
+		require.Len(t, mimirConfigs, 1)
+		expectedJSON, err := mimirConfigs[0].ConfigJSON()
+		require.NoError(t, err)
+
+		result, err := PostableMimirReceiverToPostableGrafanaReceiver(receiver)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.NotSame(t, receiver, result)
+		require.Len(t, result.GrafanaManagedReceivers, 1)
+
+		converted := result.GrafanaManagedReceivers[0]
+		assert.Equal(t, "test-receiver", result.Name)
+		assert.Equal(t, "test-receiver", converted.Name)
+		assert.Equal(t, mimirIntegrationUID("test-receiver", "webhook", 0), converted.UID)
+		assert.JSONEq(t, string(expectedJSON), string(converted.Settings))
+		assert.False(t, converted.DisableResolveMessage)
+		assert.Nil(t, converted.SecureSettings)
+		assert.False(t, result.HasMimirIntegrations())
+	})
+
+	t.Run("existing Grafana integrations appear before converted Mimir ones", func(t *testing.T) {
+		wh := webhookV0.GetFullValidConfig()
+		grafanaRecv := &definition.PostableGrafanaReceiver{
+			UID:  "existing-uid",
+			Name: "existing",
+			Type: "email",
+		}
+		receiver := &definition.PostableApiReceiver{
+			Receiver: definition.Receiver{
+				Name:           "mixed-receiver",
+				WebhookConfigs: []*webhookV0.Config{&wh},
+			},
+			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{grafanaRecv},
+			},
+		}
+
+		result, err := PostableMimirReceiverToPostableGrafanaReceiver(receiver)
+		require.NoError(t, err)
+		require.Len(t, result.GrafanaManagedReceivers, 2)
+		assert.Same(t, grafanaRecv, result.GrafanaManagedReceivers[0])
+		assert.Equal(t, "webhook", result.GrafanaManagedReceivers[1].Type)
+	})
+
+	t.Run("assigns per-type UIDs to converted Mimir integrations", func(t *testing.T) {
+		// UIDs are indexed per integration type, so each type starts at 0.
+		em := email_v0mimir1.GetFullValidConfig()
+		wh := webhookV0.GetFullValidConfig()
+		receiver := &definition.PostableApiReceiver{
+			Receiver: definition.Receiver{
+				Name:           "multi-receiver",
+				EmailConfigs:   []*email_v0mimir1.Config{&em},
+				WebhookConfigs: []*webhookV0.Config{&wh},
+			},
+		}
+
+		result, err := PostableMimirReceiverToPostableGrafanaReceiver(receiver)
+		require.NoError(t, err)
+		require.Len(t, result.GrafanaManagedReceivers, 2)
+
+		assert.Equal(t, mimirIntegrationUID("multi-receiver", "email", 0), result.GrafanaManagedReceivers[0].UID)
+		assert.Equal(t, mimirIntegrationUID("multi-receiver", "webhook", 0), result.GrafanaManagedReceivers[1].UID)
 	})
 }
