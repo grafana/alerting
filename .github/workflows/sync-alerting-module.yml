@@ -1,8 +1,7 @@
 name: Sync Alerting Module
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches: [main]
 
 permissions: {}
@@ -13,7 +12,6 @@ concurrency:
 
 jobs:
   prepare:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.value }}
