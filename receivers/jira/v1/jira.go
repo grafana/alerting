@@ -278,7 +278,6 @@ func getSearchJql(conf Config, groupID string, firing bool) issueSearch {
 		jql.WriteString(fmt.Sprintf(`resolution != %q and `, conf.WontFixResolution))
 	}
 
-	// If the group is firing, do not search for closed issues unless a reopen transition is defined.
 	if firing {
 		if conf.ReopenTransition == "" {
 			jql.WriteString(`statusCategory != Done and `)
@@ -287,6 +286,8 @@ func getSearchJql(conf Config, groupID string, firing bool) issueSearch {
 		reopenDuration := int64(time.Duration(conf.ReopenDuration).Minutes())
 		if reopenDuration != 0 {
 			jql.WriteString(fmt.Sprintf(`(resolutiondate is EMPTY OR resolutiondate >= -%dm) and `, reopenDuration))
+		} else {
+			jql.WriteString(`statusCategory != Done and `)
 		}
 	}
 
