@@ -4,20 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 
 	"github.com/prometheus/alertmanager/notify"
-	"github.com/prometheus/alertmanager/types"
-	commoncfg "github.com/prometheus/common/config"
 
-	"github.com/prometheus/alertmanager/template"
-
-	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/receivers"
 	alertmanager "github.com/grafana/alerting/receivers/alertmanager/v1"
@@ -45,22 +40,6 @@ import (
 	webhook "github.com/grafana/alerting/receivers/webhook/v1"
 	wecom "github.com/grafana/alerting/receivers/wecom/v1"
 	"github.com/grafana/alerting/templates"
-
-	discord_v0mimir1 "github.com/grafana/alerting/receivers/discord/v0mimir1"
-	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
-	jira_v0mimir1 "github.com/grafana/alerting/receivers/jira/v0mimir1"
-	opsgenie_v0mimir1 "github.com/grafana/alerting/receivers/opsgenie/v0mimir1"
-	pagerduty_v0mimir1 "github.com/grafana/alerting/receivers/pagerduty/v0mimir1"
-	pushover_v0mimir1 "github.com/grafana/alerting/receivers/pushover/v0mimir1"
-	slack_v0mimir1 "github.com/grafana/alerting/receivers/slack/v0mimir1"
-	sns_v0mimir1 "github.com/grafana/alerting/receivers/sns/v0mimir1"
-	teams_v0mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
-	teams_v0mimir2 "github.com/grafana/alerting/receivers/teams/v0mimir2"
-	telegram_v0mimir1 "github.com/grafana/alerting/receivers/telegram/v0mimir1"
-	victorops_v0mimir1 "github.com/grafana/alerting/receivers/victorops/v0mimir1"
-	webex_v0mimir1 "github.com/grafana/alerting/receivers/webex/v0mimir1"
-	webhook_v0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
-	wechat_v0mimir1 "github.com/grafana/alerting/receivers/wechat/v0mimir1"
 )
 
 type WrapNotifierFunc func(integrationName string, notifier nfstatus.Notifier) nfstatus.Notifier
@@ -219,105 +198,12 @@ func BuildGrafanaReceiverIntegrations(
 	return integrations, errs
 }
 
-// BuildPrometheusReceiverIntegrations builds a list of integration notifiers off of a receiver config.
-// Taken from https://github.com/grafana/mimir/blob/fa489e696481fe0b7b97598077565dc5027afa84/pkg/alertmanager/alertmanager.go#L754
-// which is taken from https://github.com/prometheus/alertmanager/blob/94d875f1227b29abece661db1a68c001122d1da5/cmd/alertmanager/main.go#L112-L159.
-func BuildPrometheusReceiverIntegrations(
-	nc definition.Receiver,
-	tmplProvider TemplatesProvider,
-	httpClientOptions []http.ClientOption,
-	logger log.Logger,
-	wrapper WrapNotifierFunc,
-	notificationHistorian nfstatus.NotificationHistorian,
-) ([]*nfstatus.Integration, error) {
-	var (
-		errs         types.MultiError
-		integrations []*nfstatus.Integration
-		tmpl         *template.Template
-		httpOps      []commoncfg.HTTPClientOption
-		initOnce     = sync.OnceFunc(func() { // lazy evaluate template so we do not create one if we don't need it
-			httpOps = http.ToHTTPClientOption(httpClientOptions...)
-			t, err := tmplProvider.GetTemplate(templates.MimirKind)
-			if err != nil {
-				errs.Add(err)
-				return
-			}
-			tmpl = t.Template
-		})
-		add = func(name string, i int, rs notify.ResolvedSender, f func(l log.Logger) (notify.Notifier, error)) {
-			initOnce()
-			integrationLogger := log.With(logger, "integration", name)
-			n, err := f(integrationLogger)
-			if err != nil {
-				errs.Add(err)
-				return
-			}
-			nw := nfstatus.NewNotifierAdapter(n)
-			if wrapper != nil {
-				nw = wrapper(name, nw)
-			}
-			integrations = append(integrations, nfstatus.NewIntegration(nw, rs, name, i, nc.Name, notificationHistorian, integrationLogger))
-		}
-	)
-
-	for i, c := range nc.WebhookConfigs {
-		add("webhook", i, c, func(l log.Logger) (notify.Notifier, error) { return webhook_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.EmailConfigs {
-		add("email", i, c, func(l log.Logger) (notify.Notifier, error) { return email_v0mimir1.New(c, tmpl, l), nil })
-	}
-	for i, c := range nc.PagerdutyConfigs {
-		add("pagerduty", i, c, func(l log.Logger) (notify.Notifier, error) { return pagerduty_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.OpsGenieConfigs {
-		add("opsgenie", i, c, func(l log.Logger) (notify.Notifier, error) { return opsgenie_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.WechatConfigs {
-		add("wechat", i, c, func(l log.Logger) (notify.Notifier, error) { return wechat_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.SlackConfigs {
-		add("slack", i, c, func(l log.Logger) (notify.Notifier, error) { return slack_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.VictorOpsConfigs {
-		add("victorops", i, c, func(l log.Logger) (notify.Notifier, error) { return victorops_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.PushoverConfigs {
-		add("pushover", i, c, func(l log.Logger) (notify.Notifier, error) { return pushover_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.SNSConfigs {
-		add("sns", i, c, func(l log.Logger) (notify.Notifier, error) { return sns_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.TelegramConfigs {
-		add("telegram", i, c, func(l log.Logger) (notify.Notifier, error) { return telegram_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.DiscordConfigs {
-		add("discord", i, c, func(l log.Logger) (notify.Notifier, error) { return discord_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.WebexConfigs {
-		add("webex", i, c, func(l log.Logger) (notify.Notifier, error) { return webex_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.MSTeamsConfigs {
-		add("msteams", i, c, func(l log.Logger) (notify.Notifier, error) { return teams_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.MSTeamsV2Configs {
-		add("msteamsv2", i, c, func(l log.Logger) (notify.Notifier, error) { return teams_v0mimir2.New(c, tmpl, l, httpOps...) })
-	}
-	for i, c := range nc.JiraConfigs {
-		add("jira", i, c, func(l log.Logger) (notify.Notifier, error) { return jira_v0mimir1.New(c, tmpl, l, httpOps...) })
-	}
-	// If we add support for more integrations, we need to add them to validation as well. See validation.allowedIntegrationNames field.
-	if errs.Len() > 0 {
-		return nil, &errs
-	}
-	return integrations, nil
-}
-
 // BuildReceiversIntegrations builds integrations for the provided API receivers and returns them mapped by receiver name.
 // It ensures uniqueness of receivers by the name, overwriting duplicates and logs warnings.
 // Returns an error if any integration fails during its construction.
 func BuildReceiversIntegrations(
 	tenantID int64,
-	apiReceivers []*APIReceiver,
+	receivers []models.ReceiverConfig,
 	templ TemplatesProvider,
 	images images.Provider,
 	decryptFn GetDecryptedValueFn,
@@ -330,8 +216,8 @@ func BuildReceiversIntegrations(
 	notificationHistorian nfstatus.NotificationHistorian,
 	useManifestBuilder bool,
 ) (map[string][]*Integration, error) {
-	nameToReceiver := make(map[string]*APIReceiver, len(apiReceivers))
-	for _, receiver := range apiReceivers {
+	nameToReceiver := make(map[string]models.ReceiverConfig, len(receivers))
+	for _, receiver := range receivers {
 		if existing, ok := nameToReceiver[receiver.Name]; ok {
 			itypes := make([]string, 0, len(existing.Integrations))
 			for _, i := range existing.Integrations {
@@ -342,7 +228,7 @@ func BuildReceiversIntegrations(
 		nameToReceiver[receiver.Name] = receiver
 	}
 
-	integrationsMap := make(map[string][]*Integration, len(apiReceivers))
+	integrationsMap := make(map[string][]*Integration, len(receivers))
 	for name, apiReceiver := range nameToReceiver {
 		var integrations []*Integration
 		var err error
@@ -363,7 +249,7 @@ func BuildReceiversIntegrations(
 // It supports both Prometheus and Grafana integrations and ensures that both of them use only templates dedicated for the kind.
 func BuildReceiverIntegrations(
 	tenantID int64,
-	receiver *APIReceiver,
+	receiver models.ReceiverConfig,
 	tmpls TemplatesProvider,
 	images images.Provider,
 	decryptFn GetDecryptedValueFn,
@@ -401,23 +287,16 @@ func BuildReceiverIntegrations(
 			return nil, err
 		}
 	}
-	mimir, err := BuildPrometheusReceiverIntegrations(receiver.ConfigReceiver, tmpls, httpClientOptions, logger, wrapNotifierFunc, notificationHistorian)
-	if err != nil {
-		return nil, err
-	}
-	integrations = append(integrations, mimir...)
-
 	return integrations, nil
 }
 
 // BuildReceiverIntegrationsWithManifests builds integrations for the provided API receiver using
 // the manifest-based factory for v1 (Grafana) integrations instead of the typed config switch.
-// Prometheus integrations are still built via BuildPrometheusReceiverIntegrations.
 // Unlike BuildGrafanaReceiverIntegrations, this function is fail-fast: it returns on the first
 // error without returning partial results.
 func BuildReceiverIntegrationsWithManifests(
 	tenantID int64,
-	receiver *APIReceiver,
+	receiver models.ReceiverConfig,
 	tmpls TemplatesProvider,
 	images images.Provider,
 	decryptFn GetDecryptedValueFn,
@@ -512,10 +391,5 @@ func BuildReceiverIntegrationsWithManifests(
 			integrations = append(integrations, NewIntegration(wrapped, n, string(cfg.Type), idx, cfg.Name, notificationHistorian, logger))
 		}
 	}
-	mimir, err := BuildPrometheusReceiverIntegrations(receiver.ConfigReceiver, tmpls, httpClientOptions, logger, wrapNotifierFunc, notificationHistorian)
-	if err != nil {
-		return nil, err
-	}
-	integrations = append(integrations, mimir...)
 	return integrations, nil
 }

@@ -15,17 +15,13 @@ import (
 
 	"github.com/prometheus/alertmanager/notify"
 
-	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/http"
-	"github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/http/v0mimir/v0mimirtest"
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
-	webhook_v0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -42,7 +38,7 @@ func TestBuildReceiverIntegrations(t *testing.T) {
 	}
 
 	getFullConfig := func(t *testing.T) (GrafanaReceiverConfig, int) {
-		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
 			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
@@ -141,25 +137,11 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 	emailService := receivers.MockNotificationService()
 
 	t.Run("should build receivers", func(t *testing.T) {
-		apiReceivers := []*APIReceiver{
+		apiReceivers := []models.ReceiverConfig{
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "test1",
-					WebhookConfigs: []*webhook_v0mimir1.Config{
-						{
-							HTTPConfig: &v0mimir.DefaultHTTPClientConfig,
-						},
-					},
-				},
-			},
-			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "test2",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						notifytest.AllKnownV1ConfigsForTesting["email"].GetRawNotifierConfig("test2"),
-					},
+				Name: "test2",
+				Integrations: []*models.IntegrationConfig{
+					notifytest.AllKnownV1ConfigsForTesting["email"].GetRawNotifierConfig("test2"),
 				},
 			},
 		}
@@ -182,8 +164,6 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			true,
 		)
 		require.NoError(t, err)
-		require.Contains(t, actual, "test1")
-		require.Equal(t, "webhook[0]", actual["test1"][0].String())
 		require.Contains(t, actual, "test2")
 		require.Equal(t, "email[0]", actual["test2"][0].String())
 
@@ -206,33 +186,24 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 				false,
 			)
 			require.NoError(t, err)
-			require.Contains(t, actual, "test1")
-			require.Equal(t, "webhook[0]", actual["test1"][0].String())
 			require.Contains(t, actual, "test2")
 			require.Equal(t, "email[0]", actual["test2"][0].String())
 		})
 	})
 
 	t.Run("should ignore duplicates", func(t *testing.T) {
-		apiReceivers := []*APIReceiver{
+		apiReceivers := []models.ReceiverConfig{
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "test",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						notifytest.AllKnownV1ConfigsForTesting["email"].GetRawNotifierConfig("test"),
-					},
+
+				Name: "test",
+				Integrations: []*models.IntegrationConfig{
+					notifytest.AllKnownV1ConfigsForTesting["email"].GetRawNotifierConfig("test"),
 				},
 			},
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "test",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						notifytest.AllKnownV1ConfigsForTesting["webhook"].GetRawNotifierConfig("test"),
-					},
+				Name: "test",
+				Integrations: []*models.IntegrationConfig{
+					notifytest.AllKnownV1ConfigsForTesting["webhook"].GetRawNotifierConfig("test"),
 				},
 			},
 		}
@@ -274,7 +245,7 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 
 	noopWrapper := func(_ string, n nfstatus.Notifier) nfstatus.Notifier { return n }
 
-	build := func(t *testing.T, receiver *APIReceiver, wrapper WrapNotifierFunc) ([]*Integration, error) {
+	build := func(t *testing.T, receiver models.ReceiverConfig, wrapper WrapNotifierFunc) ([]*Integration, error) {
 		t.Helper()
 		return BuildReceiverIntegrationsWithManifests(
 			orgID, receiver, tmpl, imageProvider,
@@ -284,7 +255,7 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 	}
 
 	t.Run("should build all known integrations across all versions", func(t *testing.T) {
-		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
 		for _, c := range notifytest.AllKnownConfigsForTesting {
 			recCfg.Integrations = append(recCfg.Integrations, c.GetRawNotifierConfig(""))
 		}
@@ -300,12 +271,10 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 	})
 
 	t.Run("should return error for unknown integration type", func(t *testing.T) {
-		recCfg := &APIReceiver{
-			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-			ReceiverConfig: models.ReceiverConfig{
-				Integrations: []*models.IntegrationConfig{
-					{UID: "uid", Name: "test", Type: "unknown-type", Version: schema.V1, Settings: json.RawMessage(`{}`)},
-				},
+		recCfg := models.ReceiverConfig{
+			Name: "test-receiver",
+			Integrations: []*models.IntegrationConfig{
+				{UID: "uid", Name: "test", Type: "unknown-type", Version: schema.V1, Settings: json.RawMessage(`{}`)},
 			},
 		}
 		_, err := build(t, recCfg, noopWrapper)
@@ -313,12 +282,10 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 	})
 
 	t.Run("should return error for unknown version", func(t *testing.T) {
-		recCfg := &APIReceiver{
-			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-			ReceiverConfig: models.ReceiverConfig{
-				Integrations: []*models.IntegrationConfig{
-					{UID: "uid", Name: "test", Type: schema.WebhookType, Version: "v99", Settings: json.RawMessage(`{}`)},
-				},
+		recCfg := models.ReceiverConfig{
+			Name: "test-receiver",
+			Integrations: []*models.IntegrationConfig{
+				{UID: "uid", Name: "test", Type: schema.WebhookType, Version: "v99", Settings: json.RawMessage(`{}`)},
 			},
 		}
 		_, err := build(t, recCfg, noopWrapper)
@@ -326,7 +293,7 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 	})
 
 	t.Run("should not produce any integrations when receiver has no Grafana integrations", func(t *testing.T) {
-		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
 		integrations, err := build(t, recCfg, noopWrapper)
 		require.NoError(t, err)
 		require.Empty(t, integrations)
@@ -335,14 +302,12 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 	t.Run("should use per-type index for integrations of the same type", func(t *testing.T) {
 		webhookCfg := notifytest.AllKnownV1ConfigsForTesting[schema.WebhookType]
 		emailCfg := notifytest.AllKnownV1ConfigsForTesting[schema.EmailType]
-		recCfg := &APIReceiver{
-			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-			ReceiverConfig: models.ReceiverConfig{
-				Integrations: []*models.IntegrationConfig{
-					webhookCfg.GetRawNotifierConfig("webhook-0"),
-					emailCfg.GetRawNotifierConfig("email-0"),
-					webhookCfg.GetRawNotifierConfig("webhook-1"),
-				},
+		recCfg := models.ReceiverConfig{
+			Name: "test-receiver",
+			Integrations: []*models.IntegrationConfig{
+				webhookCfg.GetRawNotifierConfig("webhook-0"),
+				emailCfg.GetRawNotifierConfig("email-0"),
+				webhookCfg.GetRawNotifierConfig("webhook-1"),
 			},
 		}
 		integrations, err := build(t, recCfg, noopWrapper)
@@ -352,18 +317,4 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 		require.Equal(t, "email[0]", integrations[1].String())
 		require.Equal(t, "webhook[1]", integrations[2].String())
 	})
-}
-
-func TestBuildPrometheusReceiverIntegrations(t *testing.T) {
-	receiver, err := notifytest.GetMimirReceiverWithAllIntegrations(v0mimirtest.WithTLS, v0mimirtest.WithAuthorization, v0mimirtest.WithOAuth2)
-	require.NoError(t, err)
-	err = definition.ValidateAlertmanagerConfig(receiver)
-	require.NoError(t, err)
-	cfg, err := templates.NewConfig("1", "http://localhost", "", templates.DefaultLimits)
-	require.NoError(t, err)
-	tmpl, err := templates.NewFactory(nil, cfg, log.NewNopLogger())
-	require.NoError(t, err)
-	integrations, err := BuildPrometheusReceiverIntegrations(receiver, tmpl, nil, log.NewNopLogger(), NoWrap, nil)
-	require.NoError(t, err)
-	require.Len(t, integrations, 15)
 }

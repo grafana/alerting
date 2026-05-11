@@ -698,7 +698,7 @@ func TestSilenceCleanup(t *testing.T) {
 
 func TestStatusForTestReceivers(t *testing.T) {
 	t.Run("assert HTTP 400 Status Bad Request for no receivers", func(t *testing.T) {
-		_, status := newTestReceiversResult(types.Alert{}, []result{}, []*APIReceiver{}, time.Now())
+		_, status := newTestReceiversResult(types.Alert{}, []result{}, []models.ReceiverConfig{}, time.Now())
 		require.Equal(t, http.StatusBadRequest, status)
 	})
 
@@ -720,25 +720,17 @@ func TestStatusForTestReceivers(t *testing.T) {
 					Err:         errors.New("error 2"),
 				},
 			},
-		}, []*APIReceiver{
+		}, []models.ReceiverConfig{
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "receiver 1",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						{Name: "integration 1"},
-					},
+				Name: "receiver 1",
+				Integrations: []*models.IntegrationConfig{
+					{Name: "integration 1"},
 				},
 			},
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "receiver 2",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						{Name: "integration 2"},
-					},
+				Name: "receiver 2",
+				Integrations: []*models.IntegrationConfig{
+					{Name: "integration 2"},
 				},
 			},
 		}, time.Now())
@@ -763,25 +755,17 @@ func TestStatusForTestReceivers(t *testing.T) {
 					Err:         errors.New("error 2"),
 				},
 			},
-		}, []*APIReceiver{
+		}, []models.ReceiverConfig{
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "receiver 1",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						{Name: "integration 1"},
-					},
+				Name: "receiver 1",
+				Integrations: []*models.IntegrationConfig{
+					{Name: "integration 1"},
 				},
 			},
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "receiver 2",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						{Name: "integration 2"},
-					},
+				Name: "receiver 2",
+				Integrations: []*models.IntegrationConfig{
+					{Name: "integration 2"},
 				},
 			},
 		}, time.Now())
@@ -806,25 +790,17 @@ func TestStatusForTestReceivers(t *testing.T) {
 					Err:         errors.New("error 2"),
 				},
 			},
-		}, []*APIReceiver{
+		}, []models.ReceiverConfig{
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "receiver 1",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						{Name: "integration 1"},
-					},
+				Name: "receiver 1",
+				Integrations: []*models.IntegrationConfig{
+					{Name: "integration 1"},
 				},
 			},
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "receiver 2",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						{Name: "integration 2"},
-					},
+				Name: "receiver 2",
+				Integrations: []*models.IntegrationConfig{
+					{Name: "integration 2"},
 				},
 			},
 		}, time.Now())
@@ -841,25 +817,17 @@ func TestStatusForTestReceivers(t *testing.T) {
 				ReceiverName: "receiver 2",
 				Config:       &models.IntegrationConfig{Name: "integration 2"},
 			},
-		}, []*APIReceiver{
+		}, []models.ReceiverConfig{
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "receiver 1",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						{Name: "integration 1"},
-					},
+				Name: "receiver 1",
+				Integrations: []*models.IntegrationConfig{
+					{Name: "integration 1"},
 				},
 			},
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "receiver 2",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						{Name: "integration 2"},
-					},
+				Name: "receiver 2",
+				Integrations: []*models.IntegrationConfig{
+					{Name: "integration 2"},
 				},
 			},
 		}, time.Now())
@@ -934,7 +902,7 @@ func TestCalculateConfigFingerprint(t *testing.T) {
 			name:  "receivers",
 			field: "Receivers",
 			mutator: func(cfg *NotificationsConfiguration) {
-				cfg.Receivers[0].ReceiverConfig.Integrations[0].Name = "primary-webhook-v2"
+				cfg.Receivers[0].Integrations[0].Name = "primary-webhook-v2"
 			},
 		},
 		{
@@ -1138,54 +1106,46 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 				Kind:     templates.MimirKind,
 			},
 		},
-		Receivers: []*APIReceiver{
+		Receivers: []models.ReceiverConfig{
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "grafana-default",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						{
-							UID:                   "integration-webhook-main",
-							Name:                  "primary-webhook",
-							Type:                  schema.WebhookType,
-							Version:               schema.V1,
-							DisableResolveMessage: false,
-							Settings:              []byte(`{"url":"https://example.org/hooks/primary","httpMethod":"POST","maxAlerts":10}`),
-							SecureSettings: map[string]string{
-								"authorizationHeader": "Bearer token-a",
-								"password":            "secret-a",
-							},
+				Name: "grafana-default",
+				Integrations: []*models.IntegrationConfig{
+					{
+						UID:                   "integration-webhook-main",
+						Name:                  "primary-webhook",
+						Type:                  schema.WebhookType,
+						Version:               schema.V1,
+						DisableResolveMessage: false,
+						Settings:              []byte(`{"url":"https://example.org/hooks/primary","httpMethod":"POST","maxAlerts":10}`),
+						SecureSettings: map[string]string{
+							"authorizationHeader": "Bearer token-a",
+							"password":            "secret-a",
 						},
-						{
-							UID:                   "integration-slack-main",
-							Name:                  "primary-slack",
-							Type:                  schema.SlackType,
-							Version:               schema.V1,
-							DisableResolveMessage: true,
-							Settings:              []byte(`{"recipient":"#alerts-prod","title":"Critical alert","mentionUsers":"oncall"}`),
-							SecureSettings: map[string]string{
-								"url": "https://hooks.slack.com/services/T000/B000/XXX",
-							},
+					},
+					{
+						UID:                   "integration-slack-main",
+						Name:                  "primary-slack",
+						Type:                  schema.SlackType,
+						Version:               schema.V1,
+						DisableResolveMessage: true,
+						Settings:              []byte(`{"recipient":"#alerts-prod","title":"Critical alert","mentionUsers":"oncall"}`),
+						SecureSettings: map[string]string{
+							"url": "https://hooks.slack.com/services/T000/B000/XXX",
 						},
 					},
 				},
 			},
 			{
-				ConfigReceiver: ConfigReceiver{
-					Name: "grafana-fallback",
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{
-						{
-							UID:                   "integration-email-fallback",
-							Name:                  "fallback-email",
-							Type:                  schema.EmailType,
-							DisableResolveMessage: false,
-							Settings:              []byte(`{"singleEmail":true,"addresses":"oncall@example.org;ops@example.org"}`),
-							SecureSettings: map[string]string{
-								"password": "smtp-secret",
-							},
+				Name: "grafana-fallback",
+				Integrations: []*models.IntegrationConfig{
+					{
+						UID:                   "integration-email-fallback",
+						Name:                  "fallback-email",
+						Type:                  schema.EmailType,
+						DisableResolveMessage: false,
+						Settings:              []byte(`{"singleEmail":true,"addresses":"oncall@example.org;ops@example.org"}`),
+						SecureSettings: map[string]string{
+							"password": "smtp-secret",
 						},
 					},
 				},

@@ -157,7 +157,7 @@ type NotificationsConfiguration struct {
 	MuteTimeIntervals []MuteTimeInterval
 	TimeIntervals     []TimeInterval
 	Templates         []templates.TemplateDefinition
-	Receivers         []*APIReceiver
+	Receivers         []models.ReceiverConfig
 
 	Limits DynamicLimits
 }
@@ -526,7 +526,7 @@ type result struct {
 	Error        error
 }
 
-func newTestReceiversResult(alert types.Alert, results []result, receivers []*APIReceiver, notifiedAt time.Time) (*TestReceiversResult, int) {
+func newTestReceiversResult(alert types.Alert, results []result, receivers []models.ReceiverConfig, notifiedAt time.Time) (*TestReceiversResult, int) {
 	var numBadRequests, numTimeouts, numUnknownErrors int
 
 	m := make(map[string]TestReceiverResult)
@@ -603,7 +603,7 @@ func newTestReceiversResult(alert types.Alert, results []result, receivers []*AP
 func TestReceivers(
 	ctx context.Context,
 	c TestReceiversConfigBodyParams,
-	buildIntegrationsFunc func(*APIReceiver, TemplatesProvider) ([]*nfstatus.Integration, error),
+	buildIntegrationsFunc func(models.ReceiverConfig, TemplatesProvider) ([]*nfstatus.Integration, error),
 	tmplProvider TemplatesProvider,
 ) (*TestReceiversResult, int, error) {
 	now := time.Now() // The start time of the test
@@ -618,13 +618,9 @@ func TestReceivers(
 		for _, intg := range receiver.Integrations {
 			// Create an APIReceiver with a single integration so we
 			// can identify invalid receiver integration configs
-			singleIntReceiver := &APIReceiver{
-				ConfigReceiver: definition.Receiver{
-					Name: receiver.Name,
-				},
-				ReceiverConfig: models.ReceiverConfig{
-					Integrations: []*models.IntegrationConfig{intg},
-				},
+			singleIntReceiver := models.ReceiverConfig{
+				Name:         receiver.Name,
+				Integrations: []*models.IntegrationConfig{intg},
 			}
 			integrations, err := buildIntegrationsFunc(singleIntReceiver, tmplProvider)
 			if err != nil || len(integrations) == 0 {
@@ -1076,7 +1072,7 @@ func (am *GrafanaAlertmanager) tenantString() string {
 	return fmt.Sprintf("%d", am.opts.TenantID)
 }
 
-func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver *APIReceiver, tmpls TemplatesProvider) ([]*Integration, error) {
+func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver models.ReceiverConfig, tmpls TemplatesProvider) ([]*Integration, error) {
 	if am.opts.BuildWithManifestBuilder {
 		return BuildReceiverIntegrationsWithManifests(
 			am.opts.TenantID,

@@ -106,7 +106,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		_, missing := allReceivers(&GrafanaReceiverConfig{})
 		require.Greaterf(t, missing, 0, "all notifier types should be missing, allReceivers may no longer be reliable, missing: %d", missing)
 
-		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
 			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
@@ -116,7 +116,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.Equalf(t, 0, missing, "all notifier types should be present, missing: %d", missing)
 	})
 	t.Run("should decode secrets from base64", func(t *testing.T) {
-		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
 			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
@@ -129,7 +129,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.Greater(t, counter, 0)
 	})
 	t.Run("should fail if at least one config is invalid", func(t *testing.T) {
-		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
 			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
@@ -152,13 +152,13 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.ErrorContains(t, err, fmt.Sprintf(`failed to validate integration "%s" (UID %s) of type "%s"`, bad.Name, bad.UID, bad.Type))
 	})
 	t.Run("should accept empty config", func(t *testing.T) {
-		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
 		require.NoError(t, err)
 		require.Equal(t, recCfg.Name, parsed.Name)
 	})
 	t.Run("should support non-base64-encoded secrets", func(t *testing.T) {
-		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
 		// We decode all the secureSettings from base64 and then build then receivers. The test is to ensure that
 		// BuildReceiverConfiguration can handle the already decoded secrets correctly.
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
@@ -185,7 +185,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 
 	})
 	t.Run("should fail if notifier type is unknown", func(t *testing.T) {
-		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
 			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
@@ -208,7 +208,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		require.ErrorContains(t, err, fmt.Sprintf("invalid integration type: %s", bad.Type))
 	})
 	t.Run("should recognize all known types", func(t *testing.T) {
-		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
 			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
 		}
@@ -252,7 +252,7 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		})
 	})
 	t.Run("should recognize type in any case", func(t *testing.T) {
-		recCfg := &APIReceiver{ConfigReceiver: ConfigReceiver{Name: "test-receiver"}}
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
 		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
 			notifierRaw := cfg.GetRawNotifierConfig("")
 			notifierRaw.Type = schema.IntegrationType(strings.ToUpper(string(notifierRaw.Type)))
@@ -283,9 +283,9 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		cfg := notifytest.AllKnownV1ConfigsForTesting[schema.LineType]
 		raw := cfg.GetRawNotifierConfig("")
 		raw.Type = "line" // alias, not canonical type
-		recCfg := &APIReceiver{
-			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-			ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+		recCfg := models.ReceiverConfig{
+			Name:         "test-receiver",
+			Integrations: []*models.IntegrationConfig{raw},
 		}
 		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
 		require.NoError(t, err)
@@ -295,9 +295,9 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		cfg := notifytest.AllKnownV1ConfigsForTesting[schema.WebhookType]
 		raw := cfg.GetRawNotifierConfig("")
 		raw.Version = "v99"
-		recCfg := &APIReceiver{
-			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-			ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+		recCfg := models.ReceiverConfig{
+			Name:         "test-receiver",
+			Integrations: []*models.IntegrationConfig{raw},
 		}
 		_, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
 		require.Error(t, err)
@@ -307,9 +307,9 @@ func TestBuildReceiverConfiguration(t *testing.T) {
 		cfg := notifytest.AllKnownV1ConfigsForTesting[schema.TeamsType]
 		raw := cfg.GetRawNotifierConfig("")
 		raw.Version = schema.V0mimir1
-		recCfg := &APIReceiver{
-			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-			ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+		recCfg := models.ReceiverConfig{
+			Name:         "test-receiver",
+			Integrations: []*models.IntegrationConfig{raw},
 		}
 		_, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
 		require.Error(t, err)
@@ -337,12 +337,10 @@ func TestHTTPConfig(t *testing.T) {
 				// Config should include http_config if the notifier supports it, but let's sanity check.
 				require.Containsf(t, string(config.Settings), "http_config", "notifier %s does not contain http_config", notifierType)
 
-				recCfg := &APIReceiver{
-					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-					ReceiverConfig: models.ReceiverConfig{
-						Integrations: []*models.IntegrationConfig{
-							config,
-						},
+				recCfg := models.ReceiverConfig{
+					Name: "test-receiver",
+					Integrations: []*models.IntegrationConfig{
+						config,
 					},
 				}
 
@@ -522,12 +520,10 @@ func TestHTTPConfig(t *testing.T) {
 
 				config.Settings = newSettings
 
-				recCfg := &APIReceiver{
-					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-					ReceiverConfig: models.ReceiverConfig{
-						Integrations: []*models.IntegrationConfig{
-							config,
-						},
+				recCfg := models.ReceiverConfig{
+					Name: "test-receiver",
+					Integrations: []*models.IntegrationConfig{
+						config,
 					},
 				}
 
@@ -666,9 +662,9 @@ func TestValidateAPIReceiver(t *testing.T) {
 		for key, cfg := range notifytest.AllKnownConfigsForTesting {
 			t.Run(fmt.Sprintf("%s %s", key.Type, key.Version), func(t *testing.T) {
 				raw := cfg.GetRawNotifierConfig("")
-				api := &APIReceiver{
-					ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-					ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+				api := models.ReceiverConfig{
+					Name:         "test-receiver",
+					Integrations: []*models.IntegrationConfig{raw},
 				}
 				require.NoError(t, ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt))
 			})
@@ -676,7 +672,7 @@ func TestValidateAPIReceiver(t *testing.T) {
 	})
 
 	t.Run("returns error when receiver name is empty", func(t *testing.T) {
-		api := &APIReceiver{}
+		api := models.ReceiverConfig{}
 		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "receiver name is required")
@@ -689,9 +685,9 @@ func TestValidateAPIReceiver(t *testing.T) {
 			Version:  schema.V1,
 			Settings: json.RawMessage(`{}`),
 		}
-		api := &APIReceiver{
-			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-			ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+		api := models.ReceiverConfig{
+			Name:         "test-receiver",
+			Integrations: []*models.IntegrationConfig{raw},
 		}
 		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
 		require.ErrorContains(t, err, "invalid integration config at index 0")
@@ -705,9 +701,9 @@ func TestValidateAPIReceiver(t *testing.T) {
 			Version:  "v99",
 			Settings: json.RawMessage(`{}`),
 		}
-		api := &APIReceiver{
-			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-			ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+		api := models.ReceiverConfig{
+			Name:         "test-receiver",
+			Integrations: []*models.IntegrationConfig{raw},
 		}
 		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
 		require.ErrorContains(t, err, "invalid integration config at index 0")
@@ -722,9 +718,9 @@ func TestValidateAPIReceiver(t *testing.T) {
 			Version:  schema.V1,
 			Settings: json.RawMessage(`{"url": ""}`),
 		}
-		api := &APIReceiver{
-			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-			ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+		api := models.ReceiverConfig{
+			Name:         "test-receiver",
+			Integrations: []*models.IntegrationConfig{raw},
 		}
 		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
 		require.ErrorContains(t, err, "invalid integration config at index 0")
@@ -738,9 +734,9 @@ func TestValidateAPIReceiver(t *testing.T) {
 			Settings:       json.RawMessage(`{"url": "http://localhost"}`),
 			SecureSettings: map[string]string{"key": "not-valid-base64!!!"},
 		}
-		api := &APIReceiver{
-			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-			ReceiverConfig: models.ReceiverConfig{Integrations: []*models.IntegrationConfig{raw}},
+		api := models.ReceiverConfig{
+			Name:         "test-receiver",
+			Integrations: []*models.IntegrationConfig{raw},
 		}
 		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
 		require.ErrorContains(t, err, "invalid integration config at index 0")
@@ -755,11 +751,9 @@ func TestValidateAPIReceiver(t *testing.T) {
 				Settings: json.RawMessage(`{}`),
 			}
 		}
-		api := &APIReceiver{
-			ConfigReceiver: ConfigReceiver{Name: "test-receiver"},
-			ReceiverConfig: models.ReceiverConfig{
-				Integrations: []*models.IntegrationConfig{makeInvalid("a"), makeInvalid("b")},
-			},
+		api := models.ReceiverConfig{
+			Name:         "test-receiver",
+			Integrations: []*models.IntegrationConfig{makeInvalid("a"), makeInvalid("b")},
 		}
 		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
 		require.ErrorContains(t, err, "invalid integration config at index 0")

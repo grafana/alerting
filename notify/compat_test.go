@@ -29,7 +29,7 @@ func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 		}
 		actual := PostableAPIReceiverToAPIReceiver(r)
 		require.Empty(t, actual.Integrations)
-		require.Equal(t, r.Receiver, actual.ConfigReceiver)
+		require.Equal(t, r.Receiver.Name, actual.Name)
 	})
 	t.Run("converts receivers", func(t *testing.T) {
 		r := &definition.PostableApiReceiver{
@@ -63,7 +63,7 @@ func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 		}
 		actual := PostableAPIReceiverToAPIReceiver(r)
 		require.Len(t, actual.Integrations, 2)
-		require.Equal(t, r.Receiver, actual.ConfigReceiver)
+		require.Equal(t, r.Receiver.Name, actual.Name)
 		require.Equal(t, *PostableGrafanaReceiverToIntegrationConfig(r.GrafanaManagedReceivers[0]), *actual.Integrations[0])
 		require.Equal(t, *PostableGrafanaReceiverToIntegrationConfig(r.GrafanaManagedReceivers[1]), *actual.Integrations[1])
 	})

@@ -10,7 +10,6 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
-	"github.com/grafana/alerting/definition"
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/nfstatus"
 )
@@ -32,16 +31,12 @@ func TestIntegration(ctx context.Context,
 	receiverName string,
 	integrationConfig models.IntegrationConfig,
 	testAlert models.TestReceiversConfigAlertParams,
-	buildIntegrationsFunc func(*APIReceiver, TemplatesProvider) ([]*nfstatus.Integration, error),
+	buildIntegrationsFunc func(models.ReceiverConfig, TemplatesProvider) ([]*nfstatus.Integration, error),
 	tmplProvider TemplatesProvider,
 ) (models.IntegrationStatus, error) {
-	nf, err := buildIntegrationsFunc(&APIReceiver{
-		ConfigReceiver: definition.Receiver{
-			Name: receiverName,
-		},
-		ReceiverConfig: models.ReceiverConfig{
-			Integrations: []*models.IntegrationConfig{&integrationConfig},
-		},
+	nf, err := buildIntegrationsFunc(models.ReceiverConfig{
+		Name:         receiverName,
+		Integrations: []*models.IntegrationConfig{&integrationConfig},
 	}, tmplProvider)
 	if err != nil || len(nf) == 0 {
 		return models.IntegrationStatus{}, err
