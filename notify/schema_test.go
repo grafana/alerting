@@ -61,6 +61,7 @@ func TestGetSecretKeysForContactPointType(t *testing.T) {
 		{receiverType: teams.Type, version: schema.V1, expectedSecretFields: []string{}},
 		{receiverType: telegram.Type, version: schema.V1, expectedSecretFields: []string{"bottoken"}},
 		{receiverType: webhook.Type, version: schema.V1, expectedSecretFields: []string{
+			"url",
 			"password",
 			"authorization_credentials",
 			"tlsConfig.caCertificate",
