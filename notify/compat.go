@@ -13,10 +13,10 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func PostableAPIReceiversToAPIReceivers(r []*definition.PostableApiReceiver) []models.ReceiverConfig {
+func PostableAPIReceiversToReceiverConfigs(r []*definition.PostableApiReceiver) []models.ReceiverConfig {
 	result := make([]models.ReceiverConfig, 0, len(r))
 	for _, receiver := range r {
-		result = append(result, PostableAPIReceiverToAPIReceiver(receiver))
+		result = append(result, PostableAPIReceiverToReceiverConfig(receiver))
 	}
 	return result
 }
