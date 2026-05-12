@@ -13,39 +13,55 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func PostableAPIReceiversToReceiverConfigs(r []*definition.PostableApiReceiver) []models.ReceiverConfig {
+func PostableAPIReceiversToReceiverConfigs(r []*definition.PostableApiReceiver) ([]models.ReceiverConfig, error) {
 	result := make([]models.ReceiverConfig, 0, len(r))
 	for _, receiver := range r {
-		result = append(result, PostableAPIReceiverToReceiverConfig(receiver))
+		recv, err := PostableAPIReceiverToReceiverConfig(receiver)
+		if err != nil {
+			return nil, fmt.Errorf("invalid receiver %s: %w", receiver.Name, err)
+		}
+		result = append(result, recv)
 	}
-	return result
+	return result, nil
 }
 
-func PostableAPIReceiverToReceiverConfig(r *definition.PostableApiReceiver) models.ReceiverConfig {
+func PostableAPIReceiverToReceiverConfig(r *definition.PostableApiReceiver) (models.ReceiverConfig, error) {
 	result := models.ReceiverConfig{
 		Name:         r.Name,
 		Integrations: make([]*models.IntegrationConfig, 0, len(r.GrafanaManagedReceivers)),
 	}
-	for _, p := range r.GrafanaManagedReceivers {
-		result.Integrations = append(result.Integrations, PostableGrafanaReceiverToIntegrationConfig(p))
+	for idx, p := range r.GrafanaManagedReceivers {
+		i, err := PostableGrafanaReceiverToIntegrationConfig(p)
+		if err != nil {
+			return models.ReceiverConfig{}, fmt.Errorf("invalid integration at index %d: %w", idx, err)
+		}
+		result.Integrations = append(result.Integrations, i)
 	}
-	return result
+	return result, nil
 }
 
-func PostableGrafanaReceiverToIntegrationConfig(r *definition.PostableGrafanaReceiver) *models.IntegrationConfig {
+func PostableGrafanaReceiverToIntegrationConfig(r *definition.PostableGrafanaReceiver) (*models.IntegrationConfig, error) {
 	version := schema.V1
 	if r.Version != "" {
 		version = schema.Version(r.Version)
 	}
+	iType, err := IntegrationTypeFromString(r.Type)
+	if err != nil {
+		return nil, err
+	}
+	_, ok := GetSchemaVersionForIntegration(iType, version)
+	if !ok {
+		return nil, fmt.Errorf("invalid version %s of integration %s", version, iType)
+	}
 	return &models.IntegrationConfig{
 		UID:                   r.UID,
 		Name:                  r.Name,
-		Type:                  schema.IntegrationType(r.Type), // TODO validate type/version here
+		Type:                  iType, // TODO validate type/version here
 		Version:               version,
 		DisableResolveMessage: r.DisableResolveMessage,
 		Settings:              json.RawMessage(r.Settings),
 		SecureSettings:        r.SecureSettings,
-	}
+	}, nil
 }
 
 // PostableMimirReceiverToPostableGrafanaReceiver converts all legacy models to apimodels.PostableGrafanaReceiver.
