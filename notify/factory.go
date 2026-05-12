@@ -246,7 +246,6 @@ func BuildReceiversIntegrations(
 }
 
 // BuildReceiverIntegrations builds integrations for the provided API receiver and returns them.
-// It supports both Prometheus and Grafana integrations and ensures that both of them use only templates dedicated for the kind.
 func BuildReceiverIntegrations(
 	tenantID int64,
 	receiver models.ReceiverConfig,

@@ -21,7 +21,7 @@ func PostableAPIReceiversToAPIReceivers(r []*definition.PostableApiReceiver) []m
 	return result
 }
 
-func PostableAPIReceiverToAPIReceiver(r *definition.PostableApiReceiver) models.ReceiverConfig {
+func PostableAPIReceiverToReceiverConfig(r *definition.PostableApiReceiver) models.ReceiverConfig {
 	result := models.ReceiverConfig{
 		Name:         r.Name,
 		Integrations: make([]*models.IntegrationConfig, 0, len(r.GrafanaManagedReceivers)),
