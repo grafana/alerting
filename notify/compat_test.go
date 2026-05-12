@@ -124,6 +124,17 @@ func TestPostableGrafanaReceiverToGrafanaIntegrationConfig(t *testing.T) {
 			"test": "data",
 		},
 	}, *actual)
+
+	t.Run("normalizes type casing", func(t *testing.T) {
+		r := &definition.PostableGrafanaReceiver{
+			UID:  "test-uid",
+			Name: "test-name",
+			Type: "SLACK",
+		}
+		actual, err := PostableGrafanaReceiverToIntegrationConfig(r)
+		require.NoError(t, err)
+		require.Equal(t, schema.SlackType, actual.Type)
+	})
 }
 
 func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
