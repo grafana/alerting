@@ -27,7 +27,8 @@ func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 				Name: "test-receiver",
 			},
 		}
-		actual := PostableAPIReceiverToReceiverConfig(r)
+		actual, err := PostableAPIReceiverToReceiverConfig(r)
+		require.NoError(t, err)
 		require.Empty(t, actual.Integrations)
 		require.Equal(t, r.Name, actual.Name)
 	})
@@ -61,11 +62,41 @@ func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 				},
 			},
 		}
-		actual := PostableAPIReceiverToReceiverConfig(r)
+		actual, err := PostableAPIReceiverToReceiverConfig(r)
+		require.NoError(t, err)
 		require.Len(t, actual.Integrations, 2)
 		require.Equal(t, r.Name, actual.Name)
-		require.Equal(t, *PostableGrafanaReceiverToIntegrationConfig(r.GrafanaManagedReceivers[0]), *actual.Integrations[0])
-		require.Equal(t, *PostableGrafanaReceiverToIntegrationConfig(r.GrafanaManagedReceivers[1]), *actual.Integrations[1])
+		expected0, err := PostableGrafanaReceiverToIntegrationConfig(r.GrafanaManagedReceivers[0])
+		require.NoError(t, err)
+		expected1, err := PostableGrafanaReceiverToIntegrationConfig(r.GrafanaManagedReceivers[1])
+		require.NoError(t, err)
+		require.Equal(t, *expected0, *actual.Integrations[0])
+		require.Equal(t, *expected1, *actual.Integrations[1])
+	})
+	t.Run("returns error for unknown integration type", func(t *testing.T) {
+		r := &definition.PostableApiReceiver{
+			Receiver: definition.Receiver{Name: "test-receiver"},
+			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{
+					{UID: "uid", Name: "name", Type: "unknown_type"},
+				},
+			},
+		}
+		_, err := PostableAPIReceiverToReceiverConfig(r)
+		require.ErrorContains(t, err, "invalid integration at index 0")
+	})
+	t.Run("returns error for invalid version", func(t *testing.T) {
+		r := &definition.PostableApiReceiver{
+			Receiver: definition.Receiver{Name: "test-receiver"},
+			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
+				GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{
+					{UID: "uid", Name: "name", Type: "slack", Version: "v99"},
+				},
+			},
+		}
+		_, err := PostableAPIReceiverToReceiverConfig(r)
+		require.ErrorContains(t, err, "invalid integration at index 0")
+		require.ErrorContains(t, err, "invalid version v99")
 	})
 }
 
@@ -80,7 +111,8 @@ func TestPostableGrafanaReceiverToGrafanaIntegrationConfig(t *testing.T) {
 			"test": "data",
 		},
 	}
-	actual := PostableGrafanaReceiverToIntegrationConfig(r)
+	actual, err := PostableGrafanaReceiverToIntegrationConfig(r)
+	require.NoError(t, err)
 	require.Equal(t, models.IntegrationConfig{
 		UID:                   "test-uid",
 		Name:                  "test-name",
@@ -92,12 +124,24 @@ func TestPostableGrafanaReceiverToGrafanaIntegrationConfig(t *testing.T) {
 			"test": "data",
 		},
 	}, *actual)
+
+	t.Run("normalizes type casing", func(t *testing.T) {
+		r := &definition.PostableGrafanaReceiver{
+			UID:  "test-uid",
+			Name: "test-name",
+			Type: "SLACK",
+		}
+		actual, err := PostableGrafanaReceiverToIntegrationConfig(r)
+		require.NoError(t, err)
+		require.Equal(t, schema.SlackType, actual.Type)
+	})
 }
 
 func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 	t.Run("returns empty when no receivers", func(t *testing.T) {
-		actual := PostableAPIReceiversToReceiverConfigs(nil)
+		actual, err := PostableAPIReceiversToReceiverConfigs(nil)
 		require.Empty(t, actual)
+		require.NoError(t, err)
 	})
 	receivers := []*definition.PostableApiReceiver{
 		{
@@ -139,11 +183,31 @@ func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 			},
 		},
 	}
-	actual := PostableAPIReceiversToReceiverConfigs(receivers)
+	actual, err := PostableAPIReceiversToReceiverConfigs(receivers)
+	require.NoError(t, err)
+
+	t.Run("returns error when a receiver has invalid integration", func(t *testing.T) {
+		invalid := []*definition.PostableApiReceiver{
+			{
+				Receiver: definition.Receiver{Name: "bad-receiver"},
+				PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
+					GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{
+						{UID: "uid", Name: "name", Type: "unknown_type"},
+					},
+				},
+			},
+		}
+		_, err := PostableAPIReceiversToReceiverConfigs(invalid)
+		require.ErrorContains(t, err, "invalid receiver bad-receiver")
+	})
 
 	require.Len(t, actual, 2)
-	require.Equal(t, PostableAPIReceiverToReceiverConfig(receivers[0]), actual[0])
-	require.Equal(t, PostableAPIReceiverToReceiverConfig(receivers[1]), actual[1])
+	expected0, err := PostableAPIReceiverToReceiverConfig(receivers[0])
+	require.NoError(t, err)
+	expected1, err := PostableAPIReceiverToReceiverConfig(receivers[1])
+	require.NoError(t, err)
+	require.Equal(t, expected0, actual[0])
+	require.Equal(t, expected1, actual[1])
 }
 
 func TestConfigReceiverToMimirIntegrations(t *testing.T) {
