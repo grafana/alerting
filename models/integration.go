@@ -17,5 +17,6 @@ type IntegrationConfig struct {
 }
 
 type ReceiverConfig struct {
+	Name         string               `yaml:"name" json:"name"`
 	Integrations []*IntegrationConfig `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
 }

@@ -71,14 +71,9 @@ type TestIntegrationConfigResult struct {
 
 type ConfigReceiver = definition.Receiver
 
-type APIReceiver struct {
-	ConfigReceiver        `yaml:",inline"`
-	models.ReceiverConfig `yaml:",inline"`
-}
-
 type TestReceiversConfigBodyParams struct {
 	Alert     *models.TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
-	Receivers []*APIReceiver                         `yaml:"receivers,omitempty" json:"receivers,omitempty"`
+	Receivers []models.ReceiverConfig                `yaml:"receivers,omitempty" json:"receivers,omitempty"`
 }
 
 type IntegrationTimeoutError struct {
@@ -240,7 +235,7 @@ func NoopDecrypt(_ context.Context, sjd map[string][]byte, key string, fallback 
 }
 
 // BuildReceiverConfiguration parses, decrypts and validates the APIReceiver.
-func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decode DecodeSecretsFn, decrypt GetDecryptedValueFn) (GrafanaReceiverConfig, error) {
+func BuildReceiverConfiguration(ctx context.Context, api models.ReceiverConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn) (GrafanaReceiverConfig, error) {
 	result := GrafanaReceiverConfig{
 		Name: api.Name,
 	}
@@ -256,13 +251,10 @@ func BuildReceiverConfiguration(ctx context.Context, api *APIReceiver, decode De
 	return result, nil
 }
 
-func ValidateAPIReceiver(ctx context.Context, api *APIReceiver, decode DecodeSecretsFn, decrypt GetDecryptedValueFn) error {
+func ValidateAPIReceiver(ctx context.Context, api models.ReceiverConfig, decode DecodeSecretsFn, decrypt GetDecryptedValueFn) error {
 	var errs []error
 	if api.Name == "" {
 		errs = append(errs, fmt.Errorf("receiver name is required"))
-	}
-	if err := api.Validate(); err != nil {
-		errs = append(errs, err)
 	}
 	for idx, integration := range api.Integrations {
 		err := ValidateIntegrationConfig(ctx, integration, decode, decrypt)

@@ -27,9 +27,9 @@ func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 				Name: "test-receiver",
 			},
 		}
-		actual := PostableAPIReceiverToAPIReceiver(r)
+		actual := PostableAPIReceiverToReceiverConfig(r)
 		require.Empty(t, actual.Integrations)
-		require.Equal(t, r.Receiver, actual.ConfigReceiver)
+		require.Equal(t, r.Name, actual.Name)
 	})
 	t.Run("converts receivers", func(t *testing.T) {
 		r := &definition.PostableApiReceiver{
@@ -61,9 +61,9 @@ func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 				},
 			},
 		}
-		actual := PostableAPIReceiverToAPIReceiver(r)
+		actual := PostableAPIReceiverToReceiverConfig(r)
 		require.Len(t, actual.Integrations, 2)
-		require.Equal(t, r.Receiver, actual.ConfigReceiver)
+		require.Equal(t, r.Name, actual.Name)
 		require.Equal(t, *PostableGrafanaReceiverToIntegrationConfig(r.GrafanaManagedReceivers[0]), *actual.Integrations[0])
 		require.Equal(t, *PostableGrafanaReceiverToIntegrationConfig(r.GrafanaManagedReceivers[1]), *actual.Integrations[1])
 	})
@@ -96,7 +96,7 @@ func TestPostableGrafanaReceiverToGrafanaIntegrationConfig(t *testing.T) {
 
 func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 	t.Run("returns empty when no receivers", func(t *testing.T) {
-		actual := PostableAPIReceiversToAPIReceivers(nil)
+		actual := PostableAPIReceiversToReceiverConfigs(nil)
 		require.Empty(t, actual)
 	})
 	receivers := []*definition.PostableApiReceiver{
@@ -139,11 +139,11 @@ func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 			},
 		},
 	}
-	actual := PostableAPIReceiversToAPIReceivers(receivers)
+	actual := PostableAPIReceiversToReceiverConfigs(receivers)
 
 	require.Len(t, actual, 2)
-	require.Equal(t, PostableAPIReceiverToAPIReceiver(receivers[0]), actual[0])
-	require.Equal(t, PostableAPIReceiverToAPIReceiver(receivers[1]), actual[1])
+	require.Equal(t, PostableAPIReceiverToReceiverConfig(receivers[0]), actual[0])
+	require.Equal(t, PostableAPIReceiverToReceiverConfig(receivers[1]), actual[1])
 }
 
 func TestConfigReceiverToMimirIntegrations(t *testing.T) {

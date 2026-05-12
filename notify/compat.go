@@ -13,26 +13,23 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func PostableAPIReceiversToAPIReceivers(r []*definition.PostableApiReceiver) []*APIReceiver {
-	result := make([]*APIReceiver, 0, len(r))
+func PostableAPIReceiversToReceiverConfigs(r []*definition.PostableApiReceiver) []models.ReceiverConfig {
+	result := make([]models.ReceiverConfig, 0, len(r))
 	for _, receiver := range r {
-		result = append(result, PostableAPIReceiverToAPIReceiver(receiver))
+		result = append(result, PostableAPIReceiverToReceiverConfig(receiver))
 	}
 	return result
 }
 
-func PostableAPIReceiverToAPIReceiver(r *definition.PostableApiReceiver) *APIReceiver {
-	integrations := models.ReceiverConfig{
+func PostableAPIReceiverToReceiverConfig(r *definition.PostableApiReceiver) models.ReceiverConfig {
+	result := models.ReceiverConfig{
+		Name:         r.Name,
 		Integrations: make([]*models.IntegrationConfig, 0, len(r.GrafanaManagedReceivers)),
 	}
 	for _, p := range r.GrafanaManagedReceivers {
-		integrations.Integrations = append(integrations.Integrations, PostableGrafanaReceiverToIntegrationConfig(p))
+		result.Integrations = append(result.Integrations, PostableGrafanaReceiverToIntegrationConfig(p))
 	}
-
-	return &APIReceiver{
-		ConfigReceiver: r.Receiver,
-		ReceiverConfig: integrations,
-	}
+	return result
 }
 
 func PostableGrafanaReceiverToIntegrationConfig(r *definition.PostableGrafanaReceiver) *models.IntegrationConfig {
