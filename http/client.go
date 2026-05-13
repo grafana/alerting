@@ -22,6 +22,8 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
+const maxResponseBodyInError = 1024
+
 var ErrInvalidMethod = errors.New("webhook only supports HTTP methods PUT or POST")
 
 type clientConfiguration struct {
@@ -182,18 +184,22 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 	if webhook.Validation != nil {
 		err := webhook.Validation(body, resp.StatusCode)
 		if err != nil {
-			level.Debug(l).Log("msg", "Webhook failed validation", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body), "err", err)
+			level.Debug(l).Log("msg", "Webhook failed validation", "url", url.Redacted(), "status_code", resp.Status, "body", string(body), "err", err)
 			return fmt.Errorf("webhook failed validation: %w", err)
 		}
 	}
 
 	if resp.StatusCode/100 == 2 {
-		level.Debug(l).Log("msg", "Webhook succeeded", "url", url.Redacted(), "statuscode", resp.Status)
+		level.Debug(l).Log("msg", "Webhook succeeded", "url", url.Redacted(), "status_code", resp.Status)
 		return nil
 	}
 
-	level.Debug(l).Log("msg", "Webhook failed", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body))
-	return fmt.Errorf("webhook response status %v", resp.Status)
+	level.Debug(l).Log("msg", "Webhook failed", "url", url.Redacted(), "status_code", resp.Status, "body", string(body))
+	truncatedBody := string(body)
+	if len(truncatedBody) > maxResponseBodyInError {
+		truncatedBody = truncatedBody[:maxResponseBodyInError] + "... (truncated)"
+	}
+	return fmt.Errorf("webhook response status %v: %s", resp.Status, truncatedBody)
 }
 
 func redactURL(err error) error {
