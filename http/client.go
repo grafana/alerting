@@ -188,12 +188,16 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 	}
 
 	if resp.StatusCode/100 == 2 {
-		level.Debug(l).Log("msg", "Webhook succeeded", "url", url.Redacted(), "statuscode", resp.Status)
+		level.Debug(l).Log("msg", "Webhook succeeded", "url", url.Redacted(), "status_code", resp.Status)
 		return nil
 	}
 
-	level.Debug(l).Log("msg", "Webhook failed", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body))
-	return fmt.Errorf("webhook response status %v", resp.Status)
+	level.Debug(l).Log("msg", "Webhook failed", "url", url.Redacted(), "status_code", resp.Status, "body", string(body))
+	truncatedBody := string(body)
+	if len(truncatedBody) > 1024 {
+		truncatedBody = truncatedBody[:1024] + "... (truncated)"
+	}
+	return fmt.Errorf("webhook response status %v: %s", resp.Status, truncatedBody)
 }
 
 func redactURL(err error) error {
