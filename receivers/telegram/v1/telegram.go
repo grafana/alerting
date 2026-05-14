@@ -69,6 +69,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		return false, fmt.Errorf("failed to create telegram message: %w", err)
 	}
 	if err := tn.ns.SendWebhook(ctx, l, cmd); err != nil {
+		level.Warn(l).Log("msg", "Failed to send notification", "alerts", len(as), "err", err)
 		return false, fmt.Errorf("failed to send telegram message: %w", err)
 	}
 
@@ -102,6 +103,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		return nil
 	}, as...)
 
+	level.Debug(l).Log("msg", "Notification sent", "alerts", len(as))
 	return true, nil
 }
 

@@ -95,7 +95,14 @@ type attachment struct {
 func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 
 // Notify implements the Notifier interface.
-func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (retry bool, retErr error) {
+	defer func() {
+		if retErr != nil {
+			level.Warn(n.logger).Log("msg", "Failed to send notification", "alerts", len(as), "err", retErr)
+		} else {
+			level.Debug(n.logger).Log("msg", "Notification sent", "alerts", len(as))
+		}
+	}()
 	var err error
 	var (
 		data     = notify.GetTemplateData(ctx, n.tmpl, as, n.logger)
@@ -216,7 +223,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	// Use a retrier to generate an error message for non-200 responses and
 	// classify them as retriable or not.
-	retry, err := n.retrier.Check(resp.StatusCode, resp.Body)
+	retry, err = n.retrier.Check(resp.StatusCode, resp.Body)
 	if err != nil {
 		err = fmt.Errorf("channel %q: %w", req.Channel, err)
 		return retry, notify.NewErrorWithReason(notify.GetFailureReasonFromStatusCode(resp.StatusCode), err)

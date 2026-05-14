@@ -91,7 +91,14 @@ func truncateAlerts(maxAlerts uint64, alerts []*types.Alert) ([]*types.Alert, ui
 func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 
 // Notify implements the Notifier interface.
-func (n *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
+func (n *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (retry bool, retErr error) {
+	defer func() {
+		if retErr != nil {
+			level.Warn(n.logger).Log("msg", "Failed to send notification", "alerts", len(alerts), "err", retErr)
+		} else {
+			level.Debug(n.logger).Log("msg", "Notification sent", "alerts", len(alerts))
+		}
+	}()
 	ctx, span := tracer.Start(ctx, "webhook.Notifier.Notify", trace.WithAttributes(
 		attribute.Int("alerts", len(alerts)),
 	))

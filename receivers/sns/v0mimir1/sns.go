@@ -63,7 +63,14 @@ func New(c *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg.HT
 
 func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 
-func (n *Notifier) Notify(ctx context.Context, alert ...*types.Alert) (bool, error) {
+func (n *Notifier) Notify(ctx context.Context, alert ...*types.Alert) (retry bool, retErr error) {
+	defer func() {
+		if retErr != nil {
+			level.Warn(n.logger).Log("msg", "Failed to send notification", "alerts", len(alert), "err", retErr)
+		} else {
+			level.Debug(n.logger).Log("msg", "Notification sent", "alerts", len(alert))
+		}
+	}()
 	var (
 		err  error
 		data = notify.GetTemplateData(ctx, n.tmpl, alert, n.logger)

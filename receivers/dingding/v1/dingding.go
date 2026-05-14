@@ -65,9 +65,11 @@ func (dd *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	cmd := &receivers.SendWebhookSettings{URL: u, Body: b}
 
 	if err := dd.ns.SendWebhook(ctx, l, cmd); err != nil {
+		level.Warn(l).Log("msg", "Failed to send notification", "alerts", len(as), "err", err)
 		return false, fmt.Errorf("send notification to dingding: %w", err)
 	}
 
+	level.Debug(l).Log("msg", "Notification sent", "alerts", len(as))
 	return true, nil
 }
 

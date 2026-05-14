@@ -207,9 +207,14 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 		return false, err
 	}
 
+	var (
+		respStatusCode int
+		respBody       []byte
+	)
 	cmd.Validation = func(body []byte, statusCode int) error {
+		respStatusCode = statusCode
+		respBody = body
 		if statusCode/100 != 2 {
-			level.Error(l).Log("msg", "failed to send notification to Discord", "statusCode", statusCode, "responseBody", string(body))
 			errBody := discordError{}
 			if err := json.Unmarshal(body, &errBody); err == nil {
 				return fmt.Errorf("the Discord API responded (status %d) with error code %d: %s", statusCode, errBody.Code, errBody.Message)
@@ -219,8 +224,10 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 		return nil
 	}
 	if err := d.ns.SendWebhook(ctx, l, cmd); err != nil {
+		level.Warn(l).Log("msg", "Failed to send notification", "alerts", len(as), "err", err, "status_code", respStatusCode, "response_body", string(respBody))
 		return false, err
 	}
+	level.Debug(l).Log("msg", "Notification sent", "alerts", len(as))
 	return true, nil
 }
 

@@ -317,19 +317,31 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	if err != nil {
 		return false, fmt.Errorf("failed to parse URL: %w", err)
 	}
+	var inner func(b []byte, statusCode int) error
 	// TODO: remove it after August 15. Office webhooks are deprecated and are removed on August 15, https://devblogs.microsoft.com/microsoft365dev/retirement-of-office-365-connectors-within-microsoft-teams/
 	if strings.HasSuffix(parsed.Host, "webhook.office.com") {
 		// Teams sometimes does not use status codes to show when a request has failed. Instead, the
 		// response can contain an error message, irrespective of status code (i.e. https://docs.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/connectors-using?tabs=cURL#rate-limiting-for-connectors)
-		cmd.Validation = validateOfficeWebhookResponse
+		inner = validateOfficeWebhookResponse
 	} else {
-		cmd.Validation = validateResponse(l)
+		inner = validateResponse()
+	}
+	var (
+		respStatusCode int
+		respBody       []byte
+	)
+	cmd.Validation = func(body []byte, statusCode int) error {
+		respStatusCode = statusCode
+		respBody = body
+		return inner(body, statusCode)
 	}
 
 	if err := tn.ns.SendWebhook(ctx, l, cmd); err != nil {
+		level.Warn(l).Log("msg", "Failed to send notification", "alerts", len(as), "err", err, "status_code", respStatusCode, "response_body", string(respBody))
 		return false, errors.Wrap(err, "send notification to Teams")
 	}
 
+	level.Debug(l).Log("msg", "Notification sent", "alerts", len(as))
 	return true, nil
 }
 
@@ -343,12 +355,11 @@ func validateOfficeWebhookResponse(b []byte, statusCode int) error {
 	return nil
 }
 
-func validateResponse(l log.Logger) func(b []byte, statusCode int) error {
+func validateResponse() func(b []byte, statusCode int) error {
 	return func(b []byte, statusCode int) error {
 		if statusCode/100 == 2 {
 			return nil
 		}
-		level.Error(l).Log("msg", "failed to send notification and parse response", "statusCode", statusCode, "body", string(b))
 		errResponse := errorResponse{}
 		err := json.Unmarshal(b, &errResponse)
 		if err != nil {

@@ -96,7 +96,14 @@ type opsGenieUpdateDescriptionMessage struct {
 func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 
 // Notify implements the Notifier interface.
-func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
+func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (retry bool, retErr error) {
+	defer func() {
+		if retErr != nil {
+			level.Warn(n.logger).Log("msg", "Failed to send notification", "alerts", len(as), "err", retErr)
+		} else {
+			level.Debug(n.logger).Log("msg", "Notification sent", "alerts", len(as))
+		}
+	}()
 	requests, retry, err := n.createRequests(ctx, as...)
 	if err != nil {
 		return retry, err
