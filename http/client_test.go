@@ -17,26 +17,27 @@ import (
 	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 
 	"github.com/grafana/alerting/receivers"
 )
 
 func TestClient(t *testing.T) {
 	t.Run("NewClient", func(t *testing.T) {
-		client, err := NewClient(nil)
+		client, err := NewClient(nil, "")
 		require.NoError(t, err)
 		require.NotNil(t, client)
 	})
 
 	t.Run("WithUserAgent", func(t *testing.T) {
-		client, err := NewClient(nil, WithUserAgent("TEST"))
+		client, err := NewClient(nil, "", WithUserAgent("TEST"))
 		require.NoError(t, err)
 		require.Equal(t, "TEST", client.cfg.userAgent)
 	})
 
 	t.Run("WithDialer with timeout", func(t *testing.T) {
 		dialer := net.Dialer{Timeout: 5 * time.Second}
-		client, err := NewClient(nil, WithDialer(dialer))
+		client, err := NewClient(nil, "", WithDialer(dialer))
 		require.NoError(t, err)
 		require.Equal(t, dialer, client.cfg.dialer)
 	})
@@ -44,7 +45,7 @@ func TestClient(t *testing.T) {
 	t.Run("WithDialer missing timeout should use default", func(t *testing.T) {
 		// Mostly defensive to ensure that some timeout is set.
 		dialer := net.Dialer{LocalAddr: &net.TCPAddr{IP: net.ParseIP("::")}}
-		client, err := NewClient(nil, WithDialer(dialer))
+		client, err := NewClient(nil, "", WithDialer(dialer))
 		require.NoError(t, err)
 
 		expectedDialer := dialer
@@ -60,7 +61,7 @@ func TestClient(t *testing.T) {
 		}
 		client, err := NewClient(&HTTPClientConfig{
 			OAuth2: oauth2Config,
-		})
+		}, "")
 		require.NoError(t, err)
 
 		require.NotNil(t, client.oauth2TokenSource)
@@ -77,7 +78,7 @@ func TestClient(t *testing.T) {
 		}
 		_, err := NewClient(&HTTPClientConfig{
 			OAuth2: oauth2Config,
-		})
+		}, "")
 		require.ErrorIs(t, err, ErrOAuth2TLSConfigInvalid)
 	})
 }
@@ -92,7 +93,7 @@ func TestSendWebhook(t *testing.T) {
 		got = r
 		w.WriteHeader(http.StatusOK)
 	}))
-	s, err := NewClient(nil, WithUserAgent("TEST"))
+	s, err := NewClient(nil, "", WithUserAgent("TEST"))
 	require.NoError(t, err)
 
 	// The method should be either POST or PUT.
@@ -177,7 +178,7 @@ func TestSendWebhookHMAC(t *testing.T) {
 		server := initServer(httptest.NewServer)
 		defer server.Close()
 
-		client, err := NewClient(nil)
+		client, err := NewClient(nil, "")
 		require.NoError(t, err)
 		webhook := &receivers.SendWebhookSettings{
 			URL:        server.URL,
@@ -209,7 +210,7 @@ func TestSendWebhookHMAC(t *testing.T) {
 		cfg, err := tlsConfig.ToCryptoTLSConfig()
 		require.NoError(t, err)
 
-		client, err := NewClient(nil)
+		client, err := NewClient(nil, "")
 		require.NoError(t, err)
 		webhook := &receivers.SendWebhookSettings{
 			URL:        server.URL,
@@ -492,7 +493,7 @@ func TestSendWebhookOAuth2(t *testing.T) {
 				expectedProxyRequestCnt = 1
 			}
 
-			client, err := NewClient(&HTTPClientConfig{OAuth2: &oauthConfig}, tc.otherClientOpts...)
+			client, err := NewClient(&HTTPClientConfig{OAuth2: &oauthConfig}, "", tc.otherClientOpts...)
 			if tc.expClientError != nil {
 				assert.ErrorIs(t, err, tc.expClientError, "expected client creation error to match")
 				return
@@ -536,7 +537,7 @@ func TestToHTTPClientOption(t *testing.T) {
 		require.Empty(t, ToHTTPClientOption(nil))
 	})
 
-	var f ClientOption = func(configuration *clientConfiguration) {
+	var f ClientOption = func(configuration *clientConfiguration, _ string) {
 		configuration.userAgent = "test"
 		configuration.dialer = net.Dialer{Timeout: 5 * time.Second}
 		configuration.customDialer = true
@@ -547,5 +548,92 @@ func TestToHTTPClientOption(t *testing.T) {
 	// Verify number of fields using reflection
 	tp := reflect.TypeOf(clientConfiguration{})
 	// You need to increase the number of fields covered in this test, if you add a new field to the configuration struct.
-	require.Equalf(t, 3, tp.NumField(), "Not all fields are converted to HTTPClientOption, which means that the configuration will not be supported in upstream integrations")
+	// rateLimiter is intentionally not converted: it only gates Client.SendWebhook, which upstream integrations do not use.
+	require.Equalf(t, 4, tp.NumField(), "Not all fields are converted to HTTPClientOption, which means that the configuration will not be supported in upstream integrations")
+}
+
+func TestSendWebhookRateLimiter(t *testing.T) {
+	var calls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	t.Run("nil limiter passes every request", func(t *testing.T) {
+		calls = 0
+		c, err := NewClient(nil, "", WithRateLimiter(nil))
+		require.NoError(t, err)
+		for i := 0; i < 3; i++ {
+			require.NoError(t, c.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{URL: server.URL}))
+		}
+		require.Equal(t, 3, calls)
+	})
+
+	t.Run("shared limiter rejects with ErrWebhookRateLimited once burst is drained", func(t *testing.T) {
+		calls = 0
+		// burst 1, very slow refill: exactly one send allowed in the test window.
+		lim := rate.NewLimiter(rate.Limit(0.0001), 1)
+		c, err := NewClient(nil, "", WithRateLimiter(lim))
+		require.NoError(t, err)
+
+		require.NoError(t, c.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{URL: server.URL}))
+		require.Equal(t, 1, calls)
+
+		// Bucket is drained; the next call must reject fast without hitting the server.
+		err = c.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{URL: server.URL})
+		require.ErrorIs(t, err, ErrWebhookRateLimited)
+		require.Equal(t, 1, calls)
+	})
+
+	t.Run("separate clients share a limiter", func(t *testing.T) {
+		// This is the multi-receiver property we rely on: two Clients built from the same
+		// *rate.Limiter drain one bucket together, so N configured receivers of the same
+		// integration type do not multiply the effective throughput.
+		calls = 0
+		lim := rate.NewLimiter(rate.Limit(0.0001), 1)
+		c1, err := NewClient(nil, "", WithRateLimiter(lim))
+		require.NoError(t, err)
+		c2, err := NewClient(nil, "", WithRateLimiter(lim))
+		require.NoError(t, err)
+
+		require.NoError(t, c1.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{URL: server.URL}))
+		err = c2.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{URL: server.URL})
+		require.ErrorIs(t, err, ErrWebhookRateLimited)
+		require.Equal(t, 1, calls)
+	})
+
+	t.Run("WithRateLimiterByType selects by integration type", func(t *testing.T) {
+		// Two Clients built from the same map with different integration types must drain
+		// independent buckets. This is the per-type isolation property the factory relies on.
+		calls = 0
+		slackLim := rate.NewLimiter(rate.Limit(0.0001), 1)
+		webhookLim := rate.NewLimiter(rate.Limit(0.0001), 1)
+		limiters := map[string]*rate.Limiter{
+			"slack":   slackLim,
+			"webhook": webhookLim,
+		}
+
+		cSlack, err := NewClient(nil, "slack", WithRateLimiterByType(limiters))
+		require.NoError(t, err)
+		cWebhook, err := NewClient(nil, "webhook", WithRateLimiterByType(limiters))
+		require.NoError(t, err)
+		cOther, err := NewClient(nil, "pagerduty", WithRateLimiterByType(limiters))
+		require.NoError(t, err)
+
+		// slack and webhook each get one token; draining one must not affect the other.
+		require.NoError(t, cSlack.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{URL: server.URL}))
+		err = cSlack.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{URL: server.URL})
+		require.ErrorIs(t, err, ErrWebhookRateLimited)
+
+		require.NoError(t, cWebhook.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{URL: server.URL}))
+		err = cWebhook.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{URL: server.URL})
+		require.ErrorIs(t, err, ErrWebhookRateLimited)
+
+		// pagerduty has no entry in the map — no limit, every call passes.
+		for i := 0; i < 3; i++ {
+			require.NoError(t, cOther.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{URL: server.URL}))
+		}
+		require.Equal(t, 5, calls) // 1 slack + 1 webhook + 3 pagerduty
+	})
 }
