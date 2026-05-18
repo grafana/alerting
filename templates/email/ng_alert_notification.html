@@ -567,13 +567,13 @@
                               </tr>
                               <tr>
                                 <td align="left" class="txt" style="font-size:0px;padding:10px 25px;word-break:break-word;">
-                                  <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:Inter, Helvetica, Arial;font-size:13px;line-height:22px;table-layout:auto;width:100%;border:none;">
+                                  <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:Inter, Helvetica, Arial;font-size:13px;line-height:22px;table-layout:fixed;width:100%;border:none;">
                                     <mj-raw>{{ range .Labels.SortedPairs }}</mj-raw>
                                     <tr>
-                                      <td>
+                                      <td width="40%" style="width:40%;word-break:break-word;">
                                         <strong>{{ .Name }}</strong>
                                       </td>
-                                      <td>{{ .Value }}</td>
+                                      <td width="60%" style="width:60%;word-break:break-word;">{{ .Value }}</td>
                                     </tr>
                                     <mj-raw>{{ end }}</mj-raw>
                                   </table>
@@ -587,14 +587,14 @@
                               </tr>
                               <tr>
                                 <td align="left" class="txt" style="font-size:0px;padding:10px 25px;word-break:break-word;">
-                                  <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:Inter, Helvetica, Arial;font-size:13px;line-height:22px;table-layout:auto;width:100%;border:none;">
+                                  <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:Inter, Helvetica, Arial;font-size:13px;line-height:22px;table-layout:fixed;width:100%;border:none;">
                                     <mj-raw>{{ range .Annotations.SortedPairs }}</mj-raw>
                                     <mj-raw>{{ if and (ne .Name "description") (ne .Name "summary") }}</mj-raw>
                                     <tr>
-                                      <td>
+                                      <td width="40%" style="width:40%;word-break:break-word;">
                                         <strong>{{ .Name }}</strong>
                                       </td>
-                                      <td>{{ .Value }}</td>
+                                      <td width="60%" style="width:60%;word-break:break-word;">{{ .Value }}</td>
                                     </tr>
                                     <mj-raw>{{ end }}</mj-raw>
                                     <mj-raw>{{ end }}</mj-raw>
@@ -1058,13 +1058,13 @@
                               </tr>
                               <tr>
                                 <td align="left" class="txt" style="font-size:0px;padding:10px 25px;word-break:break-word;">
-                                  <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:Inter, Helvetica, Arial;font-size:13px;line-height:22px;table-layout:auto;width:100%;border:none;">
+                                  <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:Inter, Helvetica, Arial;font-size:13px;line-height:22px;table-layout:fixed;width:100%;border:none;">
                                     <mj-raw>{{ range .Labels.SortedPairs }}</mj-raw>
                                     <tr>
-                                      <td>
+                                      <td width="40%" style="width:40%;word-break:break-word;">
                                         <strong>{{ .Name }}</strong>
                                       </td>
-                                      <td>{{ .Value }}</td>
+                                      <td width="60%" style="width:60%;word-break:break-word;">{{ .Value }}</td>
                                     </tr>
                                     <mj-raw>{{ end }}</mj-raw>
                                   </table>
@@ -1078,14 +1078,14 @@
                               </tr>
                               <tr>
                                 <td align="left" class="txt" style="font-size:0px;padding:10px 25px;word-break:break-word;">
-                                  <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:Inter, Helvetica, Arial;font-size:13px;line-height:22px;table-layout:auto;width:100%;border:none;">
+                                  <table cellpadding="0" cellspacing="0" width="100%" border="0" style="color:#000000;font-family:Inter, Helvetica, Arial;font-size:13px;line-height:22px;table-layout:fixed;width:100%;border:none;">
                                     <mj-raw>{{ range .Annotations.SortedPairs }}</mj-raw>
                                     <mj-raw>{{ if and (ne .Name "description") (ne .Name "summary") }}</mj-raw>
                                     <tr>
-                                      <td>
+                                      <td width="40%" style="width:40%;word-break:break-word;">
                                         <strong>{{ .Name }}</strong>
                                       </td>
-                                      <td>{{ .Value }}</td>
+                                      <td width="60%" style="width:60%;word-break:break-word;">{{ .Value }}</td>
                                     </tr>
                                     <mj-raw>{{ end }}</mj-raw>
                                     <mj-raw>{{ end }}</mj-raw>
