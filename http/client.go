@@ -22,7 +22,7 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
-const maxResponseBodyInError = 1024
+const maxErrorResponseSize = 1024
 
 var ErrInvalidMethod = errors.New("webhook only supports HTTP methods PUT or POST")
 
@@ -176,30 +176,28 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 		}
 	}()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if webhook.Validation != nil {
-		err := webhook.Validation(body, resp.StatusCode)
-		if err != nil {
-			level.Debug(l).Log("msg", "Webhook failed validation", "url", url.Redacted(), "status_code", resp.Status, "body", string(body), "err", err)
-			return fmt.Errorf("webhook failed validation: %w", err)
-		}
-	}
-
 	if resp.StatusCode/100 == 2 {
+		if webhook.Validation != nil {
+			// Some integrations can return 2xx status codes but error responses.
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return err
+			}
+			if err := webhook.Validation(body, resp.StatusCode); err != nil {
+				level.Debug(l).Log("msg", "Webhook failed validation", "url", url.Redacted(), "status_code", resp.Status, "body", string(body), "err", err)
+				return fmt.Errorf("webhook failed validation: %w", err)
+			}
+		}
 		level.Debug(l).Log("msg", "Webhook succeeded", "url", url.Redacted(), "status_code", resp.Status)
 		return nil
 	}
 
-	level.Debug(l).Log("msg", "Webhook failed", "url", url.Redacted(), "status_code", resp.Status, "body", string(body))
-	truncatedBody := string(body)
-	if len(truncatedBody) > maxResponseBodyInError {
-		truncatedBody = truncatedBody[:maxResponseBodyInError] + "... (truncated)"
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxErrorResponseSize))
+	if err != nil {
+		return err
 	}
-	return fmt.Errorf("webhook response status %v: %s", resp.Status, truncatedBody)
+	level.Debug(l).Log("msg", "Webhook failed", "url", url.Redacted(), "status_code", resp.Status, "body", string(body))
+	return fmt.Errorf("webhook response status %v: %s", resp.Status, string(body))
 }
 
 func redactURL(err error) error {
