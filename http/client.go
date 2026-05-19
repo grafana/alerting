@@ -22,6 +22,8 @@ import (
 	"github.com/grafana/alerting/receivers"
 )
 
+const maxErrorResponseSize = 1024
+
 var ErrInvalidMethod = errors.New("webhook only supports HTTP methods PUT or POST")
 
 type clientConfiguration struct {
@@ -174,26 +176,28 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 		}
 	}()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
-	if webhook.Validation != nil {
-		err := webhook.Validation(body, resp.StatusCode)
-		if err != nil {
-			level.Debug(l).Log("msg", "Webhook failed validation", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body), "err", err)
-			return fmt.Errorf("webhook failed validation: %w", err)
-		}
-	}
-
 	if resp.StatusCode/100 == 2 {
-		level.Debug(l).Log("msg", "Webhook succeeded", "url", url.Redacted(), "statuscode", resp.Status)
+		if webhook.Validation != nil {
+			// Some integrations can return 2xx status codes but error responses.
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return err
+			}
+			if err := webhook.Validation(body, resp.StatusCode); err != nil {
+				level.Debug(l).Log("msg", "Webhook failed validation", "url", url.Redacted(), "status_code", resp.Status, "body", string(body), "err", err)
+				return fmt.Errorf("webhook failed validation: %w", err)
+			}
+		}
+		level.Debug(l).Log("msg", "Webhook succeeded", "url", url.Redacted(), "status_code", resp.Status)
 		return nil
 	}
 
-	level.Debug(l).Log("msg", "Webhook failed", "url", url.Redacted(), "statuscode", resp.Status, "body", string(body))
-	return fmt.Errorf("webhook response status %v", resp.Status)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxErrorResponseSize))
+	if err != nil {
+		return err
+	}
+	level.Debug(l).Log("msg", "Webhook failed", "url", url.Redacted(), "status_code", resp.Status, "body", string(body))
+	return fmt.Errorf("webhook response status %v: %s", resp.Status, string(body))
 }
 
 func redactURL(err error) error {

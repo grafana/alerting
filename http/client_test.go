@@ -87,6 +87,7 @@ func TestSendWebhook(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/error" {
 			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte("Invalid routing key"))
 			return
 		}
 		got = r
@@ -153,11 +154,14 @@ func TestSendWebhook(t *testing.T) {
 
 	require.ErrorIs(t, s.SendWebhook(context.Background(), log.NewNopLogger(), &cmd), testErr)
 
-	// A non-200 status code should cause an error.
+	// A non-200 status code should cause an error that includes the response body.
 	cmd = receivers.SendWebhookSettings{
 		URL: server.URL + "/error",
 	}
-	require.Error(t, s.SendWebhook(context.Background(), log.NewNopLogger(), &cmd))
+	err = s.SendWebhook(context.Background(), log.NewNopLogger(), &cmd)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "400 Bad Request")
+	require.ErrorContains(t, err, "Invalid routing key")
 }
 
 func TestSendWebhookHMAC(t *testing.T) {
