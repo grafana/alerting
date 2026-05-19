@@ -36,7 +36,7 @@ func NewGrafanaAlertmanagerMetrics(r prometheus.Registerer, l log.Logger) *Grafa
 			Subsystem: subsystem,
 			Name:      "alertmanager_integrations",
 			Help:      "Number of configured integrations.",
-		}, []string{"org", "type"}),
+		}, []string{"org", "type", "version"}),
 		configuredInhibitionRules: promauto.With(r).NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
