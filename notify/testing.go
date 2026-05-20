@@ -81,7 +81,6 @@ func (f *FakeConfig) Raw() []byte {
 	panic("implement me")
 }
 
-
 func GetDecryptedValueFnForTesting(_ context.Context, sjd map[string][]byte, key string, fallback string) string {
 	v, _ := receiversTesting.DecryptForTesting(sjd)(key, fallback)
 	return v
