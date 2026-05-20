@@ -6,9 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/prometheus/alertmanager/types"
-
-	"github.com/grafana/alerting/notify/nfstatus"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
@@ -82,16 +79,6 @@ func (f *FakeConfig) Hash() [16]byte {
 func (f *FakeConfig) Raw() []byte {
 	// TODO implement me
 	panic("implement me")
-}
-
-type fakeNotifier struct{}
-
-func (f *fakeNotifier) Notify(_ context.Context, _ ...*types.Alert) (nfstatus.NotifyInfo, bool, error) {
-	return nfstatus.NotifyInfo{}, true, nil
-}
-
-func (f *fakeNotifier) SendResolved() bool {
-	return true
 }
 
 func GetDecryptedValueFnForTesting(_ context.Context, sjd map[string][]byte, key string, fallback string) string {

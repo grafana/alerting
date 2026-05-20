@@ -877,7 +877,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		receivers = append(receivers, nfstatus.NewReceiver(name, isActive, integrationsMap[name]))
 	}
 
-	am.setReceiverMetrics(receivers, len(activeReceivers))
+	am.setReceiverMetrics(cfg.Receivers, len(activeReceivers))
 	am.setInhibitionRulesMetrics(cfg.InhibitRules)
 
 	am.receivers = receivers
@@ -904,19 +904,19 @@ func (am *GrafanaAlertmanager) setInhibitionRulesMetrics(r []InhibitRule) {
 	am.opts.Metrics.configuredInhibitionRules.WithLabelValues(am.tenantString()).Set(float64(len(r)))
 }
 
-func (am *GrafanaAlertmanager) setReceiverMetrics(receivers []*nfstatus.Receiver, countActiveReceivers int) {
+func (am *GrafanaAlertmanager) setReceiverMetrics(cfgReceivers []models.ReceiverConfig, countActiveReceivers int) {
 	am.opts.Metrics.configuredReceivers.WithLabelValues(am.tenantString(), ActiveStateLabelValue).Set(float64(countActiveReceivers))
-	am.opts.Metrics.configuredReceivers.WithLabelValues(am.tenantString(), InactiveStateLabelValue).Set(float64(len(receivers) - countActiveReceivers))
+	am.opts.Metrics.configuredReceivers.WithLabelValues(am.tenantString(), InactiveStateLabelValue).Set(float64(len(cfgReceivers) - countActiveReceivers))
 
-	integrationsByType := make(map[string]int, len(receivers))
-	for _, r := range receivers {
-		for _, i := range r.Integrations() {
-			integrationsByType[i.Name()]++
+	type typeVersion struct{ t, v string }
+	byTypeVersion := make(map[typeVersion]int)
+	for _, r := range cfgReceivers {
+		for _, i := range r.Integrations {
+			byTypeVersion[typeVersion{string(i.Type), string(i.Version)}]++
 		}
 	}
-
-	for t, count := range integrationsByType {
-		am.opts.Metrics.configuredIntegrations.WithLabelValues(am.tenantString(), t).Set(float64(count))
+	for tv, count := range byTypeVersion {
+		am.opts.Metrics.configuredIntegrations.WithLabelValues(am.tenantString(), tv.t, tv.v).Set(float64(count))
 	}
 }
 

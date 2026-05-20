@@ -25,7 +25,6 @@ import (
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/models"
-	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 	"github.com/grafana/alerting/templates"
@@ -606,28 +605,28 @@ func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
 }
 
 func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
-	fn := &fakeNotifier{}
-	integrations := []*nfstatus.Integration{
-		nfstatus.NewIntegration(fn, fn, "grafana-oncall", 0, "test-grafana-oncall", nil, log.NewNopLogger()),
-		nfstatus.NewIntegration(fn, fn, "sns", 1, "test-sns", nil, log.NewNopLogger()),
-	}
-
 	am, reg := setupAMTest(t)
 
-	receivers := []*nfstatus.Receiver{
-		nfstatus.NewReceiver("ActiveNoIntegrations", true, nil),
-		nfstatus.NewReceiver("InactiveNoIntegrations", false, nil),
-		nfstatus.NewReceiver("ActiveMultipleIntegrations", true, integrations),
-		nfstatus.NewReceiver("InactiveMultipleIntegrations", false, integrations),
+	cfgReceivers := []models.ReceiverConfig{
+		{Name: "ActiveNoIntegrations"},
+		{Name: "InactiveNoIntegrations"},
+		{Name: "ActiveMultipleIntegrations", Integrations: []*models.IntegrationConfig{
+			{Type: schema.OnCallType, Version: schema.V1},
+			{Type: schema.SNSType, Version: schema.V1},
+		}},
+		{Name: "InactiveMultipleIntegrations", Integrations: []*models.IntegrationConfig{
+			{Type: schema.OnCallType, Version: schema.V1},
+			{Type: schema.SNSType, Version: schema.V1},
+		}},
 	}
 
-	am.setReceiverMetrics(receivers, 2)
+	am.setReceiverMetrics(cfgReceivers, 2)
 
 	require.NoError(t, testutil.GatherAndCompare(reg, bytes.NewBufferString(`
         	            	# HELP grafana_alerting_alertmanager_integrations Number of configured integrations.
         	            	# TYPE grafana_alerting_alertmanager_integrations gauge
-        	            	grafana_alerting_alertmanager_integrations{org="1",type="grafana-oncall"} 2
-        	            	grafana_alerting_alertmanager_integrations{org="1",type="sns"} 2
+        	            	grafana_alerting_alertmanager_integrations{org="1",type="oncall",version="v1"} 2
+        	            	grafana_alerting_alertmanager_integrations{org="1",type="sns",version="v1"} 2
         	            	# HELP grafana_alerting_alertmanager_receivers Number of configured receivers by state. It is considered active if used within a route.
         	            	# TYPE grafana_alerting_alertmanager_receivers gauge
         	            	grafana_alerting_alertmanager_receivers{org="1",state="active"} 2
