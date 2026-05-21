@@ -39,6 +39,11 @@ func TestNumberDecode(t *testing.T) {
 			json:     `{ "num" : "12345555555" } `,
 			expected: 12345555555,
 		},
+		{
+			name:     "null value = 0",
+			json:     `{ "num" : null} `,
+			expected: 0,
+		},
 	}
 
 	for _, test := range tests {

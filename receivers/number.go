@@ -24,6 +24,10 @@ func (o OptionalNumber) Int64() (int64, error) {
 }
 
 func (o *OptionalNumber) UnmarshalJSON(bytes []byte) error {
+	if string(bytes) == "null" {
+		*o = ""
+		return nil
+	}
 	str := string(bytes)
 	*o = OptionalNumber(strings.Trim(str, "\""))
 	return nil
