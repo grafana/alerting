@@ -38,7 +38,19 @@ func TestNewConfig(t *testing.T) {
 			settings:          `{ "bottoken" : "12345" }`,
 			expectedInitError: `could not find Chat Id in settings`,
 		},
-
+		{
+			name:     "should be able to parse an int ChatID",
+			settings: `{"chatid": 12345678}`,
+			secureSettings: map[string][]byte{
+				"bottoken": []byte("test-token"),
+			},
+			expectedConfig: Config{
+				BotToken:  "test-token",
+				ChatID:    "12345678",
+				Message:   templates.DefaultMessageEmbed,
+				ParseMode: DefaultTelegramParseMode,
+			},
+		},
 		{
 			name:     "Minimal valid configuration",
 			settings: `{ "bottoken": "test-token", "chatid": "test-chat-id" }`,
@@ -191,6 +203,20 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
+			name:     "should be able to parse an int MessageThreadID",
+			settings: `{"chatid": -1312, "message_thread_id": 12345678}`,
+			secureSettings: map[string][]byte{
+				"bottoken": []byte("test-token"),
+			},
+			expectedConfig: Config{
+				BotToken:        "test-token",
+				ChatID:          "-1312",
+				MessageThreadID: "12345678",
+				Message:         templates.DefaultMessageEmbed,
+				ParseMode:       DefaultTelegramParseMode,
+			},
+		},
+		{
 			name:     "should fail if message_thread_id is not an int",
 			settings: `{"chatid": "12345678", "message_thread_id": "notanint"}`,
 			secureSettings: map[string][]byte{
@@ -201,6 +227,14 @@ func TestNewConfig(t *testing.T) {
 		{
 			name:     "should fail if message_thread_id is not a valid int32",
 			settings: `{"chatid": "12345678", "message_thread_id": "21474836471"}`,
+			secureSettings: map[string][]byte{
+				"bottoken": []byte("test-token"),
+			},
+			expectedInitError: "message thread id must be an int32",
+		},
+		{
+			name:     "should fail if numeric message_thread_id is not a valid int32",
+			settings: `{"chatid": -1312, "message_thread_id": 21474836471}`,
 			secureSettings: map[string][]byte{
 				"bottoken": []byte("test-token"),
 			},
