@@ -152,12 +152,11 @@ type DynamicLimits struct {
 type NotifyReceiver = nfstatus.Receiver
 
 type NotificationsConfiguration struct {
-	RoutingTree       *Route
-	InhibitRules      []InhibitRule
-	MuteTimeIntervals []MuteTimeInterval
-	TimeIntervals     []TimeInterval
-	Templates         []templates.TemplateDefinition
-	Receivers         []models.ReceiverConfig
+	RoutingTree   *Route
+	InhibitRules  []InhibitRule
+	TimeIntervals []TimeInterval
+	Templates     []templates.TemplateDefinition
+	Receivers     []models.ReceiverConfig
 
 	Limits DynamicLimits
 }
@@ -166,13 +165,12 @@ type NotificationsConfiguration struct {
 type ConfigFingerprint struct {
 	Overall uint64
 
-	RoutingTree       uint64
-	InhibitRules      uint64
-	MuteTimeIntervals uint64
-	TimeIntervals     uint64
-	Templates         uint64
-	Receivers         uint64
-	Limits            uint64
+	RoutingTree   uint64
+	InhibitRules  uint64
+	TimeIntervals uint64
+	Templates     uint64
+	Receivers     uint64
+	Limits        uint64
 }
 
 func (f ConfigFingerprint) String() string {
@@ -187,13 +185,12 @@ func CalculateConfigFingerprint(cfg NotificationsConfiguration) ConfigFingerprin
 		return h.Sum64()
 	}
 	fp := ConfigFingerprint{
-		RoutingTree:       fieldHash(cfg.RoutingTree),
-		InhibitRules:      fieldHash(cfg.InhibitRules),
-		MuteTimeIntervals: fieldHash(cfg.MuteTimeIntervals),
-		TimeIntervals:     fieldHash(cfg.TimeIntervals),
-		Templates:         fieldHash(cfg.Templates),
-		Receivers:         fieldHash(cfg.Receivers),
-		Limits:            fieldHash(cfg.Limits),
+		RoutingTree:   fieldHash(cfg.RoutingTree),
+		InhibitRules:  fieldHash(cfg.InhibitRules),
+		TimeIntervals: fieldHash(cfg.TimeIntervals),
+		Templates:     fieldHash(cfg.Templates),
+		Receivers:     fieldHash(cfg.Receivers),
+		Limits:        fieldHash(cfg.Limits),
 	}
 
 	// Incorporate all field hashes together into an overall hash.
@@ -210,7 +207,6 @@ func CalculateConfigFingerprint(cfg NotificationsConfiguration) ConfigFingerprin
 	fp.Overall = overallHash(
 		fp.RoutingTree,
 		fp.InhibitRules,
-		fp.MuteTimeIntervals,
 		fp.TimeIntervals,
 		fp.Templates,
 		fp.Receivers,
@@ -791,12 +787,9 @@ func (am *GrafanaAlertmanager) WithLock(fn func()) {
 	fn()
 }
 
-func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInterval, muteTimeIntervals []config.MuteTimeInterval) map[string][]timeinterval.TimeInterval {
-	muteTimes := make(map[string][]timeinterval.TimeInterval, len(timeIntervals)+len(muteTimeIntervals))
+func (am *GrafanaAlertmanager) buildTimeIntervals(timeIntervals []config.TimeInterval) map[string][]timeinterval.TimeInterval {
+	muteTimes := make(map[string][]timeinterval.TimeInterval, len(timeIntervals))
 	for _, ti := range timeIntervals {
-		muteTimes[ti.Name] = ti.TimeIntervals
-	}
-	for _, ti := range muteTimeIntervals {
 		muteTimes[ti.Name] = ti.TimeIntervals
 	}
 	return muteTimes
@@ -847,7 +840,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 	}
 
 	am.inhibitor = inhibit.NewInhibitor(am.alerts, cfg.InhibitRules, am.marker, am.logger)
-	am.timeIntervals = am.buildTimeIntervals(cfg.TimeIntervals, cfg.MuteTimeIntervals)
+	am.timeIntervals = am.buildTimeIntervals(cfg.TimeIntervals)
 	am.silencer = silence.NewSilencer(am.silences, am.marker, am.logger)
 
 	meshStage := notify.NewGossipSettleStage(am.opts.Peer)

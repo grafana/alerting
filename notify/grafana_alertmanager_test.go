@@ -848,13 +848,12 @@ func TestCalculateConfigFingerprint(t *testing.T) {
 	require.Equal(t, CalculateConfigFingerprint(baseA), CalculateConfigFingerprint(baseB))
 
 	fieldGetters := map[string]func(ConfigFingerprint) uint64{
-		"RoutingTree":       func(fp ConfigFingerprint) uint64 { return fp.RoutingTree },
-		"InhibitRules":      func(fp ConfigFingerprint) uint64 { return fp.InhibitRules },
-		"MuteTimeIntervals": func(fp ConfigFingerprint) uint64 { return fp.MuteTimeIntervals },
-		"TimeIntervals":     func(fp ConfigFingerprint) uint64 { return fp.TimeIntervals },
-		"Templates":         func(fp ConfigFingerprint) uint64 { return fp.Templates },
-		"Receivers":         func(fp ConfigFingerprint) uint64 { return fp.Receivers },
-		"Limits":            func(fp ConfigFingerprint) uint64 { return fp.Limits },
+		"RoutingTree":   func(fp ConfigFingerprint) uint64 { return fp.RoutingTree },
+		"InhibitRules":  func(fp ConfigFingerprint) uint64 { return fp.InhibitRules },
+		"TimeIntervals": func(fp ConfigFingerprint) uint64 { return fp.TimeIntervals },
+		"Templates":     func(fp ConfigFingerprint) uint64 { return fp.Templates },
+		"Receivers":     func(fp ConfigFingerprint) uint64 { return fp.Receivers },
+		"Limits":        func(fp ConfigFingerprint) uint64 { return fp.Limits },
 	}
 
 	cases := []struct {
@@ -874,13 +873,6 @@ func TestCalculateConfigFingerprint(t *testing.T) {
 			field: "InhibitRules",
 			mutator: func(cfg *NotificationsConfiguration) {
 				cfg.InhibitRules[0].Equal[0] = "service"
-			},
-		},
-		{
-			name:  "mute time intervals",
-			field: "MuteTimeIntervals",
-			mutator: func(cfg *NotificationsConfiguration) {
-				cfg.MuteTimeIntervals[0].TimeIntervals[0].Times[0].StartMinute++
 			},
 		},
 		{
@@ -1028,7 +1020,7 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 				Equal: []string{"alertname", "cluster", "namespace"},
 			},
 		},
-		MuteTimeIntervals: []MuteTimeInterval{
+		TimeIntervals: []TimeInterval{
 			{
 				Name: "non_business_hours",
 				TimeIntervals: []timeinterval.TimeInterval{
@@ -1068,8 +1060,6 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 					},
 				},
 			},
-		},
-		TimeIntervals: []TimeInterval{
 			{
 				Name: "business_hours",
 				TimeIntervals: []timeinterval.TimeInterval{
