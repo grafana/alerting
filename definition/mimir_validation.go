@@ -10,7 +10,6 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	teams_v0mimir2 "github.com/grafana/alerting/receivers/teams/v0mimir2"
 	telegram_v0mimir1 "github.com/grafana/alerting/receivers/telegram/v0mimir1"
 	webhook_v0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
 )
@@ -56,11 +55,6 @@ func ValidateAlertmanagerConfig(cfg any) error {
 		}
 
 	// v0mimir1 receiver configs
-	case reflect.TypeOf(teams_v0mimir2.Config{}):
-		if err := validateMSTeamsV2Config(v.Interface().(teams_v0mimir2.Config)); err != nil {
-			return err
-		}
-
 	case reflect.TypeOf(telegram_v0mimir1.Config{}):
 		if err := validateTelegramConfig(v.Interface().(telegram_v0mimir1.Config)); err != nil {
 			return err
@@ -226,15 +220,6 @@ func validateGlobalConfig(cfg config.GlobalConfig) error {
 	}
 	if cfg.VictorOpsAPIKeyFile != "" {
 		return errVictorOpsAPIKeyFileNotAllowed
-	}
-	return nil
-}
-
-// validateMSTeamsV2Config validates the Microsoft Teams V2 config and returns an error if it
-// contains settings not allowed by Mimir.
-func validateMSTeamsV2Config(cfg teams_v0mimir2.Config) error {
-	if cfg.WebhookURLFile != "" {
-		return errWebhookURLFileNotAllowed
 	}
 	return nil
 }

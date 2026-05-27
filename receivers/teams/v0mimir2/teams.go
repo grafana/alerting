@@ -17,11 +17,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -141,16 +138,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		color = colorGreen
 	}
 
-	var url string
-	if n.conf.WebhookURL != nil {
-		url = n.conf.WebhookURL.String()
-	} else {
-		content, err := os.ReadFile(n.conf.WebhookURLFile)
-		if err != nil {
-			return false, fmt.Errorf("read webhook_url_file: %w", err)
-		}
-		url = strings.TrimSpace(string(content))
-	}
+	url := n.conf.WebhookURL.String()
 
 	// A message as referenced in https://learn.microsoft.com/en-us/connectors/teams/?tabs=text1%2Cdotnet#request-body-schema
 	t := teamsMessage{
