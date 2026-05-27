@@ -13,7 +13,6 @@ import (
 	opsgenie_v0mimir1 "github.com/grafana/alerting/receivers/opsgenie/v0mimir1"
 	pagerduty_v0mimir1 "github.com/grafana/alerting/receivers/pagerduty/v0mimir1"
 	pushover_v0mimir1 "github.com/grafana/alerting/receivers/pushover/v0mimir1"
-	slack_v0mimir1 "github.com/grafana/alerting/receivers/slack/v0mimir1"
 	teams_v0mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
 	teams_v0mimir2 "github.com/grafana/alerting/receivers/teams/v0mimir2"
 	telegram_v0mimir1 "github.com/grafana/alerting/receivers/telegram/v0mimir1"
@@ -66,11 +65,6 @@ func ValidateAlertmanagerConfig(cfg any) error {
 		}
 
 	// v0mimir1 receiver configs
-	case reflect.TypeOf(slack_v0mimir1.Config{}):
-		if err := validateSlackConfig(v.Interface().(slack_v0mimir1.Config)); err != nil {
-			return err
-		}
-
 	case reflect.TypeOf(opsgenie_v0mimir1.Config{}):
 		if err := validateOpsGenieConfig(v.Interface().(opsgenie_v0mimir1.Config)); err != nil {
 			return err
@@ -266,15 +260,6 @@ func validateGlobalConfig(cfg config.GlobalConfig) error {
 	}
 	if cfg.VictorOpsAPIKeyFile != "" {
 		return errVictorOpsAPIKeyFileNotAllowed
-	}
-	return nil
-}
-
-// validateSlackConfig validates the Slack config and returns an error if it contains
-// settings not allowed by Mimir.
-func validateSlackConfig(cfg slack_v0mimir1.Config) error {
-	if cfg.APIURLFile != "" {
-		return errSlackAPIURLFileNotAllowed
 	}
 	return nil
 }
