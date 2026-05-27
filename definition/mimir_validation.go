@@ -10,7 +10,6 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	pushover_v0mimir1 "github.com/grafana/alerting/receivers/pushover/v0mimir1"
 	teams_v0mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
 	teams_v0mimir2 "github.com/grafana/alerting/receivers/teams/v0mimir2"
 	telegram_v0mimir1 "github.com/grafana/alerting/receivers/telegram/v0mimir1"
@@ -26,8 +25,6 @@ var (
 	errSlackAPIURLFileNotAllowed         = errors.New("setting Slack api_url_file or global slack_api_url_file is not allowed")
 	errVictorOpsAPIKeyFileNotAllowed     = errors.New("setting VictorOps api_key_file or global victorops_api_key_file is not allowed")
 	errOpsGenieAPIKeyFileFileNotAllowed  = errors.New("setting OpsGenie api_key_file or global opsgenie_api_key_file is not allowed")
-	errPushoverUserKeyFileNotAllowed     = errors.New("setting Pushover user_key_file is not allowed")
-	errPushoverTokenFileNotAllowed       = errors.New("setting Pushover token_file is not allowed")
 	errTelegramBotTokenFileNotAllowed    = errors.New("setting Telegram bot_token_file is not allowed")
 	errWebhookURLFileNotAllowed          = errors.New("setting Webhook url_file is not allowed")
 )
@@ -60,11 +57,6 @@ func ValidateAlertmanagerConfig(cfg any) error {
 		}
 
 	// v0mimir1 receiver configs
-	case reflect.TypeOf(pushover_v0mimir1.Config{}):
-		if err := validatePushoverConfig(v.Interface().(pushover_v0mimir1.Config)); err != nil {
-			return err
-		}
-
 	case reflect.TypeOf(teams_v0mimir1.Config{}):
 		if err := validateMSTeamsConfig(v.Interface().(teams_v0mimir1.Config)); err != nil {
 			return err
@@ -241,19 +233,6 @@ func validateGlobalConfig(cfg config.GlobalConfig) error {
 	if cfg.VictorOpsAPIKeyFile != "" {
 		return errVictorOpsAPIKeyFileNotAllowed
 	}
-	return nil
-}
-
-// validatePushoverConfig validates the Pushover config and returns an error if it contains
-// settings not allowed by Mimir.
-func validatePushoverConfig(cfg pushover_v0mimir1.Config) error {
-	if cfg.UserKeyFile != "" {
-		return errPushoverUserKeyFileNotAllowed
-	}
-	if cfg.TokenFile != "" {
-		return errPushoverTokenFileNotAllowed
-	}
-
 	return nil
 }
 

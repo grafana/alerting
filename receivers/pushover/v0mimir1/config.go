@@ -60,22 +60,20 @@ var DefaultConfig = Config{
 type Config struct {
 	receivers.NotifierConfig `yaml:",inline" json:",inline"`
 
-	HTTPConfig  *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
-	UserKey     receivers.Secret          `yaml:"user_key,omitempty" json:"user_key,omitempty"`
-	UserKeyFile string                    `yaml:"user_key_file,omitempty" json:"user_key_file,omitempty"`
-	Token       receivers.Secret          `yaml:"token,omitempty" json:"token,omitempty"`
-	TokenFile   string                    `yaml:"token_file,omitempty" json:"token_file,omitempty"`
-	Title       string                    `yaml:"title,omitempty" json:"title,omitempty"`
-	Message     string                    `yaml:"message,omitempty" json:"message,omitempty"`
-	URL         string                    `yaml:"url,omitempty" json:"url,omitempty"`
-	URLTitle    string                    `yaml:"url_title,omitempty" json:"url_title,omitempty"`
-	Device      string                    `yaml:"device,omitempty" json:"device,omitempty"`
-	Sound       string                    `yaml:"sound,omitempty" json:"sound,omitempty"`
-	Priority    string                    `yaml:"priority,omitempty" json:"priority,omitempty"`
-	Retry       FractionalDuration        `yaml:"retry,omitempty" json:"retry,omitempty"`
-	Expire      FractionalDuration        `yaml:"expire,omitempty" json:"expire,omitempty"`
-	TTL         FractionalDuration        `yaml:"ttl,omitempty" json:"ttl,omitempty"`
-	HTML        bool                      `yaml:"html" json:"html,omitempty"`
+	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
+	UserKey    receivers.Secret          `yaml:"user_key,omitempty" json:"user_key,omitempty"`
+	Token      receivers.Secret          `yaml:"token,omitempty" json:"token,omitempty"`
+	Title      string                    `yaml:"title,omitempty" json:"title,omitempty"`
+	Message    string                    `yaml:"message,omitempty" json:"message,omitempty"`
+	URL        string                    `yaml:"url,omitempty" json:"url,omitempty"`
+	URLTitle   string                    `yaml:"url_title,omitempty" json:"url_title,omitempty"`
+	Device     string                    `yaml:"device,omitempty" json:"device,omitempty"`
+	Sound      string                    `yaml:"sound,omitempty" json:"sound,omitempty"`
+	Priority   string                    `yaml:"priority,omitempty" json:"priority,omitempty"`
+	Retry      FractionalDuration        `yaml:"retry,omitempty" json:"retry,omitempty"`
+	Expire     FractionalDuration        `yaml:"expire,omitempty" json:"expire,omitempty"`
+	TTL        FractionalDuration        `yaml:"ttl,omitempty" json:"ttl,omitempty"`
+	HTML       bool                      `yaml:"html" json:"html,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -124,19 +122,12 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) validate() error {
-	if c.UserKey == "" && c.UserKeyFile == "" {
-		return errors.New("one of user_key or user_key_file must be configured")
+	if c.UserKey == "" {
+		return errors.New("missing user_key in Pushover config")
 	}
-	if c.UserKey != "" && c.UserKeyFile != "" {
-		return errors.New("at most one of user_key & user_key_file must be configured")
+	if c.Token == "" {
+		return errors.New("missing token in Pushover config")
 	}
-	if c.Token == "" && c.TokenFile == "" {
-		return errors.New("one of token or token_file must be configured")
-	}
-	if c.Token != "" && c.TokenFile != "" {
-		return errors.New("at most one of token & token_file must be configured")
-	}
-
 	return nil
 }
 

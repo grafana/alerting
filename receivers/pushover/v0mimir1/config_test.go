@@ -32,25 +32,7 @@ user_key: ''
 	var cfg Config
 	err := yaml.UnmarshalStrict([]byte(in), &cfg)
 
-	expected := "one of user_key or user_key_file must be configured"
-
-	if err == nil {
-		t.Fatalf("no error returned, expected:\n%v", expected)
-	}
-	if err.Error() != expected {
-		t.Errorf("\nexpected:\n%v\ngot:\n%v", expected, err.Error())
-	}
-}
-
-func TestPushoverUserKeyOrUserKeyFile(t *testing.T) {
-	in := `
-user_key: 'user key'
-user_key_file: /pushover/user_key
-`
-	var cfg Config
-	err := yaml.UnmarshalStrict([]byte(in), &cfg)
-
-	expected := "at most one of user_key & user_key_file must be configured"
+	expected := "missing user_key in Pushover config"
 
 	if err == nil {
 		t.Fatalf("no error returned, expected:\n%v", expected)
@@ -68,26 +50,7 @@ token: ''
 	var cfg Config
 	err := yaml.UnmarshalStrict([]byte(in), &cfg)
 
-	expected := "one of token or token_file must be configured"
-
-	if err == nil {
-		t.Fatalf("no error returned, expected:\n%v", expected)
-	}
-	if err.Error() != expected {
-		t.Errorf("\nexpected:\n%v\ngot:\n%v", expected, err.Error())
-	}
-}
-
-func TestPushoverTokenOrTokenFile(t *testing.T) {
-	in := `
-token: 'pushover token'
-token_file: /pushover/token
-user_key: 'user key'
-`
-	var cfg Config
-	err := yaml.UnmarshalStrict([]byte(in), &cfg)
-
-	expected := "at most one of token & token_file must be configured"
+	expected := "missing token in Pushover config"
 
 	if err == nil {
 		t.Fatalf("no error returned, expected:\n%v", expected)
@@ -116,12 +79,12 @@ func TestValidate(t *testing.T) {
 		{
 			name:        "Missing user_key",
 			mutate:      func(cfg *Config) { cfg.UserKey = "" },
-			expectedErr: "one of user_key or user_key_file must be configured",
+			expectedErr: "missing user_key in Pushover config",
 		},
 		{
 			name:        "Missing token",
 			mutate:      func(cfg *Config) { cfg.Token = "" },
-			expectedErr: "one of token or token_file must be configured",
+			expectedErr: "missing token in Pushover config",
 		},
 		{
 			name: "Invalid http_config",
@@ -168,12 +131,12 @@ func TestNewConfig(t *testing.T) {
 		{
 			name:              "Error if missing user_key",
 			settings:          `{"token": "tok"}`,
-			expectedInitError: "one of user_key or user_key_file must be configured",
+			expectedInitError: "missing user_key in Pushover config",
 		},
 		{
 			name:              "Error if missing token",
 			settings:          `{"user_key": "key"}`,
-			expectedInitError: "one of token or token_file must be configured",
+			expectedInitError: "missing token in Pushover config",
 		},
 		{
 			name: "Minimal valid configuration",
