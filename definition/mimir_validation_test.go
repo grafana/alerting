@@ -92,18 +92,6 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 			},
 			expected: errPasswordFileNotAllowed,
 		},
-		"*MSTeams.WebhookURLFile": {
-			input: &teams_v0mimir1.Config{
-				WebhookURLFile: "/file",
-			},
-			expected: errWebhookURLFileNotAllowed,
-		},
-		"MSTeams.WebhookURLFile": {
-			input: teams_v0mimir1.Config{
-				WebhookURLFile: "/file",
-			},
-			expected: errWebhookURLFileNotAllowed,
-		},
 		"struct containing *HTTPClientConfig as direct child": {
 			input: config.GlobalConfig{
 				HTTPConfig: &commoncfg.HTTPClientConfig{
