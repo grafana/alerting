@@ -50,9 +50,8 @@ func (a *BasicAuth) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // Authorization contains HTTP authorization credentials.
 type Authorization struct {
-	Type            string           `yaml:"type,omitempty" json:"type,omitempty"`
-	Credentials     commoncfg.Secret `yaml:"credentials,omitempty" json:"credentials,omitempty"`
-	CredentialsFile string           `yaml:"credentials_file,omitempty" json:"credentials_file,omitempty"`
+	Type        string           `yaml:"type,omitempty" json:"type,omitempty"`
+	Credentials commoncfg.Secret `yaml:"credentials,omitempty" json:"credentials,omitempty"`
 	// CredentialsRef is the name of the secret within the secret manager to use as credentials.
 	CredentialsRef string `yaml:"credentials_ref,omitempty" json:"credentials_ref,omitempty"`
 }
@@ -239,8 +238,8 @@ func (c *HTTPClientConfig) validate() error {
 		if len(c.BearerToken) > 0 || len(c.BearerTokenFile) > 0 {
 			return errors.New("authorization is not compatible with bearer_token & bearer_token_file")
 		}
-		if nonZeroCount(string(c.Authorization.Credentials) != "", c.Authorization.CredentialsFile != "", c.Authorization.CredentialsRef != "") > 1 {
-			return errors.New("at most one of authorization credentials & credentials_file must be configured")
+		if string(c.Authorization.Credentials) != "" && c.Authorization.CredentialsRef != "" {
+			return errors.New("at most one of authorization credentials & credentials_ref must be configured")
 		}
 		c.Authorization.Type = strings.TrimSpace(c.Authorization.Type)
 		if len(c.Authorization.Type) == 0 {
@@ -257,11 +256,6 @@ func (c *HTTPClientConfig) validate() error {
 			c.Authorization = &Authorization{Credentials: c.BearerToken}
 			c.Authorization.Type = "Bearer"
 			c.BearerToken = ""
-		}
-		if len(c.BearerTokenFile) > 0 {
-			c.Authorization = &Authorization{CredentialsFile: c.BearerTokenFile}
-			c.Authorization.Type = "Bearer"
-			c.BearerTokenFile = ""
 		}
 	}
 	if c.OAuth2 != nil {

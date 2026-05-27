@@ -22,17 +22,13 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 	}{
 		"*HTTPClientConfig": {
 			input: &httpcfg.HTTPClientConfig{
-				Authorization: &httpcfg.Authorization{
-					CredentialsFile: "/secrets",
-				},
+				BearerTokenFile: "/secrets",
 			},
 			expected: errPasswordFileNotAllowed,
 		},
 		"HTTPClientConfig": {
 			input: httpcfg.HTTPClientConfig{
-				Authorization: &httpcfg.Authorization{
-					CredentialsFile: "/secrets",
-				},
+				BearerTokenFile: "/secrets",
 			},
 			expected: errPasswordFileNotAllowed,
 		},
@@ -103,9 +99,7 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"map containing *HTTPClientConfig": {
 			input: map[string]*httpcfg.HTTPClientConfig{
 				"test": {
-					Authorization: &httpcfg.Authorization{
-						CredentialsFile: "/secrets",
-					},
+					BearerTokenFile: "/secrets",
 				},
 			},
 			expected: errPasswordFileNotAllowed,

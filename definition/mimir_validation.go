@@ -120,9 +120,6 @@ func ValidateAlertmanagerConfig(cfg any) error {
 // validateReceiverHTTPConfig validates the v0mimir1 HTTP config and returns an error if it contains
 // settings not allowed by Mimir.
 func validateReceiverHTTPConfig(cfg httpcfg.HTTPClientConfig) error {
-	if cfg.Authorization != nil && cfg.Authorization.CredentialsFile != "" {
-		return errPasswordFileNotAllowed
-	}
 	if cfg.BearerTokenFile != "" {
 		return errPasswordFileNotAllowed
 	}

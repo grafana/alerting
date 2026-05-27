@@ -357,16 +357,6 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 			errMsg: "authorization is not compatible with bearer_token & bearer_token_file",
 		},
 		{
-			name: "invalid: authorization credentials and credentials_file both set",
-			cfg: HTTPClientConfig{
-				Authorization: &Authorization{
-					Credentials:     "cred",
-					CredentialsFile: "cred.txt",
-				},
-			},
-			errMsg: "at most one of authorization credentials & credentials_file must be configured",
-		},
-		{
 			name: "invalid: authorization credentials and credentials_ref both set",
 			cfg: HTTPClientConfig{
 				Authorization: &Authorization{
@@ -374,7 +364,7 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 					CredentialsRef: "cred-ref",
 				},
 			},
-			errMsg: "at most one of authorization credentials & credentials_file must be configured",
+			errMsg: "at most one of authorization credentials & credentials_ref must be configured",
 		},
 		{
 			name: "invalid: authorization type basic",

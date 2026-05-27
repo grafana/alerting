@@ -71,10 +71,9 @@ func toCommonAuthorization(a *Authorization) *commoncfg.Authorization {
 		return nil
 	}
 	return &commoncfg.Authorization{
-		Type:            a.Type,
-		Credentials:     a.Credentials,
-		CredentialsFile: a.CredentialsFile,
-		CredentialsRef:  a.CredentialsRef,
+		Type:           a.Type,
+		Credentials:    a.Credentials,
+		CredentialsRef: a.CredentialsRef,
 	}
 }
 
@@ -83,10 +82,9 @@ func fromCommonAuthorization(a *commoncfg.Authorization) *Authorization {
 		return nil
 	}
 	return &Authorization{
-		Type:            a.Type,
-		Credentials:     a.Credentials,
-		CredentialsFile: a.CredentialsFile,
-		CredentialsRef:  a.CredentialsRef,
+		Type:           a.Type,
+		Credentials:    a.Credentials,
+		CredentialsRef: a.CredentialsRef,
 	}
 }
 
