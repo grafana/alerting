@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/go-kit/log"
@@ -276,16 +275,7 @@ func (n *Notifier) createRequests(ctx context.Context, as ...*types.Alert) ([]*h
 		}
 	}
 
-	var apiKey string
-	if n.conf.APIKey != "" {
-		apiKey = tmpl(string(n.conf.APIKey))
-	} else {
-		content, err := os.ReadFile(n.conf.APIKeyFile)
-		if err != nil {
-			return nil, false, fmt.Errorf("read key_file error: %w", err)
-		}
-		apiKey = tmpl(string(content))
-	}
+	apiKey := tmpl(string(n.conf.APIKey))
 
 	if err != nil {
 		return nil, false, fmt.Errorf("templating error: %w", err)
