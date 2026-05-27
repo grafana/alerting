@@ -335,32 +335,18 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 			errMsg: "at most one of basic_auth, oauth2, bearer_token & bearer_token_file must be configured",
 		},
 		{
-			name: "invalid: basic_auth username and username_file both set",
-			cfg: HTTPClientConfig{
-				BasicAuth: &BasicAuth{Username: "user", UsernameFile: "user.txt"},
-			},
-			errMsg: "at most one of basic_auth username, username_file & username_ref must be configured",
-		},
-		{
 			name: "invalid: basic_auth username and username_ref both set",
 			cfg: HTTPClientConfig{
 				BasicAuth: &BasicAuth{Username: "user", UsernameRef: "user-ref"},
 			},
-			errMsg: "at most one of basic_auth username, username_file & username_ref must be configured",
-		},
-		{
-			name: "invalid: basic_auth password and password_file both set",
-			cfg: HTTPClientConfig{
-				BasicAuth: &BasicAuth{Password: "pass", PasswordFile: "pass.txt"},
-			},
-			errMsg: "at most one of basic_auth password, password_file & password_ref must be configured",
+			errMsg: "at most one of basic_auth username & username_ref must be configured",
 		},
 		{
 			name: "invalid: basic_auth password and password_ref both set",
 			cfg: HTTPClientConfig{
 				BasicAuth: &BasicAuth{Password: "pass", PasswordRef: "pass-ref"},
 			},
-			errMsg: "at most one of basic_auth password, password_file & password_ref must be configured",
+			errMsg: "at most one of basic_auth password & password_ref must be configured",
 		},
 		{
 			name: "invalid: authorization and bearer_token both set",

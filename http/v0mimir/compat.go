@@ -47,12 +47,10 @@ func toCommonBasicAuth(a *BasicAuth) *commoncfg.BasicAuth {
 		return nil
 	}
 	return &commoncfg.BasicAuth{
-		Username:     a.Username,
-		UsernameFile: a.UsernameFile,
-		UsernameRef:  a.UsernameRef,
-		Password:     a.Password,
-		PasswordFile: a.PasswordFile,
-		PasswordRef:  a.PasswordRef,
+		Username:    a.Username,
+		UsernameRef: a.UsernameRef,
+		Password:    a.Password,
+		PasswordRef: a.PasswordRef,
 	}
 }
 
@@ -61,12 +59,10 @@ func fromCommonBasicAuth(a *commoncfg.BasicAuth) *BasicAuth {
 		return nil
 	}
 	return &BasicAuth{
-		Username:     a.Username,
-		UsernameFile: a.UsernameFile,
-		UsernameRef:  a.UsernameRef,
-		Password:     a.Password,
-		PasswordFile: a.PasswordFile,
-		PasswordRef:  a.PasswordRef,
+		Username:    a.Username,
+		UsernameRef: a.UsernameRef,
+		Password:    a.Password,
+		PasswordRef: a.PasswordRef,
 	}
 }
 

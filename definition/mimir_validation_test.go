@@ -22,16 +22,16 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 	}{
 		"*HTTPClientConfig": {
 			input: &httpcfg.HTTPClientConfig{
-				BasicAuth: &httpcfg.BasicAuth{
-					PasswordFile: "/secrets",
+				Authorization: &httpcfg.Authorization{
+					CredentialsFile: "/secrets",
 				},
 			},
 			expected: errPasswordFileNotAllowed,
 		},
 		"HTTPClientConfig": {
 			input: httpcfg.HTTPClientConfig{
-				BasicAuth: &httpcfg.BasicAuth{
-					PasswordFile: "/secrets",
+				Authorization: &httpcfg.Authorization{
+					CredentialsFile: "/secrets",
 				},
 			},
 			expected: errPasswordFileNotAllowed,
@@ -95,9 +95,7 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"struct containing *HTTPClientConfig as direct child": {
 			input: config.GlobalConfig{
 				HTTPConfig: &commoncfg.HTTPClientConfig{
-					BasicAuth: &commoncfg.BasicAuth{
-						PasswordFile: "/secrets",
-					},
+					BearerTokenFile: "/secrets",
 				},
 			},
 			expected: errPasswordFileNotAllowed,
@@ -105,8 +103,8 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"map containing *HTTPClientConfig": {
 			input: map[string]*httpcfg.HTTPClientConfig{
 				"test": {
-					BasicAuth: &httpcfg.BasicAuth{
-						PasswordFile: "/secrets",
+					Authorization: &httpcfg.Authorization{
+						CredentialsFile: "/secrets",
 					},
 				},
 			},

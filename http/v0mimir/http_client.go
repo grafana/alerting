@@ -34,12 +34,10 @@ var DefaultHTTPClientConfig = HTTPClientConfig{
 
 // BasicAuth contains basic HTTP authentication credentials.
 type BasicAuth struct {
-	Username     string `yaml:"username" json:"username"`
-	UsernameFile string `yaml:"username_file,omitempty" json:"username_file,omitempty"`
+	Username string `yaml:"username" json:"username"`
 	// UsernameRef is the name of the secret within the secret manager to use as the username.
-	UsernameRef  string           `yaml:"username_ref,omitempty" json:"username_ref,omitempty"`
-	Password     commoncfg.Secret `yaml:"password,omitempty" json:"password,omitempty"`
-	PasswordFile string           `yaml:"password_file,omitempty" json:"password_file,omitempty"`
+	UsernameRef string           `yaml:"username_ref,omitempty" json:"username_ref,omitempty"`
+	Password    commoncfg.Secret `yaml:"password,omitempty" json:"password,omitempty"`
 	// PasswordRef is the name of the secret within the secret manager to use as the password.
 	PasswordRef string `yaml:"password_ref,omitempty" json:"password_ref,omitempty"`
 }
@@ -231,11 +229,11 @@ func (c *HTTPClientConfig) validate() error {
 	if (c.BasicAuth != nil || c.OAuth2 != nil) && (len(c.BearerToken) > 0 || len(c.BearerTokenFile) > 0) {
 		return errors.New("at most one of basic_auth, oauth2, bearer_token & bearer_token_file must be configured")
 	}
-	if c.BasicAuth != nil && nonZeroCount(c.BasicAuth.Username != "", c.BasicAuth.UsernameFile != "", c.BasicAuth.UsernameRef != "") > 1 {
-		return errors.New("at most one of basic_auth username, username_file & username_ref must be configured")
+	if c.BasicAuth != nil && c.BasicAuth.Username != "" && c.BasicAuth.UsernameRef != "" {
+		return errors.New("at most one of basic_auth username & username_ref must be configured")
 	}
-	if c.BasicAuth != nil && nonZeroCount(string(c.BasicAuth.Password) != "", c.BasicAuth.PasswordFile != "", c.BasicAuth.PasswordRef != "") > 1 {
-		return errors.New("at most one of basic_auth password, password_file & password_ref must be configured")
+	if c.BasicAuth != nil && string(c.BasicAuth.Password) != "" && c.BasicAuth.PasswordRef != "" {
+		return errors.New("at most one of basic_auth password & password_ref must be configured")
 	}
 	if c.Authorization != nil {
 		if len(c.BearerToken) > 0 || len(c.BearerTokenFile) > 0 {

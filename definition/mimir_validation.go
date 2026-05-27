@@ -120,9 +120,6 @@ func ValidateAlertmanagerConfig(cfg any) error {
 // validateReceiverHTTPConfig validates the v0mimir1 HTTP config and returns an error if it contains
 // settings not allowed by Mimir.
 func validateReceiverHTTPConfig(cfg httpcfg.HTTPClientConfig) error {
-	if cfg.BasicAuth != nil && cfg.BasicAuth.PasswordFile != "" {
-		return errPasswordFileNotAllowed
-	}
 	if cfg.Authorization != nil && cfg.Authorization.CredentialsFile != "" {
 		return errPasswordFileNotAllowed
 	}
@@ -157,9 +154,6 @@ func validateReceiverTLSConfig(cfg httpcfg.TLSConfig) error {
 // validateCommonHTTPConfig validates the prometheus common HTTP config and returns an error if it
 // contains settings not allowed by Mimir. Used for GlobalConfig.
 func validateCommonHTTPConfig(cfg commoncfg.HTTPClientConfig) error {
-	if cfg.BasicAuth != nil && cfg.BasicAuth.PasswordFile != "" {
-		return errPasswordFileNotAllowed
-	}
 	if cfg.Authorization != nil && cfg.Authorization.CredentialsFile != "" {
 		return errPasswordFileNotAllowed
 	}
