@@ -372,12 +372,5 @@ func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
 }
 
 func (n *Email) getPassword() (string, error) {
-	if len(n.conf.AuthPasswordFile) > 0 {
-		content, err := os.ReadFile(n.conf.AuthPasswordFile)
-		if err != nil {
-			return "", fmt.Errorf("could not read %s: %w", n.conf.AuthPasswordFile, err)
-		}
-		return strings.TrimSpace(string(content)), nil
-	}
 	return string(n.conf.AuthPassword), nil
 }

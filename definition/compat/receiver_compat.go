@@ -43,21 +43,20 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 
 	for _, c := range r.EmailConfigs {
 		def.EmailConfigs = append(def.EmailConfigs, &email_v0mimir1.Config{
-			NotifierConfig:   receivers.NotifierConfig(c.NotifierConfig),
-			To:               c.To,
-			From:             c.From,
-			Hello:            c.Hello,
-			Smarthost:        receivers.HostPort(c.Smarthost),
-			AuthUsername:     c.AuthUsername,
-			AuthPassword:     receivers.Secret(c.AuthPassword),
-			AuthPasswordFile: c.AuthPasswordFile,
-			AuthSecret:       receivers.Secret(c.AuthSecret),
-			AuthIdentity:     c.AuthIdentity,
-			Headers:          c.Headers,
-			HTML:             c.HTML,
-			Text:             c.Text,
-			RequireTLS:       c.RequireTLS,
-			TLSConfig:        httpcfg.FromCommonTLSConfig(c.TLSConfig),
+			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
+			To:             c.To,
+			From:           c.From,
+			Hello:          c.Hello,
+			Smarthost:      receivers.HostPort(c.Smarthost),
+			AuthUsername:   c.AuthUsername,
+			AuthPassword:   receivers.Secret(c.AuthPassword),
+			AuthSecret:     receivers.Secret(c.AuthSecret),
+			AuthIdentity:   c.AuthIdentity,
+			Headers:        c.Headers,
+			HTML:           c.HTML,
+			Text:           c.Text,
+			RequireTLS:     c.RequireTLS,
+			TLSConfig:      httpcfg.FromCommonTLSConfig(c.TLSConfig),
 		})
 	}
 
@@ -313,21 +312,20 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 
 	for _, c := range r.EmailConfigs {
 		upstream.EmailConfigs = append(upstream.EmailConfigs, &config.EmailConfig{
-			NotifierConfig:   config.NotifierConfig(c.NotifierConfig),
-			To:               c.To,
-			From:             c.From,
-			Hello:            c.Hello,
-			Smarthost:        config.HostPort(c.Smarthost),
-			AuthUsername:     c.AuthUsername,
-			AuthPassword:     config.Secret(c.AuthPassword),
-			AuthPasswordFile: c.AuthPasswordFile,
-			AuthSecret:       config.Secret(c.AuthSecret),
-			AuthIdentity:     c.AuthIdentity,
-			Headers:          c.Headers,
-			HTML:             c.HTML,
-			Text:             c.Text,
-			RequireTLS:       c.RequireTLS,
-			TLSConfig:        httpcfg.ToCommonTLSConfig(c.TLSConfig),
+			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
+			To:             c.To,
+			From:           c.From,
+			Hello:          c.Hello,
+			Smarthost:      config.HostPort(c.Smarthost),
+			AuthUsername:   c.AuthUsername,
+			AuthPassword:   config.Secret(c.AuthPassword),
+			AuthSecret:     config.Secret(c.AuthSecret),
+			AuthIdentity:   c.AuthIdentity,
+			Headers:        c.Headers,
+			HTML:           c.HTML,
+			Text:           c.Text,
+			RequireTLS:     c.RequireTLS,
+			TLSConfig:      httpcfg.ToCommonTLSConfig(c.TLSConfig),
 		})
 	}
 

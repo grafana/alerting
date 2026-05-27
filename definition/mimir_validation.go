@@ -10,7 +10,6 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	opsgenie_v0mimir1 "github.com/grafana/alerting/receivers/opsgenie/v0mimir1"
 	pagerduty_v0mimir1 "github.com/grafana/alerting/receivers/pagerduty/v0mimir1"
 	pushover_v0mimir1 "github.com/grafana/alerting/receivers/pushover/v0mimir1"
@@ -67,11 +66,6 @@ func ValidateAlertmanagerConfig(cfg any) error {
 		}
 
 	// v0mimir1 receiver configs
-	case reflect.TypeOf(email_v0mimir1.Config{}):
-		if err := validateEmailConfig(v.Interface().(email_v0mimir1.Config)); err != nil {
-			return err
-		}
-
 	case reflect.TypeOf(slack_v0mimir1.Config{}):
 		if err := validateSlackConfig(v.Interface().(slack_v0mimir1.Config)); err != nil {
 			return err
@@ -273,15 +267,6 @@ func validateGlobalConfig(cfg config.GlobalConfig) error {
 	if cfg.VictorOpsAPIKeyFile != "" {
 		return errVictorOpsAPIKeyFileNotAllowed
 	}
-	return nil
-}
-
-// validateEmailConfig validates the Email config and returns an error if it contains settings not allowed by Mimir.
-func validateEmailConfig(cfg email_v0mimir1.Config) error {
-	if cfg.AuthPasswordFile != "" {
-		return errPasswordFileNotAllowed
-	}
-
 	return nil
 }
 

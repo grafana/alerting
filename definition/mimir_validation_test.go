@@ -76,18 +76,6 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 			},
 			expected: errPasswordFileNotAllowed,
 		},
-		"*EmailConfig.AuthPasswordFile": {
-			input: &email_v0mimir1.Config{
-				AuthPasswordFile: "/file",
-			},
-			expected: errPasswordFileNotAllowed,
-		},
-		"EmailConfig.AuthPasswordFile": {
-			input: email_v0mimir1.Config{
-				AuthPasswordFile: "/file",
-			},
-			expected: errPasswordFileNotAllowed,
-		},
 		"*MSTeams.HTTPConfig": {
 			input: &teams_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
