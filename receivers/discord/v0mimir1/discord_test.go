@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
@@ -148,28 +147,6 @@ func TestDiscordRedactedURL(t *testing.T) {
 	test.AssertNotifyLeaksNoSecret(ctx, t, notifier, secret)
 }
 
-func TestDiscordReadingURLFromFile(t *testing.T) {
-	ctx, u, fn := test.GetContextWithCancelingURL()
-	defer fn()
-
-	f, err := os.CreateTemp("", "webhook_url")
-	require.NoError(t, err, "creating temp file failed")
-	_, err = f.WriteString(u.String() + "\n")
-	require.NoError(t, err, "writing to temp file failed")
-
-	notifier, err := New(
-		&Config{
-			WebhookURLFile: f.Name(),
-			HTTPConfig:     &httpcfg.HTTPClientConfig{},
-		},
-		test.CreateTmpl(t),
-		log.NewNopLogger(),
-	)
-	require.NoError(t, err)
-
-	test.AssertNotifyLeaksNoSecret(ctx, t, notifier, u.String())
-}
-
 func TestDiscord_Notify(t *testing.T) {
 	// Create a fake HTTP server to simulate the Discord webhook
 	var resp string
@@ -183,23 +160,14 @@ func TestDiscord_Notify(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
-	// Create a temporary file to simulate the WebhookURLFile
-	tempFile, err := os.CreateTemp("", "webhook_url")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		require.NoError(t, os.Remove(tempFile.Name()))
-	})
-
-	// Write the fake webhook URL to the temp file
-	_, err = tempFile.WriteString(srv.URL)
+	srvURL, err := url.Parse(srv.URL)
 	require.NoError(t, err)
 
-	// Create a Config with the WebhookURLFile set
 	cfg := &Config{
-		WebhookURLFile: tempFile.Name(),
-		HTTPConfig:     &httpcfg.HTTPClientConfig{},
-		Title:          "Test Title",
-		Message:        "Test Message",
+		WebhookURL: &receivers.SecretURL{URL: srvURL},
+		HTTPConfig: &httpcfg.HTTPClientConfig{},
+		Title:      "Test Title",
+		Message:    "Test Message",
 	}
 
 	// Create a new Discord notifier

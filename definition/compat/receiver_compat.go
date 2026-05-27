@@ -36,7 +36,6 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
 			WebhookURL:     (*receivers.SecretURL)(c.WebhookURL),
-			WebhookURLFile: c.WebhookURLFile,
 			Title:          c.Title,
 			Message:        c.Message,
 		})
@@ -307,7 +306,6 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
 			WebhookURL:     (*config.SecretURL)(c.WebhookURL),
-			WebhookURLFile: c.WebhookURLFile,
 			Title:          c.Title,
 			Message:        c.Message,
 		})

@@ -10,7 +10,6 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	discord_v0mimir1 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
 	opsgenie_v0mimir1 "github.com/grafana/alerting/receivers/opsgenie/v0mimir1"
 	pagerduty_v0mimir1 "github.com/grafana/alerting/receivers/pagerduty/v0mimir1"
@@ -68,11 +67,6 @@ func ValidateAlertmanagerConfig(cfg any) error {
 		}
 
 	// v0mimir1 receiver configs
-	case reflect.TypeOf(discord_v0mimir1.Config{}):
-		if err := validateDiscordConfig(v.Interface().(discord_v0mimir1.Config)); err != nil {
-			return err
-		}
-
 	case reflect.TypeOf(email_v0mimir1.Config{}):
 		if err := validateEmailConfig(v.Interface().(email_v0mimir1.Config)); err != nil {
 			return err
@@ -278,15 +272,6 @@ func validateGlobalConfig(cfg config.GlobalConfig) error {
 	}
 	if cfg.VictorOpsAPIKeyFile != "" {
 		return errVictorOpsAPIKeyFileNotAllowed
-	}
-	return nil
-}
-
-// validateDiscordConfig validates the Discord config and returns an error if it
-// contains settings not allowed by Mimir.
-func validateDiscordConfig(cfg discord_v0mimir1.Config) error {
-	if cfg.WebhookURLFile != "" {
-		return errWebhookURLFileNotAllowed
 	}
 	return nil
 }

@@ -40,9 +40,8 @@ var DefaultConfig = Config{
 type Config struct {
 	receivers.NotifierConfig `yaml:",inline" json:",inline"`
 
-	HTTPConfig     *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
-	WebhookURL     *receivers.SecretURL      `yaml:"webhook_url,omitempty" json:"webhook_url,omitempty"`
-	WebhookURLFile string                    `yaml:"webhook_url_file,omitempty" json:"webhook_url_file,omitempty"`
+	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
+	WebhookURL *receivers.SecretURL      `yaml:"webhook_url,omitempty" json:"webhook_url,omitempty"`
 
 	Title   string `yaml:"title,omitempty" json:"title,omitempty"`
 	Message string `yaml:"message,omitempty" json:"message,omitempty"`
@@ -94,14 +93,9 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) validate() error {
-	if c.WebhookURL == nil && c.WebhookURLFile == "" {
-		return errors.New("one of webhook_url or webhook_url_file must be configured")
+	if c.WebhookURL == nil {
+		return errors.New("missing webhook_url")
 	}
-
-	if c.WebhookURL != nil && len(c.WebhookURLFile) > 0 {
-		return errors.New("at most one of webhook_url & webhook_url_file must be configured")
-	}
-
 	return nil
 }
 

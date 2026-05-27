@@ -76,18 +76,6 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 			},
 			expected: errPasswordFileNotAllowed,
 		},
-		"*DiscordConfig.WebhookURLFile": {
-			input: &discord_v0mimir1.Config{
-				WebhookURLFile: "/file",
-			},
-			expected: errWebhookURLFileNotAllowed,
-		},
-		"DiscordConfig.WebhookURLFile": {
-			input: discord_v0mimir1.Config{
-				WebhookURLFile: "/file",
-			},
-			expected: errWebhookURLFileNotAllowed,
-		},
 		"*EmailConfig.AuthPasswordFile": {
 			input: &email_v0mimir1.Config{
 				AuthPasswordFile: "/file",
