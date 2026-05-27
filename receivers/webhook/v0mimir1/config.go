@@ -43,8 +43,7 @@ type Config struct {
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
 	// URL to send POST request to.
-	URL     *receivers.SecretURL `yaml:"url" json:"url"`
-	URLFile string               `yaml:"url_file" json:"url_file"`
+	URL *receivers.SecretURL `yaml:"url" json:"url"`
 
 	// MaxAlerts is the maximum number of alerts to be sent per webhook message.
 	// Alerts exceeding this threshold will be truncated. Setting this to 0
@@ -102,11 +101,8 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) validate() error {
-	if c.URL == nil && c.URLFile == "" {
-		return errors.New("one of url or url_file must be configured")
-	}
-	if c.URL != nil && c.URLFile != "" {
-		return errors.New("at most one of url & url_file must be configured")
+	if c.URL == nil {
+		return errors.New("missing url in webhook config")
 	}
 	return nil
 }

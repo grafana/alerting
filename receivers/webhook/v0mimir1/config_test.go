@@ -31,25 +31,7 @@ func TestWebhookURLIsPresent(t *testing.T) {
 	var cfg Config
 	err := yaml.UnmarshalStrict([]byte(in), &cfg)
 
-	expected := "one of url or url_file must be configured"
-
-	if err == nil {
-		t.Fatalf("no error returned, expected:\n%v", expected)
-	}
-	if err.Error() != expected {
-		t.Errorf("\nexpected:\n%v\ngot:\n%v", expected, err.Error())
-	}
-}
-
-func TestWebhookURLOrURLFile(t *testing.T) {
-	in := `
-url: 'http://example.com'
-url_file: 'http://example.com'
-`
-	var cfg Config
-	err := yaml.UnmarshalStrict([]byte(in), &cfg)
-
-	expected := "at most one of url & url_file must be configured"
+	expected := "missing url in webhook config"
 
 	if err == nil {
 		t.Fatalf("no error returned, expected:\n%v", expected)
@@ -132,7 +114,7 @@ func TestValidate(t *testing.T) {
 		{
 			name:        "Missing url",
 			mutate:      func(cfg *Config) { cfg.URL = nil },
-			expectedErr: "one of url or url_file must be configured",
+			expectedErr: "missing url in webhook config",
 		},
 		{
 			name: "Invalid http_config",
@@ -179,7 +161,7 @@ func TestNewConfig(t *testing.T) {
 		{
 			name:              "Error if missing url",
 			settings:          `{}`,
-			expectedInitError: "one of url or url_file must be configured",
+			expectedInitError: "missing url in webhook config",
 		},
 		{
 			name: "Minimal valid configuration",

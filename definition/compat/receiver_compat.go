@@ -113,7 +113,6 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 			NotifierConfig: receivers.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     httpcfg.FromCommonHTTPClientConfig(c.HTTPConfig),
 			URL:            (*receivers.SecretURL)(c.URL),
-			URLFile:        c.URLFile,
 			MaxAlerts:      c.MaxAlerts,
 			Timeout:        c.Timeout,
 		})
@@ -372,7 +371,6 @@ func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver
 			NotifierConfig: config.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
 			URL:            (*config.SecretURL)(c.URL),
-			URLFile:        c.URLFile,
 			MaxAlerts:      c.MaxAlerts,
 			Timeout:        c.Timeout,
 		}

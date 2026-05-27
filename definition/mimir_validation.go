@@ -10,7 +10,6 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	webhook_v0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
 )
 
 var (
@@ -22,7 +21,6 @@ var (
 	errSlackAPIURLFileNotAllowed         = errors.New("setting Slack api_url_file or global slack_api_url_file is not allowed")
 	errVictorOpsAPIKeyFileNotAllowed     = errors.New("setting VictorOps api_key_file or global victorops_api_key_file is not allowed")
 	errOpsGenieAPIKeyFileFileNotAllowed  = errors.New("setting OpsGenie api_key_file or global opsgenie_api_key_file is not allowed")
-	errWebhookURLFileNotAllowed          = errors.New("setting Webhook url_file is not allowed")
 )
 
 // ValidateAlertmanagerConfig recursively scans the input config looking for data types for which
@@ -49,12 +47,6 @@ func ValidateAlertmanagerConfig(cfg any) error {
 	switch t {
 	case reflect.TypeOf(config.GlobalConfig{}):
 		if err := validateGlobalConfig(v.Interface().(config.GlobalConfig)); err != nil {
-			return err
-		}
-
-	// v0mimir1 receiver configs
-	case reflect.TypeOf(webhook_v0mimir1.Config{}):
-		if err := validateWebhookConfig(v.Interface().(webhook_v0mimir1.Config)); err != nil {
 			return err
 		}
 
@@ -213,15 +205,6 @@ func validateGlobalConfig(cfg config.GlobalConfig) error {
 	}
 	if cfg.VictorOpsAPIKeyFile != "" {
 		return errVictorOpsAPIKeyFileNotAllowed
-	}
-	return nil
-}
-
-// validateWebhookConfig validates the Webhook config and returns an error if it contains
-// settings not allowed by Mimir.
-func validateWebhookConfig(cfg webhook_v0mimir1.Config) error {
-	if cfg.URLFile != "" {
-		return errWebhookURLFileNotAllowed
 	}
 	return nil
 }
