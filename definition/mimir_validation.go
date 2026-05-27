@@ -15,7 +15,6 @@ import (
 	teams_v0mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
 	teams_v0mimir2 "github.com/grafana/alerting/receivers/teams/v0mimir2"
 	telegram_v0mimir1 "github.com/grafana/alerting/receivers/telegram/v0mimir1"
-	victorops_v0mimir1 "github.com/grafana/alerting/receivers/victorops/v0mimir1"
 	webhook_v0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
 )
 
@@ -64,11 +63,6 @@ func ValidateAlertmanagerConfig(cfg any) error {
 		}
 
 	// v0mimir1 receiver configs
-	case reflect.TypeOf(victorops_v0mimir1.Config{}):
-		if err := validateVictorOpsConfig(v.Interface().(victorops_v0mimir1.Config)); err != nil {
-			return err
-		}
-
 	case reflect.TypeOf(pagerduty_v0mimir1.Config{}):
 		if err := validatePagerDutyConfig(v.Interface().(pagerduty_v0mimir1.Config)); err != nil {
 			return err
@@ -253,15 +247,6 @@ func validateGlobalConfig(cfg config.GlobalConfig) error {
 		return errPasswordFileNotAllowed
 	}
 	if cfg.VictorOpsAPIKeyFile != "" {
-		return errVictorOpsAPIKeyFileNotAllowed
-	}
-	return nil
-}
-
-// validateVictorOpsConfig validates the VictorOps config and returns an error if it contains
-// settings not allowed by Mimir.
-func validateVictorOpsConfig(cfg victorops_v0mimir1.Config) error {
-	if cfg.APIKeyFile != "" {
 		return errVictorOpsAPIKeyFileNotAllowed
 	}
 	return nil

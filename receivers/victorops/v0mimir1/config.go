@@ -45,7 +45,6 @@ type Config struct {
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
 	APIKey            receivers.Secret  `yaml:"api_key,omitempty" json:"api_key,omitempty"`
-	APIKeyFile        string            `yaml:"api_key_file,omitempty" json:"api_key_file,omitempty"`
 	APIURL            *receivers.URL    `yaml:"api_url" json:"api_url"`
 	RoutingKey        string            `yaml:"routing_key" json:"routing_key"`
 	MessageType       string            `yaml:"message_type" json:"message_type"`
@@ -106,10 +105,6 @@ func (c *Config) Validate() error {
 func (c *Config) validate() error {
 	if c.RoutingKey == "" {
 		return errors.New("missing Routing key in VictorOps config")
-	}
-
-	if c.APIKey != "" && c.APIKeyFile != "" {
-		return errors.New("at most one of api_key & api_key_file must be configured")
 	}
 
 	reservedFields := []string{"routing_key", "message_type", "state_message", "entity_display_name", "monitoring_tool", "entity_id", "entity_state"}
