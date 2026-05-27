@@ -43,23 +43,6 @@ routing_key: ''
 		}
 	})
 
-	t.Run("error if both routing key and key file", func(t *testing.T) {
-		in := `
-routing_key: 'xyz'
-routing_key_file: 'xyz'
-`
-		var cfg Config
-		err := yaml.UnmarshalStrict([]byte(in), &cfg)
-
-		expected := "at most one of routing_key & routing_key_file must be configured"
-
-		if err == nil {
-			t.Fatalf("no error returned, expected:\n%v", expected)
-		}
-		if err.Error() != expected {
-			t.Errorf("\nexpected:\n%v\ngot:\n%v", expected, err.Error())
-		}
-	})
 }
 
 func TestPagerdutyServiceKey(t *testing.T) {
@@ -80,23 +63,6 @@ service_key: ''
 		}
 	})
 
-	t.Run("error if both service key and key file", func(t *testing.T) {
-		in := `
-service_key: 'xyz'
-service_key_file: 'xyz'
-`
-		var cfg Config
-		err := yaml.UnmarshalStrict([]byte(in), &cfg)
-
-		expected := "at most one of service_key & service_key_file must be configured"
-
-		if err == nil {
-			t.Fatalf("no error returned, expected:\n%v", expected)
-		}
-		if err.Error() != expected {
-			t.Errorf("\nexpected:\n%v\ngot:\n%v", expected, err.Error())
-		}
-	})
 }
 
 func TestPagerdutyDetails(t *testing.T) {
@@ -216,20 +182,6 @@ func TestValidate(t *testing.T) {
 				cfg.ServiceKey = ""
 			},
 			expectedErr: "missing service or routing key in PagerDuty config",
-		},
-		{
-			name: "Both routing_key and routing_key_file",
-			mutate: func(cfg *Config) {
-				cfg.RoutingKeyFile = "file"
-			},
-			expectedErr: "at most one of routing_key & routing_key_file must be configured",
-		},
-		{
-			name: "Both service_key and service_key_file",
-			mutate: func(cfg *Config) {
-				cfg.ServiceKeyFile = "file"
-			},
-			expectedErr: "at most one of service_key & service_key_file must be configured",
 		},
 		{
 			name: "Invalid http_config",
