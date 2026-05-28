@@ -58,7 +58,7 @@ func TestOAuth2TLSConfigJSONKey(t *testing.T) {
 		ClientID: "id",
 		TokenURL: "http://example.com/token",
 		TLSConfig: TLSConfig{
-			CAFile: "ca.pem",
+			ServerName: "server.example.com",
 		},
 	}
 
@@ -80,9 +80,7 @@ func TestOAuth2TLSConfigStructToJSONToYAML(t *testing.T) {
 			ClientID: "id",
 			TokenURL: "http://example.com/token",
 			TLSConfig: TLSConfig{
-				CAFile:   "ca.pem",
-				CertFile: "cert.pem",
-				KeyFile:  "key.pem",
+				ServerName: "server.example.com",
 			},
 		},
 	}
@@ -105,12 +103,12 @@ func TestOAuth2TLSConfigJSONSnakeCaseInput(t *testing.T) {
 	input := `{
 		"client_id": "id",
 		"token_url": "http://example.com/token",
-		"tls_config": {"ca_file": "ca.pem"}
+		"tls_config": {"server_name": "server.example.com"}
 	}`
 
 	var cfg OAuth2
 	require.NoError(t, json.Unmarshal([]byte(input), &cfg))
 
 	// FAILS: "tls_config" is silently ignored; only "TLSConfig" works.
-	require.Equal(t, "ca.pem", cfg.TLSConfig.CAFile)
+	require.Equal(t, "server.example.com", cfg.TLSConfig.ServerName)
 }

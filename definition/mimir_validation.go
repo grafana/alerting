@@ -17,7 +17,7 @@ var (
 	errOAuth2SecretFileNotAllowed        = errors.New("setting OAuth2 client_secret_file is not allowed")
 	errProxyURLNotAllowed                = errors.New("setting proxy_url is not allowed")
 	errProxyFromEnvironmentURLNotAllowed = errors.New("setting proxy_from_environment is not allowed")
-	errTLSConfigNotAllowed               = errors.New("setting TLS ca_file, cert_file, key_file, ca, cert or key is not allowed")
+	errTLSConfigNotAllowed               = errors.New("setting TLS ca, cert or key is not allowed")
 	errSlackAPIURLFileNotAllowed         = errors.New("setting Slack api_url_file or global slack_api_url_file is not allowed")
 	errVictorOpsAPIKeyFileNotAllowed     = errors.New("setting VictorOps api_key_file or global victorops_api_key_file is not allowed")
 	errOpsGenieAPIKeyFileFileNotAllowed  = errors.New("setting OpsGenie api_key_file or global opsgenie_api_key_file is not allowed")
@@ -136,7 +136,7 @@ func validateReceiverHTTPConfig(cfg httpcfg.HTTPClientConfig) error {
 // validateReceiverTLSConfig validates the v0mimir1 TLS config and returns an error if it contains
 // settings not allowed by Mimir.
 func validateReceiverTLSConfig(cfg httpcfg.TLSConfig) error {
-	if cfg.CAFile != "" || cfg.CertFile != "" || cfg.KeyFile != "" || cfg.CA != "" || cfg.Cert != "" || cfg.Key != "" {
+	if cfg.CA != "" || cfg.Cert != "" || cfg.Key != "" {
 		return errTLSConfigNotAllowed
 	}
 	return nil

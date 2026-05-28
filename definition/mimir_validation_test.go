@@ -22,25 +22,25 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 	}{
 		"*HTTPClientConfig": {
 			input: &httpcfg.HTTPClientConfig{
-				TLSConfig: httpcfg.TLSConfig{CAFile: "/ca.pem"},
+				TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 			},
 			expected: errTLSConfigNotAllowed,
 		},
 		"HTTPClientConfig": {
 			input: httpcfg.HTTPClientConfig{
-				TLSConfig: httpcfg.TLSConfig{CAFile: "/ca.pem"},
+				TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 			},
 			expected: errTLSConfigNotAllowed,
 		},
 		"*TLSConfig": {
 			input: &httpcfg.TLSConfig{
-				CertFile: "/cert",
+				Cert: "cert-content",
 			},
 			expected: errTLSConfigNotAllowed,
 		},
 		"TLSConfig": {
 			input: httpcfg.TLSConfig{
-				CertFile: "/cert",
+				Cert: "cert-content",
 			},
 			expected: errTLSConfigNotAllowed,
 		},
@@ -59,7 +59,7 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"*DiscordConfig.HTTPConfig": {
 			input: &discord_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					TLSConfig: httpcfg.TLSConfig{CAFile: "/file"},
+					TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 				},
 			},
 			expected: errTLSConfigNotAllowed,
@@ -67,7 +67,7 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"DiscordConfig.HTTPConfig": {
 			input: discord_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					TLSConfig: httpcfg.TLSConfig{CAFile: "/file"},
+					TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 				},
 			},
 			expected: errTLSConfigNotAllowed,
@@ -75,7 +75,7 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"*MSTeams.HTTPConfig": {
 			input: &teams_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					TLSConfig: httpcfg.TLSConfig{CAFile: "/file"},
+					TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 				},
 			},
 			expected: errTLSConfigNotAllowed,
@@ -83,7 +83,7 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"MSTeams.HTTPConfig": {
 			input: teams_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					TLSConfig: httpcfg.TLSConfig{CAFile: "/file"},
+					TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 				},
 			},
 			expected: errTLSConfigNotAllowed,
@@ -99,7 +99,7 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"map containing *HTTPClientConfig": {
 			input: map[string]*httpcfg.HTTPClientConfig{
 				"test": {
-					TLSConfig: httpcfg.TLSConfig{CAFile: "/file"},
+					TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 				},
 			},
 			expected: errTLSConfigNotAllowed,
@@ -108,7 +108,7 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 			input: map[string][]email_v0mimir1.Config{
 				"test": {{
 					TLSConfig: httpcfg.TLSConfig{
-						CAFile: "/file",
+						CA: "ca-content",
 					},
 				}},
 			},

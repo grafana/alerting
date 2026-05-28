@@ -290,18 +290,6 @@ func (c *HTTPClientConfig) UnmarshalJSON(data []byte) error {
 	return c.validate()
 }
 
-// nonZeroCount returns the amount of values that are non-zero.
-func nonZeroCount[T comparable](values ...T) int {
-	count := 0
-	var zero T
-	for _, value := range values {
-		if value != zero {
-			count += 1
-		}
-	}
-	return count
-}
-
 func V0HttpConfigOption() schema.Field {
 	oauth2ConfigOption := func() schema.Field {
 		return schema.Field{

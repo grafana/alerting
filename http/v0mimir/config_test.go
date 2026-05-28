@@ -45,20 +45,12 @@ func TestTLSConfigValidate(t *testing.T) {
 			cfg:  TLSConfig{},
 		},
 		{
-			name: "valid: ca_file only",
-			cfg:  TLSConfig{CAFile: "ca.pem"},
-		},
-		{
 			name: "valid: ca inline only",
 			cfg:  TLSConfig{CA: "ca-content"},
 		},
 		{
 			name: "valid: ca_ref only",
 			cfg:  TLSConfig{CARef: "my-ca-ref"},
-		},
-		{
-			name: "valid: cert and key files",
-			cfg:  TLSConfig{CertFile: "cert.pem", KeyFile: "key.pem"},
 		},
 		{
 			name: "valid: cert and key inline",
@@ -69,54 +61,39 @@ func TestTLSConfigValidate(t *testing.T) {
 			cfg:  TLSConfig{CertRef: "cert-ref", KeyRef: "key-ref"},
 		},
 		{
-			name:   "invalid: ca and ca_file both set",
-			cfg:    TLSConfig{CA: "ca-content", CAFile: "ca.pem"},
-			errMsg: "at most one of ca, ca_file & ca_ref must be configured",
-		},
-		{
 			name:   "invalid: ca and ca_ref both set",
 			cfg:    TLSConfig{CA: "ca-content", CARef: "my-ca-ref"},
-			errMsg: "at most one of ca, ca_file & ca_ref must be configured",
-		},
-		{
-			name:   "invalid: ca_file and ca_ref both set",
-			cfg:    TLSConfig{CAFile: "ca.pem", CARef: "my-ca-ref"},
-			errMsg: "at most one of ca, ca_file & ca_ref must be configured",
-		},
-		{
-			name:   "invalid: cert and cert_file both set",
-			cfg:    TLSConfig{Cert: "cert-content", CertFile: "cert.pem", KeyFile: "key.pem"},
-			errMsg: "at most one of cert, cert_file & cert_ref must be configured",
+			errMsg: "at most one of ca & ca_ref must be configured",
 		},
 		{
 			name:   "invalid: cert and cert_ref both set",
 			cfg:    TLSConfig{Cert: "cert-content", CertRef: "cert-ref", Key: "key-content"},
-			errMsg: "at most one of cert, cert_file & cert_ref must be configured",
+			errMsg: "at most one of cert & cert_ref must be configured",
 		},
 		{
-			name:   "invalid: key and key_file both set",
-			cfg:    TLSConfig{CertFile: "cert.pem", Key: "key-content", KeyFile: "key.pem"},
-			errMsg: "at most one of key and key_file must be configured",
-		},
-		{
-			name:   "invalid: cert without key",
-			cfg:    TLSConfig{CertFile: "cert.pem"},
-			errMsg: "exactly one of key or key_file must be configured when a client certificate is configured",
-		},
-		{
-			name:   "invalid: key without cert",
-			cfg:    TLSConfig{KeyFile: "key.pem"},
-			errMsg: "exactly one of cert or cert_file must be configured when a client key is configured",
+			name:   "invalid: key and key_ref both set",
+			cfg:    TLSConfig{Cert: "cert-content", Key: "key-content", KeyRef: "key-ref"},
+			errMsg: "at most one of key & key_ref must be configured",
 		},
 		{
 			name:   "invalid: cert inline without key",
 			cfg:    TLSConfig{Cert: "cert-content"},
-			errMsg: "exactly one of key or key_file must be configured when a client certificate is configured",
+			errMsg: "exactly one of key or key_ref must be configured when a client certificate is configured",
 		},
 		{
 			name:   "invalid: cert_ref without key",
 			cfg:    TLSConfig{CertRef: "cert-ref"},
-			errMsg: "exactly one of key or key_file must be configured when a client certificate is configured",
+			errMsg: "exactly one of key or key_ref must be configured when a client certificate is configured",
+		},
+		{
+			name:   "invalid: key inline without cert",
+			cfg:    TLSConfig{Key: "key-content"},
+			errMsg: "exactly one of cert or cert_ref must be configured when a client key is configured",
+		},
+		{
+			name:   "invalid: key_ref without cert",
+			cfg:    TLSConfig{KeyRef: "key-ref"},
+			errMsg: "exactly one of cert or cert_ref must be configured when a client key is configured",
 		},
 	}
 
@@ -614,22 +591,22 @@ func TestTLSConfigUnmarshalYAML(t *testing.T) {
 			input: `{}`,
 		},
 		{
-			name:  "valid: ca_file",
-			input: `ca_file: /etc/ca.pem`,
+			name:  "valid: ca inline",
+			input: `ca: ca-content`,
 		},
 		{
-			name:  "valid: cert_file and key_file",
-			input: "cert_file: cert.pem\nkey_file: key.pem",
+			name:  "valid: cert and key inline",
+			input: "cert: cert-content\nkey: key-content",
 		},
 		{
-			name:   "invalid: ca and ca_file both set",
-			input:  "ca: ca-content\nca_file: ca.pem",
-			errMsg: "at most one of ca, ca_file & ca_ref must be configured",
+			name:   "invalid: ca and ca_ref both set",
+			input:  "ca: ca-content\nca_ref: my-ca-ref",
+			errMsg: "at most one of ca & ca_ref must be configured",
 		},
 		{
 			name:   "invalid: cert without key",
-			input:  "cert_file: cert.pem",
-			errMsg: "exactly one of key or key_file must be configured when a client certificate is configured",
+			input:  "cert: cert-content",
+			errMsg: "exactly one of key or key_ref must be configured when a client certificate is configured",
 		},
 	}
 
