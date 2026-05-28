@@ -31,7 +31,7 @@ func TestValidate(t *testing.T) {
 		{
 			name:        "Missing webhook_url",
 			mutate:      func(cfg *Config) { cfg.WebhookURL = nil },
-			expectedErr: "one of webhook_url or webhook_url_file must be configured",
+			expectedErr: "missing webhook_url",
 		},
 		{
 			name: "Invalid http_config",
@@ -78,7 +78,7 @@ func TestNewConfig(t *testing.T) {
 		{
 			name:              "Error if missing webhook_url",
 			settings:          `{"title": "test"}`,
-			expectedInitError: "one of webhook_url or webhook_url_file must be configured",
+			expectedInitError: "missing webhook_url",
 		},
 		{
 			name: "Minimal valid configuration",
