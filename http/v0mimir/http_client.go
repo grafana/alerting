@@ -34,12 +34,8 @@ var DefaultHTTPClientConfig = HTTPClientConfig{
 
 // BasicAuth contains basic HTTP authentication credentials.
 type BasicAuth struct {
-	Username string `yaml:"username" json:"username"`
-	// UsernameRef is the name of the secret within the secret manager to use as the username.
-	UsernameRef string           `yaml:"username_ref,omitempty" json:"username_ref,omitempty"`
-	Password    commoncfg.Secret `yaml:"password,omitempty" json:"password,omitempty"`
-	// PasswordRef is the name of the secret within the secret manager to use as the password.
-	PasswordRef string `yaml:"password_ref,omitempty" json:"password_ref,omitempty"`
+	Username string           `yaml:"username" json:"username"`
+	Password commoncfg.Secret `yaml:"password,omitempty" json:"password,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -219,12 +215,6 @@ func (c *HTTPClientConfig) validate() error {
 	// Backwards compatibility with the bearer_token field.
 	if (c.BasicAuth != nil || c.OAuth2 != nil) && len(c.BearerToken) > 0 {
 		return errors.New("at most one of basic_auth, oauth2 & bearer_token must be configured")
-	}
-	if c.BasicAuth != nil && c.BasicAuth.Username != "" && c.BasicAuth.UsernameRef != "" {
-		return errors.New("at most one of basic_auth username & username_ref must be configured")
-	}
-	if c.BasicAuth != nil && string(c.BasicAuth.Password) != "" && c.BasicAuth.PasswordRef != "" {
-		return errors.New("at most one of basic_auth password & password_ref must be configured")
 	}
 	if c.Authorization != nil {
 		if len(c.BearerToken) > 0 {
