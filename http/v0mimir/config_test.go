@@ -283,10 +283,6 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 			cfg:  HTTPClientConfig{BearerToken: "token"},
 		},
 		{
-			name: "valid: bearer_token_file only",
-			cfg:  HTTPClientConfig{BearerTokenFile: "token.txt"},
-		},
-		{
 			name: "valid: authorization only",
 			cfg:  HTTPClientConfig{Authorization: &Authorization{Credentials: "cred"}},
 		},
@@ -297,20 +293,12 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid: bearer_token and bearer_token_file both set",
-			cfg: HTTPClientConfig{
-				BearerToken:     "token",
-				BearerTokenFile: "token.txt",
-			},
-			errMsg: "at most one of bearer_token & bearer_token_file must be configured",
-		},
-		{
 			name: "invalid: basic_auth and bearer_token both set",
 			cfg: HTTPClientConfig{
 				BasicAuth:   &BasicAuth{Username: "user"},
 				BearerToken: "token",
 			},
-			errMsg: "at most one of basic_auth, oauth2, bearer_token & bearer_token_file must be configured",
+			errMsg: "at most one of basic_auth, oauth2 & bearer_token must be configured",
 		},
 		{
 			name: "invalid: oauth2 and bearer_token both set",
@@ -318,7 +306,7 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 				OAuth2:      &OAuth2{ClientID: "id", TokenURL: "http://example.com/token"},
 				BearerToken: "token",
 			},
-			errMsg: "at most one of basic_auth, oauth2, bearer_token & bearer_token_file must be configured",
+			errMsg: "at most one of basic_auth, oauth2 & bearer_token must be configured",
 		},
 		{
 			name: "invalid: basic_auth username and username_ref both set",
@@ -340,7 +328,7 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 				Authorization: &Authorization{Credentials: "cred"},
 				BearerToken:   "token",
 			},
-			errMsg: "authorization is not compatible with bearer_token & bearer_token_file",
+			errMsg: "authorization is not compatible with bearer_token",
 		},
 		{
 			name: "invalid: authorization credentials and credentials_ref both set",
@@ -530,14 +518,6 @@ bearer_token: mytoken
 			},
 		},
 		{
-			name: "invalid: bearer_token and bearer_token_file",
-			input: `
-bearer_token: token
-bearer_token_file: token.txt
-`,
-			errMsg: "at most one of bearer_token & bearer_token_file must be configured",
-		},
-		{
 			name: "invalid: basic_auth and oauth2",
 			input: `
 basic_auth:
@@ -599,11 +579,6 @@ func TestHTTPClientConfigUnmarshalJSON(t *testing.T) {
 				require.Equal(t, "Bearer", cfg.Authorization.Type)
 				require.Empty(t, cfg.BearerToken)
 			},
-		},
-		{
-			name:   "invalid: bearer_token and bearer_token_file",
-			input:  `{"bearer_token":"token","bearer_token_file":"token.txt"}`,
-			errMsg: "at most one of bearer_token & bearer_token_file must be configured",
 		},
 		{
 			name:   "invalid: oauth2 no client_id",

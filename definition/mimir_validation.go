@@ -120,9 +120,6 @@ func ValidateAlertmanagerConfig(cfg any) error {
 // validateReceiverHTTPConfig validates the v0mimir1 HTTP config and returns an error if it contains
 // settings not allowed by Mimir.
 func validateReceiverHTTPConfig(cfg httpcfg.HTTPClientConfig) error {
-	if cfg.BearerTokenFile != "" {
-		return errPasswordFileNotAllowed
-	}
 	if cfg.OAuth2 != nil {
 		// Mimir's "firewall" doesn't protect OAuth2 client, so we disallow Proxy settings here.
 		if cfg.OAuth2.ProxyURL.URL != nil && cfg.OAuth2.ProxyURL.String() != "" {

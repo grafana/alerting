@@ -173,9 +173,6 @@ type HTTPClientConfig struct {
 	// The bearer token for the targets. Deprecated in favour of
 	// Authorization.Credentials.
 	BearerToken commoncfg.Secret `yaml:"bearer_token,omitempty" json:"bearer_token,omitempty"`
-	// The bearer token file for the targets. Deprecated in favour of
-	// Authorization.CredentialsFile.now
-	BearerTokenFile string `yaml:"bearer_token_file,omitempty" json:"bearer_token_file,omitempty"`
 	// TLSConfig to use to connect to the targets.
 	TLSConfig TLSConfig `yaml:"tls_config,omitempty" json:"tls_config,omitempty"`
 	// FollowRedirects specifies whether the client should follow HTTP 3xx redirects.
@@ -217,15 +214,12 @@ func (c *HTTPClientConfig) Validate() error {
 }
 
 // validate validates the HTTPClientConfig to check only one of BearerToken,
-// BasicAuth and BearerTokenFile is configured. It also validates that ProxyURL
+// BasicAuth is configured. It also validates that ProxyURL
 // is set if ProxyConnectHeader is set.
 func (c *HTTPClientConfig) validate() error {
 	// Backwards compatibility with the bearer_token field.
-	if len(c.BearerToken) > 0 && len(c.BearerTokenFile) > 0 {
-		return errors.New("at most one of bearer_token & bearer_token_file must be configured")
-	}
-	if (c.BasicAuth != nil || c.OAuth2 != nil) && (len(c.BearerToken) > 0 || len(c.BearerTokenFile) > 0) {
-		return errors.New("at most one of basic_auth, oauth2, bearer_token & bearer_token_file must be configured")
+	if (c.BasicAuth != nil || c.OAuth2 != nil) && len(c.BearerToken) > 0 {
+		return errors.New("at most one of basic_auth, oauth2 & bearer_token must be configured")
 	}
 	if c.BasicAuth != nil && c.BasicAuth.Username != "" && c.BasicAuth.UsernameRef != "" {
 		return errors.New("at most one of basic_auth username & username_ref must be configured")
@@ -234,8 +228,8 @@ func (c *HTTPClientConfig) validate() error {
 		return errors.New("at most one of basic_auth password & password_ref must be configured")
 	}
 	if c.Authorization != nil {
-		if len(c.BearerToken) > 0 || len(c.BearerTokenFile) > 0 {
-			return errors.New("authorization is not compatible with bearer_token & bearer_token_file")
+		if len(c.BearerToken) > 0 {
+			return errors.New("authorization is not compatible with bearer_token")
 		}
 		if string(c.Authorization.Credentials) != "" && c.Authorization.CredentialsRef != "" {
 			return errors.New("at most one of authorization credentials & credentials_ref must be configured")

@@ -22,15 +22,15 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 	}{
 		"*HTTPClientConfig": {
 			input: &httpcfg.HTTPClientConfig{
-				BearerTokenFile: "/secrets",
+				TLSConfig: httpcfg.TLSConfig{CAFile: "/ca.pem"},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"HTTPClientConfig": {
 			input: httpcfg.HTTPClientConfig{
-				BearerTokenFile: "/secrets",
+				TLSConfig: httpcfg.TLSConfig{CAFile: "/ca.pem"},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"*TLSConfig": {
 			input: &httpcfg.TLSConfig{
@@ -59,34 +59,34 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"*DiscordConfig.HTTPConfig": {
 			input: &discord_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					BearerTokenFile: "/file",
+					TLSConfig: httpcfg.TLSConfig{CAFile: "/file"},
 				},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"DiscordConfig.HTTPConfig": {
 			input: discord_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					BearerTokenFile: "/file",
+					TLSConfig: httpcfg.TLSConfig{CAFile: "/file"},
 				},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"*MSTeams.HTTPConfig": {
 			input: &teams_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					BearerTokenFile: "/file",
+					TLSConfig: httpcfg.TLSConfig{CAFile: "/file"},
 				},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"MSTeams.HTTPConfig": {
 			input: teams_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					BearerTokenFile: "/file",
+					TLSConfig: httpcfg.TLSConfig{CAFile: "/file"},
 				},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"struct containing *HTTPClientConfig as direct child": {
 			input: config.GlobalConfig{
@@ -99,10 +99,10 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"map containing *HTTPClientConfig": {
 			input: map[string]*httpcfg.HTTPClientConfig{
 				"test": {
-					BearerTokenFile: "/secrets",
+					TLSConfig: httpcfg.TLSConfig{CAFile: "/file"},
 				},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"map containing TLSConfig as nested child": {
 			input: map[string][]email_v0mimir1.Config{
