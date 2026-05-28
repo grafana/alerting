@@ -48,8 +48,6 @@ func (a *BasicAuth) UnmarshalYAML(unmarshal func(interface{}) error) error {
 type Authorization struct {
 	Type        string           `yaml:"type,omitempty" json:"type,omitempty"`
 	Credentials commoncfg.Secret `yaml:"credentials,omitempty" json:"credentials,omitempty"`
-	// CredentialsRef is the name of the secret within the secret manager to use as credentials.
-	CredentialsRef string `yaml:"credentials_ref,omitempty" json:"credentials_ref,omitempty"`
 }
 
 // OAuth2 is the oauth2 client configuration.
@@ -219,9 +217,6 @@ func (c *HTTPClientConfig) validate() error {
 	if c.Authorization != nil {
 		if len(c.BearerToken) > 0 {
 			return errors.New("authorization is not compatible with bearer_token")
-		}
-		if string(c.Authorization.Credentials) != "" && c.Authorization.CredentialsRef != "" {
-			return errors.New("at most one of authorization credentials & credentials_ref must be configured")
 		}
 		c.Authorization.Type = strings.TrimSpace(c.Authorization.Type)
 		if len(c.Authorization.Type) == 0 {

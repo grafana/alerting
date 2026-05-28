@@ -294,16 +294,6 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 			errMsg: "authorization is not compatible with bearer_token",
 		},
 		{
-			name: "invalid: authorization credentials and credentials_ref both set",
-			cfg: HTTPClientConfig{
-				Authorization: &Authorization{
-					Credentials:    "cred",
-					CredentialsRef: "cred-ref",
-				},
-			},
-			errMsg: "at most one of authorization credentials & credentials_ref must be configured",
-		},
-		{
 			name: "invalid: authorization type basic",
 			cfg: HTTPClientConfig{
 				Authorization: &Authorization{Type: "basic"},
