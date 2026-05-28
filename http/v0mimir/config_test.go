@@ -49,51 +49,18 @@ func TestTLSConfigValidate(t *testing.T) {
 			cfg:  TLSConfig{CA: "ca-content"},
 		},
 		{
-			name: "valid: ca_ref only",
-			cfg:  TLSConfig{CARef: "my-ca-ref"},
-		},
-		{
 			name: "valid: cert and key inline",
 			cfg:  TLSConfig{Cert: "cert-content", Key: "key-content"},
 		},
 		{
-			name: "valid: cert and key refs",
-			cfg:  TLSConfig{CertRef: "cert-ref", KeyRef: "key-ref"},
-		},
-		{
-			name:   "invalid: ca and ca_ref both set",
-			cfg:    TLSConfig{CA: "ca-content", CARef: "my-ca-ref"},
-			errMsg: "at most one of ca & ca_ref must be configured",
-		},
-		{
-			name:   "invalid: cert and cert_ref both set",
-			cfg:    TLSConfig{Cert: "cert-content", CertRef: "cert-ref", Key: "key-content"},
-			errMsg: "at most one of cert & cert_ref must be configured",
-		},
-		{
-			name:   "invalid: key and key_ref both set",
-			cfg:    TLSConfig{Cert: "cert-content", Key: "key-content", KeyRef: "key-ref"},
-			errMsg: "at most one of key & key_ref must be configured",
-		},
-		{
-			name:   "invalid: cert inline without key",
+			name:   "invalid: cert without key",
 			cfg:    TLSConfig{Cert: "cert-content"},
-			errMsg: "exactly one of key or key_ref must be configured when a client certificate is configured",
+			errMsg: "key must be configured when a client certificate is configured",
 		},
 		{
-			name:   "invalid: cert_ref without key",
-			cfg:    TLSConfig{CertRef: "cert-ref"},
-			errMsg: "exactly one of key or key_ref must be configured when a client certificate is configured",
-		},
-		{
-			name:   "invalid: key inline without cert",
+			name:   "invalid: key without cert",
 			cfg:    TLSConfig{Key: "key-content"},
-			errMsg: "exactly one of cert or cert_ref must be configured when a client key is configured",
-		},
-		{
-			name:   "invalid: key_ref without cert",
-			cfg:    TLSConfig{KeyRef: "key-ref"},
-			errMsg: "exactly one of cert or cert_ref must be configured when a client key is configured",
+			errMsg: "cert must be configured when a client key is configured",
 		},
 	}
 
@@ -566,14 +533,9 @@ func TestTLSConfigUnmarshalYAML(t *testing.T) {
 			input: "cert: cert-content\nkey: key-content",
 		},
 		{
-			name:   "invalid: ca and ca_ref both set",
-			input:  "ca: ca-content\nca_ref: my-ca-ref",
-			errMsg: "at most one of ca & ca_ref must be configured",
-		},
-		{
 			name:   "invalid: cert without key",
 			input:  "cert: cert-content",
-			errMsg: "exactly one of key or key_ref must be configured when a client certificate is configured",
+			errMsg: "key must be configured when a client certificate is configured",
 		},
 	}
 

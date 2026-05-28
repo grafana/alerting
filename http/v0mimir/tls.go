@@ -30,15 +30,6 @@ type TLSConfig struct {
 	Cert string `yaml:"cert,omitempty" json:"cert,omitempty"`
 	// Text of the client key file for the targets.
 	Key commoncfg.Secret `yaml:"key,omitempty" json:"key,omitempty"`
-	// CARef is the name of the secret within the secret manager to use as the CA cert for the
-	// targets.
-	CARef string `yaml:"ca_ref,omitempty" json:"ca_ref,omitempty"`
-	// CertRef is the name of the secret within the secret manager to use as the client cert for
-	// the targets.
-	CertRef string `yaml:"cert_ref,omitempty" json:"cert_ref,omitempty"`
-	// KeyRef is the name of the secret within the secret manager to use as the client key for
-	// the targets.
-	KeyRef string `yaml:"key_ref,omitempty" json:"key_ref,omitempty"`
 	// Used to verify the hostname for the targets.
 	ServerName string `yaml:"server_name,omitempty" json:"server_name,omitempty"`
 	// Disable target certificate validation.
@@ -62,35 +53,23 @@ func (c *TLSConfig) Validate() error {
 	return c.validate()
 }
 
-// validate validates the TLSConfig to check that only one of the inlined or
-// file-based fields for the TLS CA, client certificate, and client key are
-// used.
+// validate validates the TLSConfig to check that client cert and key are both
+// configured or both absent.
 func (c *TLSConfig) validate() error {
-	if c.CA != "" && c.CARef != "" {
-		return errors.New("at most one of ca & ca_ref must be configured")
-	}
-	if c.Cert != "" && c.CertRef != "" {
-		return errors.New("at most one of cert & cert_ref must be configured")
-	}
-	if len(c.Key) > 0 && c.KeyRef != "" {
-		return errors.New("at most one of key & key_ref must be configured")
-	}
-
 	if c.usingClientCert() && !c.usingClientKey() {
-		return errors.New("exactly one of key or key_ref must be configured when a client certificate is configured")
+		return errors.New("key must be configured when a client certificate is configured")
 	} else if c.usingClientKey() && !c.usingClientCert() {
-		return errors.New("exactly one of cert or cert_ref must be configured when a client key is configured")
+		return errors.New("cert must be configured when a client key is configured")
 	}
-
 	return nil
 }
 
 func (c *TLSConfig) usingClientCert() bool {
-	return len(c.Cert) > 0 || len(c.CertRef) > 0
+	return len(c.Cert) > 0
 }
 
 func (c *TLSConfig) usingClientKey() bool {
-	return len(c.Key) > 0 || len(c.KeyRef) > 0
+	return len(c.Key) > 0
 }
 
 func V0TLSConfigOption(propertyName string) schema.Field {
