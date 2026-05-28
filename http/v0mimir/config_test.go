@@ -129,10 +129,6 @@ func TestOAuth2Validate(t *testing.T) {
 			cfg:  OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecret: "secret"},
 		},
 		{
-			name: "valid: with client_secret_ref",
-			cfg:  OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecretRef: "my-ref"},
-		},
-		{
 			name:   "invalid: no client_id",
 			cfg:    OAuth2{TokenURL: "http://example.com/token"},
 			errMsg: "oauth2 client_id must be configured",
@@ -141,11 +137,6 @@ func TestOAuth2Validate(t *testing.T) {
 			name:   "invalid: no token_url",
 			cfg:    OAuth2{ClientID: "client-id"},
 			errMsg: "oauth2 token_url must be configured",
-		},
-		{
-			name:   "invalid: client_secret and client_secret_ref both set",
-			cfg:    OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecret: "secret", ClientSecretRef: "my-ref"},
-			errMsg: "at most one of oauth2 client_secret & client_secret_ref must be configured",
 		},
 	}
 

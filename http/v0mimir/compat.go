@@ -85,14 +85,13 @@ func toCommonOAuth2(o *OAuth2) *commoncfg.OAuth2 {
 		return nil
 	}
 	return &commoncfg.OAuth2{
-		ClientID:        o.ClientID,
-		ClientSecret:    o.ClientSecret,
-		ClientSecretRef: o.ClientSecretRef,
-		Scopes:          o.Scopes,
-		TokenURL:        o.TokenURL,
-		EndpointParams:  o.EndpointParams,
-		TLSConfig:       ToCommonTLSConfig(o.TLSConfig),
-		ProxyConfig:     toCommonProxyConfig(o.ProxyConfig),
+		ClientID:       o.ClientID,
+		ClientSecret:   o.ClientSecret,
+		Scopes:         o.Scopes,
+		TokenURL:       o.TokenURL,
+		EndpointParams: o.EndpointParams,
+		TLSConfig:      ToCommonTLSConfig(o.TLSConfig),
+		ProxyConfig:    toCommonProxyConfig(o.ProxyConfig),
 	}
 }
 
@@ -101,14 +100,13 @@ func fromCommonOAuth2(o *commoncfg.OAuth2) *OAuth2 {
 		return nil
 	}
 	return &OAuth2{
-		ClientID:        o.ClientID,
-		ClientSecret:    o.ClientSecret,
-		ClientSecretRef: o.ClientSecretRef,
-		Scopes:          o.Scopes,
-		TokenURL:        o.TokenURL,
-		EndpointParams:  o.EndpointParams,
-		TLSConfig:       FromCommonTLSConfig(o.TLSConfig),
-		ProxyConfig:     fromCommonProxyConfig(o.ProxyConfig),
+		ClientID:       o.ClientID,
+		ClientSecret:   o.ClientSecret,
+		Scopes:         o.Scopes,
+		TokenURL:       o.TokenURL,
+		EndpointParams: o.EndpointParams,
+		TLSConfig:      FromCommonTLSConfig(o.TLSConfig),
+		ProxyConfig:    fromCommonProxyConfig(o.ProxyConfig),
 	}
 }
 
