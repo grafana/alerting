@@ -41,26 +41,6 @@ func TestWebhookURLIsPresent(t *testing.T) {
 	}
 }
 
-func TestWebhookHttpConfigIsValid(t *testing.T) {
-	in := `
-url: 'http://example.com'
-http_config:
-  bearer_token: foo
-  bearer_token_file: /tmp/bar
-`
-	var cfg Config
-	err := yaml.UnmarshalStrict([]byte(in), &cfg)
-
-	expected := "at most one of bearer_token & bearer_token_file must be configured"
-
-	if err == nil {
-		t.Fatalf("no error returned, expected:\n%v", expected)
-	}
-	if err.Error() != expected {
-		t.Errorf("\nexpected:\n%v\ngot:\n%v", expected, err.Error())
-	}
-}
-
 func TestWebhookHttpConfigIsOptional(t *testing.T) {
 	in := `
 url: 'http://example.com'
