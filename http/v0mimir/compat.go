@@ -192,7 +192,6 @@ func toCommonHeader(h Header) commoncfg.Header {
 	return commoncfg.Header{
 		Values:  h.Values,
 		Secrets: h.Secrets,
-		Files:   h.Files,
 	}
 }
 
@@ -200,6 +199,5 @@ func fromCommonHeader(h commoncfg.Header) Header {
 	return Header{
 		Values:  h.Values,
 		Secrets: h.Secrets,
-		Files:   h.Files,
 	}
 }

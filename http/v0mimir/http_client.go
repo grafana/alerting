@@ -159,7 +159,6 @@ func (h Headers) validate() error {
 type Header struct {
 	Values  []string           `yaml:"values,omitempty" json:"values,omitempty"`
 	Secrets []commoncfg.Secret `yaml:"secrets,omitempty" json:"secrets,omitempty"`
-	Files   []string           `yaml:"files,omitempty" json:"files,omitempty"`
 }
 
 // HTTPClientConfig configures an HTTP client.
