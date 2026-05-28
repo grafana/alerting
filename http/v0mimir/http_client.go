@@ -58,9 +58,8 @@ type Authorization struct {
 
 // OAuth2 is the oauth2 client configuration.
 type OAuth2 struct {
-	ClientID         string           `yaml:"client_id" json:"client_id"`
-	ClientSecret     commoncfg.Secret `yaml:"client_secret" json:"client_secret"`
-	ClientSecretFile string           `yaml:"client_secret_file" json:"client_secret_file"`
+	ClientID     string           `yaml:"client_id" json:"client_id"`
+	ClientSecret commoncfg.Secret `yaml:"client_secret" json:"client_secret"`
 	// ClientSecretRef is the name of the secret within the secret manager to use as the client
 	// secret.
 	ClientSecretRef string            `yaml:"client_secret_ref" json:"client_secret_ref"`
@@ -92,8 +91,8 @@ func (o *OAuth2) validate() error {
 	if len(o.TokenURL) == 0 {
 		return errors.New("oauth2 token_url must be configured")
 	}
-	if nonZeroCount(len(o.ClientSecret) > 0, len(o.ClientSecretFile) > 0, len(o.ClientSecretRef) > 0) > 1 {
-		return errors.New("at most one of oauth2 client_secret, client_secret_file & client_secret_ref must be configured")
+	if len(o.ClientSecret) > 0 && len(o.ClientSecretRef) > 0 {
+		return errors.New("at most one of oauth2 client_secret & client_secret_ref must be configured")
 	}
 	return nil
 }

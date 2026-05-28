@@ -152,10 +152,6 @@ func TestOAuth2Validate(t *testing.T) {
 			cfg:  OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecret: "secret"},
 		},
 		{
-			name: "valid: with client_secret_file",
-			cfg:  OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecretFile: "file.txt"},
-		},
-		{
 			name: "valid: with client_secret_ref",
 			cfg:  OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecretRef: "my-ref"},
 		},
@@ -170,19 +166,9 @@ func TestOAuth2Validate(t *testing.T) {
 			errMsg: "oauth2 token_url must be configured",
 		},
 		{
-			name:   "invalid: client_secret and client_secret_file both set",
-			cfg:    OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecret: "secret", ClientSecretFile: "file.txt"},
-			errMsg: "at most one of oauth2 client_secret, client_secret_file & client_secret_ref must be configured",
-		},
-		{
 			name:   "invalid: client_secret and client_secret_ref both set",
 			cfg:    OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecret: "secret", ClientSecretRef: "my-ref"},
-			errMsg: "at most one of oauth2 client_secret, client_secret_file & client_secret_ref must be configured",
-		},
-		{
-			name:   "invalid: client_secret_file and client_secret_ref both set",
-			cfg:    OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecretFile: "file.txt", ClientSecretRef: "my-ref"},
-			errMsg: "at most one of oauth2 client_secret, client_secret_file & client_secret_ref must be configured",
+			errMsg: "at most one of oauth2 client_secret & client_secret_ref must be configured",
 		},
 	}
 
@@ -704,11 +690,6 @@ func TestOAuth2UnmarshalYAML(t *testing.T) {
 			name:   "invalid: no token_url",
 			input:  "client_id: id",
 			errMsg: "oauth2 token_url must be configured",
-		},
-		{
-			name:   "invalid: client_secret and client_secret_file",
-			input:  "client_id: id\ntoken_url: http://example.com/token\nclient_secret: s\nclient_secret_file: f.txt",
-			errMsg: "at most one of oauth2 client_secret, client_secret_file & client_secret_ref must be configured",
 		},
 	}
 

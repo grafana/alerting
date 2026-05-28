@@ -124,9 +124,6 @@ func validateReceiverHTTPConfig(cfg httpcfg.HTTPClientConfig) error {
 		return errPasswordFileNotAllowed
 	}
 	if cfg.OAuth2 != nil {
-		if cfg.OAuth2.ClientSecretFile != "" {
-			return errOAuth2SecretFileNotAllowed
-		}
 		// Mimir's "firewall" doesn't protect OAuth2 client, so we disallow Proxy settings here.
 		if cfg.OAuth2.ProxyURL.URL != nil && cfg.OAuth2.ProxyURL.String() != "" {
 			return errProxyURLNotAllowed
