@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/go-kit/log"
@@ -197,16 +196,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		return false, err
 	}
 
-	var u string
-	if n.conf.APIURL != nil {
-		u = n.conf.APIURL.String()
-	} else {
-		content, err := os.ReadFile(n.conf.APIURLFile)
-		if err != nil {
-			return false, err
-		}
-		u = strings.TrimSpace(string(content))
-	}
+	u := n.conf.APIURL.String()
 
 	resp, err := n.postJSONFunc(ctx, n.client, u, &buf) //nolint:bodyclose
 	if err != nil {

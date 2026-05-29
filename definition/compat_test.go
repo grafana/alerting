@@ -62,12 +62,12 @@ func TestLoadCompat(t *testing.T) {
 		{
 			name:   "no Discord url",
 			input:  []byte(fmt.Sprintf(missingValuesTemplate, "discord_configs")),
-			expErr: "one of webhook_url or webhook_url_file must be configured",
+			expErr: "missing webhook_url",
 		},
 		{
 			name:   "no MSTeams url",
 			input:  []byte(fmt.Sprintf(missingValuesTemplate, "msteams_configs")),
-			expErr: "one of webhook_url or webhook_url_file must be configured",
+			expErr: "missing webhook_url",
 		},
 		{
 			name:   "no smarthost",

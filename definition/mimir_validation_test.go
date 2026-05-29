@@ -22,29 +22,25 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 	}{
 		"*HTTPClientConfig": {
 			input: &httpcfg.HTTPClientConfig{
-				BasicAuth: &httpcfg.BasicAuth{
-					PasswordFile: "/secrets",
-				},
+				TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"HTTPClientConfig": {
 			input: httpcfg.HTTPClientConfig{
-				BasicAuth: &httpcfg.BasicAuth{
-					PasswordFile: "/secrets",
-				},
+				TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"*TLSConfig": {
 			input: &httpcfg.TLSConfig{
-				CertFile: "/cert",
+				Cert: "cert-content",
 			},
 			expected: errTLSConfigNotAllowed,
 		},
 		"TLSConfig": {
 			input: httpcfg.TLSConfig{
-				CertFile: "/cert",
+				Cert: "cert-content",
 			},
 			expected: errTLSConfigNotAllowed,
 		},
@@ -63,77 +59,39 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"*DiscordConfig.HTTPConfig": {
 			input: &discord_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					BearerTokenFile: "/file",
+					TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 				},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"DiscordConfig.HTTPConfig": {
 			input: discord_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					BearerTokenFile: "/file",
+					TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 				},
 			},
-			expected: errPasswordFileNotAllowed,
-		},
-		"*DiscordConfig.WebhookURLFile": {
-			input: &discord_v0mimir1.Config{
-				WebhookURLFile: "/file",
-			},
-			expected: errWebhookURLFileNotAllowed,
-		},
-		"DiscordConfig.WebhookURLFile": {
-			input: discord_v0mimir1.Config{
-				WebhookURLFile: "/file",
-			},
-			expected: errWebhookURLFileNotAllowed,
-		},
-		"*EmailConfig.AuthPasswordFile": {
-			input: &email_v0mimir1.Config{
-				AuthPasswordFile: "/file",
-			},
-			expected: errPasswordFileNotAllowed,
-		},
-		"EmailConfig.AuthPasswordFile": {
-			input: email_v0mimir1.Config{
-				AuthPasswordFile: "/file",
-			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"*MSTeams.HTTPConfig": {
 			input: &teams_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					BearerTokenFile: "/file",
+					TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 				},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"MSTeams.HTTPConfig": {
 			input: teams_v0mimir1.Config{
 				HTTPConfig: &httpcfg.HTTPClientConfig{
-					BearerTokenFile: "/file",
+					TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 				},
 			},
-			expected: errPasswordFileNotAllowed,
-		},
-		"*MSTeams.WebhookURLFile": {
-			input: &teams_v0mimir1.Config{
-				WebhookURLFile: "/file",
-			},
-			expected: errWebhookURLFileNotAllowed,
-		},
-		"MSTeams.WebhookURLFile": {
-			input: teams_v0mimir1.Config{
-				WebhookURLFile: "/file",
-			},
-			expected: errWebhookURLFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"struct containing *HTTPClientConfig as direct child": {
 			input: config.GlobalConfig{
 				HTTPConfig: &commoncfg.HTTPClientConfig{
-					BasicAuth: &commoncfg.BasicAuth{
-						PasswordFile: "/secrets",
-					},
+					BearerTokenFile: "/secrets",
 				},
 			},
 			expected: errPasswordFileNotAllowed,
@@ -141,18 +99,16 @@ func TestValidateAlertmanagerConfig(t *testing.T) {
 		"map containing *HTTPClientConfig": {
 			input: map[string]*httpcfg.HTTPClientConfig{
 				"test": {
-					BasicAuth: &httpcfg.BasicAuth{
-						PasswordFile: "/secrets",
-					},
+					TLSConfig: httpcfg.TLSConfig{CA: "ca-content"},
 				},
 			},
-			expected: errPasswordFileNotAllowed,
+			expected: errTLSConfigNotAllowed,
 		},
 		"map containing TLSConfig as nested child": {
 			input: map[string][]email_v0mimir1.Config{
 				"test": {{
 					TLSConfig: httpcfg.TLSConfig{
-						CAFile: "/file",
+						CA: "ca-content",
 					},
 				}},
 			},

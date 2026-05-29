@@ -45,7 +45,6 @@ type Config struct {
 
 	APIUrl               *receivers.URL   `yaml:"api_url" json:"api_url,omitempty"`
 	BotToken             receivers.Secret `yaml:"bot_token,omitempty" json:"token,omitempty"`
-	BotTokenFile         string           `yaml:"bot_token_file,omitempty" json:"token_file,omitempty"`
 	ChatID               int64            `yaml:"chat_id,omitempty" json:"chat,omitempty"`
 	Message              string           `yaml:"message,omitempty" json:"message,omitempty"`
 	DisableNotifications bool             `yaml:"disable_notifications,omitempty" json:"disable_notifications,omitempty"`
@@ -107,11 +106,8 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) validate() error {
-	if c.BotToken == "" && c.BotTokenFile == "" {
-		return errors.New("missing bot_token or bot_token_file on telegram_config")
-	}
-	if c.BotToken != "" && c.BotTokenFile != "" {
-		return errors.New("at most one of bot_token & bot_token_file must be configured")
+	if c.BotToken == "" {
+		return errors.New("missing bot_token on telegram_config")
 	}
 	if c.ChatID == 0 {
 		return errors.New("missing chat_id on telegram_config")

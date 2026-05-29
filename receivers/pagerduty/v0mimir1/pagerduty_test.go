@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -103,54 +102,6 @@ func TestPagerDutyRedactedURLV2(t *testing.T) {
 			URL:        &receivers.URL{URL: u},
 			RoutingKey: receivers.Secret(key),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
-		},
-		test.CreateTmpl(t),
-		log.NewNopLogger(),
-	)
-	require.NoError(t, err)
-
-	test.AssertNotifyLeaksNoSecret(ctx, t, notifier, key)
-}
-
-func TestPagerDutyV1ServiceKeyFromFile(t *testing.T) {
-	key := "01234567890123456789012345678901"
-	f, err := os.CreateTemp("", "pagerduty_test")
-	require.NoError(t, err, "creating temp file failed")
-	_, err = f.WriteString(key)
-	require.NoError(t, err, "writing to temp file failed")
-
-	ctx, u, fn := test.GetContextWithCancelingURL()
-	defer fn()
-
-	notifier, err := New(
-		&Config{
-			ServiceKeyFile: f.Name(),
-			HTTPConfig:     &httpcfg.HTTPClientConfig{},
-		},
-		test.CreateTmpl(t),
-		log.NewNopLogger(),
-	)
-	require.NoError(t, err)
-	notifier.apiV1 = u.String()
-
-	test.AssertNotifyLeaksNoSecret(ctx, t, notifier, key)
-}
-
-func TestPagerDutyV2RoutingKeyFromFile(t *testing.T) {
-	key := "01234567890123456789012345678901"
-	f, err := os.CreateTemp("", "pagerduty_test")
-	require.NoError(t, err, "creating temp file failed")
-	_, err = f.WriteString(key)
-	require.NoError(t, err, "writing to temp file failed")
-
-	ctx, u, fn := test.GetContextWithCancelingURL()
-	defer fn()
-
-	notifier, err := New(
-		&Config{
-			URL:            &receivers.URL{URL: u},
-			RoutingKeyFile: f.Name(),
-			HTTPConfig:     &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),
 		log.NewNopLogger(),

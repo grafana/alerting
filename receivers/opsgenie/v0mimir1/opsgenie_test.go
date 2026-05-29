@@ -19,7 +19,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
@@ -61,31 +60,6 @@ func TestOpsGenieRedactedURL(t *testing.T) {
 		&Config{
 			APIURL:     &receivers.URL{URL: u},
 			APIKey:     receivers.Secret(key),
-			HTTPConfig: &httpcfg.HTTPClientConfig{},
-		},
-		test.CreateTmpl(t),
-		log.NewNopLogger(),
-	)
-	require.NoError(t, err)
-
-	test.AssertNotifyLeaksNoSecret(ctx, t, notifier, key)
-}
-
-func TestGettingOpsGegineApikeyFromFile(t *testing.T) {
-	ctx, u, fn := test.GetContextWithCancelingURL()
-	defer fn()
-
-	key := "key"
-
-	f, err := os.CreateTemp("", "opsgenie_test")
-	require.NoError(t, err, "creating temp file failed")
-	_, err = f.WriteString(key)
-	require.NoError(t, err, "writing to temp file failed")
-
-	notifier, err := New(
-		&Config{
-			APIURL:     &receivers.URL{URL: u},
-			APIKeyFile: f.Name(),
 			HTTPConfig: &httpcfg.HTTPClientConfig{},
 		},
 		test.CreateTmpl(t),

@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
@@ -63,11 +62,6 @@ func TestTelegramRetry(t *testing.T) {
 func TestTelegramNotify(t *testing.T) {
 	token := "secret"
 
-	fileWithToken, err := os.CreateTemp("", "telegram-bot-token")
-	require.NoError(t, err, "creating temp file failed")
-	_, err = fileWithToken.WriteString(token)
-	require.NoError(t, err, "writing to temp file failed")
-
 	for _, tc := range []struct {
 		name    string
 		cfg     Config
@@ -91,15 +85,6 @@ func TestTelegramNotify(t *testing.T) {
 				BotToken:   receivers.Secret(token),
 			},
 			expText: "<code>x &lt; y</code>",
-		},
-		{
-			name: "Bot token from file",
-			cfg: Config{
-				Message:      "test",
-				HTTPConfig:   &httpcfg.HTTPClientConfig{},
-				BotTokenFile: fileWithToken.Name(),
-			},
-			expText: "test",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

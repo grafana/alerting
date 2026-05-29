@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"testing"
 	"time"
 
@@ -201,26 +200,4 @@ func TestMSTeamsV2RedactedURL(t *testing.T) {
 	require.NoError(t, err)
 
 	test.AssertNotifyLeaksNoSecret(ctx, t, notifier, secret)
-}
-
-func TestMSTeamsV2ReadingURLFromFile(t *testing.T) {
-	ctx, u, fn := test.GetContextWithCancelingURL()
-	defer fn()
-
-	f, err := os.CreateTemp("", "webhook_url")
-	require.NoError(t, err, "creating temp file failed")
-	_, err = f.WriteString(u.String() + "\n")
-	require.NoError(t, err, "writing to temp file failed")
-
-	notifier, err := New(
-		&Config{
-			WebhookURLFile: f.Name(),
-			HTTPConfig:     &httpcfg.HTTPClientConfig{},
-		},
-		test.CreateTmpl(t),
-		log.NewNopLogger(),
-	)
-	require.NoError(t, err)
-
-	test.AssertNotifyLeaksNoSecret(ctx, t, notifier, u.String())
 }

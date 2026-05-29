@@ -19,8 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/go-kit/log"
@@ -117,16 +115,7 @@ func (n *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, er
 		return false, err
 	}
 
-	var url string
-	if n.conf.URL != nil {
-		url = n.conf.URL.String()
-	} else {
-		content, err := os.ReadFile(n.conf.URLFile)
-		if err != nil {
-			return false, fmt.Errorf("read url_file: %w", err)
-		}
-		url = strings.TrimSpace(string(content))
-	}
+	url := n.conf.URL.String()
 
 	if n.conf.Timeout > 0 {
 		postCtx, cancel := context.WithTimeoutCause(ctx, time.Duration(n.conf.Timeout), fmt.Errorf("configured webhook timeout reached (%s)", n.conf.Timeout))

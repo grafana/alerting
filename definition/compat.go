@@ -219,7 +219,7 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 			if msteamsv2.HTTPConfig == nil {
 				msteamsv2.HTTPConfig = v0mimir.FromCommonHTTPClientConfig(c.Global.HTTPConfig)
 			}
-			if msteamsv2.WebhookURL == nil && len(msteamsv2.WebhookURLFile) == 0 {
+			if msteamsv2.WebhookURL == nil {
 				return nil, errors.New("no msteamsv2 webhook URL provided")
 			}
 		}

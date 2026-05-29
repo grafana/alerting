@@ -33,32 +33,16 @@ func TestTelegramConfiguration(t *testing.T) {
 		expected error
 	}{
 		{
-			name: "with both bot_token & bot_token_file - it fails",
-			in: `
-bot_token: xyz
-bot_token_file: /file
-`,
-			expected: errors.New("at most one of bot_token & bot_token_file must be configured"),
-		},
-		{
-			name: "with no bot_token & bot_token_file - it fails",
+			name: "with no bot_token - it fails",
 			in: `
 bot_token: ''
-bot_token_file: ''
 `,
-			expected: errors.New("missing bot_token or bot_token_file on telegram_config"),
+			expected: errors.New("missing bot_token on telegram_config"),
 		},
 		{
 			name: "with bot_token and chat_id set - it succeeds",
 			in: `
 bot_token: xyz
-chat_id: 123
-`,
-		},
-		{
-			name: "with bot_token_file and chat_id set - it succeeds",
-			in: `
-bot_token_file: /file
 chat_id: 123
 `,
 		},
@@ -117,7 +101,7 @@ func TestValidate(t *testing.T) {
 		{
 			name:        "Missing bot_token",
 			mutate:      func(cfg *Config) { cfg.BotToken = "" },
-			expectedErr: "missing bot_token or bot_token_file on telegram_config",
+			expectedErr: "missing bot_token on telegram_config",
 		},
 		{
 			name:        "Missing chat_id",
@@ -174,7 +158,7 @@ func TestNewConfig(t *testing.T) {
 		{
 			name:              "Error if missing bot_token",
 			settings:          `{"chat": 123}`,
-			expectedInitError: "missing bot_token or bot_token_file on telegram_config",
+			expectedInitError: "missing bot_token on telegram_config",
 		},
 		{
 			name:              "Error if missing chat_id",

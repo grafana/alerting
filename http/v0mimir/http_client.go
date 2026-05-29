@@ -34,14 +34,8 @@ var DefaultHTTPClientConfig = HTTPClientConfig{
 
 // BasicAuth contains basic HTTP authentication credentials.
 type BasicAuth struct {
-	Username     string `yaml:"username" json:"username"`
-	UsernameFile string `yaml:"username_file,omitempty" json:"username_file,omitempty"`
-	// UsernameRef is the name of the secret within the secret manager to use as the username.
-	UsernameRef  string           `yaml:"username_ref,omitempty" json:"username_ref,omitempty"`
-	Password     commoncfg.Secret `yaml:"password,omitempty" json:"password,omitempty"`
-	PasswordFile string           `yaml:"password_file,omitempty" json:"password_file,omitempty"`
-	// PasswordRef is the name of the secret within the secret manager to use as the password.
-	PasswordRef string `yaml:"password_ref,omitempty" json:"password_ref,omitempty"`
+	Username string           `yaml:"username" json:"username"`
+	Password commoncfg.Secret `yaml:"password,omitempty" json:"password,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -52,26 +46,19 @@ func (a *BasicAuth) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // Authorization contains HTTP authorization credentials.
 type Authorization struct {
-	Type            string           `yaml:"type,omitempty" json:"type,omitempty"`
-	Credentials     commoncfg.Secret `yaml:"credentials,omitempty" json:"credentials,omitempty"`
-	CredentialsFile string           `yaml:"credentials_file,omitempty" json:"credentials_file,omitempty"`
-	// CredentialsRef is the name of the secret within the secret manager to use as credentials.
-	CredentialsRef string `yaml:"credentials_ref,omitempty" json:"credentials_ref,omitempty"`
+	Type        string           `yaml:"type,omitempty" json:"type,omitempty"`
+	Credentials commoncfg.Secret `yaml:"credentials,omitempty" json:"credentials,omitempty"`
 }
 
 // OAuth2 is the oauth2 client configuration.
 type OAuth2 struct {
-	ClientID         string           `yaml:"client_id" json:"client_id"`
-	ClientSecret     commoncfg.Secret `yaml:"client_secret" json:"client_secret"`
-	ClientSecretFile string           `yaml:"client_secret_file" json:"client_secret_file"`
-	// ClientSecretRef is the name of the secret within the secret manager to use as the client
-	// secret.
-	ClientSecretRef string            `yaml:"client_secret_ref" json:"client_secret_ref"`
-	Scopes          []string          `yaml:"scopes,omitempty" json:"scopes,omitempty"`
-	TokenURL        string            `yaml:"token_url" json:"token_url"`
-	EndpointParams  map[string]string `yaml:"endpoint_params,omitempty" json:"endpoint_params,omitempty"`
-	TLSConfig       TLSConfig         `yaml:"tls_config,omitempty" json:"tls_config,omitempty"`
-	ProxyConfig     `yaml:",inline"`
+	ClientID       string            `yaml:"client_id" json:"client_id"`
+	ClientSecret   commoncfg.Secret  `yaml:"client_secret" json:"client_secret"`
+	Scopes         []string          `yaml:"scopes,omitempty" json:"scopes,omitempty"`
+	TokenURL       string            `yaml:"token_url" json:"token_url"`
+	EndpointParams map[string]string `yaml:"endpoint_params,omitempty" json:"endpoint_params,omitempty"`
+	TLSConfig      TLSConfig         `yaml:"tls_config,omitempty" json:"tls_config,omitempty"`
+	ProxyConfig    `yaml:",inline"`
 }
 
 func (o *OAuth2) Validate() error {
@@ -94,9 +81,6 @@ func (o *OAuth2) validate() error {
 	}
 	if len(o.TokenURL) == 0 {
 		return errors.New("oauth2 token_url must be configured")
-	}
-	if nonZeroCount(len(o.ClientSecret) > 0, len(o.ClientSecretFile) > 0, len(o.ClientSecretRef) > 0) > 1 {
-		return errors.New("at most one of oauth2 client_secret, client_secret_file & client_secret_ref must be configured")
 	}
 	return nil
 }
@@ -163,7 +147,6 @@ func (h Headers) validate() error {
 type Header struct {
 	Values  []string           `yaml:"values,omitempty" json:"values,omitempty"`
 	Secrets []commoncfg.Secret `yaml:"secrets,omitempty" json:"secrets,omitempty"`
-	Files   []string           `yaml:"files,omitempty" json:"files,omitempty"`
 }
 
 // HTTPClientConfig configures an HTTP client.
@@ -177,9 +160,6 @@ type HTTPClientConfig struct {
 	// The bearer token for the targets. Deprecated in favour of
 	// Authorization.Credentials.
 	BearerToken commoncfg.Secret `yaml:"bearer_token,omitempty" json:"bearer_token,omitempty"`
-	// The bearer token file for the targets. Deprecated in favour of
-	// Authorization.CredentialsFile.now
-	BearerTokenFile string `yaml:"bearer_token_file,omitempty" json:"bearer_token_file,omitempty"`
 	// TLSConfig to use to connect to the targets.
 	TLSConfig TLSConfig `yaml:"tls_config,omitempty" json:"tls_config,omitempty"`
 	// FollowRedirects specifies whether the client should follow HTTP 3xx redirects.
@@ -221,28 +201,16 @@ func (c *HTTPClientConfig) Validate() error {
 }
 
 // validate validates the HTTPClientConfig to check only one of BearerToken,
-// BasicAuth and BearerTokenFile is configured. It also validates that ProxyURL
+// BasicAuth is configured. It also validates that ProxyURL
 // is set if ProxyConnectHeader is set.
 func (c *HTTPClientConfig) validate() error {
 	// Backwards compatibility with the bearer_token field.
-	if len(c.BearerToken) > 0 && len(c.BearerTokenFile) > 0 {
-		return errors.New("at most one of bearer_token & bearer_token_file must be configured")
-	}
-	if (c.BasicAuth != nil || c.OAuth2 != nil) && (len(c.BearerToken) > 0 || len(c.BearerTokenFile) > 0) {
-		return errors.New("at most one of basic_auth, oauth2, bearer_token & bearer_token_file must be configured")
-	}
-	if c.BasicAuth != nil && nonZeroCount(c.BasicAuth.Username != "", c.BasicAuth.UsernameFile != "", c.BasicAuth.UsernameRef != "") > 1 {
-		return errors.New("at most one of basic_auth username, username_file & username_ref must be configured")
-	}
-	if c.BasicAuth != nil && nonZeroCount(string(c.BasicAuth.Password) != "", c.BasicAuth.PasswordFile != "", c.BasicAuth.PasswordRef != "") > 1 {
-		return errors.New("at most one of basic_auth password, password_file & password_ref must be configured")
+	if (c.BasicAuth != nil || c.OAuth2 != nil) && len(c.BearerToken) > 0 {
+		return errors.New("at most one of basic_auth, oauth2 & bearer_token must be configured")
 	}
 	if c.Authorization != nil {
-		if len(c.BearerToken) > 0 || len(c.BearerTokenFile) > 0 {
-			return errors.New("authorization is not compatible with bearer_token & bearer_token_file")
-		}
-		if nonZeroCount(string(c.Authorization.Credentials) != "", c.Authorization.CredentialsFile != "", c.Authorization.CredentialsRef != "") > 1 {
-			return errors.New("at most one of authorization credentials & credentials_file must be configured")
+		if len(c.BearerToken) > 0 {
+			return errors.New("authorization is not compatible with bearer_token")
 		}
 		c.Authorization.Type = strings.TrimSpace(c.Authorization.Type)
 		if len(c.Authorization.Type) == 0 {
@@ -259,11 +227,6 @@ func (c *HTTPClientConfig) validate() error {
 			c.Authorization = &Authorization{Credentials: c.BearerToken}
 			c.Authorization.Type = "Bearer"
 			c.BearerToken = ""
-		}
-		if len(c.BearerTokenFile) > 0 {
-			c.Authorization = &Authorization{CredentialsFile: c.BearerTokenFile}
-			c.Authorization.Type = "Bearer"
-			c.BearerTokenFile = ""
 		}
 	}
 	if c.OAuth2 != nil {
@@ -303,18 +266,6 @@ func (c *HTTPClientConfig) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	return c.validate()
-}
-
-// nonZeroCount returns the amount of values that are non-zero.
-func nonZeroCount[T comparable](values ...T) int {
-	count := 0
-	var zero T
-	for _, value := range values {
-		if value != zero {
-			count += 1
-		}
-	}
-	return count
 }
 
 func V0HttpConfigOption() schema.Field {

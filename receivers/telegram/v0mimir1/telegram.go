@@ -17,8 +17,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -119,12 +117,5 @@ func createTelegramClient(apiURL, parseMode string, httpClient *http.Client) (*t
 }
 
 func (n *Notifier) getBotToken() (string, error) {
-	if len(n.conf.BotTokenFile) > 0 {
-		content, err := os.ReadFile(n.conf.BotTokenFile)
-		if err != nil {
-			return "", fmt.Errorf("could not read %s: %w", n.conf.BotTokenFile, err)
-		}
-		return strings.TrimSpace(string(content)), nil
-	}
 	return string(n.conf.BotToken), nil
 }

@@ -47,7 +47,6 @@ type Config struct {
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
 	APIKey       receivers.Secret  `yaml:"api_key,omitempty" json:"api_key,omitempty"`
-	APIKeyFile   string            `yaml:"api_key_file,omitempty" json:"api_key_file,omitempty"`
 	APIURL       *receivers.URL    `yaml:"api_url,omitempty" json:"api_url,omitempty"`
 	Message      string            `yaml:"message,omitempty" json:"message,omitempty"`
 	Description  string            `yaml:"description,omitempty" json:"description,omitempty"`
@@ -125,10 +124,6 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) validate() error {
-	if c.APIKey != "" && len(c.APIKeyFile) > 0 {
-		return errors.New("at most one of api_key & api_key_file must be configured")
-	}
-
 	for _, r := range c.Responders {
 		if r.ID == "" && r.Username == "" && r.Name == "" {
 			return fmt.Errorf("opsGenieConfig responder %v has to have at least one of id, username or name specified", r)

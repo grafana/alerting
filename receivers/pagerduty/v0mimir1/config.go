@@ -50,22 +50,20 @@ type Config struct {
 
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
-	ServiceKey     receivers.Secret  `yaml:"service_key,omitempty" json:"service_key,omitempty"`
-	ServiceKeyFile string            `yaml:"service_key_file,omitempty" json:"service_key_file,omitempty"`
-	RoutingKey     receivers.Secret  `yaml:"routing_key,omitempty" json:"routing_key,omitempty"`
-	RoutingKeyFile string            `yaml:"routing_key_file,omitempty" json:"routing_key_file,omitempty"`
-	URL            *receivers.URL    `yaml:"url,omitempty" json:"url,omitempty"`
-	Client         string            `yaml:"client,omitempty" json:"client,omitempty"`
-	ClientURL      string            `yaml:"client_url,omitempty" json:"client_url,omitempty"`
-	Description    string            `yaml:"description,omitempty" json:"description,omitempty"`
-	Details        map[string]string `yaml:"details,omitempty" json:"details,omitempty"`
-	Images         []PagerdutyImage  `yaml:"images,omitempty" json:"images,omitempty"`
-	Links          []PagerdutyLink   `yaml:"links,omitempty" json:"links,omitempty"`
-	Source         string            `yaml:"source,omitempty" json:"source,omitempty"`
-	Severity       string            `yaml:"severity,omitempty" json:"severity,omitempty"`
-	Class          string            `yaml:"class,omitempty" json:"class,omitempty"`
-	Component      string            `yaml:"component,omitempty" json:"component,omitempty"`
-	Group          string            `yaml:"group,omitempty" json:"group,omitempty"`
+	ServiceKey  receivers.Secret  `yaml:"service_key,omitempty" json:"service_key,omitempty"`
+	RoutingKey  receivers.Secret  `yaml:"routing_key,omitempty" json:"routing_key,omitempty"`
+	URL         *receivers.URL    `yaml:"url,omitempty" json:"url,omitempty"`
+	Client      string            `yaml:"client,omitempty" json:"client,omitempty"`
+	ClientURL   string            `yaml:"client_url,omitempty" json:"client_url,omitempty"`
+	Description string            `yaml:"description,omitempty" json:"description,omitempty"`
+	Details     map[string]string `yaml:"details,omitempty" json:"details,omitempty"`
+	Images      []PagerdutyImage  `yaml:"images,omitempty" json:"images,omitempty"`
+	Links       []PagerdutyLink   `yaml:"links,omitempty" json:"links,omitempty"`
+	Source      string            `yaml:"source,omitempty" json:"source,omitempty"`
+	Severity    string            `yaml:"severity,omitempty" json:"severity,omitempty"`
+	Class       string            `yaml:"class,omitempty" json:"class,omitempty"`
+	Component   string            `yaml:"component,omitempty" json:"component,omitempty"`
+	Group       string            `yaml:"group,omitempty" json:"group,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -143,14 +141,8 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) validate() error {
-	if c.RoutingKey == "" && c.ServiceKey == "" && c.RoutingKeyFile == "" && c.ServiceKeyFile == "" {
+	if c.RoutingKey == "" && c.ServiceKey == "" {
 		return errors.New("missing service or routing key in PagerDuty config")
-	}
-	if len(c.RoutingKey) > 0 && len(c.RoutingKeyFile) > 0 {
-		return errors.New("at most one of routing_key & routing_key_file must be configured")
-	}
-	if len(c.ServiceKey) > 0 && len(c.ServiceKeyFile) > 0 {
-		return errors.New("at most one of service_key & service_key_file must be configured")
 	}
 	return nil
 }

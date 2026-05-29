@@ -45,78 +45,22 @@ func TestTLSConfigValidate(t *testing.T) {
 			cfg:  TLSConfig{},
 		},
 		{
-			name: "valid: ca_file only",
-			cfg:  TLSConfig{CAFile: "ca.pem"},
-		},
-		{
 			name: "valid: ca inline only",
 			cfg:  TLSConfig{CA: "ca-content"},
-		},
-		{
-			name: "valid: ca_ref only",
-			cfg:  TLSConfig{CARef: "my-ca-ref"},
-		},
-		{
-			name: "valid: cert and key files",
-			cfg:  TLSConfig{CertFile: "cert.pem", KeyFile: "key.pem"},
 		},
 		{
 			name: "valid: cert and key inline",
 			cfg:  TLSConfig{Cert: "cert-content", Key: "key-content"},
 		},
 		{
-			name: "valid: cert and key refs",
-			cfg:  TLSConfig{CertRef: "cert-ref", KeyRef: "key-ref"},
-		},
-		{
-			name:   "invalid: ca and ca_file both set",
-			cfg:    TLSConfig{CA: "ca-content", CAFile: "ca.pem"},
-			errMsg: "at most one of ca, ca_file & ca_ref must be configured",
-		},
-		{
-			name:   "invalid: ca and ca_ref both set",
-			cfg:    TLSConfig{CA: "ca-content", CARef: "my-ca-ref"},
-			errMsg: "at most one of ca, ca_file & ca_ref must be configured",
-		},
-		{
-			name:   "invalid: ca_file and ca_ref both set",
-			cfg:    TLSConfig{CAFile: "ca.pem", CARef: "my-ca-ref"},
-			errMsg: "at most one of ca, ca_file & ca_ref must be configured",
-		},
-		{
-			name:   "invalid: cert and cert_file both set",
-			cfg:    TLSConfig{Cert: "cert-content", CertFile: "cert.pem", KeyFile: "key.pem"},
-			errMsg: "at most one of cert, cert_file & cert_ref must be configured",
-		},
-		{
-			name:   "invalid: cert and cert_ref both set",
-			cfg:    TLSConfig{Cert: "cert-content", CertRef: "cert-ref", Key: "key-content"},
-			errMsg: "at most one of cert, cert_file & cert_ref must be configured",
-		},
-		{
-			name:   "invalid: key and key_file both set",
-			cfg:    TLSConfig{CertFile: "cert.pem", Key: "key-content", KeyFile: "key.pem"},
-			errMsg: "at most one of key and key_file must be configured",
-		},
-		{
 			name:   "invalid: cert without key",
-			cfg:    TLSConfig{CertFile: "cert.pem"},
-			errMsg: "exactly one of key or key_file must be configured when a client certificate is configured",
+			cfg:    TLSConfig{Cert: "cert-content"},
+			errMsg: "key must be configured when a client certificate is configured",
 		},
 		{
 			name:   "invalid: key without cert",
-			cfg:    TLSConfig{KeyFile: "key.pem"},
-			errMsg: "exactly one of cert or cert_file must be configured when a client key is configured",
-		},
-		{
-			name:   "invalid: cert inline without key",
-			cfg:    TLSConfig{Cert: "cert-content"},
-			errMsg: "exactly one of key or key_file must be configured when a client certificate is configured",
-		},
-		{
-			name:   "invalid: cert_ref without key",
-			cfg:    TLSConfig{CertRef: "cert-ref"},
-			errMsg: "exactly one of key or key_file must be configured when a client certificate is configured",
+			cfg:    TLSConfig{Key: "key-content"},
+			errMsg: "cert must be configured when a client key is configured",
 		},
 	}
 
@@ -152,14 +96,6 @@ func TestOAuth2Validate(t *testing.T) {
 			cfg:  OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecret: "secret"},
 		},
 		{
-			name: "valid: with client_secret_file",
-			cfg:  OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecretFile: "file.txt"},
-		},
-		{
-			name: "valid: with client_secret_ref",
-			cfg:  OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecretRef: "my-ref"},
-		},
-		{
 			name:   "invalid: no client_id",
 			cfg:    OAuth2{TokenURL: "http://example.com/token"},
 			errMsg: "oauth2 client_id must be configured",
@@ -168,21 +104,6 @@ func TestOAuth2Validate(t *testing.T) {
 			name:   "invalid: no token_url",
 			cfg:    OAuth2{ClientID: "client-id"},
 			errMsg: "oauth2 token_url must be configured",
-		},
-		{
-			name:   "invalid: client_secret and client_secret_file both set",
-			cfg:    OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecret: "secret", ClientSecretFile: "file.txt"},
-			errMsg: "at most one of oauth2 client_secret, client_secret_file & client_secret_ref must be configured",
-		},
-		{
-			name:   "invalid: client_secret and client_secret_ref both set",
-			cfg:    OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecret: "secret", ClientSecretRef: "my-ref"},
-			errMsg: "at most one of oauth2 client_secret, client_secret_file & client_secret_ref must be configured",
-		},
-		{
-			name:   "invalid: client_secret_file and client_secret_ref both set",
-			cfg:    OAuth2{ClientID: "id", TokenURL: "http://example.com/token", ClientSecretFile: "file.txt", ClientSecretRef: "my-ref"},
-			errMsg: "at most one of oauth2 client_secret, client_secret_file & client_secret_ref must be configured",
 		},
 	}
 
@@ -297,10 +218,6 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 			cfg:  HTTPClientConfig{BearerToken: "token"},
 		},
 		{
-			name: "valid: bearer_token_file only",
-			cfg:  HTTPClientConfig{BearerTokenFile: "token.txt"},
-		},
-		{
 			name: "valid: authorization only",
 			cfg:  HTTPClientConfig{Authorization: &Authorization{Credentials: "cred"}},
 		},
@@ -311,20 +228,12 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid: bearer_token and bearer_token_file both set",
-			cfg: HTTPClientConfig{
-				BearerToken:     "token",
-				BearerTokenFile: "token.txt",
-			},
-			errMsg: "at most one of bearer_token & bearer_token_file must be configured",
-		},
-		{
 			name: "invalid: basic_auth and bearer_token both set",
 			cfg: HTTPClientConfig{
 				BasicAuth:   &BasicAuth{Username: "user"},
 				BearerToken: "token",
 			},
-			errMsg: "at most one of basic_auth, oauth2, bearer_token & bearer_token_file must be configured",
+			errMsg: "at most one of basic_auth, oauth2 & bearer_token must be configured",
 		},
 		{
 			name: "invalid: oauth2 and bearer_token both set",
@@ -332,35 +241,7 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 				OAuth2:      &OAuth2{ClientID: "id", TokenURL: "http://example.com/token"},
 				BearerToken: "token",
 			},
-			errMsg: "at most one of basic_auth, oauth2, bearer_token & bearer_token_file must be configured",
-		},
-		{
-			name: "invalid: basic_auth username and username_file both set",
-			cfg: HTTPClientConfig{
-				BasicAuth: &BasicAuth{Username: "user", UsernameFile: "user.txt"},
-			},
-			errMsg: "at most one of basic_auth username, username_file & username_ref must be configured",
-		},
-		{
-			name: "invalid: basic_auth username and username_ref both set",
-			cfg: HTTPClientConfig{
-				BasicAuth: &BasicAuth{Username: "user", UsernameRef: "user-ref"},
-			},
-			errMsg: "at most one of basic_auth username, username_file & username_ref must be configured",
-		},
-		{
-			name: "invalid: basic_auth password and password_file both set",
-			cfg: HTTPClientConfig{
-				BasicAuth: &BasicAuth{Password: "pass", PasswordFile: "pass.txt"},
-			},
-			errMsg: "at most one of basic_auth password, password_file & password_ref must be configured",
-		},
-		{
-			name: "invalid: basic_auth password and password_ref both set",
-			cfg: HTTPClientConfig{
-				BasicAuth: &BasicAuth{Password: "pass", PasswordRef: "pass-ref"},
-			},
-			errMsg: "at most one of basic_auth password, password_file & password_ref must be configured",
+			errMsg: "at most one of basic_auth, oauth2 & bearer_token must be configured",
 		},
 		{
 			name: "invalid: authorization and bearer_token both set",
@@ -368,27 +249,7 @@ func TestHTTPClientConfigValidate(t *testing.T) {
 				Authorization: &Authorization{Credentials: "cred"},
 				BearerToken:   "token",
 			},
-			errMsg: "authorization is not compatible with bearer_token & bearer_token_file",
-		},
-		{
-			name: "invalid: authorization credentials and credentials_file both set",
-			cfg: HTTPClientConfig{
-				Authorization: &Authorization{
-					Credentials:     "cred",
-					CredentialsFile: "cred.txt",
-				},
-			},
-			errMsg: "at most one of authorization credentials & credentials_file must be configured",
-		},
-		{
-			name: "invalid: authorization credentials and credentials_ref both set",
-			cfg: HTTPClientConfig{
-				Authorization: &Authorization{
-					Credentials:    "cred",
-					CredentialsRef: "cred-ref",
-				},
-			},
-			errMsg: "at most one of authorization credentials & credentials_file must be configured",
+			errMsg: "authorization is not compatible with bearer_token",
 		},
 		{
 			name: "invalid: authorization type basic",
@@ -568,14 +429,6 @@ bearer_token: mytoken
 			},
 		},
 		{
-			name: "invalid: bearer_token and bearer_token_file",
-			input: `
-bearer_token: token
-bearer_token_file: token.txt
-`,
-			errMsg: "at most one of bearer_token & bearer_token_file must be configured",
-		},
-		{
 			name: "invalid: basic_auth and oauth2",
 			input: `
 basic_auth:
@@ -639,11 +492,6 @@ func TestHTTPClientConfigUnmarshalJSON(t *testing.T) {
 			},
 		},
 		{
-			name:   "invalid: bearer_token and bearer_token_file",
-			input:  `{"bearer_token":"token","bearer_token_file":"token.txt"}`,
-			errMsg: "at most one of bearer_token & bearer_token_file must be configured",
-		},
-		{
 			name:   "invalid: oauth2 no client_id",
 			input:  `{"oauth2":{"token_url":"http://example.com/token","client_id":""}}`,
 			errMsg: "oauth2 client_id must be configured",
@@ -677,22 +525,17 @@ func TestTLSConfigUnmarshalYAML(t *testing.T) {
 			input: `{}`,
 		},
 		{
-			name:  "valid: ca_file",
-			input: `ca_file: /etc/ca.pem`,
+			name:  "valid: ca inline",
+			input: `ca: ca-content`,
 		},
 		{
-			name:  "valid: cert_file and key_file",
-			input: "cert_file: cert.pem\nkey_file: key.pem",
-		},
-		{
-			name:   "invalid: ca and ca_file both set",
-			input:  "ca: ca-content\nca_file: ca.pem",
-			errMsg: "at most one of ca, ca_file & ca_ref must be configured",
+			name:  "valid: cert and key inline",
+			input: "cert: cert-content\nkey: key-content",
 		},
 		{
 			name:   "invalid: cert without key",
-			input:  "cert_file: cert.pem",
-			errMsg: "exactly one of key or key_file must be configured when a client certificate is configured",
+			input:  "cert: cert-content",
+			errMsg: "key must be configured when a client certificate is configured",
 		},
 	}
 
@@ -728,11 +571,6 @@ func TestOAuth2UnmarshalYAML(t *testing.T) {
 			name:   "invalid: no token_url",
 			input:  "client_id: id",
 			errMsg: "oauth2 token_url must be configured",
-		},
-		{
-			name:   "invalid: client_secret and client_secret_file",
-			input:  "client_id: id\ntoken_url: http://example.com/token\nclient_secret: s\nclient_secret_file: f.txt",
-			errMsg: "at most one of oauth2 client_secret, client_secret_file & client_secret_ref must be configured",
 		},
 	}
 

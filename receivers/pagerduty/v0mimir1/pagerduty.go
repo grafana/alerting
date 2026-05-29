@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/alecthomas/units"
@@ -61,7 +60,7 @@ func New(c *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg.HT
 		return nil, err
 	}
 	n := &Notifier{conf: c, tmpl: t, logger: l, client: client}
-	if c.ServiceKey != "" || c.ServiceKeyFile != "" {
+	if c.ServiceKey != "" {
 		n.apiV1 = "https://events.pagerduty.com/generic/2010-04-15/create_event.json"
 		// Retrying can solve the issue on 403 (rate limiting) and 5xx response codes.
 		// https://v2.developer.pagerduty.com/docs/trigger-events
@@ -161,13 +160,6 @@ func (n *Notifier) notifyV1(
 	}
 
 	serviceKey := string(n.conf.ServiceKey)
-	if serviceKey == "" {
-		content, fileErr := os.ReadFile(n.conf.ServiceKeyFile)
-		if fileErr != nil {
-			return false, fmt.Errorf("failed to read service key from file: %w", fileErr)
-		}
-		serviceKey = strings.TrimSpace(string(content))
-	}
 
 	msg := &pagerDutyMessage{
 		ServiceKey:  tmpl(serviceKey),
@@ -226,13 +218,6 @@ func (n *Notifier) notifyV2(
 	}
 
 	routingKey := string(n.conf.RoutingKey)
-	if routingKey == "" {
-		content, fileErr := os.ReadFile(n.conf.RoutingKeyFile)
-		if fileErr != nil {
-			return false, fmt.Errorf("failed to read routing key from file: %w", fileErr)
-		}
-		routingKey = strings.TrimSpace(string(content))
-	}
 
 	msg := &pagerDutyMessage{
 		Client:      tmpl(n.conf.Client),

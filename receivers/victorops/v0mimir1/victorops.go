@@ -19,8 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -78,16 +76,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		apiURL = n.conf.APIURL.Copy()
 	)
 
-	var apiKey string
-	if n.conf.APIKey != "" {
-		apiKey = string(n.conf.APIKey)
-	} else {
-		content, fileErr := os.ReadFile(n.conf.APIKeyFile)
-		if fileErr != nil {
-			return false, fmt.Errorf("failed to read API key from file: %w", fileErr)
-		}
-		apiKey = strings.TrimSpace(string(content))
-	}
+	apiKey := string(n.conf.APIKey)
 
 	apiURL.Path += fmt.Sprintf("%s/%s", apiKey, tmpl(n.conf.RoutingKey))
 	if err != nil {

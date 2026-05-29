@@ -14,7 +14,6 @@ func (c *HTTPClientConfig) ToCommonHTTPClientConfig() *commoncfg.HTTPClientConfi
 		Authorization:   toCommonAuthorization(c.Authorization),
 		OAuth2:          toCommonOAuth2(c.OAuth2),
 		BearerToken:     c.BearerToken,
-		BearerTokenFile: c.BearerTokenFile,
 		TLSConfig:       ToCommonTLSConfig(c.TLSConfig),
 		FollowRedirects: c.FollowRedirects,
 		EnableHTTP2:     c.EnableHTTP2,
@@ -33,7 +32,6 @@ func FromCommonHTTPClientConfig(c *commoncfg.HTTPClientConfig) *HTTPClientConfig
 		Authorization:   fromCommonAuthorization(c.Authorization),
 		OAuth2:          fromCommonOAuth2(c.OAuth2),
 		BearerToken:     c.BearerToken,
-		BearerTokenFile: c.BearerTokenFile,
 		TLSConfig:       FromCommonTLSConfig(c.TLSConfig),
 		FollowRedirects: c.FollowRedirects,
 		EnableHTTP2:     c.EnableHTTP2,
@@ -47,12 +45,8 @@ func toCommonBasicAuth(a *BasicAuth) *commoncfg.BasicAuth {
 		return nil
 	}
 	return &commoncfg.BasicAuth{
-		Username:     a.Username,
-		UsernameFile: a.UsernameFile,
-		UsernameRef:  a.UsernameRef,
-		Password:     a.Password,
-		PasswordFile: a.PasswordFile,
-		PasswordRef:  a.PasswordRef,
+		Username: a.Username,
+		Password: a.Password,
 	}
 }
 
@@ -61,12 +55,8 @@ func fromCommonBasicAuth(a *commoncfg.BasicAuth) *BasicAuth {
 		return nil
 	}
 	return &BasicAuth{
-		Username:     a.Username,
-		UsernameFile: a.UsernameFile,
-		UsernameRef:  a.UsernameRef,
-		Password:     a.Password,
-		PasswordFile: a.PasswordFile,
-		PasswordRef:  a.PasswordRef,
+		Username: a.Username,
+		Password: a.Password,
 	}
 }
 
@@ -75,10 +65,8 @@ func toCommonAuthorization(a *Authorization) *commoncfg.Authorization {
 		return nil
 	}
 	return &commoncfg.Authorization{
-		Type:            a.Type,
-		Credentials:     a.Credentials,
-		CredentialsFile: a.CredentialsFile,
-		CredentialsRef:  a.CredentialsRef,
+		Type:        a.Type,
+		Credentials: a.Credentials,
 	}
 }
 
@@ -87,10 +75,8 @@ func fromCommonAuthorization(a *commoncfg.Authorization) *Authorization {
 		return nil
 	}
 	return &Authorization{
-		Type:            a.Type,
-		Credentials:     a.Credentials,
-		CredentialsFile: a.CredentialsFile,
-		CredentialsRef:  a.CredentialsRef,
+		Type:        a.Type,
+		Credentials: a.Credentials,
 	}
 }
 
@@ -99,15 +85,13 @@ func toCommonOAuth2(o *OAuth2) *commoncfg.OAuth2 {
 		return nil
 	}
 	return &commoncfg.OAuth2{
-		ClientID:         o.ClientID,
-		ClientSecret:     o.ClientSecret,
-		ClientSecretFile: o.ClientSecretFile,
-		ClientSecretRef:  o.ClientSecretRef,
-		Scopes:           o.Scopes,
-		TokenURL:         o.TokenURL,
-		EndpointParams:   o.EndpointParams,
-		TLSConfig:        ToCommonTLSConfig(o.TLSConfig),
-		ProxyConfig:      toCommonProxyConfig(o.ProxyConfig),
+		ClientID:       o.ClientID,
+		ClientSecret:   o.ClientSecret,
+		Scopes:         o.Scopes,
+		TokenURL:       o.TokenURL,
+		EndpointParams: o.EndpointParams,
+		TLSConfig:      ToCommonTLSConfig(o.TLSConfig),
+		ProxyConfig:    toCommonProxyConfig(o.ProxyConfig),
 	}
 }
 
@@ -116,15 +100,13 @@ func fromCommonOAuth2(o *commoncfg.OAuth2) *OAuth2 {
 		return nil
 	}
 	return &OAuth2{
-		ClientID:         o.ClientID,
-		ClientSecret:     o.ClientSecret,
-		ClientSecretFile: o.ClientSecretFile,
-		ClientSecretRef:  o.ClientSecretRef,
-		Scopes:           o.Scopes,
-		TokenURL:         o.TokenURL,
-		EndpointParams:   o.EndpointParams,
-		TLSConfig:        FromCommonTLSConfig(o.TLSConfig),
-		ProxyConfig:      fromCommonProxyConfig(o.ProxyConfig),
+		ClientID:       o.ClientID,
+		ClientSecret:   o.ClientSecret,
+		Scopes:         o.Scopes,
+		TokenURL:       o.TokenURL,
+		EndpointParams: o.EndpointParams,
+		TLSConfig:      FromCommonTLSConfig(o.TLSConfig),
+		ProxyConfig:    fromCommonProxyConfig(o.ProxyConfig),
 	}
 }
 
@@ -133,12 +115,6 @@ func ToCommonTLSConfig(c TLSConfig) commoncfg.TLSConfig {
 		CA:                 c.CA,
 		Cert:               c.Cert,
 		Key:                c.Key,
-		CAFile:             c.CAFile,
-		CertFile:           c.CertFile,
-		KeyFile:            c.KeyFile,
-		CARef:              c.CARef,
-		CertRef:            c.CertRef,
-		KeyRef:             c.KeyRef,
 		ServerName:         c.ServerName,
 		InsecureSkipVerify: c.InsecureSkipVerify,
 		MinVersion:         c.MinVersion,
@@ -151,12 +127,6 @@ func FromCommonTLSConfig(c commoncfg.TLSConfig) TLSConfig {
 		CA:                 c.CA,
 		Cert:               c.Cert,
 		Key:                c.Key,
-		CAFile:             c.CAFile,
-		CertFile:           c.CertFile,
-		KeyFile:            c.KeyFile,
-		CARef:              c.CARef,
-		CertRef:            c.CertRef,
-		KeyRef:             c.KeyRef,
 		ServerName:         c.ServerName,
 		InsecureSkipVerify: c.InsecureSkipVerify,
 		MinVersion:         c.MinVersion,
@@ -208,7 +178,6 @@ func toCommonHeader(h Header) commoncfg.Header {
 	return commoncfg.Header{
 		Values:  h.Values,
 		Secrets: h.Secrets,
-		Files:   h.Files,
 	}
 }
 
@@ -216,6 +185,5 @@ func fromCommonHeader(h commoncfg.Header) Header {
 	return Header{
 		Values:  h.Values,
 		Secrets: h.Secrets,
-		Files:   h.Files,
 	}
 }

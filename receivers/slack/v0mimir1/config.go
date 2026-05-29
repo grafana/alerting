@@ -50,8 +50,7 @@ type Config struct {
 
 	HTTPConfig *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
-	APIURL     *receivers.SecretURL `yaml:"api_url,omitempty" json:"api_url,omitempty"`
-	APIURLFile string               `yaml:"api_url_file,omitempty" json:"api_url_file,omitempty"`
+	APIURL *receivers.SecretURL `yaml:"api_url,omitempty" json:"api_url,omitempty"`
 
 	// Slack channel override, (like #other-channel or @username).
 	Channel  string `yaml:"channel,omitempty" json:"channel,omitempty"`
@@ -135,10 +134,6 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) validate() error {
-	if c.APIURL != nil && len(c.APIURLFile) > 0 {
-		return errors.New("at most one of api_url & api_url_file must be configured")
-	}
-
 	return nil
 }
 
