@@ -46,10 +46,14 @@ jobs:
           chmod +x actionlint
 
       - name: Run actionlint
-        run: ./actionlint -format "$(cat .github/workflows/actionlint-format.txt)" | tee results.sarif
+        shell: bash
+        run: |
+          set -o pipefail
+          ./actionlint -format "$(cat .github/workflows/actionlint-format.txt)" | tee results.sarif
 
       - name: Upload SARIF
         if: success() || failure()
+        continue-on-error: true # SARIF upload requires Code Security on the repo; tolerate when off
         uses: github/codeql-action/upload-sarif@f443b600d91635bebf5b0d9ebc620189c0d6fba5 # v4.30.8
         with:
           sarif_file: results.sarif
