@@ -13,6 +13,8 @@ on:
       - .github/workflows/**
       - .github/actions/**
       - .github/actionlint.yaml
+  merge_group:
+    types: [checks_requested]
 
 permissions: {}
 
