@@ -1,0 +1,68 @@
+name: actionlint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/**
+      - .github/actions/**
+      - .github/actionlint.yaml
+      - .github/actionlint.yml
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/**
+      - .github/actions/**
+      - .github/actionlint.yaml
+      - .github/actionlint.yml
+  merge_group:
+    types: [checks_requested]
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download and verify actionlint
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ARCHIVE="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          gh release download "v${ACTIONLINT_VERSION}" \
+            --repo rhysd/actionlint \
+            --pattern "${ARCHIVE}"
+          gh attestation verify "${ARCHIVE}" --repo rhysd/actionlint
+          tar xzf "${ARCHIVE}"
+          chmod +x actionlint
+
+      - name: Run actionlint
+        shell: bash
+        run: |
+          set -o pipefail
+          ./actionlint -format "$(cat .github/workflows/actionlint-format.txt)" | tee results.sarif
+
+      - name: Upload SARIF
+        if: success() || failure()
+        continue-on-error: true # SARIF upload requires Code Security on the repo; tolerate when off
+        uses: github/codeql-action/upload-sarif@f52b05f4acaaa234e44466e66d29050e135ea9ef # v4.36.0
+        with:
+          sarif_file: results.sarif
+          category: actionlint
