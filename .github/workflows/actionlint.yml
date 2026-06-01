@@ -7,12 +7,14 @@ on:
       - .github/workflows/**
       - .github/actions/**
       - .github/actionlint.yaml
+      - .github/actionlint.yml
   push:
     branches: [main]
     paths:
       - .github/workflows/**
       - .github/actions/**
       - .github/actionlint.yaml
+      - .github/actionlint.yml
   merge_group:
     types: [checks_requested]
 
