@@ -33,20 +33,24 @@ jobs:
       actions: read
       security-events: write
     env:
-      ACTIONLINT_VERSION: 1.7.7
-      CHECKSUM: 023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757
+      ACTIONLINT_VERSION: 1.7.12
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Download actionlint
+      - name: Download and verify actionlint
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          curl -OLXGET "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-          echo "${CHECKSUM}  actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" | sha256sum -c -
-          tar xzf "actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          ARCHIVE="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          gh release download "v${ACTIONLINT_VERSION}" \
+            --repo rhysd/actionlint \
+            --pattern "${ARCHIVE}"
+          gh attestation verify "${ARCHIVE}" --repo rhysd/actionlint
+          tar xzf "${ARCHIVE}"
           chmod +x actionlint
 
       - name: Run actionlint
