@@ -1,6 +1,6 @@
 module github.com/grafana/alerting/testing/alerting-gen
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/go-kit/log v0.2.1
@@ -39,6 +39,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
 	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
