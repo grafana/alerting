@@ -210,13 +210,19 @@ func redactURL(err error) error {
 }
 
 // RedactError returns err as a string with any embedded request URL redacted,
-// suitable for persisting to notification history. Reuses redactURL, so it
-// handles *url.Error values (including wrapped ones). Returns "" for nil.
+// for persisting to notification history. It does not mutate err, which may be
+// shared with concurrent readers. Returns "" for nil.
 func RedactError(err error) string {
 	if err == nil {
 		return ""
 	}
-	return redactURL(err).Error()
+	var ue *url.Error
+	if errors.As(err, &ue) {
+		redacted := *ue
+		redacted.URL = "<redacted>"
+		return redacted.Error()
+	}
+	return err.Error()
 }
 
 func GetBasicAuthHeader(user string, password string) string {

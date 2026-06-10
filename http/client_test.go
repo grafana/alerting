@@ -588,3 +588,16 @@ func TestRedactError(t *testing.T) {
 		})
 	}
 }
+
+// TestRedactError_DoesNotMutate guards against regressing to a mutating
+// implementation: the notification error is shared with concurrent readers, so
+// RedactError must not modify the underlying *url.Error in place.
+func TestRedactError_DoesNotMutate(t *testing.T) {
+	const original = "https://hooks.slack.com/services/T00/B00/XXXXTOKEN"
+	ue := &url.Error{Op: "Post", URL: original, Err: errors.New("EOF")}
+
+	got := RedactError(ue)
+
+	assert.Equal(t, `Post "<redacted>": EOF`, got)
+	assert.Equal(t, original, ue.URL, "RedactError must not mutate the shared *url.Error")
+}
