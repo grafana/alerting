@@ -224,8 +224,15 @@ func RedactError(err error) string {
 		redacted := *ue
 		redacted.URL = "<redacted>"
 		// Replace the url.Error's rendering within the full message so any
-		// outer wrapper context is retained.
-		msg = strings.Replace(msg, ue.Error(), redacted.Error(), 1)
+		// outer wrapper context is retained. If the wrapper renders the inner
+		// error differently (e.g. quoted/escaped), fall back to redacting the
+		// raw URL string to avoid leaking secrets.
+		origMsg := msg
+		origUE := ue.Error()
+		msg = strings.Replace(msg, origUE, redacted.Error(), 1)
+		if msg == origMsg && ue.URL != "" {
+			msg = strings.ReplaceAll(origMsg, ue.URL, "<redacted>")
+		}
 	}
 	return msg
 }
