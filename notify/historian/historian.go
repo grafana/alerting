@@ -17,6 +17,7 @@ import (
 	prometheusModel "github.com/prometheus/common/model"
 	"go.opentelemetry.io/otel/trace"
 
+	alertinghttp "github.com/grafana/alerting/http"
 	alertingInstrument "github.com/grafana/alerting/http/instrument"
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/historian/lokiclient"
@@ -181,10 +182,7 @@ func (h *NotificationHistorian) prepareStreams(nhe nfstatus.NotificationHistoryE
 		folderUIDsMap[folderUID] = struct{}{}
 	}
 
-	notificationErrStr := ""
-	if nhe.NotificationErr != nil {
-		notificationErrStr = nhe.NotificationErr.Error()
-	}
+	notificationErrStr := alertinghttp.RedactError(nhe.NotificationErr)
 
 	as := make([]*types.Alert, len(nhe.Alerts))
 	for i := range nhe.Alerts {
