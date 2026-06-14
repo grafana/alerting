@@ -21,7 +21,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.4
 	github.com/modern-go/reflect2 v1.0.2
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/alertmanager v0.28.2
+	github.com/prometheus/alertmanager v0.33.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.68.0
 	github.com/prometheus/common/sigv4 v0.1.0
