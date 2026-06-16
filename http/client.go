@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/benbjohnson/clock"
@@ -210,19 +211,30 @@ func redactURL(err error) error {
 }
 
 // RedactError returns err as a string with any embedded request URL redacted,
-// for persisting to notification history. It does not mutate err, which may be
-// shared with concurrent readers. Returns "" for nil.
+// for persisting to notification history. It preserves any outer context
+// wrapping an embedded *url.Error and does not mutate err, which may be shared
+// with concurrent readers. Returns "" for nil.
 func RedactError(err error) string {
 	if err == nil {
 		return ""
 	}
+	msg := err.Error()
 	var ue *url.Error
 	if errors.As(err, &ue) {
 		redacted := *ue
 		redacted.URL = "<redacted>"
-		return redacted.Error()
+		// Replace the url.Error's rendering within the full message so any
+		// outer wrapper context is retained. If the wrapper renders the inner
+		// error differently (e.g. quoted/escaped), fall back to redacting the
+		// raw URL string to avoid leaking secrets.
+		origMsg := msg
+		origUE := ue.Error()
+		msg = strings.Replace(msg, origUE, redacted.Error(), 1)
+		if msg == origMsg && ue.URL != "" {
+			msg = strings.ReplaceAll(origMsg, ue.URL, "<redacted>")
+		}
 	}
-	return err.Error()
+	return msg
 }
 
 func GetBasicAuthHeader(user string, password string) string {
