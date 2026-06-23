@@ -1,4 +1,4 @@
-module: "github.com/grafana/grafana/apps/alerting/historian/kinds"
+module: "github.com/grafana/alerting/apps/historian/kinds"
 language: {
 	version: "v0.11.0"
 }

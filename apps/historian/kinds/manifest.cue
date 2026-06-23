@@ -1,7 +1,7 @@
 package kinds
 
 import (
-	"github.com/grafana/grafana/apps/alerting/historian/kinds/v0alpha1"
+	"github.com/grafana/alerting/apps/historian/kinds/v0alpha1"
 )
 
 manifest: {

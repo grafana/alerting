@@ -22,7 +22,7 @@ func NewDummystatusOperatorState() *DummystatusOperatorState {
 
 // OpenAPIModelName returns the OpenAPI model name for DummystatusOperatorState.
 func (DummystatusOperatorState) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.DummystatusOperatorState"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.DummystatusOperatorState"
 }
 
 // +k8s:openapi-gen=true
@@ -41,7 +41,7 @@ func NewDummyStatus() *DummyStatus {
 
 // OpenAPIModelName returns the OpenAPI model name for DummyStatus.
 func (DummyStatus) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.DummyStatus"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.DummyStatus"
 }
 
 // +k8s:openapi-gen=true
@@ -55,5 +55,5 @@ const (
 
 // OpenAPIModelName returns the OpenAPI model name for DummyStatusOperatorStateState.
 func (DummyStatusOperatorStateState) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.DummyStatusOperatorStateState"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.DummyStatusOperatorStateState"
 }

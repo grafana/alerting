@@ -26,7 +26,7 @@ func NewCreateNotificationsqueryalertsNotificationEntryAlert() *CreateNotificati
 
 // OpenAPIModelName returns the OpenAPI model name for CreateNotificationsqueryalertsNotificationEntryAlert.
 func (CreateNotificationsqueryalertsNotificationEntryAlert) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationsqueryalertsNotificationEntryAlert"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationsqueryalertsNotificationEntryAlert"
 }
 
 // +k8s:openapi-gen=true
@@ -43,5 +43,5 @@ func NewCreateNotificationsqueryalertsResponse() *CreateNotificationsqueryalerts
 
 // OpenAPIModelName returns the OpenAPI model name for CreateNotificationsqueryalertsResponse.
 func (CreateNotificationsqueryalertsResponse) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationsqueryalertsResponse"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationsqueryalertsResponse"
 }

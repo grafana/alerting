@@ -24,5 +24,5 @@ func NewCreateNotificationsqueryalertsRequestBody() *CreateNotificationsqueryale
 
 // OpenAPIModelName returns the OpenAPI model name for CreateNotificationsqueryalertsRequestBody.
 func (CreateNotificationsqueryalertsRequestBody) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationsqueryalertsRequestBody"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationsqueryalertsRequestBody"
 }

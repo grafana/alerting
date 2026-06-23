@@ -53,7 +53,7 @@ func NewCreateNotificationqueryNotificationEntry() *CreateNotificationqueryNotif
 
 // OpenAPIModelName returns the OpenAPI model name for CreateNotificationqueryNotificationEntry.
 func (CreateNotificationqueryNotificationEntry) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationEntry"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationEntry"
 }
 
 // +k8s:openapi-gen=true
@@ -66,7 +66,7 @@ const (
 
 // OpenAPIModelName returns the OpenAPI model name for CreateNotificationqueryNotificationStatus.
 func (CreateNotificationqueryNotificationStatus) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationStatus"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationStatus"
 }
 
 // +k8s:openapi-gen=true
@@ -79,7 +79,7 @@ const (
 
 // OpenAPIModelName returns the OpenAPI model name for CreateNotificationqueryNotificationOutcome.
 func (CreateNotificationqueryNotificationOutcome) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationOutcome"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationOutcome"
 }
 
 // +k8s:openapi-gen=true
@@ -102,7 +102,7 @@ func NewCreateNotificationqueryNotificationEntryAlert() *CreateNotificationquery
 
 // OpenAPIModelName returns the OpenAPI model name for CreateNotificationqueryNotificationEntryAlert.
 func (CreateNotificationqueryNotificationEntryAlert) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationEntryAlert"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationEntryAlert"
 }
 
 // +k8s:openapi-gen=true
@@ -129,7 +129,7 @@ func NewCreateNotificationqueryNotificationCount() *CreateNotificationqueryNotif
 
 // OpenAPIModelName returns the OpenAPI model name for CreateNotificationqueryNotificationCount.
 func (CreateNotificationqueryNotificationCount) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationCount"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationCount"
 }
 
 // NotificationRangeValue is a single (timestamp, count) data point in a range count series.
@@ -148,7 +148,7 @@ func NewCreateNotificationqueryNotificationRangeValue() *CreateNotificationquery
 
 // OpenAPIModelName returns the OpenAPI model name for CreateNotificationqueryNotificationRangeValue.
 func (CreateNotificationqueryNotificationRangeValue) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationRangeValue"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryNotificationRangeValue"
 }
 
 // +k8s:openapi-gen=true
@@ -167,5 +167,5 @@ func NewCreateNotificationqueryResponse() *CreateNotificationqueryResponse {
 
 // OpenAPIModelName returns the OpenAPI model name for CreateNotificationqueryResponse.
 func (CreateNotificationqueryResponse) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryResponse"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.CreateNotificationqueryResponse"
 }

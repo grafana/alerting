@@ -244,7 +244,7 @@ func (o *Dummy) DeepCopyInto(dst *Dummy) {
 }
 
 func (Dummy) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.Dummy"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.Dummy"
 }
 
 // Interface compliance compile-time check
@@ -301,7 +301,7 @@ func (o *DummyList) DeepCopyInto(dst *DummyList) {
 }
 
 func (DummyList) OpenAPIModelName() string {
-	return "com.github.grafana.grafana.apps.alerting.historian.pkg.apis.alertinghistorian.v0alpha1.DummyList"
+	return "com.github.grafana.alerting.apps.historian.pkg.apis.alertinghistorian.v0alpha1.DummyList"
 }
 
 // Interface compliance compile-time check

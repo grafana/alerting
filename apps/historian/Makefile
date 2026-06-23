@@ -1,4 +1,4 @@
-include ../../sdk.mk
+include ../sdk.mk
 
 .PHONY: generate # Run Grafana App SDK code generation
 generate: install-app-sdk update-app-sdk
