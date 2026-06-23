@@ -12,9 +12,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/grafana/grafana/apps/alerting/historian/pkg/apis/alertinghistorian/v0alpha1"
-	"github.com/grafana/grafana/apps/alerting/historian/pkg/app/config"
-	"github.com/grafana/grafana/apps/alerting/historian/pkg/app/notification"
+	"github.com/grafana/alerting/apps/historian/pkg/apis/alertinghistorian/v0alpha1"
+	"github.com/grafana/alerting/apps/historian/pkg/app/config"
+	"github.com/grafana/alerting/apps/historian/pkg/app/notification"
 )
 
 func New(cfg app.Config) (app.App, error) {

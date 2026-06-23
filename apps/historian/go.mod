@@ -1,4 +1,4 @@
-module github.com/grafana/grafana/apps/alerting/historian
+module github.com/grafana/alerting/apps/historian
 
 go 1.26.4
 

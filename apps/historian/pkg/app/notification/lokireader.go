@@ -20,9 +20,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/grafana/grafana/apps/alerting/historian/pkg/apis/alertinghistorian/v0alpha1"
-	"github.com/grafana/grafana/apps/alerting/historian/pkg/app/config"
-	"github.com/grafana/grafana/apps/alerting/historian/pkg/app/logutil"
+	"github.com/grafana/alerting/apps/historian/pkg/apis/alertinghistorian/v0alpha1"
+	"github.com/grafana/alerting/apps/historian/pkg/app/config"
+	"github.com/grafana/alerting/apps/historian/pkg/app/logutil"
 )
 
 const (

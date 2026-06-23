@@ -16,7 +16,7 @@ import (
 	"k8s.io/kube-openapi/pkg/spec3"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 
-	v0alpha1 "github.com/grafana/grafana/apps/alerting/historian/pkg/apis/alertinghistorian/v0alpha1"
+	v0alpha1 "github.com/grafana/alerting/apps/historian/pkg/apis/alertinghistorian/v0alpha1"
 )
 
 var (

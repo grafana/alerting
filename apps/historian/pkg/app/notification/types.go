@@ -1,7 +1,7 @@
 package notification
 
 import (
-	"github.com/grafana/grafana/apps/alerting/historian/pkg/apis/alertinghistorian/v0alpha1"
+	"github.com/grafana/alerting/apps/historian/pkg/apis/alertinghistorian/v0alpha1"
 )
 
 // Aliases to shorten names.

@@ -17,7 +17,7 @@ import (
 	"github.com/grafana/alerting/notify/historian/lokiclient"
 	"github.com/grafana/grafana-app-sdk/logging"
 
-	"github.com/grafana/grafana/apps/alerting/historian/pkg/apis/alertinghistorian/v0alpha1"
+	"github.com/grafana/alerting/apps/historian/pkg/apis/alertinghistorian/v0alpha1"
 )
 
 // mockLokiClient implements the lokiClient interface for testing
