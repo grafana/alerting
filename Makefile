@@ -2,6 +2,10 @@
 PATH := $(CURDIR)/.tools/bin:$(PATH)
 SHELL := /usr/bin/env bash
 
+.PHONY: build
+build:
+	$(MAKE) -C apps/historian build
+
 .PHONY: clean
 clean:
 	@# go mod makes the modules read-only, so before deletion we need to make them deleteable
@@ -11,6 +15,8 @@ clean:
 .PHONY: test
 test:
 	go test -tags netgo -timeout 30m -race -count 1 ./...
+	$(MAKE) -C apps/historian test
+	$(MAKE) -C testing/alerting-gen test
 
 .PHONY: lint
 lint: .tools/bin/misspell .tools/bin/faillint .tools/bin/golangci-lint
