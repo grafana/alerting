@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/grafana/grafana-app-sdk/logging"
 	"github.com/grafana/grafana-app-sdk/operator"
@@ -48,8 +49,8 @@ func Main(args []string) error {
 		return fmt.Errorf("failed to create operator runner: %w", err)
 	}
 
-	// Context and cancel for the operator's Run method.
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
+	// Cancel on SIGINT (Ctrl-C) and SIGTERM (Kubernetes pod stop) for graceful shutdown.
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
 	provider := simple.NewAppProvider(historianapis.LocalManifest(), cfg.App, historianapp.New)
