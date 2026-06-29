@@ -25,8 +25,8 @@ import (
 func TestMain_OperatorComesUp(t *testing.T) {
 	// The webhook server needs TLS (the app has custom routes), and the metrics
 	// server hosts the /readyz health endpoint on its own port over plain HTTP.
-	webhookPort := freePort(t)
-	metricsPort := freePort(t)
+	ports := freePorts(t, 2)
+	webhookPort, metricsPort := ports[0], ports[1]
 	certPath, keyPath := writeTestCert(t)
 
 	done := make(chan error, 1)
@@ -87,12 +87,24 @@ func TestMain_OperatorComesUp(t *testing.T) {
 	}
 }
 
-func freePort(t *testing.T) int {
+// freePorts returns n distinct free TCP ports. All listeners are held open
+// simultaneously so the kernel hands out distinct ports, then closed before
+// returning. There is still a small window before the caller binds them, but
+// the ports are guaranteed not to collide with each other.
+func freePorts(t *testing.T, n int) []int {
 	t.Helper()
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	defer func() { _ = l.Close() }()
-	return l.Addr().(*net.TCPAddr).Port
+	listeners := make([]net.Listener, 0, n)
+	ports := make([]int, 0, n)
+	for i := 0; i < n; i++ {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		listeners = append(listeners, l)
+		ports = append(ports, l.Addr().(*net.TCPAddr).Port)
+	}
+	for _, l := range listeners {
+		_ = l.Close()
+	}
+	return ports
 }
 
 func writeTestCert(t *testing.T) (certPath, keyPath string) {
