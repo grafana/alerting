@@ -553,3 +553,51 @@ func TestToHTTPClientOption(t *testing.T) {
 	// You need to increase the number of fields covered in this test, if you add a new field to the configuration struct.
 	require.Equalf(t, 3, tp.NumField(), "Not all fields are converted to HTTPClientOption, which means that the configuration will not be supported in upstream integrations")
 }
+
+func TestRedactError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{
+			name: "nil error returns empty string",
+			err:  nil,
+			want: "",
+		},
+		{
+			name: "url.Error redacts the whole URL, incl. path token",
+			err:  &url.Error{Op: "Post", URL: "https://hooks.slack.com/services/T00/B00/XXXXTOKEN", Err: errors.New("dial tcp: i/o timeout")},
+			want: `Post "<redacted>": dial tcp: i/o timeout`,
+		},
+		{
+			name: "wrapped url.Error is redacted and keeps outer context",
+			err:  fmt.Errorf("send failed: %w", &url.Error{Op: "Post", URL: "https://secret.example.com/x", Err: errors.New("EOF")}),
+			want: `send failed: Post "<redacted>": EOF`,
+		},
+		{
+			name: "non-url error passes through unchanged",
+			err:  errors.New("connection refused"),
+			want: "connection refused",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, RedactError(tc.err))
+		})
+	}
+}
+
+// TestRedactError_DoesNotMutate guards against regressing to a mutating
+// implementation: the notification error is shared with concurrent readers, so
+// RedactError must not modify the underlying *url.Error in place.
+func TestRedactError_DoesNotMutate(t *testing.T) {
+	const original = "https://hooks.slack.com/services/T00/B00/XXXXTOKEN"
+	ue := &url.Error{Op: "Post", URL: original, Err: errors.New("EOF")}
+
+	got := RedactError(ue)
+
+	assert.Equal(t, `Post "<redacted>": EOF`, got)
+	assert.Equal(t, original, ue.URL, "RedactError must not mutate the shared *url.Error")
+}

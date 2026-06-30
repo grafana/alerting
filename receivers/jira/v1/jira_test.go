@@ -487,7 +487,7 @@ func TestGetSearchJql(t *testing.T) {
 				Project: "TEST",
 			},
 			firing:      false,
-			expectedJql: `labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
+			expectedJql: `statusCategory != Done and labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 		{
 			name: "resolved and reopen duration specified",
@@ -505,7 +505,7 @@ func TestGetSearchJql(t *testing.T) {
 				WontFixResolution: "won't fix",
 			},
 			firing:      false,
-			expectedJql: `resolution != "won't fix" and labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
+			expectedJql: `resolution != "won't fix" and statusCategory != Done and labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 		{
 			name: "resolved and custom dedup key field",
@@ -514,7 +514,7 @@ func TestGetSearchJql(t *testing.T) {
 				DedupKeyFieldName: "12345",
 			},
 			firing:      false,
-			expectedJql: `(labels = "ALERT{group1}" or cf[12345] ~ "group1") and project="TEST" order by status ASC,resolutiondate DESC`,
+			expectedJql: `statusCategory != Done and (labels = "ALERT{group1}" or cf[12345] ~ "group1") and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 	}
 
