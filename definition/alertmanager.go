@@ -313,7 +313,7 @@ func (c *PostableApiAlertingConfig) Validate() error {
 		}
 	}
 
-	return ValidateAlertmanagerConfig(c)
+	return nil
 }
 
 // AllReceivers will recursively walk a routing tree and return a list of all the
