@@ -129,7 +129,13 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 		level.Warn(l).Log("msg", "Truncated content", "key", key, "max_runes", discordMaxMessageLen)
 		messageContent = truncatedMsg
 	}
-	msg.Content = ""
+	// Discord only delivers @mention notifications from the top-level content field, not from embed
+	// fields, so moving the message into the embed description is opt-in via UseEmbedDescription.
+	if d.settings.UseEmbedDescription {
+		msg.Content = ""
+	} else {
+		msg.Content = messageContent
+	}
 
 	if d.settings.AvatarURL != "" {
 		msg.AvatarURL = tmpl(d.settings.AvatarURL)
@@ -158,7 +164,9 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 		level.Warn(l).Log("msg", "Truncated title", "key", key, "max_runes", discordMaxTitleLen)
 	}
 
-	linkEmbed.Description = messageContent
+	if d.settings.UseEmbedDescription {
+		linkEmbed.Description = messageContent
+	}
 	linkEmbed.Footer = footer
 	linkEmbed.Type = discordRichEmbed
 

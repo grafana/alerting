@@ -61,10 +61,9 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "",
+				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				"embeds": []interface{}{map[string]interface{}{
-					"color":       1.4037554e+07,
-					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					"color": 1.4037554e+07,
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -95,10 +94,9 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "",
+				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				"embeds": []interface{}{map[string]interface{}{
-					"color":       1.4037554e+07,
-					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					"color": 1.4037554e+07,
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -129,10 +127,9 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]any{
-				"content": "",
+				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				"embeds": []any{map[string]any{
-					"color":       1.4037554e+07,
-					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					"color": 1.4037554e+07,
 					"footer": map[string]any{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -164,10 +161,9 @@ func TestNotify(t *testing.T) {
 			},
 			expMsg: map[string]interface{}{
 				"avatar_url": "https://grafana.com/static/assets/img/fav32.png",
-				"content":    "",
+				"content":    "I'm a custom template ",
 				"embeds": []interface{}{map[string]interface{}{
-					"color":       1.4037554e+07,
-					"description": "I'm a custom template ",
+					"color": 1.4037554e+07,
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -233,10 +229,9 @@ func TestNotify(t *testing.T) {
 			},
 			expMsg: map[string]interface{}{
 				"avatar_url": "{{ invalid } }}",
-				"content":    "",
+				"content":    "valid message",
 				"embeds": []interface{}{map[string]interface{}{
-					"color":       1.4037554e+07,
-					"description": "valid message",
+					"color": 1.4037554e+07,
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -268,10 +263,9 @@ func TestNotify(t *testing.T) {
 			},
 			expMsg: map[string]interface{}{
 				"avatar_url": "https://grafana.com/static/assets/img/fav32.png",
-				"content":    "",
+				"content":    "valid message",
 				"embeds": []interface{}{map[string]interface{}{
-					"color":       1.4037554e+07,
-					"description": "valid message",
+					"color": 1.4037554e+07,
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -308,10 +302,9 @@ func TestNotify(t *testing.T) {
 			},
 			expMsg: map[string]interface{}{
 				"avatar_url": "https://grafana.com/static/assets/img/fav32.png",
-				"content":    "",
+				"content":    "2 alerts are firing, 0 are resolved",
 				"embeds": []interface{}{map[string]interface{}{
-					"color":       1.4037554e+07,
-					"description": "2 alerts are firing, 0 are resolved",
+					"color": 1.4037554e+07,
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -342,10 +335,9 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "",
+				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				"embeds": []interface{}{map[string]interface{}{
-					"color":       1.4037554e+07,
-					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					"color": 1.4037554e+07,
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -365,6 +357,74 @@ func TestNotify(t *testing.T) {
 				AvatarURL:          "",
 				WebhookURL:         "http://localhost",
 				UseDiscordUsername: true,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"content": strings.Repeat("Y", discordMaxMessageLen-1) + "…",
+				"embeds": []interface{}{map[string]interface{}{
+					"color": 1.4037554e+07,
+					"footer": map[string]interface{}{
+						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+						"text":     "Grafana v" + appVersion,
+					},
+					"title": "[FIRING:1]  (val1)",
+					"url":   "http://localhost/alerting/list",
+					"type":  "rich",
+				}},
+			},
+			expMsgError: nil,
+		},
+		{
+			name: "UseEmbedDescription moves the message into the embed",
+			settings: Config{
+				Title:               templates.DefaultMessageTitleEmbed,
+				Message:             templates.DefaultMessageEmbed,
+				AvatarURL:           "",
+				WebhookURL:          "http://localhost",
+				UseDiscordUsername:  false,
+				UseEmbedDescription: true,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"content": "",
+				"embeds": []interface{}{map[string]interface{}{
+					"color":       1.4037554e+07,
+					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					"footer": map[string]interface{}{
+						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+						"text":     "Grafana v" + appVersion,
+					},
+					"title": "[FIRING:1]  (val1)",
+					"url":   "http://localhost/alerting/list",
+					"type":  "rich",
+				}},
+				"username": "Grafana",
+			},
+			expMsgError: nil,
+		},
+		{
+			name: "UseEmbedDescription still truncates too long messages",
+			settings: Config{
+				Title:               templates.DefaultMessageTitleEmbed,
+				Message:             strings.Repeat("Y", discordMaxMessageLen+rand.Intn(100)+1),
+				AvatarURL:           "",
+				WebhookURL:          "http://localhost",
+				UseDiscordUsername:  true,
+				UseEmbedDescription: true,
 			},
 			alerts: []*types.Alert{
 				{
@@ -480,10 +540,9 @@ func TestNotify_WithImages(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "",
+				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				"embeds": []interface{}{map[string]interface{}{
-					"color":       1.4037554e+07,
-					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					"color": 1.4037554e+07,
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -521,10 +580,9 @@ func TestNotify_WithImages(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "",
+				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
 				"embeds": []interface{}{map[string]interface{}{
-					"color":       1.4037554e+07,
-					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					"color": 1.4037554e+07,
 					"footer": map[string]interface{}{
 						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 						"text":     "Grafana v" + appVersion,
@@ -570,11 +628,7 @@ func TestNotify_WithImages(t *testing.T) {
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "",
-				"embeds": []interface{}{
-					map[string]interface{}{
-						"color": 1.4037554e+07,
-						"description": `**Firing**
+				"content": `**Firing**
 
 Value: [no value]
 Labels:
@@ -593,6 +647,9 @@ Labels:
 Annotations:
 Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1
 `,
+				"embeds": []interface{}{
+					map[string]interface{}{
+						"color": 1.4037554e+07,
 						"footer": map[string]interface{}{
 							"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 							"text":     "Grafana v" + appVersion,
@@ -637,11 +694,7 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "",
-				"embeds": []interface{}{
-					map[string]interface{}{
-						"color": 1.4037554e+07,
-						"description": `**Firing**
+				"content": `**Firing**
 
 Value: [no value]
 Labels:
@@ -658,6 +711,9 @@ Labels:
 Annotations:
 Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert2&matcher=lbl1%3Dval2
 `,
+				"embeds": []interface{}{
+					map[string]interface{}{
+						"color": 1.4037554e+07,
 						"footer": map[string]interface{}{
 							"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 							"text":     "Grafana v" + appVersion,
@@ -703,11 +759,10 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 				},
 			},
 			expMsg: map[string]interface{}{
-				"content": "",
+				"content": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = " + strings.Repeat("B", discordMaxTitleLen+1) + "\n - lbl1 = val1\nAnnotations:\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3D" + strings.Repeat("B", discordMaxTitleLen+1) + "&matcher=lbl1%3Dval1\n",
 				"embeds": []interface{}{
 					map[string]interface{}{
-						"color":       1.4037554e+07,
-						"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = " + strings.Repeat("B", discordMaxTitleLen+1) + "\n - lbl1 = val1\nAnnotations:\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3D" + strings.Repeat("B", discordMaxTitleLen+1) + "&matcher=lbl1%3Dval1\n",
+						"color": 1.4037554e+07,
 						"footer": map[string]interface{}{
 							"icon_url": "https://grafana.com/static/assets/img/fav32.png",
 							"text":     "Grafana v" + appVersion,
@@ -868,15 +923,6 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 		embeds, ok := payloadMap["embeds"]
 		require.True(tt, ok)
 		require.Len(tt, embeds, 10)
-
-		// The message content (verified separately in TestNotify) now lives in the first embed's
-		// description; copy it over so this test can focus on the embed quota logic.
-		firstEmbed, ok := embeds.([]interface{})[0].(map[string]interface{})
-		require.True(tt, ok)
-		description, ok := firstEmbed["description"]
-		require.True(tt, ok)
-		expEmbeds[0].(map[string]interface{})["description"] = description
-
 		require.Equal(tt, expEmbeds, embeds)
 	})
 }
