@@ -24,6 +24,12 @@ type LokiConfig struct {
 type NotificationConfig struct {
 	Enabled bool
 	Loki    LokiConfig
+	// RBACEnabled restricts notification history results to the alert rules the
+	// requesting user is allowed to access. When enabled, the app lists accessible
+	// rules via the Kubernetes rules API (which enforces RBAC) and filters results
+	// to those rules. It requires the app to be able to reach the rules API using
+	// the request identity (e.g. Grafana's in-process loopback config).
+	RBACEnabled bool
 }
 
 type RuntimeConfig struct {
@@ -33,6 +39,7 @@ type RuntimeConfig struct {
 
 func (n *NotificationConfig) AddFlagsWithPrefix(prefix string, flags *pflag.FlagSet) {
 	flags.BoolVar(&n.Enabled, prefix+".enabled", false, "Enable notification query endpoints")
+	flags.BoolVar(&n.RBACEnabled, prefix+".rbac-enabled", false, "Restrict notification history to the alert rules the requesting user can access")
 	addLokiFlags(&n.Loki.LokiConfig, prefix+".loki", flags)
 }
 
