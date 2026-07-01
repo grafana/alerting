@@ -42,7 +42,7 @@ type discordMessage struct {
 	Embeds    []discordLinkEmbed `json:"embeds,omitempty"`
 }
 
-// discordLinkEmbed implements https://discord.com/developers/docs/resources/channel#embed-object
+// discordLinkEmbed implements https://discord.com/developers/docs/resources/message#embed-object-embed-structure
 type discordLinkEmbed struct {
 	Title       string           `json:"title,omitempty"`
 	Type        discordEmbedType `json:"type,omitempty"`
