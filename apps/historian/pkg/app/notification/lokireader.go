@@ -80,7 +80,15 @@ func NewLokiReader(cfg config.LokiConfig, reg prometheus.Registerer, logger logg
 // When query.Labels is set, a two-phase cross-stream lookup is performed:
 // first the alerts stream is queried for matching labels to collect UUIDs,
 // then the notifications stream is filtered by those UUIDs.
-func (h *LokiReader) Query(ctx context.Context, query Query) (QueryResult, error) {
+//
+// filter, when non-nil, restricts results to the alert rule UIDs the caller can
+// access (RBAC). A nil filter disables RBAC filtering.
+func (h *LokiReader) Query(ctx context.Context, query Query, filter *ruleFilter) (QueryResult, error) {
+	// RBAC: if the caller can access no rules, there is nothing to return.
+	if filter != nil && filter.empty() {
+		return QueryResult{Entries: []Entry{}, Counts: []Count{}}, nil
+	}
+
 	now := time.Now().UTC()
 	from := now.Add(-defaultQueryRange)
 	if query.From != nil {
@@ -103,7 +111,7 @@ func (h *LokiReader) Query(ctx context.Context, query Query) (QueryResult, error
 	// Phase 1: If labels are specified, query the alerts stream to collect matching UUIDs.
 	var labelUUIDs []string
 	if query.Labels != nil && len(*query.Labels) > 0 {
-		alertLogql, err := buildAlertLabelQuery(query.RuleUID, *query.Labels)
+		alertLogql, err := buildAlertLabelQuery(query.RuleUID, *query.Labels, filter)
 		if err != nil {
 			return QueryResult{}, err
 		}
@@ -118,7 +126,7 @@ func (h *LokiReader) Query(ctx context.Context, query Query) (QueryResult, error
 	}
 
 	// Phase 2: Build and run the notifications query, optionally filtered by UUIDs.
-	logql, err := buildQuery(query, labelUUIDs)
+	logql, err := buildQuery(query, labelUUIDs, filter)
 	if err != nil {
 		return QueryResult{}, err
 	}
@@ -143,7 +151,7 @@ func (h *LokiReader) Query(ctx context.Context, query Query) (QueryResult, error
 		if query.GroupBy != nil {
 			groupBy = *query.GroupBy
 		}
-		counts, err := h.runMetricsQuery(ctx, logql, from, to, limit, groupBy)
+		counts, err := h.runMetricsQuery(ctx, logql, from, to, limit, groupBy, filter)
 		if err != nil {
 			return QueryResult{}, err
 		}
@@ -173,8 +181,16 @@ func (h *LokiReader) Query(ctx context.Context, query Query) (QueryResult, error
 }
 
 // QueryAlerts retrieves individual alert entries from an external Loki instance.
-func (h *LokiReader) QueryAlerts(ctx context.Context, query AlertQuery) (AlertQueryResult, error) {
-	logql, err := buildAlertQuery(query)
+//
+// filter, when non-nil, restricts results to the alert rule UIDs the caller can
+// access (RBAC). A nil filter disables RBAC filtering.
+func (h *LokiReader) QueryAlerts(ctx context.Context, query AlertQuery, filter *ruleFilter) (AlertQueryResult, error) {
+	// RBAC: if the caller can access no rules, there is nothing to return.
+	if filter != nil && filter.empty() {
+		return AlertQueryResult{Alerts: []AlertEntry{}}, nil
+	}
+
+	logql, err := buildAlertQuery(query, filter)
 	if err != nil {
 		return AlertQueryResult{}, err
 	}
@@ -271,7 +287,7 @@ func buildMetricsRangeQuery(logqlInner string, step time.Duration, groupBy Query
 
 // runMetricsQuery executes a sum(count_over_time(...)) instant query against Loki and
 // converts the metric samples into Count values.
-func (h *LokiReader) runMetricsQuery(ctx context.Context, logqlInner string, from, to time.Time, limit int64, groupBy QueryGroupBy) ([]Count, error) {
+func (h *LokiReader) runMetricsQuery(ctx context.Context, logqlInner string, from, to time.Time, limit int64, groupBy QueryGroupBy, filter *ruleFilter) ([]Count, error) {
 	logql := buildMetricsQuery(logqlInner, from, to, limit, groupBy)
 
 	res, err := h.client.MetricsQuery(ctx, logql, to.UnixNano(), limit)
@@ -292,7 +308,7 @@ func (h *LokiReader) runMetricsQuery(ctx context.Context, logqlInner string, fro
 	// When grouping by RuleUID, explode the comma-separated rule_uids into
 	// individual counts, aggregate, and apply client-side topk.
 	if groupBy.RuleUID {
-		counts = explodeRuleUIDCounts(counts, limit)
+		counts = explodeRuleUIDCounts(counts, limit, filter)
 	}
 
 	// Sort counts by count (highest first).
@@ -306,7 +322,7 @@ func (h *LokiReader) runMetricsQuery(ctx context.Context, logqlInner string, fro
 // explodeRuleUIDCounts splits counts with comma-separated rule_uids into individual
 // counts per rule UID, aggregates (sums) counts sharing the same (ruleUID + other groupBy
 // dimensions) key, sorts by count descending, and applies the limit (client-side topk).
-func explodeRuleUIDCounts(counts []Count, limit int64) []Count {
+func explodeRuleUIDCounts(counts []Count, limit int64, filter *ruleFilter) []Count {
 	aggregated := make(map[string]*Count)
 
 	key := func(c Count) string {
@@ -322,6 +338,12 @@ func explodeRuleUIDCounts(counts []Count, limit int64) []Count {
 			ruleUIDs = strings.Split(*c.RuleUID, ",")
 		}
 		for _, uid := range ruleUIDs {
+			// RBAC: never emit a per-rule count for a rule the caller cannot access.
+			// A notification may reference several rules (comma-separated), only some
+			// of which are accessible; drop the inaccessible ones here.
+			if filter != nil && uid != "" && !filter.access.Has(uid) {
+				continue
+			}
 			entry := c
 			uidCopy := uid
 			entry.RuleUID = &uidCopy
@@ -471,7 +493,8 @@ func parseCountLabels(m map[string]string) (Count, error) {
 }
 
 // buildAlertQuery creates the LogQL to perform the requested alert query.
-func buildAlertQuery(query AlertQuery) (string, error) {
+// When filter is non-nil, an RBAC matcher restricts results to accessible rule UIDs.
+func buildAlertQuery(query AlertQuery, filter *ruleFilter) (string, error) {
 	selectors := []string{
 		fmt.Sprintf(`%s=%q`, historian.LabelFrom, historian.LabelFromValueAlerts),
 	}
@@ -482,6 +505,9 @@ func buildAlertQuery(query AlertQuery) (string, error) {
 	if query.Uuid != nil && *query.Uuid != "" {
 		logql += fmt.Sprintf(` | uuid = %q`, *query.Uuid)
 	}
+
+	// RBAC: restrict to accessible rules using the single-valued rule_uid metadata.
+	logql += buildAlertRuleUIDFilter(filter)
 
 	logql += ` | json`
 
@@ -553,7 +579,7 @@ func parseLokiAlertEntry(s lokiclient.Sample) (AlertEntry, error) {
 // When ruleUID is provided, a structured metadata filter is added before JSON parsing
 // so Loki can discard non-matching entries without deserializing the log line.
 // After | json, Loki flattens nested label keys so labels.alertname becomes labels_alertname.
-func buildAlertLabelQuery(ruleUID *string, labels Matchers) (string, error) {
+func buildAlertLabelQuery(ruleUID *string, labels Matchers, filter *ruleFilter) (string, error) {
 	logql := fmt.Sprintf(`{%s=%q}`, historian.LabelFrom, historian.LabelFromValueAlerts)
 
 	if ruleUID != nil && *ruleUID != "" {
@@ -562,6 +588,9 @@ func buildAlertLabelQuery(ruleUID *string, labels Matchers) (string, error) {
 		}
 		logql += fmt.Sprintf(` | rule_uid = %q`, *ruleUID)
 	}
+
+	// RBAC: restrict to accessible rules using the single-valued rule_uid metadata.
+	logql += buildAlertRuleUIDFilter(filter)
 
 	logql += ` | json`
 	for _, matcher := range labels {
@@ -603,10 +632,40 @@ func (l *LokiReader) runAlertUUIDQuery(ctx context.Context, logql string, from, 
 	return uuids, nil
 }
 
+// buildNotificationRuleUIDsFilter returns a LogQL structured-metadata matcher that
+// keeps only notifications referencing at least one of the accessible rule UIDs.
+// The notifications stream stores rule_uids as a comma-separated list, so each UID
+// is anchored to a comma or the start/end of the value. It returns an empty string
+// when filter is nil (RBAC disabled).
+func buildNotificationRuleUIDsFilter(filter *ruleFilter) string {
+	if filter == nil || len(filter.uids) == 0 {
+		return ""
+	}
+	escaped := make([]string, len(filter.uids))
+	for i, uid := range filter.uids {
+		escaped[i] = regexp.QuoteMeta(uid)
+	}
+	return fmt.Sprintf(` | rule_uids =~ "(^|.*,)(%s)($|,.*)"`, strings.Join(escaped, "|"))
+}
+
+// buildAlertRuleUIDFilter returns a LogQL structured-metadata matcher that keeps
+// only alerts belonging to one of the accessible rule UIDs. The alerts stream stores
+// a single rule_uid per entry. It returns an empty string when filter is nil.
+func buildAlertRuleUIDFilter(filter *ruleFilter) string {
+	if filter == nil || len(filter.uids) == 0 {
+		return ""
+	}
+	escaped := make([]string, len(filter.uids))
+	for i, uid := range filter.uids {
+		escaped[i] = regexp.QuoteMeta(uid)
+	}
+	return fmt.Sprintf(` | rule_uid =~ "^(%s)$"`, strings.Join(escaped, "|"))
+}
+
 // buildQuery creates the LogQL to perform the requested query.
 // If uuids is non-empty, an additional filter is added after | json to match
 // only notifications with one of the given UUIDs.
-func buildQuery(query Query, uuids []string) (string, error) {
+func buildQuery(query Query, uuids []string, filter *ruleFilter) (string, error) {
 	selectors := []string{
 		fmt.Sprintf(`%s=%q`, historian.LabelFrom, historian.LabelFromValue),
 	}
@@ -623,6 +682,10 @@ func buildQuery(query Query, uuids []string) (string, error) {
 		}
 		logql += fmt.Sprintf(` | rule_uids =~ "(^|.*,)%s($|,.*)"`, *query.RuleUID)
 	}
+
+	// RBAC: restrict to notifications referencing at least one accessible rule,
+	// using the comma-separated rule_uids structured metadata.
+	logql += buildNotificationRuleUIDsFilter(filter)
 
 	// Receiver filtering can be done entirely using structured metadata fields.
 	if query.Receiver != nil && *query.Receiver != "" {

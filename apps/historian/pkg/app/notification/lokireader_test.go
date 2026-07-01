@@ -112,7 +112,7 @@ func TestLokiReader_Query(t *testing.T) {
 				logger: &logging.NoOpLogger{},
 			}
 
-			result, err := reader.Query(context.Background(), tt.query)
+			result, err := reader.Query(context.Background(), tt.query, nil)
 			if tt.experr != nil {
 				assert.ErrorIs(t, err, ErrInvalidQuery)
 				return
@@ -284,7 +284,7 @@ func TestBuildQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := buildQuery(tt.query, tt.uuids)
+			result, err := buildQuery(tt.query, tt.uuids, nil)
 			if tt.experr != nil {
 				require.ErrorIs(t, err, tt.experr)
 			} else {
@@ -610,7 +610,7 @@ func TestLokiReader_QueryAlerts(t *testing.T) {
 				logger: &logging.NoOpLogger{},
 			}
 
-			result, err := reader.QueryAlerts(context.Background(), tt.query)
+			result, err := reader.QueryAlerts(context.Background(), tt.query, nil)
 			if tt.experr != nil {
 				assert.Error(t, err)
 				return
@@ -654,7 +654,7 @@ func TestBuildAlertQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := buildAlertQuery(tt.query)
+			result, err := buildAlertQuery(tt.query, nil)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -729,7 +729,7 @@ func TestBuildAlertLabelQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := buildAlertLabelQuery(tt.ruleUID, tt.labels)
+			result, err := buildAlertLabelQuery(tt.ruleUID, tt.labels, nil)
 			if tt.experr != nil {
 				require.ErrorIs(t, err, tt.experr)
 			} else {
@@ -799,7 +799,7 @@ func TestLokiReader_QueryWithLabels(t *testing.T) {
 		labels := Matchers{{Type: "=", Label: "alertname", Value: "HighCPU"}}
 		result, err := reader.Query(context.Background(), Query{
 			Labels: &labels,
-		})
+		}, nil)
 
 		require.NoError(t, err)
 		assert.Len(t, result.Entries, 1)
@@ -825,7 +825,7 @@ func TestLokiReader_QueryWithLabels(t *testing.T) {
 		labels := Matchers{{Type: "=", Label: "alertname", Value: "NonExistent"}}
 		result, err := reader.Query(context.Background(), Query{
 			Labels: &labels,
-		})
+		}, nil)
 
 		require.NoError(t, err)
 		assert.Empty(t, result.Entries)
@@ -1048,7 +1048,7 @@ func TestLokiReader_Query_Counts(t *testing.T) {
 				logger: &logging.NoOpLogger{},
 			}
 
-			result, err := reader.Query(context.Background(), tt.query)
+			result, err := reader.Query(context.Background(), tt.query, nil)
 			if tt.experr != nil {
 				assert.Error(t, err)
 				return
@@ -1353,7 +1353,7 @@ func TestLokiReader_Query_RangeCounts(t *testing.T) {
 				logger: &logging.NoOpLogger{},
 			}
 
-			result, err := reader.Query(context.Background(), tt.query)
+			result, err := reader.Query(context.Background(), tt.query, nil)
 			if tt.experr {
 				assert.Error(t, err)
 				return
@@ -1701,7 +1701,7 @@ func TestExplodeRuleUIDCounts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := explodeRuleUIDCounts(tt.counts, tt.limit)
+			got := explodeRuleUIDCounts(tt.counts, tt.limit, nil)
 			require.Len(t, got, len(tt.want))
 			// Sort tied counts by ruleUID for deterministic comparison.
 			sort.SliceStable(got, func(i, j int) bool {
