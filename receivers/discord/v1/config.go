@@ -13,11 +13,12 @@ import (
 const Version = schema.V1
 
 type Config struct {
-	Title              string `json:"title,omitempty" yaml:"title,omitempty"`
-	Message            string `json:"message,omitempty" yaml:"message,omitempty"`
-	AvatarURL          string `json:"avatar_url,omitempty" yaml:"avatar_url,omitempty"`
-	WebhookURL         string `json:"url,omitempty" yaml:"url,omitempty"`
-	UseDiscordUsername bool   `json:"use_discord_username,omitempty" yaml:"use_discord_username,omitempty"`
+	Title               string `json:"title,omitempty" yaml:"title,omitempty"`
+	Message             string `json:"message,omitempty" yaml:"message,omitempty"`
+	AvatarURL           string `json:"avatar_url,omitempty" yaml:"avatar_url,omitempty"`
+	WebhookURL          string `json:"url,omitempty" yaml:"url,omitempty"`
+	UseDiscordUsername  bool   `json:"use_discord_username,omitempty" yaml:"use_discord_username,omitempty"`
+	UseEmbedDescription bool   `json:"use_embed_description,omitempty" yaml:"use_embed_description,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
@@ -80,6 +81,12 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			Description:  "Use the username configured in Discord's webhook settings. Otherwise, the username will be 'Grafana'",
 			Element:      schema.ElementTypeCheckbox,
 			PropertyName: "use_discord_username",
+		},
+		{
+			Label:        "Show Message in Embed",
+			Description:  "Show the message inside the embed instead of above it. Note: mentions (@ or <@ID>) in the message will not trigger Discord notifications when this is enabled, as Discord only pings for mentions in the main message content.",
+			Element:      schema.ElementTypeCheckbox,
+			PropertyName: "use_embed_description",
 		},
 	},
 })
