@@ -381,6 +381,75 @@ func TestNotify(t *testing.T) {
 			},
 			expMsgError: nil,
 		},
+		{
+			name: "UseEmbedDescription moves the message into the embed",
+			settings: Config{
+				Title:               templates.DefaultMessageTitleEmbed,
+				Message:             templates.DefaultMessageEmbed,
+				AvatarURL:           "",
+				WebhookURL:          "http://localhost",
+				UseDiscordUsername:  false,
+				UseEmbedDescription: true,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"content": "",
+				"embeds": []interface{}{map[string]interface{}{
+					"color":       1.4037554e+07,
+					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					"footer": map[string]interface{}{
+						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+						"text":     "Grafana v" + appVersion,
+					},
+					"title": "[FIRING:1]  (val1)",
+					"url":   "http://localhost/alerting/list",
+					"type":  "rich",
+				}},
+				"username": "Grafana",
+			},
+			expMsgError: nil,
+		},
+		{
+			name: "UseEmbedDescription still truncates too long messages",
+			settings: Config{
+				Title:               templates.DefaultMessageTitleEmbed,
+				Message:             strings.Repeat("Y", discordMaxMessageLen+rand.Intn(100)+1),
+				AvatarURL:           "",
+				WebhookURL:          "http://localhost",
+				UseDiscordUsername:  true,
+				UseEmbedDescription: true,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"content": "",
+				"embeds": []interface{}{map[string]interface{}{
+					"color":       1.4037554e+07,
+					"description": strings.Repeat("Y", discordMaxMessageLen-1) + "…",
+					"footer": map[string]interface{}{
+						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+						"text":     "Grafana v" + appVersion,
+					},
+					"title": "[FIRING:1]  (val1)",
+					"url":   "http://localhost/alerting/list",
+					"type":  "rich",
+				}},
+			},
+			expMsgError: nil,
+		},
 	}
 
 	for _, c := range cases {
