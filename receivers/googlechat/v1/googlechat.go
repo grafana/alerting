@@ -50,9 +50,11 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, gcn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, gcn.tmpl, as, l, &tmplErr)
 
 	var widgets []widget
+
+	receivers.ApplyExtraData(ctx, data.Alerts)
 
 	if msg := tmpl(gcn.settings.Message); msg != "" {
 		// Add a text paragraph widget for the message if there is a message.
