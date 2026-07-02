@@ -1725,6 +1725,121 @@ func TestExplodeRuleUIDCounts(t *testing.T) {
 	}
 }
 
+func TestExplodeRuleUIDRangeCounts(t *testing.T) {
+	rv := func(ts, count int64) RangeValue { return RangeValue{Timestamp: ts, Count: count} }
+
+	tests := []struct {
+		name   string
+		counts []Count
+		limit  int64
+		filter *ruleFilter
+		want   []Count
+	}{
+		{
+			name:   "empty input",
+			counts: []Count{},
+			limit:  10,
+			want:   []Count{},
+		},
+		{
+			name: "single rule_uid no splitting needed",
+			counts: []Count{
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 2), rv(2, 3)}},
+			},
+			limit: 10,
+			want: []Count{
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 2), rv(2, 3)}},
+			},
+		},
+		{
+			name: "comma-separated rule_uids duplicate the series per rule",
+			counts: []Count{
+				{RuleUID: stringPtr("ruleA,ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+			},
+			limit: 10,
+			want: []Count{
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+				{RuleUID: stringPtr("ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+			},
+		},
+		{
+			name: "per-timestamp aggregation across series sharing a rule",
+			counts: []Count{
+				{RuleUID: stringPtr("ruleA,ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+				{RuleUID: stringPtr("ruleB,ruleC"), Values: []RangeValue{rv(2, 1), rv(3, 5)}},
+			},
+			limit: 10,
+			want: []Count{
+				{RuleUID: stringPtr("ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 7), rv(3, 5)}},
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+				{RuleUID: stringPtr("ruleC"), Values: []RangeValue{rv(2, 1), rv(3, 5)}},
+			},
+		},
+		{
+			name: "limit is applied after aggregation (topk by total)",
+			counts: []Count{
+				{RuleUID: stringPtr("ruleA,ruleB"), Values: []RangeValue{rv(1, 5)}},
+				{RuleUID: stringPtr("ruleB,ruleC"), Values: []RangeValue{rv(1, 5)}},
+			},
+			limit: 2,
+			want: []Count{
+				{RuleUID: stringPtr("ruleB"), Values: []RangeValue{rv(1, 10)}},
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 5)}},
+			},
+		},
+		{
+			name: "RBAC drops inaccessible co-referenced rules",
+			counts: []Count{
+				{RuleUID: stringPtr("ruleA,ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+			},
+			limit:  10,
+			filter: newRuleFilter(ruleUIDSet{"ruleA": {}}),
+			want: []Count{
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+			},
+		},
+	}
+
+	derefStr := func(p *string) string {
+		if p == nil {
+			return ""
+		}
+		return *p
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := explodeRuleUIDRangeCounts(tt.counts, tt.limit, tt.filter)
+			require.Len(t, got, len(tt.want))
+
+			sortByRule := func(cs []Count) {
+				sort.SliceStable(cs, func(i, j int) bool {
+					ti, tj := rangeTotal(cs[i].Values), rangeTotal(cs[j].Values)
+					if ti != tj {
+						return ti > tj
+					}
+					return derefStr(cs[i].RuleUID) < derefStr(cs[j].RuleUID)
+				})
+			}
+			sortByRule(got)
+			sortByRule(tt.want)
+
+			for i := range tt.want {
+				assert.Equal(t, derefStr(tt.want[i].RuleUID), derefStr(got[i].RuleUID), "index %d ruleUID", i)
+				assert.Equal(t, tt.want[i].Values, got[i].Values, "index %d values", i)
+			}
+		})
+	}
+}
+
+func rangeTotal(vs []RangeValue) int64 {
+	var sum int64
+	for _, v := range vs {
+		sum += v.Count
+	}
+	return sum
+}
+
 func countStatusPtr(s v0alpha1.CreateNotificationqueryNotificationStatus) *v0alpha1.CreateNotificationqueryNotificationStatus {
 	return &s
 }

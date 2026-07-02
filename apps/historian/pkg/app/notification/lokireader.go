@@ -168,7 +168,7 @@ func (h *LokiReader) Query(ctx context.Context, query Query, filter *ruleFilter)
 		if query.Step != nil && *query.Step > 0 {
 			step = time.Duration(*query.Step) * time.Second
 		}
-		rangeCounts, err := h.runMetricsRangeQuery(ctx, logql, from, to, limit, step, groupBy)
+		rangeCounts, err := h.runMetricsRangeQuery(ctx, logql, from, to, limit, step, groupBy, filter)
 		if err != nil {
 			return QueryResult{}, err
 		}
@@ -386,7 +386,7 @@ func defaultStep(from, to time.Time) time.Duration {
 
 // runMetricsRangeQuery executes a sum(count_over_time(...)) range query against Loki and
 // converts the metric matrix results into RangeCount values.
-func (h *LokiReader) runMetricsRangeQuery(ctx context.Context, logqlInner string, from, to time.Time, limit int64, step time.Duration, groupBy QueryGroupBy) ([]Count, error) {
+func (h *LokiReader) runMetricsRangeQuery(ctx context.Context, logqlInner string, from, to time.Time, limit int64, step time.Duration, groupBy QueryGroupBy, filter *ruleFilter) ([]Count, error) {
 	logql := buildMetricsRangeQuery(logqlInner, step, groupBy)
 
 	res, err := h.client.MetricsRangeQuery(ctx, logql, from.UnixNano(), to.UnixNano(), limit, int64(step.Seconds()))
@@ -404,7 +404,99 @@ func (h *LokiReader) runMetricsRangeQuery(ctx context.Context, logqlInner string
 		rangeCounts = append(rangeCounts, rangeCount)
 	}
 
+	// When grouping by RuleUID, explode the comma-separated rule_uids into
+	// individual time series, drop rules the caller cannot access, aggregate the
+	// per-timestamp values, and apply client-side topk. This mirrors the instant
+	// counts path (explodeRuleUIDCounts); without it the raw rule_uids label would
+	// expose inaccessible UIDs and undivided combined counts.
+	if groupBy.RuleUID {
+		rangeCounts = explodeRuleUIDRangeCounts(rangeCounts, limit, filter)
+	}
+
 	return rangeCounts, nil
+}
+
+// explodeRuleUIDRangeCounts splits range counts with comma-separated rule_uids into
+// individual time series per rule UID, drops rule UIDs the caller cannot access
+// (RBAC), aggregates (sums) the per-timestamp values of series sharing the same
+// (ruleUID + other groupBy dimensions) key, sorts by total count descending, and
+// applies the limit (client-side topk). It is the range-query counterpart of
+// explodeRuleUIDCounts.
+func explodeRuleUIDRangeCounts(counts []Count, limit int64, filter *ruleFilter) []Count {
+	type aggregate struct {
+		count  Count
+		values map[int64]int64
+	}
+	aggregated := make(map[string]*aggregate)
+
+	key := func(c Count) string {
+		c0 := c
+		c0.Count = 0
+		c0.Values = nil
+		b, _ := json.Marshal(c0)
+		return string(b)
+	}
+
+	for _, c := range counts {
+		ruleUIDs := []string{""}
+		if c.RuleUID != nil && *c.RuleUID != "" {
+			ruleUIDs = strings.Split(*c.RuleUID, ",")
+		}
+		for _, uid := range ruleUIDs {
+			// RBAC: never emit a per-rule series for a rule the caller cannot access.
+			// A notification may reference several rules (comma-separated), only some
+			// of which are accessible; drop the inaccessible ones here.
+			if filter != nil && uid != "" && !filter.access.Has(uid) {
+				continue
+			}
+			entry := c
+			uidCopy := uid
+			entry.RuleUID = &uidCopy
+			k := key(entry)
+			agg, ok := aggregated[k]
+			if !ok {
+				agg = &aggregate{count: entry, values: make(map[int64]int64)}
+				aggregated[k] = agg
+			}
+			for _, v := range entry.Values {
+				agg.values[v.Timestamp] += v.Count
+			}
+		}
+	}
+
+	total := func(values []RangeValue) int64 {
+		var sum int64
+		for _, v := range values {
+			sum += v.Count
+		}
+		return sum
+	}
+
+	result := make([]Count, 0, len(aggregated))
+	for _, agg := range aggregated {
+		values := make([]RangeValue, 0, len(agg.values))
+		for ts, cnt := range agg.values {
+			values = append(values, RangeValue{Timestamp: ts, Count: cnt})
+		}
+		sort.Slice(values, func(i, j int) bool {
+			return values[i].Timestamp < values[j].Timestamp
+		})
+		c := agg.count
+		c.Values = values
+		result = append(result, c)
+	}
+
+	// Sort by total count descending (client-side topk).
+	sort.Slice(result, func(i, j int) bool {
+		return total(result[i].Values) > total(result[j].Values)
+	})
+
+	// Apply limit (client-side topk).
+	if int64(len(result)) > limit {
+		result = result[:limit]
+	}
+
+	return result
 }
 
 // parseRangeCount converts a single Loki MetricRangeSample into a Count.
