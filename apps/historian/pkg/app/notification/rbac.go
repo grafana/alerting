@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/grafana/grafana-app-sdk/k8s"
 	"github.com/grafana/grafana-app-sdk/logging"
@@ -75,6 +77,101 @@ func newRuleFilter(scope accessScope) *ruleFilter {
 // empty reports whether the caller can access nothing (no folder keys).
 func (f *ruleFilter) empty() bool {
 	return f == nil || len(f.folderKeys) == 0
+}
+
+// folderBatchReservedBytes is subtracted from the configured Loki max query size
+// when splitting the accessible folder set into batches. It leaves headroom for
+// the parts of the final query that are added around the folder push-down after
+// batching (e.g. the metric-query wrappers sum()/topk()/count_over_time() and
+// their range selectors), so a batch sized against the log filter still fits once
+// wrapped.
+const folderBatchReservedBytes = 1024
+
+// folderFilterSpec describes how to render an accessible-folder push-down for a
+// particular stream: the structured-metadata field plus the regex fragments that
+// wrap the alternation of folder UIDs. It lets the notifications stream (multi-
+// valued folder_uids) and the alerts stream (single-valued folder_uid) share the
+// same rendering and size-aware batching logic.
+type folderFilterSpec struct {
+	// label is the structured-metadata field the push-down matches against.
+	label string
+	// prefix is the regex emitted before the "a|b|c" folder alternation.
+	prefix string
+	// suffix is the regex emitted after the folder alternation.
+	suffix string
+}
+
+var (
+	// notificationFolderSpec matches notifications referencing at least one
+	// accessible folder. folder_uids is stored as a comma-separated list, so each
+	// UID is anchored to a comma or the start/end of the value.
+	notificationFolderSpec = folderFilterSpec{label: "folder_uids", prefix: "(^|.*,)(", suffix: ")($|,.*)"}
+	// alertFolderSpec matches alerts belonging to an accessible folder. The alerts
+	// stream stores a single folder_uid per entry.
+	alertFolderSpec = folderFilterSpec{label: "folder_uid", prefix: "^(", suffix: ")$"}
+)
+
+// render builds the LogQL folder push-down fragment (with its leading " | ") for
+// the given already-escaped folder keys. An empty key list yields the scaffolding
+// with an empty alternation, which is also how fixedLen measures per-fragment
+// overhead.
+func (s folderFilterSpec) render(escaped []string) string {
+	return fmt.Sprintf(` | %s =~ "%s%s%s"`, s.label, s.prefix, strings.Join(escaped, "|"), s.suffix)
+}
+
+// fixedLen is the byte cost of a fragment excluding the folder keys and their
+// separators (label, operator, quotes, prefix/suffix anchors).
+func (s folderFilterSpec) fixedLen() int {
+	return len(s.render(nil))
+}
+
+// splitFolderKeys splits folderKeys into batches whose rendered push-down
+// fragment, added to a query of overhead bytes, keeps each query within
+// maxQuerySize. Sizing accounts for regex escaping of each key. It mirrors the
+// batching in Grafana alert-state history's BuildLogQuery: a tenant with more
+// accessible folders than fit in one query is served by several batched queries
+// instead of having the query rejected by Loki.
+//
+// maxQuerySize <= 0 disables batching (all keys in a single batch). It returns
+// ErrInvalidQuery if a single folder key cannot fit even on its own, matching
+// state history's fail-fast behaviour rather than emitting a query Loki will
+// reject opaquely.
+func splitFolderKeys(folderKeys []string, spec folderFilterSpec, overhead, maxQuerySize int) ([][]string, error) {
+	if len(folderKeys) == 0 {
+		return [][]string{nil}, nil
+	}
+	if maxQuerySize <= 0 {
+		return [][]string{folderKeys}, nil
+	}
+
+	budget := maxQuerySize - folderBatchReservedBytes
+	// Per-fragment fixed cost: the surrounding query plus the fragment scaffolding
+	// (label, operator, anchors) with an empty alternation.
+	fixed := overhead + spec.fixedLen()
+
+	var batches [][]string
+	remaining := folderKeys
+	for len(remaining) > 0 {
+		cur := fixed
+		var batch []string
+		for len(remaining) > 0 {
+			add := len(regexp.QuoteMeta(remaining[0]))
+			if len(batch) > 0 {
+				add++ // '|' separator between alternatives
+			}
+			if cur+add > budget {
+				if len(batch) == 0 {
+					return nil, fmt.Errorf("%w: accessible folder %q is too large to query within the Loki max query size (%d bytes)", ErrInvalidQuery, remaining[0], maxQuerySize)
+				}
+				break
+			}
+			cur += add
+			batch = append(batch, remaining[0])
+			remaining = remaining[1:]
+		}
+		batches = append(batches, batch)
+	}
+	return batches, nil
 }
 
 // ruleUIDSet is a set of UIDs (rule or folder).

@@ -528,7 +528,7 @@ func TestLokiReader_RunQuery(t *testing.T) {
 		logger: &logging.NoOpLogger{},
 	}
 
-	entries, err := reader.runQuery(context.Background(), "test query", now.Add(-6*time.Hour), now, 1000, nil)
+	entries, err := reader.runQuery(context.Background(), []string{"test query"}, now.Add(-6*time.Hour), now, 1000, nil)
 	require.NoError(t, err)
 	require.Len(t, entries, 3)
 
