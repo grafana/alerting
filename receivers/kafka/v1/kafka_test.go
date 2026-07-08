@@ -418,56 +418,78 @@ func TestNotify_ExtraData(t *testing.T) {
 	require.NoError(t, err)
 	tmpl.ExternalURL = externalURL
 
-	settings := Config{
-		Endpoint:    "http://localhost",
-		Topic:       "sometopic",
-		Description: `{{ range $i, $a := .Alerts }}Alert {{ $i }}: {{ printf "%s" $a.ExtraData }} {{ end }}`,
-		APIVersion:  apiVersionV2,
-	}
-
-	// Create test alerts
-	alerts := []*types.Alert{
+	cases := []struct {
+		name     string
+		settings Config
+	}{
 		{
-			Alert: model.Alert{
-				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
-				Annotations: model.LabelSet{"ann1": "annv1"},
+			name: "API version v2",
+			settings: Config{
+				Endpoint:    "http://localhost",
+				Topic:       "sometopic",
+				Description: `{{ range $i, $a := .Alerts }}Alert {{ $i }}: {{ printf "%s" $a.ExtraData }} {{ end }}`,
+				APIVersion:  apiVersionV2,
 			},
 		},
 		{
-			Alert: model.Alert{
-				Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
-				Annotations: model.LabelSet{"ann1": "annv2"},
+			name: "API version v3",
+			settings: Config{
+				Endpoint:       "http://localhost:882",
+				Topic:          "myTopic",
+				Description:    `{{ range $i, $a := .Alerts }}Alert {{ $i }}: {{ printf "%s" $a.ExtraData }} {{ end }}`,
+				APIVersion:     apiVersionV3,
+				KafkaClusterID: "lkc-abcd",
 			},
 		},
 	}
 
-	// Create extra data that will be passed via context
-	extraData1 := json.RawMessage(`{"customField": "customValue1", "priority": "high"}`)
-	extraData2 := json.RawMessage(`{"customField": "customValue2", "priority": "medium"}`)
-	extraDataSlice := []json.RawMessage{extraData1, extraData2}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			// Create test alerts
+			alerts := []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+					},
+				},
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+						Annotations: model.LabelSet{"ann1": "annv2"},
+					},
+				},
+			}
 
-	webhookSender := receivers.MockNotificationService()
+			// Create extra data that will be passed via context
+			extraData1 := json.RawMessage(`{"customField": "customValue1", "priority": "high"}`)
+			extraData2 := json.RawMessage(`{"customField": "customValue2", "priority": "medium"}`)
+			extraDataSlice := []json.RawMessage{extraData1, extraData2}
 
-	pn := &Notifier{
-		Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
-		ns:       webhookSender,
-		tmpl:     tmpl,
-		settings: settings,
-		images:   &images2.UnavailableProvider{},
+			webhookSender := receivers.MockNotificationService()
+
+			pn := &Notifier{
+				Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+				ns:       webhookSender,
+				tmpl:     tmpl,
+				settings: c.settings,
+				images:   &images2.UnavailableProvider{},
+			}
+
+			// Create context with extra data
+			ctx := notify.WithGroupKey(context.Background(), "alertname")
+			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+			ctx = context.WithValue(ctx, receivers.ExtraDataKey, extraDataSlice)
+
+			// Call Notify
+			ok, err := pn.Notify(ctx, alerts...)
+			require.NoError(t, err)
+			require.True(t, ok)
+
+			// Verify that extra data is present in the request body (description field)
+			require.Contains(t, webhookSender.Webhook.Body, "customField")
+			require.Contains(t, webhookSender.Webhook.Body, "customValue1")
+			require.Contains(t, webhookSender.Webhook.Body, "customValue2")
+		})
 	}
-
-	// Create context with extra data
-	ctx := notify.WithGroupKey(context.Background(), "alertname")
-	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
-	ctx = context.WithValue(ctx, receivers.ExtraDataKey, extraDataSlice)
-
-	// Call Notify
-	ok, err := pn.Notify(ctx, alerts...)
-	require.NoError(t, err)
-	require.True(t, ok)
-
-	// Verify that extra data is present in the request body (description field)
-	require.Contains(t, webhookSender.Webhook.Body, "customField")
-	require.Contains(t, webhookSender.Webhook.Body, "customValue1")
-	require.Contains(t, webhookSender.Webhook.Body, "customValue2")
 }
