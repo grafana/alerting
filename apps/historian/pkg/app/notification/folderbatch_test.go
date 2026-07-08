@@ -2,6 +2,7 @@ package notification
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/grafana/grafana-app-sdk/logging"
 
+	"github.com/grafana/alerting/apps/historian/pkg/apis/alertinghistorian/v0alpha1"
 	"github.com/grafana/alerting/notify/historian"
 	"github.com/grafana/alerting/notify/historian/lokiclient"
 )
@@ -71,6 +73,13 @@ func TestSplitFolderKeys(t *testing.T) {
 	t.Run("a single folder that cannot fit is a hard error", func(t *testing.T) {
 		keys := []string{strings.Repeat("x", 5000)}
 		_, err := splitFolderKeys(keys, spec, 0, 2048)
+		require.ErrorIs(t, err, ErrInvalidQuery)
+	})
+
+	t.Run("a max query size too small for the query scaffolding is a config error", func(t *testing.T) {
+		// The budget (maxQuerySize - reserved) cannot even hold the fragment
+		// scaffolding, so no folder key could ever fit.
+		_, err := splitFolderKeys([]string{"folderA"}, spec, 0, folderBatchReservedBytes+1)
 		require.ErrorIs(t, err, ErrInvalidQuery)
 	})
 }
@@ -214,4 +223,126 @@ func TestMergeRangeCounts(t *testing.T) {
 
 	assert.Equal(t, []RangeValue{rv(1, 2), rv(2, 4), rv(3, 4)}, byReceiver["A"])
 	assert.Equal(t, []RangeValue{rv(1, 9)}, byReceiver["B"])
+}
+
+func TestCountHasAccessibleRule(t *testing.T) {
+	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
+
+	assert.True(t, countHasAccessibleRule(Count{}, nil), "a nil filter always grants access")
+	assert.True(t, countHasAccessibleRule(Count{RuleUID: stringPtr("ruleA")}, filter))
+	assert.True(t, countHasAccessibleRule(Count{RuleUID: stringPtr("ruleA,ruleB")}, filter))
+	assert.False(t, countHasAccessibleRule(Count{RuleUID: stringPtr("ruleB")}, filter))
+	assert.False(t, countHasAccessibleRule(Count{RuleUID: stringPtr("")}, filter), "no rule fails closed")
+	assert.False(t, countHasAccessibleRule(Count{}, filter), "missing rule dimension fails closed")
+}
+
+func TestCollapseAccessibleCounts(t *testing.T) {
+	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
+
+	// The counts arrive grouped by (receiver, rule_uids) purely so RBAC can be
+	// enforced; the caller only asked for per-receiver counts.
+	counts := []Count{
+		{Receiver: stringPtr("Team"), RuleUID: stringPtr("ruleA"), Count: 3},
+		{Receiver: stringPtr("Team"), RuleUID: stringPtr("ruleA,ruleB"), Count: 2}, // accessible via ruleA
+		{Receiver: stringPtr("Secret"), RuleUID: stringPtr("ruleB"), Count: 4},     // no accessible rule -> dropped
+	}
+
+	got := collapseAccessibleCounts(counts, 10, filter)
+
+	require.Len(t, got, 1, "the Secret/ruleB-only notification must be dropped")
+	assert.Nil(t, got[0].RuleUID, "the under-the-hood rule dimension must be stripped")
+	assert.Equal(t, "Team", *got[0].Receiver)
+	assert.Equal(t, int64(5), got[0].Count, "3 + 2 collapsed onto the receiver")
+}
+
+func TestCollapseAccessibleRangeCounts(t *testing.T) {
+	rv := func(ts, count int64) RangeValue { return RangeValue{Timestamp: ts, Count: count} }
+	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
+
+	counts := []Count{
+		{Receiver: stringPtr("Team"), RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 2)}},
+		{Receiver: stringPtr("Team"), RuleUID: stringPtr("ruleA,ruleB"), Values: []RangeValue{rv(1, 1), rv(2, 3)}},
+		{Receiver: stringPtr("Secret"), RuleUID: stringPtr("ruleB"), Values: []RangeValue{rv(1, 9)}}, // dropped
+	}
+
+	got := collapseAccessibleRangeCounts(counts, filter)
+
+	require.Len(t, got, 1)
+	assert.Nil(t, got[0].RuleUID)
+	assert.Equal(t, "Team", *got[0].Receiver)
+	assert.Equal(t, []RangeValue{rv(1, 3), rv(2, 3)}, got[0].Values)
+}
+
+// TestLokiReader_Counts_RBACFailClosed proves the end-to-end counts path is
+// fail-closed for a non-rule group-by: a notification that survives the folder
+// push-down while referencing only inaccessible rules is not counted, and the
+// rule dimension used internally to make that decision is not exposed.
+func TestLokiReader_Counts_RBACFailClosed(t *testing.T) {
+	now := time.Now().UTC()
+	sample := func(count string, metric map[string]string) lokiclient.MetricSample {
+		ts, _ := json.Marshal(now.Unix())
+		val, _ := json.Marshal(count)
+		return lokiclient.MetricSample{Metric: metric, Value: lokiclient.MetricSampleValue{ts, val}}
+	}
+
+	mockClient := &mockLokiClient{}
+	mockClient.On("MetricsQuery", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(lokiclient.MetricsQueryRes{
+			Data: lokiclient.MetricsQueryData{
+				Result: []lokiclient.MetricSample{
+					sample("3", map[string]string{"receiver": "Team", "rule_uids": "ruleA"}),
+					sample("2", map[string]string{"receiver": "Team", "rule_uids": "ruleA,ruleB"}),
+					sample("4", map[string]string{"receiver": "Secret", "rule_uids": "ruleB"}),
+				},
+			},
+		}, nil)
+
+	reader := &LokiReader{client: mockClient, logger: &logging.NoOpLogger{}, maxQuerySize: 65536}
+
+	queryType := v0alpha1.CreateNotificationqueryRequestBodyTypeCounts
+	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
+	result, err := reader.Query(context.Background(), Query{
+		Type:    &queryType,
+		GroupBy: &QueryGroupBy{Receiver: true},
+	}, filter)
+	require.NoError(t, err)
+
+	require.Len(t, result.Counts, 1, "the Secret/ruleB-only notification must be dropped")
+	assert.Nil(t, result.Counts[0].RuleUID, "the internal rule dimension must not be exposed")
+	require.NotNil(t, result.Counts[0].Receiver)
+	assert.Equal(t, "Team", *result.Counts[0].Receiver)
+	assert.Equal(t, int64(5), result.Counts[0].Count)
+}
+
+// TestRunQuery_TruncatesMergedEntriesToLimit verifies runQuery caps the merged
+// result at the requested limit (batches are only capped individually server-side).
+func TestRunQuery_TruncatesMergedEntriesToLimit(t *testing.T) {
+	now := time.Now().UTC()
+	entry := func(uuid string, ts time.Time) lokiclient.Sample {
+		return lokiclient.Sample{T: ts, V: createLokiEntryJSON(nil, historian.NotificationHistoryLokiEntry{
+			SchemaVersion: 2, UUID: uuid, Receiver: "R", Status: "firing",
+			RuleUIDs: []string{"ruleA"}, FolderUIDs: []string{"folderA"}, AlertCount: 1, PipelineTime: ts,
+		})}
+	}
+
+	// Two batches, each returning two distinct entries: four total, limit is two.
+	resp := lokiclient.QueryRes{Data: lokiclient.QueryData{Result: []lokiclient.Stream{{Values: []lokiclient.Sample{
+		entry("uuid-1", now),
+		entry("uuid-2", now.Add(-time.Minute)),
+		entry("uuid-3", now.Add(-2*time.Minute)),
+		entry("uuid-4", now.Add(-3*time.Minute)),
+	}}}}}
+
+	mockClient := &mockLokiClient{}
+	mockClient.On("RangeQuery", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(resp, nil)
+
+	reader := &LokiReader{client: mockClient, logger: &logging.NoOpLogger{}}
+	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
+
+	entries, err := reader.runQuery(context.Background(), []string{"q1", "q2"}, now.Add(-time.Hour), now, 2, filter)
+	require.NoError(t, err)
+	require.Len(t, entries, 2, "merged entries must be truncated to the requested limit")
+	assert.Equal(t, "uuid-1", entries[0].Uuid, "newest entries are kept")
+	assert.Equal(t, "uuid-2", entries[1].Uuid)
 }

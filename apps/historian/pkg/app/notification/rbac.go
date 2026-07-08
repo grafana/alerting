@@ -149,6 +149,13 @@ func splitFolderKeys(folderKeys []string, spec folderFilterSpec, overhead, maxQu
 	// (label, operator, anchors) with an empty alternation.
 	fixed := overhead + spec.fixedLen()
 
+	// Guard against a misconfigured max query size that leaves no room for even a
+	// single folder key. Without this every RBAC query would fail with the more
+	// confusing per-folder error below; surface it as a configuration problem.
+	if budget <= fixed {
+		return nil, fmt.Errorf("%w: the configured Loki max query size (%d bytes) is too small to build notification history RBAC queries; increase the loki max-query-size setting", ErrInvalidQuery, maxQuerySize)
+	}
+
 	var batches [][]string
 	remaining := folderKeys
 	for len(remaining) > 0 {
