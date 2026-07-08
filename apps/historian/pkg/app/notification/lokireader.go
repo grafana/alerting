@@ -874,6 +874,23 @@ func (l *LokiReader) runQuery(ctx context.Context, logql string, from, to time.T
 				continue
 			}
 			entry.RuleUIDs = filterAccessibleRuleUIDs(entry.RuleUIDs, filter)
+			// RBAC (fail-closed): drop notifications left with no accessible rule
+			// after stripping, which would otherwise leak notification fields
+			// (receiver, status, uuid, ...) for rules the caller cannot access.
+			//
+			// Under the current strictly folder-scoped rule RBAC this cannot happen
+			// in a consistent snapshot: access is granted per folder, so every rule
+			// in an accessible folder is accessible, and a notification whose rules
+			// are all inaccessible carries only inaccessible folder_uids and is thus
+			// excluded by the folder push-down. The guard defends against the cases
+			// where the accessible-folders and accessible-rules sets can disagree for
+			// a folder: (1) snapshot skew, where a notification's stored folderUIDs
+			// still reference a folder that is accessible via another rule after the
+			// referenced rule moved to an inaccessible folder; and (2) any future
+			// move to rule-level RBAC finer-grained than folders.
+			if filter != nil && !hasAccessibleRuleUID(entry.RuleUIDs, filter) {
+				continue
+			}
 			entries = append(entries, entry)
 		}
 	}
@@ -904,6 +921,19 @@ func filterAccessibleRuleUIDs(ruleUIDs []string, filter *ruleFilter) []string {
 		accessible = append(accessible, uid)
 	}
 	return accessible
+}
+
+// hasAccessibleRuleUID reports whether ruleUIDs references at least one rule the
+// caller can access. It backs the fail-closed guard that drops notifications
+// which survive the folder push-down yet reference only rules the caller cannot
+// access (reachable via snapshot skew or future rule-level RBAC; see runQuery).
+func hasAccessibleRuleUID(ruleUIDs []string, filter *ruleFilter) bool {
+	for _, uid := range ruleUIDs {
+		if uid != "" && filter.rules.Has(uid) {
+			return true
+		}
+	}
+	return false
 }
 
 // parseLokiEntry unmarshals the JSON stored in the entry.
