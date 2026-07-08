@@ -138,7 +138,7 @@ func (h *LokiReader) Query(ctx context.Context, query Query, filter *ruleFilter)
 
 	switch qtype {
 	case v0alpha1.CreateNotificationqueryRequestBodyTypeEntries:
-		entries, err := h.runQuery(ctx, logql, from, to, limit)
+		entries, err := h.runQuery(ctx, logql, from, to, limit, filter)
 		if err != nil {
 			return QueryResult{}, err
 		}
@@ -854,7 +854,12 @@ func buildQuery(query Query, uuids []string, filter *ruleFilter) (string, error)
 }
 
 // runQuery runs the query and collects results, grouping alerts into notifications.
-func (l *LokiReader) runQuery(ctx context.Context, logql string, from, to time.Time, limit int64) ([]Entry, error) {
+//
+// filter, when non-nil, strips rule UIDs the caller cannot access from each
+// entry's RuleUIDs. The folder-based LogQL push-down only guarantees that a
+// notification references at least one accessible folder; a mixed notification
+// can still co-reference inaccessible rules, so those UIDs must be removed here.
+func (l *LokiReader) runQuery(ctx context.Context, logql string, from, to time.Time, limit int64, filter *ruleFilter) ([]Entry, error) {
 	entries := make([]Entry, 0)
 	r, err := l.client.RangeQuery(ctx, logql, from.UnixNano(), to.UnixNano(), limit)
 	if err != nil {
@@ -868,6 +873,7 @@ func (l *LokiReader) runQuery(ctx context.Context, logql string, from, to time.T
 				l.logger.Warn("Ignoring notification history entry", "err", err)
 				continue
 			}
+			entry.RuleUIDs = filterAccessibleRuleUIDs(entry.RuleUIDs, filter)
 			entries = append(entries, entry)
 		}
 	}
@@ -880,6 +886,24 @@ func (l *LokiReader) runQuery(ctx context.Context, logql string, from, to time.T
 	l.logger.Debug("Notification history query complete", "notifications", len(entries))
 
 	return entries, nil
+}
+
+// filterAccessibleRuleUIDs removes rule UIDs the caller cannot access from the
+// slice. A nil filter (RBAC disabled) returns the slice unchanged. The result is
+// always non-nil so entries consistently serialize an empty array rather than
+// null. It mirrors the per-rule stripping done for counts in explodeRuleUIDCounts.
+func filterAccessibleRuleUIDs(ruleUIDs []string, filter *ruleFilter) []string {
+	if filter == nil {
+		return ruleUIDs
+	}
+	accessible := make([]string, 0, len(ruleUIDs))
+	for _, uid := range ruleUIDs {
+		if uid != "" && !filter.rules.Has(uid) {
+			continue
+		}
+		accessible = append(accessible, uid)
+	}
+	return accessible
 }
 
 // parseLokiEntry unmarshals the JSON stored in the entry.

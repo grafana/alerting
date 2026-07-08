@@ -111,6 +111,9 @@ func TestIntegration_NotificationRBAC(t *testing.T) {
 		assert.ElementsMatch(t, []string{"uuid-a1-" + suffix, "uuid-a2-" + suffix, "uuid-mix-" + suffix}, uuids)
 		for _, e := range entries {
 			assert.Contains(t, e.RuleUIDs, ruleA, "every visible entry must reference rule A")
+			// The mixed entry co-references rule B, which user A cannot access;
+			// it must be stripped from the returned RuleUIDs.
+			assert.NotContains(t, e.RuleUIDs, ruleB, "inaccessible co-referenced rule B must be stripped")
 		}
 	})
 
@@ -122,6 +125,9 @@ func TestIntegration_NotificationRBAC(t *testing.T) {
 		assert.ElementsMatch(t, []string{"uuid-b1-" + suffix, "uuid-b2-" + suffix, "uuid-mix-" + suffix}, uuids)
 		for _, e := range entries {
 			assert.Contains(t, e.RuleUIDs, ruleB, "every visible entry must reference rule B")
+			// The mixed entry co-references rule A, which user B cannot access;
+			// it must be stripped from the returned RuleUIDs.
+			assert.NotContains(t, e.RuleUIDs, ruleA, "inaccessible co-referenced rule A must be stripped")
 		}
 	})
 
