@@ -67,11 +67,11 @@ func (n *Notification) resolveRuleFilter(ctx context.Context, namespace string) 
 	if n.ruleAccess == nil {
 		return nil, errors.New("rule access reader is not configured")
 	}
-	access, err := n.ruleAccess.AccessibleRuleUIDs(ctx, namespace)
+	scope, err := n.ruleAccess.AccessibleScope(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
-	return newRuleFilter(access), nil
+	return newRuleFilter(scope), nil
 }
 
 func (n *Notification) QueryAlertsHandler(ctx context.Context, writer app.CustomRouteResponseWriter, request *app.CustomRouteRequest) error {

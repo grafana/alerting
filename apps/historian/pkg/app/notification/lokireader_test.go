@@ -1793,7 +1793,7 @@ func TestExplodeRuleUIDRangeCounts(t *testing.T) {
 				{RuleUID: stringPtr("ruleA,ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
 			},
 			limit:  10,
-			filter: newRuleFilter(ruleUIDSet{"ruleA": {}}),
+			filter: testFilter([]string{"ruleA"}, []string{"folderA"}),
 			want: []Count{
 				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
 			},

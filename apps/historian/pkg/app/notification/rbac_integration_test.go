@@ -83,24 +83,28 @@ func TestIntegration_NotificationRBAC(t *testing.T) {
 	}, prometheus.NewRegistry(), &logging.NoOpLogger{}, otel.GetTracerProvider().Tracer("test"))
 
 	universe := ruleUIDSet{ruleA: {}, ruleB: {}}
-	newN := func(access ruleUIDSet) *Notification {
+	folderUniverse := ruleUIDSet{folderA: {}, folderB: {}}
+	// newN builds an RBAC-enabled Notification. The push-down is folder-based, so
+	// the accessible folder set drives visibility; the rule set is still supplied
+	// so per-rule count stripping keeps working for mixed notifications.
+	newN := func(rules, folders ruleUIDSet) *Notification {
 		return &Notification{
 			loki:        reader,
 			logger:      &logging.NoOpLogger{},
 			rbacEnabled: true,
-			ruleAccess:  fakeRuleAccessReader{set: access},
+			ruleAccess:  fakeRuleAccessReader{scope: accessScope{rules: rules, folders: folders}},
 		}
 	}
 
 	// Wait until all seeded entries are queryable (admin sees everything).
-	admin := newN(universe)
+	admin := newN(universe, folderUniverse)
 	require.Eventually(t, func() bool {
 		res := queryEntries(t, admin)
 		return len(seededEntries(res.Entries, universe)) == len(seeded)
 	}, 20*time.Second, 250*time.Millisecond, "seeded notification entries never became queryable")
 
 	t.Run("user A sees only rule A entries plus the mixed entry", func(t *testing.T) {
-		res := queryEntries(t, newN(ruleUIDSet{ruleA: {}}))
+		res := queryEntries(t, newN(ruleUIDSet{ruleA: {}}, ruleUIDSet{folderA: {}}))
 		entries := seededEntries(res.Entries, universe)
 
 		uuids := entryUUIDs(entries)
@@ -111,7 +115,7 @@ func TestIntegration_NotificationRBAC(t *testing.T) {
 	})
 
 	t.Run("user B sees only rule B entries plus the mixed entry", func(t *testing.T) {
-		res := queryEntries(t, newN(ruleUIDSet{ruleB: {}}))
+		res := queryEntries(t, newN(ruleUIDSet{ruleB: {}}, ruleUIDSet{folderB: {}}))
 		entries := seededEntries(res.Entries, universe)
 
 		uuids := entryUUIDs(entries)
@@ -122,17 +126,17 @@ func TestIntegration_NotificationRBAC(t *testing.T) {
 	})
 
 	t.Run("admin sees all seeded entries", func(t *testing.T) {
-		res := queryEntries(t, newN(universe))
+		res := queryEntries(t, newN(universe, folderUniverse))
 		assert.Len(t, seededEntries(res.Entries, universe), len(seeded))
 	})
 
 	t.Run("no accessible rules yields no entries", func(t *testing.T) {
-		res := queryEntries(t, newN(ruleUIDSet{}))
+		res := queryEntries(t, newN(ruleUIDSet{}, ruleUIDSet{}))
 		assert.Empty(t, seededEntries(res.Entries, universe))
 	})
 
 	t.Run("counts grouped by rule UID drop inaccessible co-referenced rules", func(t *testing.T) {
-		res := queryCounts(t, newN(ruleUIDSet{ruleA: {}}))
+		res := queryCounts(t, newN(ruleUIDSet{ruleA: {}}, ruleUIDSet{folderA: {}}))
 
 		var gotA, gotB int64
 		for _, c := range res.Counts {
@@ -153,8 +157,8 @@ func TestIntegration_NotificationRBAC(t *testing.T) {
 		assert.Equal(t, int64(0), gotB)
 	})
 
-	t.Run("alerts query is filtered per rule UID", func(t *testing.T) {
-		res := queryAlerts(t, newN(ruleUIDSet{ruleA: {}}))
+	t.Run("alerts query is filtered per folder UID", func(t *testing.T) {
+		res := queryAlerts(t, newN(ruleUIDSet{ruleA: {}}, ruleUIDSet{folderA: {}}))
 
 		var seen int
 		for _, a := range res.Alerts {
@@ -163,10 +167,10 @@ func TestIntegration_NotificationRBAC(t *testing.T) {
 				continue // not from this run
 			}
 			seen++
-			assert.Equal(t, ruleA, uid, "user A must only see rule A alert lines")
+			assert.Equal(t, ruleA, uid, "user A must only see folder A alert lines")
 		}
 		// One alert from each rule-A notification, plus the rule-A alert from the
-		// mixed notification (its rule-B alert line is filtered out).
+		// mixed notification (its rule-B alert line, in folder B, is filtered out).
 		assert.Equal(t, 3, seen)
 	})
 }
@@ -184,7 +188,7 @@ type notif struct {
 
 // pushSeed writes the given notifications to Loki in the exact stream/metadata
 // shape the historian read path expects (see notify/historian/historian.go).
-func pushSeed(t *testing.T, lokiURL, tenant string, notifs []notif) {
+func pushSeed(t testing.TB, lokiURL, tenant string, notifs []notif) {
 	t.Helper()
 
 	now := time.Now().UTC()
@@ -281,7 +285,7 @@ func pushSeed(t *testing.T, lokiURL, tenant string, notifs []notif) {
 	}
 }
 
-func queryEntries(t *testing.T, n *Notification) QueryResult {
+func queryEntries(t testing.TB, n *Notification) QueryResult {
 	t.Helper()
 	q := Query{}
 	typ := v0alpha1.CreateNotificationqueryRequestBodyTypeEntries
@@ -289,7 +293,7 @@ func queryEntries(t *testing.T, n *Notification) QueryResult {
 	return doQuery(t, n, q)
 }
 
-func queryCounts(t *testing.T, n *Notification) QueryResult {
+func queryCounts(t testing.TB, n *Notification) QueryResult {
 	t.Helper()
 	q := Query{}
 	typ := v0alpha1.CreateNotificationqueryRequestBodyTypeCounts
@@ -298,7 +302,7 @@ func queryCounts(t *testing.T, n *Notification) QueryResult {
 	return doQuery(t, n, q)
 }
 
-func doQuery(t *testing.T, n *Notification, body Query) QueryResult {
+func doQuery(t testing.TB, n *Notification, body Query) QueryResult {
 	t.Helper()
 	rec := runHandler(t, n.QueryHandler, body)
 	var res QueryResult
@@ -306,7 +310,7 @@ func doQuery(t *testing.T, n *Notification, body Query) QueryResult {
 	return res
 }
 
-func queryAlerts(t *testing.T, n *Notification) AlertQueryResult {
+func queryAlerts(t testing.TB, n *Notification) AlertQueryResult {
 	t.Helper()
 	rec := runHandler(t, n.QueryAlertsHandler, AlertQuery{})
 	var res AlertQueryResult
@@ -316,7 +320,7 @@ func queryAlerts(t *testing.T, n *Notification) AlertQueryResult {
 
 type handlerFn func(context.Context, app.CustomRouteResponseWriter, *app.CustomRouteRequest) error
 
-func runHandler(t *testing.T, h handlerFn, body any) *httptest.ResponseRecorder {
+func runHandler(t testing.TB, h handlerFn, body any) *httptest.ResponseRecorder {
 	t.Helper()
 	raw, err := json.Marshal(body)
 	require.NoError(t, err)
@@ -353,7 +357,7 @@ func entryUUIDs(entries []Entry) []string {
 	return out
 }
 
-func mustJSON(t *testing.T, v any) string {
+func mustJSON(t testing.TB, v any) string {
 	t.Helper()
 	raw, err := json.Marshal(v)
 	require.NoError(t, err)

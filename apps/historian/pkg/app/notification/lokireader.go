@@ -340,8 +340,9 @@ func explodeRuleUIDCounts(counts []Count, limit int64, filter *ruleFilter) []Cou
 		for _, uid := range ruleUIDs {
 			// RBAC: never emit a per-rule count for a rule the caller cannot access.
 			// A notification may reference several rules (comma-separated), only some
-			// of which are accessible; drop the inaccessible ones here.
-			if filter != nil && uid != "" && !filter.access.Has(uid) {
+			// of which are accessible; drop the inaccessible ones here. The folder
+			// push-down admits mixed notifications, so per-rule stripping is required.
+			if filter != nil && uid != "" && !filter.rules.Has(uid) {
 				continue
 			}
 			entry := c
@@ -361,9 +362,13 @@ func explodeRuleUIDCounts(counts []Count, limit int64, filter *ruleFilter) []Cou
 		result = append(result, *c)
 	}
 
-	// Sort by count descending.
+	// Sort by count descending, breaking ties deterministically so the client-side
+	// topk cutoff is stable when several groups share the same count.
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].Count > result[j].Count
+		if result[i].Count != result[j].Count {
+			return result[i].Count > result[j].Count
+		}
+		return countSortKey(result[i]) < countSortKey(result[j])
 	})
 
 	// Apply limit (client-side topk).
@@ -372,6 +377,16 @@ func explodeRuleUIDCounts(counts []Count, limit int64, filter *ruleFilter) []Cou
 	}
 
 	return result
+}
+
+// countSortKey returns a deterministic identity for a Count that ignores the
+// aggregated magnitude (Count/Values), used as a stable tie-break so equal-magnitude
+// groups sort in a reproducible order (and the topk cutoff is deterministic).
+func countSortKey(c Count) string {
+	c.Count = 0
+	c.Values = nil
+	b, _ := json.Marshal(c)
+	return string(b)
 }
 
 // defaultStep returns a sensible default step interval for a range query over the given time range.
@@ -445,8 +460,9 @@ func explodeRuleUIDRangeCounts(counts []Count, limit int64, filter *ruleFilter) 
 		for _, uid := range ruleUIDs {
 			// RBAC: never emit a per-rule series for a rule the caller cannot access.
 			// A notification may reference several rules (comma-separated), only some
-			// of which are accessible; drop the inaccessible ones here.
-			if filter != nil && uid != "" && !filter.access.Has(uid) {
+			// of which are accessible; drop the inaccessible ones here. The folder
+			// push-down admits mixed notifications, so per-rule stripping is required.
+			if filter != nil && uid != "" && !filter.rules.Has(uid) {
 				continue
 			}
 			entry := c
@@ -486,9 +502,14 @@ func explodeRuleUIDRangeCounts(counts []Count, limit int64, filter *ruleFilter) 
 		result = append(result, c)
 	}
 
-	// Sort by total count descending (client-side topk).
+	// Sort by total count descending, breaking ties deterministically so the
+	// client-side topk cutoff is stable when several series share the same total.
 	sort.Slice(result, func(i, j int) bool {
-		return total(result[i].Values) > total(result[j].Values)
+		ti, tj := total(result[i].Values), total(result[j].Values)
+		if ti != tj {
+			return ti > tj
+		}
+		return countSortKey(result[i]) < countSortKey(result[j])
 	})
 
 	// Apply limit (client-side topk).
@@ -598,8 +619,8 @@ func buildAlertQuery(query AlertQuery, filter *ruleFilter) (string, error) {
 		logql += fmt.Sprintf(` | uuid = %q`, *query.Uuid)
 	}
 
-	// RBAC: restrict to accessible rules using the single-valued rule_uid metadata.
-	logql += buildAlertRuleUIDFilter(filter)
+	// RBAC: restrict to accessible folders using the single-valued folder_uid metadata.
+	logql += buildAlertFolderFilter(filter)
 
 	logql += ` | json`
 
@@ -681,8 +702,8 @@ func buildAlertLabelQuery(ruleUID *string, labels Matchers, filter *ruleFilter) 
 		logql += fmt.Sprintf(` | rule_uid = %q`, *ruleUID)
 	}
 
-	// RBAC: restrict to accessible rules using the single-valued rule_uid metadata.
-	logql += buildAlertRuleUIDFilter(filter)
+	// RBAC: restrict to accessible folders using the single-valued folder_uid metadata.
+	logql += buildAlertFolderFilter(filter)
 
 	logql += ` | json`
 	for _, matcher := range labels {
@@ -724,34 +745,35 @@ func (l *LokiReader) runAlertUUIDQuery(ctx context.Context, logql string, from, 
 	return uuids, nil
 }
 
-// buildNotificationRuleUIDsFilter returns a LogQL structured-metadata matcher that
-// keeps only notifications referencing at least one of the accessible rule UIDs.
-// The notifications stream stores rule_uids as a comma-separated list, so each UID
-// is anchored to a comma or the start/end of the value. It returns an empty string
-// when filter is nil (RBAC disabled).
-func buildNotificationRuleUIDsFilter(filter *ruleFilter) string {
-	if filter == nil || len(filter.uids) == 0 {
+// buildNotificationFolderFilter returns a LogQL structured-metadata matcher that
+// keeps only notifications referencing at least one accessible folder. The
+// notifications stream stores folder_uids as a comma-separated list, so each
+// folder UID is anchored to a comma or the start/end of the value. It returns an
+// empty string when filter is nil (RBAC disabled) or grants no access.
+func buildNotificationFolderFilter(filter *ruleFilter) string {
+	if filter.empty() {
 		return ""
 	}
-	escaped := make([]string, len(filter.uids))
-	for i, uid := range filter.uids {
-		escaped[i] = regexp.QuoteMeta(uid)
+	escaped := make([]string, len(filter.folderKeys))
+	for i, key := range filter.folderKeys {
+		escaped[i] = regexp.QuoteMeta(key)
 	}
-	return fmt.Sprintf(` | rule_uids =~ "(^|.*,)(%s)($|,.*)"`, strings.Join(escaped, "|"))
+	return fmt.Sprintf(` | folder_uids =~ "(^|.*,)(%s)($|,.*)"`, strings.Join(escaped, "|"))
 }
 
-// buildAlertRuleUIDFilter returns a LogQL structured-metadata matcher that keeps
-// only alerts belonging to one of the accessible rule UIDs. The alerts stream stores
-// a single rule_uid per entry. It returns an empty string when filter is nil.
-func buildAlertRuleUIDFilter(filter *ruleFilter) string {
-	if filter == nil || len(filter.uids) == 0 {
+// buildAlertFolderFilter returns a LogQL structured-metadata matcher that keeps
+// only alerts belonging to one of the accessible folders. The alerts stream
+// stores a single folder_uid per entry. It returns an empty string when filter
+// is nil or grants no access.
+func buildAlertFolderFilter(filter *ruleFilter) string {
+	if filter.empty() {
 		return ""
 	}
-	escaped := make([]string, len(filter.uids))
-	for i, uid := range filter.uids {
-		escaped[i] = regexp.QuoteMeta(uid)
+	escaped := make([]string, len(filter.folderKeys))
+	for i, key := range filter.folderKeys {
+		escaped[i] = regexp.QuoteMeta(key)
 	}
-	return fmt.Sprintf(` | rule_uid =~ "^(%s)$"`, strings.Join(escaped, "|"))
+	return fmt.Sprintf(` | folder_uid =~ "^(%s)$"`, strings.Join(escaped, "|"))
 }
 
 // buildQuery creates the LogQL to perform the requested query.
@@ -775,9 +797,9 @@ func buildQuery(query Query, uuids []string, filter *ruleFilter) (string, error)
 		logql += fmt.Sprintf(` | rule_uids =~ "(^|.*,)%s($|,.*)"`, *query.RuleUID)
 	}
 
-	// RBAC: restrict to notifications referencing at least one accessible rule,
-	// using the comma-separated rule_uids structured metadata.
-	logql += buildNotificationRuleUIDsFilter(filter)
+	// RBAC: restrict to notifications referencing at least one accessible folder,
+	// using the comma-separated folder_uids structured metadata.
+	logql += buildNotificationFolderFilter(filter)
 
 	// Receiver filtering can be done entirely using structured metadata fields.
 	if query.Receiver != nil && *query.Receiver != "" {
