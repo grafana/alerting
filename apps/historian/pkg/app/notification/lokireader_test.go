@@ -112,7 +112,7 @@ func TestLokiReader_Query(t *testing.T) {
 				logger: &logging.NoOpLogger{},
 			}
 
-			result, err := reader.Query(context.Background(), tt.query)
+			result, err := reader.Query(context.Background(), tt.query, nil)
 			if tt.experr != nil {
 				assert.ErrorIs(t, err, ErrInvalidQuery)
 				return
@@ -284,7 +284,7 @@ func TestBuildQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := buildQuery(tt.query, tt.uuids)
+			result, err := buildQuery(tt.query, tt.uuids, nil)
 			if tt.experr != nil {
 				require.ErrorIs(t, err, tt.experr)
 			} else {
@@ -528,7 +528,7 @@ func TestLokiReader_RunQuery(t *testing.T) {
 		logger: &logging.NoOpLogger{},
 	}
 
-	entries, err := reader.runQuery(context.Background(), "test query", now.Add(-6*time.Hour), now, 1000)
+	entries, err := reader.runQuery(context.Background(), []string{"test query"}, now.Add(-6*time.Hour), now, 1000, nil)
 	require.NoError(t, err)
 	require.Len(t, entries, 3)
 
@@ -610,7 +610,7 @@ func TestLokiReader_QueryAlerts(t *testing.T) {
 				logger: &logging.NoOpLogger{},
 			}
 
-			result, err := reader.QueryAlerts(context.Background(), tt.query)
+			result, err := reader.QueryAlerts(context.Background(), tt.query, nil)
 			if tt.experr != nil {
 				assert.Error(t, err)
 				return
@@ -654,7 +654,7 @@ func TestBuildAlertQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := buildAlertQuery(tt.query)
+			result, err := buildAlertQuery(tt.query, nil)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -729,7 +729,7 @@ func TestBuildAlertLabelQuery(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := buildAlertLabelQuery(tt.ruleUID, tt.labels)
+			result, err := buildAlertLabelQuery(tt.ruleUID, tt.labels, nil)
 			if tt.experr != nil {
 				require.ErrorIs(t, err, tt.experr)
 			} else {
@@ -799,7 +799,7 @@ func TestLokiReader_QueryWithLabels(t *testing.T) {
 		labels := Matchers{{Type: "=", Label: "alertname", Value: "HighCPU"}}
 		result, err := reader.Query(context.Background(), Query{
 			Labels: &labels,
-		})
+		}, nil)
 
 		require.NoError(t, err)
 		assert.Len(t, result.Entries, 1)
@@ -825,7 +825,7 @@ func TestLokiReader_QueryWithLabels(t *testing.T) {
 		labels := Matchers{{Type: "=", Label: "alertname", Value: "NonExistent"}}
 		result, err := reader.Query(context.Background(), Query{
 			Labels: &labels,
-		})
+		}, nil)
 
 		require.NoError(t, err)
 		assert.Empty(t, result.Entries)
@@ -1048,7 +1048,7 @@ func TestLokiReader_Query_Counts(t *testing.T) {
 				logger: &logging.NoOpLogger{},
 			}
 
-			result, err := reader.Query(context.Background(), tt.query)
+			result, err := reader.Query(context.Background(), tt.query, nil)
 			if tt.experr != nil {
 				assert.Error(t, err)
 				return
@@ -1353,7 +1353,7 @@ func TestLokiReader_Query_RangeCounts(t *testing.T) {
 				logger: &logging.NoOpLogger{},
 			}
 
-			result, err := reader.Query(context.Background(), tt.query)
+			result, err := reader.Query(context.Background(), tt.query, nil)
 			if tt.experr {
 				assert.Error(t, err)
 				return
@@ -1701,7 +1701,7 @@ func TestExplodeRuleUIDCounts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := explodeRuleUIDCounts(tt.counts, tt.limit)
+			got := explodeRuleUIDCounts(tt.counts, tt.limit, nil)
 			require.Len(t, got, len(tt.want))
 			// Sort tied counts by ruleUID for deterministic comparison.
 			sort.SliceStable(got, func(i, j int) bool {
@@ -1721,6 +1721,307 @@ func TestExplodeRuleUIDCounts(t *testing.T) {
 				assert.Equal(t, derefStr(tt.want[i].RuleUID), derefStr(got[i].RuleUID), "index %d ruleUID", i)
 				assert.Equal(t, derefStr(tt.want[i].Receiver), derefStr(got[i].Receiver), "index %d receiver", i)
 			}
+		})
+	}
+}
+
+func TestExplodeRuleUIDRangeCounts(t *testing.T) {
+	rv := func(ts, count int64) RangeValue { return RangeValue{Timestamp: ts, Count: count} }
+
+	tests := []struct {
+		name   string
+		counts []Count
+		limit  int64
+		filter *ruleFilter
+		want   []Count
+	}{
+		{
+			name:   "empty input",
+			counts: []Count{},
+			limit:  10,
+			want:   []Count{},
+		},
+		{
+			name: "single rule_uid no splitting needed",
+			counts: []Count{
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 2), rv(2, 3)}},
+			},
+			limit: 10,
+			want: []Count{
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 2), rv(2, 3)}},
+			},
+		},
+		{
+			name: "comma-separated rule_uids duplicate the series per rule",
+			counts: []Count{
+				{RuleUID: stringPtr("ruleA,ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+			},
+			limit: 10,
+			want: []Count{
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+				{RuleUID: stringPtr("ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+			},
+		},
+		{
+			name: "per-timestamp aggregation across series sharing a rule",
+			counts: []Count{
+				{RuleUID: stringPtr("ruleA,ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+				{RuleUID: stringPtr("ruleB,ruleC"), Values: []RangeValue{rv(2, 1), rv(3, 5)}},
+			},
+			limit: 10,
+			want: []Count{
+				{RuleUID: stringPtr("ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 7), rv(3, 5)}},
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+				{RuleUID: stringPtr("ruleC"), Values: []RangeValue{rv(2, 1), rv(3, 5)}},
+			},
+		},
+		{
+			name: "limit is applied after aggregation (topk by total)",
+			counts: []Count{
+				{RuleUID: stringPtr("ruleA,ruleB"), Values: []RangeValue{rv(1, 5)}},
+				{RuleUID: stringPtr("ruleB,ruleC"), Values: []RangeValue{rv(1, 5)}},
+			},
+			limit: 2,
+			want: []Count{
+				{RuleUID: stringPtr("ruleB"), Values: []RangeValue{rv(1, 10)}},
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 5)}},
+			},
+		},
+		{
+			name: "RBAC drops inaccessible co-referenced rules",
+			counts: []Count{
+				{RuleUID: stringPtr("ruleA,ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+			},
+			limit:  10,
+			filter: testFilter([]string{"ruleA"}, []string{"folderA"}),
+			want: []Count{
+				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
+			},
+		},
+	}
+
+	derefStr := func(p *string) string {
+		if p == nil {
+			return ""
+		}
+		return *p
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := explodeRuleUIDRangeCounts(tt.counts, tt.limit, tt.filter)
+			require.Len(t, got, len(tt.want))
+
+			sortByRule := func(cs []Count) {
+				sort.SliceStable(cs, func(i, j int) bool {
+					ti, tj := rangeTotal(cs[i].Values), rangeTotal(cs[j].Values)
+					if ti != tj {
+						return ti > tj
+					}
+					return derefStr(cs[i].RuleUID) < derefStr(cs[j].RuleUID)
+				})
+			}
+			sortByRule(got)
+			sortByRule(tt.want)
+
+			for i := range tt.want {
+				assert.Equal(t, derefStr(tt.want[i].RuleUID), derefStr(got[i].RuleUID), "index %d ruleUID", i)
+				assert.Equal(t, tt.want[i].Values, got[i].Values, "index %d values", i)
+			}
+		})
+	}
+}
+
+func rangeTotal(vs []RangeValue) int64 {
+	var sum int64
+	for _, v := range vs {
+		sum += v.Count
+	}
+	return sum
+}
+
+func TestFilterAccessibleRuleUIDs(t *testing.T) {
+	tests := []struct {
+		name     string
+		ruleUIDs []string
+		filter   *ruleFilter
+		want     []string
+	}{
+		{
+			name:     "nil filter leaves rule UIDs untouched",
+			ruleUIDs: []string{"ruleA", "ruleB"},
+			filter:   nil,
+			want:     []string{"ruleA", "ruleB"},
+		},
+		{
+			name:     "mixed notification drops inaccessible co-referenced rule",
+			ruleUIDs: []string{"ruleA", "ruleB"},
+			filter:   testFilter([]string{"ruleA"}, []string{"folderA"}),
+			want:     []string{"ruleA"},
+		},
+		{
+			name:     "all accessible rules are retained",
+			ruleUIDs: []string{"ruleA", "ruleB"},
+			filter:   testFilter([]string{"ruleA", "ruleB"}, []string{"folderA"}),
+			want:     []string{"ruleA", "ruleB"},
+		},
+		{
+			name:     "no accessible rules yields empty non-nil slice",
+			ruleUIDs: []string{"ruleA", "ruleB"},
+			filter:   testFilter([]string{"ruleC"}, []string{"folderC"}),
+			want:     []string{},
+		},
+		{
+			name:     "empty rule UID is retained (mirrors counts explode path)",
+			ruleUIDs: []string{"", "ruleA"},
+			filter:   testFilter([]string{"ruleA"}, []string{"folderA"}),
+			want:     []string{"", "ruleA"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := filterAccessibleRuleUIDs(tt.ruleUIDs, tt.filter)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestLokiReader_Query_Entries_RBACStripsCoReferencedRules(t *testing.T) {
+	now := time.Now().UTC()
+
+	// A mixed notification referencing both an accessible (ruleA) and an
+	// inaccessible (ruleB) rule. It passes the folder push-down because folderA
+	// is accessible, but ruleB must not leak into the returned entry.
+	entryJSON := fmt.Sprintf(`{
+		"schemaVersion": 2,
+		"uuid": "uuid-mixed",
+		"receiver": "Shared",
+		"status": "firing",
+		"error": "",
+		"ruleUIDs": ["ruleA", "ruleB"],
+		"folderUIDs": ["folderA", "folderB"],
+		"alertCount": 1,
+		"retry": false,
+		"duration": 0,
+		"pipelineTime": "%s"
+	}`, now.Format(time.RFC3339Nano))
+
+	mockResponse := lokiclient.QueryRes{
+		Data: lokiclient.QueryData{
+			Result: []lokiclient.Stream{
+				{Values: []lokiclient.Sample{{T: now, V: entryJSON}}},
+			},
+		},
+	}
+
+	mockClient := &mockLokiClient{}
+	mockClient.On("RangeQuery", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(mockResponse, nil)
+
+	reader := &LokiReader{
+		client: mockClient,
+		logger: &logging.NoOpLogger{},
+	}
+
+	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
+	result, err := reader.Query(context.Background(), Query{}, filter)
+	require.NoError(t, err)
+	require.Len(t, result.Entries, 1)
+	assert.Equal(t, []string{"ruleA"}, result.Entries[0].RuleUIDs, "inaccessible co-referenced rule UID must be stripped")
+}
+
+func TestLokiReader_Query_Entries_RBACDropsFullyInaccessibleNotification(t *testing.T) {
+	now := time.Now().UTC()
+
+	// Fail-closed guard: a notification can survive the folder push-down while
+	// referencing only inaccessible rules when the accessible-folders and
+	// accessible-rules sets disagree for a folder. Under strictly folder-scoped
+	// RBAC this does not occur in a consistent snapshot, but it is reachable via
+	// snapshot skew (the stored folderUIDs still reference folderA, which stays
+	// accessible via ruleA, after the referenced ruleB moved to an inaccessible
+	// folder) or future rule-level RBAC. Here folderA is accessible (via ruleA)
+	// but ruleB is not, so the second entry has no accessible rule after stripping
+	// and must be dropped rather than leaking its receiver/status/uuid with an
+	// empty ruleUIDs list.
+	//
+	// The filter models this disagreement directly: folderA is accessible but
+	// ruleB (referenced by the leaked notification) is not in the accessible rule
+	// set.
+	accessibleJSON := fmt.Sprintf(`{
+		"schemaVersion": 2,
+		"uuid": "uuid-accessible",
+		"receiver": "Accessible",
+		"status": "firing",
+		"error": "",
+		"ruleUIDs": ["ruleA"],
+		"folderUIDs": ["folderA"],
+		"alertCount": 1,
+		"retry": false,
+		"duration": 0,
+		"pipelineTime": "%s"
+	}`, now.Format(time.RFC3339Nano))
+
+	leakedJSON := fmt.Sprintf(`{
+		"schemaVersion": 2,
+		"uuid": "uuid-leaked",
+		"receiver": "Secret",
+		"status": "firing",
+		"error": "",
+		"ruleUIDs": ["ruleB"],
+		"folderUIDs": ["folderA"],
+		"alertCount": 1,
+		"retry": false,
+		"duration": 0,
+		"pipelineTime": "%s"
+	}`, now.Add(-time.Minute).Format(time.RFC3339Nano))
+
+	mockResponse := lokiclient.QueryRes{
+		Data: lokiclient.QueryData{
+			Result: []lokiclient.Stream{
+				{Values: []lokiclient.Sample{
+					{T: now, V: accessibleJSON},
+					{T: now.Add(-time.Minute), V: leakedJSON},
+				}},
+			},
+		},
+	}
+
+	mockClient := &mockLokiClient{}
+	mockClient.On("RangeQuery", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return(mockResponse, nil)
+
+	reader := &LokiReader{
+		client: mockClient,
+		logger: &logging.NoOpLogger{},
+	}
+
+	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
+	result, err := reader.Query(context.Background(), Query{}, filter)
+	require.NoError(t, err)
+	require.Len(t, result.Entries, 1, "notification referencing only inaccessible rules must be dropped")
+	assert.Equal(t, "uuid-accessible", result.Entries[0].Uuid)
+	assert.Equal(t, []string{"ruleA"}, result.Entries[0].RuleUIDs)
+}
+
+func TestHasAccessibleRuleUID(t *testing.T) {
+	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
+
+	tests := []struct {
+		name     string
+		ruleUIDs []string
+		want     bool
+	}{
+		{name: "accessible rule present", ruleUIDs: []string{"ruleA"}, want: true},
+		{name: "mixed with accessible rule", ruleUIDs: []string{"ruleA", "ruleB"}, want: true},
+		{name: "only inaccessible rule", ruleUIDs: []string{"ruleB"}, want: false},
+		{name: "empty slice", ruleUIDs: []string{}, want: false},
+		{name: "only empty rule UID", ruleUIDs: []string{""}, want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, hasAccessibleRuleUID(tt.ruleUIDs, filter))
 		})
 	}
 }
