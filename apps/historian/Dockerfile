@@ -36,6 +36,7 @@ WORKDIR /build/apps/historian
 RUN make build
 
 FROM alpine:3.23@sha256:fd791d74b68913cbb027c6546007b3f0d3bc45125f797758156952bc2d6daf40 AS runtime
+RUN apk add --no-cache ca-certificates
 COPY --from=builder /build/apps/historian/historian-operator /usr/bin/historian-operator
 
 ENTRYPOINT ["/usr/bin/historian-operator"]
