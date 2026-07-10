@@ -25,107 +25,6 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-func TestBuildReceiverIntegrations(t *testing.T) {
-	var orgID = rand.Int63()
-	var version = fmt.Sprintf("Grafana v%d", rand.Uint32())
-	imageProvider := &images.URLProvider{}
-	tmpl := templates.ForTests(t)
-
-	emailService := receivers.MockNotificationService()
-
-	noopWrapper := func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
-		return n
-	}
-
-	getFullConfig := func(t *testing.T) (GrafanaReceiverConfig, int) {
-		recCfg := models.ReceiverConfig{Name: "test-receiver"}
-		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
-		}
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
-		require.NoError(t, err)
-		parsed.WebhookConfigs[0].Settings.URL = "http://localhost:8080" // to make sure Notify test works
-		return parsed, len(recCfg.Integrations)
-	}
-
-	t.Run("should build all supported notifiers", func(t *testing.T) {
-		fullCfg, qty := getFullConfig(t)
-
-		wrapped := 0
-		notifyWrapper := func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
-			wrapped++
-			return n
-		}
-
-		integrations, err := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version, nil)
-		require.NoError(t, err)
-
-		require.Len(t, integrations, qty)
-
-		t.Run("should call notify wrapper for each config", func(t *testing.T) {
-			require.Equal(t, qty, wrapped)
-		})
-		t.Run("should use custom dial context", func(t *testing.T) {
-			customDialError := fmt.Errorf("custom dial function error")
-			clientOpts := []http.ClientOption{
-				http.WithUserAgent("Grafana-test"),
-				http.WithDialer(net.Dialer{
-					// Override the Resolver so that configurations with invalid hostnames also return
-					// "custom dial function error" instead of "no such host".
-					Resolver: &net.Resolver{
-						Dial: func(_ context.Context, _, _ string) (net.Conn, error) {
-							return nil, customDialError
-						},
-					},
-					Control: func(_, _ string, _ syscall.RawConn) error {
-						return customDialError
-					},
-				}),
-			}
-
-			integrations, err := BuildGrafanaReceiverIntegrations(fullCfg, tmpl, imageProvider, log.NewNopLogger(), emailService, notifyWrapper, orgID, version, nil, clientOpts...)
-			require.NoError(t, err)
-
-			require.Len(t, integrations, qty)
-			for _, integration := range integrations {
-				if integration.Name() == "email" {
-					continue // skip email integration, it is not using webhook sender.
-				}
-				t.Run(integration.Name(), func(t *testing.T) {
-					if integration.Name() == "mqtt" {
-						t.Skip() // TODO: mqtt integration does not support custom dialer yet.
-					}
-					if integration.Name() == "sns" {
-						t.Skip() // TODO: sns integration does not support custom dialer yet.
-					}
-					if integration.Name() == "slack" {
-						t.Skip() // TODO: slack integration does not support custom dialer yet.
-					}
-					if integration.Name() == "prometheus-alertmanager" {
-						t.Skip() // TODO: prometheus-alertmanager integration does not support custom dialer yet.
-					}
-					alert := newTestAlert(nil, time.Now(), time.Now())
-
-					ctx := context.Background()
-					ctx = notify.WithGroupKey(ctx, fmt.Sprintf("%s-%s-%d", integration.Name(), alert.Labels.Fingerprint(), time.Now().Unix()))
-					ctx = notify.WithGroupLabels(ctx, alert.Labels)
-					ctx = notify.WithReceiverName(ctx, integration.String())
-					_, err := integration.Notify(ctx, &alert)
-					require.Error(t, err)
-					require.ErrorContains(t, err, customDialError.Error())
-				})
-			}
-		})
-	})
-	t.Run("should not produce any integration if config is empty", func(t *testing.T) {
-		cfg := GrafanaReceiverConfig{Name: "test"}
-
-		integrations, err := BuildGrafanaReceiverIntegrations(cfg, tmpl, imageProvider, log.NewNopLogger(), emailService, noopWrapper, orgID, version, nil)
-		require.NoError(t, err)
-		require.Empty(t, integrations)
-	})
-}
-
 func TestBuildReceiversIntegrations(t *testing.T) {
 	var orgID = rand.Int63()
 	var version = fmt.Sprintf("Grafana v%d", rand.Uint32())
@@ -291,5 +190,75 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 		require.Equal(t, "webhook[0]", integrations[0].String())
 		require.Equal(t, "email[0]", integrations[1].String())
 		require.Equal(t, "webhook[1]", integrations[2].String())
+	})
+
+	t.Run("should use custom dial context", func(t *testing.T) {
+		recCfg := models.ReceiverConfig{Name: "test-receiver"}
+		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
+			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
+		}
+		for _, ic := range recCfg.Integrations {
+			if ic.Type == schema.WebhookType {
+				// to make sure Notify test works
+				newSettings, err := MergeSettings(ic.Settings, []byte(`{"url":"http://localhost:8080"}`))
+				require.NoError(t, err)
+				ic.Settings = newSettings
+			}
+		}
+		qty := len(recCfg.Integrations)
+
+		customDialError := fmt.Errorf("custom dial function error")
+		clientOpts := []http.ClientOption{
+			http.WithUserAgent("Grafana-test"),
+			http.WithDialer(net.Dialer{
+				// Override the Resolver so that configurations with invalid hostnames also return
+				// "custom dial function error" instead of "no such host".
+				Resolver: &net.Resolver{
+					Dial: func(_ context.Context, _, _ string) (net.Conn, error) {
+						return nil, customDialError
+					},
+				},
+				Control: func(_, _ string, _ syscall.RawConn) error {
+					return customDialError
+				},
+			}),
+		}
+
+		integrations, err := BuildReceiverIntegrationsWithManifests(
+			orgID, recCfg, tmpl, imageProvider,
+			GetDecryptedValueFnForTesting, DecodeSecretsFromBase64,
+			emailService, clientOpts, noopWrapper, version, log.NewNopLogger(), nil,
+		)
+		require.NoError(t, err)
+
+		require.Len(t, integrations, qty)
+		for _, integration := range integrations {
+			if integration.Name() == "email" {
+				continue // skip email integration, it is not using webhook sender.
+			}
+			t.Run(integration.Name(), func(t *testing.T) {
+				if integration.Name() == "mqtt" {
+					t.Skip() // TODO: mqtt integration does not support custom dialer yet.
+				}
+				if integration.Name() == "sns" {
+					t.Skip() // TODO: sns integration does not support custom dialer yet.
+				}
+				if integration.Name() == "slack" {
+					t.Skip() // TODO: slack integration does not support custom dialer yet.
+				}
+				if integration.Name() == "prometheus-alertmanager" {
+					t.Skip() // TODO: prometheus-alertmanager integration does not support custom dialer yet.
+				}
+				alert := newTestAlert(nil, time.Now(), time.Now())
+
+				ctx := context.Background()
+				ctx = notify.WithGroupKey(ctx, fmt.Sprintf("%s-%s-%d", integration.Name(), alert.Labels.Fingerprint(), time.Now().Unix()))
+				ctx = notify.WithGroupLabels(ctx, alert.Labels)
+				ctx = notify.WithReceiverName(ctx, integration.String())
+				_, err := integration.Notify(ctx, &alert)
+				require.Error(t, err)
+				require.ErrorContains(t, err, customDialError.Error())
+			})
+		}
 	})
 }
