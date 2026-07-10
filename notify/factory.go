@@ -238,50 +238,6 @@ func BuildReceiversIntegrations(
 	return integrationsMap, nil
 }
 
-// BuildReceiverIntegrations builds integrations for the provided API receiver and returns them.
-func BuildReceiverIntegrations(
-	tenantID int64,
-	receiver models.ReceiverConfig,
-	tmpls TemplatesProvider,
-	images images.Provider,
-	decryptFn GetDecryptedValueFn,
-	decodeFn DecodeSecretsFn,
-	emailSender receivers.EmailSender,
-	httpClientOptions []http.ClientOption,
-	wrapNotifierFunc WrapNotifierFunc,
-	version string,
-	logger log.Logger,
-	notificationHistorian nfstatus.NotificationHistorian,
-) ([]*Integration, error) {
-	var integrations []*Integration
-	if len(receiver.Integrations) > 0 {
-		receiverCfg, err := BuildReceiverConfiguration(context.Background(), receiver, decodeFn, decryptFn)
-		if err != nil {
-			return nil, err
-		}
-		tmpl, err := tmpls.GetTemplate(templates.GrafanaKind)
-		if err != nil {
-			return nil, err
-		}
-		integrations, err = BuildGrafanaReceiverIntegrations(
-			receiverCfg,
-			tmpl,
-			images,
-			logger,
-			emailSender,
-			wrapNotifierFunc,
-			tenantID,
-			version,
-			notificationHistorian,
-			httpClientOptions...,
-		)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return integrations, nil
-}
-
 // BuildReceiverIntegrationsWithManifests builds integrations for the provided API receiver using
 // the manifest-based factory for v1 (Grafana) integrations instead of the typed config switch.
 // Unlike BuildGrafanaReceiverIntegrations, this function is fail-fast: it returns on the first
