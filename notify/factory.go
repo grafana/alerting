@@ -214,7 +214,6 @@ func BuildReceiversIntegrations(
 	version string,
 	logger log.Logger,
 	notificationHistorian nfstatus.NotificationHistorian,
-	useManifestBuilder bool,
 ) (map[string][]*Integration, error) {
 	nameToReceiver := make(map[string]models.ReceiverConfig, len(receivers))
 	for _, receiver := range receivers {
@@ -230,13 +229,7 @@ func BuildReceiversIntegrations(
 
 	integrationsMap := make(map[string][]*Integration, len(receivers))
 	for name, apiReceiver := range nameToReceiver {
-		var integrations []*Integration
-		var err error
-		if useManifestBuilder {
-			integrations, err = BuildReceiverIntegrationsWithManifests(tenantID, apiReceiver, templ, images, decryptFn, decodeFn, emailSender, httpClientOptions, notifierFunc, version, logger, notificationHistorian)
-		} else {
-			integrations, err = BuildReceiverIntegrations(tenantID, apiReceiver, templ, images, decryptFn, decodeFn, emailSender, httpClientOptions, notifierFunc, version, logger, notificationHistorian)
-		}
+		integrations, err := BuildReceiverIntegrationsWithManifests(tenantID, apiReceiver, templ, images, decryptFn, decodeFn, emailSender, httpClientOptions, notifierFunc, version, logger, notificationHistorian)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build receiver %s: %w", name, err)
 		}

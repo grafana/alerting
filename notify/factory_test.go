@@ -161,34 +161,10 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			version,
 			log.NewNopLogger(),
 			nil,
-			true,
 		)
 		require.NoError(t, err)
 		require.Contains(t, actual, "test2")
 		require.Equal(t, "email[0]", actual["test2"][0].String())
-
-		t.Run("legacy way", func(t *testing.T) {
-			actual, err := BuildReceiversIntegrations(
-				orgID,
-				apiReceivers,
-				tmpl,
-				imageProvider,
-				NoopDecrypt,
-				DecodeSecretsFromBase64,
-				emailService,
-				nil,
-				func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
-					return n
-				},
-				version,
-				log.NewNopLogger(),
-				nil,
-				false,
-			)
-			require.NoError(t, err)
-			require.Contains(t, actual, "test2")
-			require.Equal(t, "email[0]", actual["test2"][0].String())
-		})
 	})
 
 	t.Run("should ignore duplicates", func(t *testing.T) {
@@ -223,7 +199,6 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			version,
 			log.NewNopLogger(),
 			nil,
-			true,
 		)
 		require.NoError(t, err)
 		require.Contains(t, actual, "test")
