@@ -527,36 +527,43 @@ func TestHTTPConfig(t *testing.T) {
 					},
 				}
 
-				parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
-				require.NoError(t, err)
-
 				invalidAddress := fmt.Errorf("invalid address")
 				allowedUrls := map[string]struct{}{
 					oauth2Server.URL: {},
 					testServer.URL:   {},
 				}
-				integrations, err := BuildGrafanaReceiverIntegrations(
-					parsed,
-					templates.ForTests(t),
-					&images.URLProvider{},
-					log.NewNopLogger(),
-					receivers.MockNotificationService(),
-					NoWrap,
+
+				tmplCfg, err := templates.NewConfig("grafana", "http://localhost", "", templates.DefaultLimits)
+				require.NoError(t, err)
+				tmpl, err := templates.NewFactory(nil, tmplCfg, log.NewNopLogger())
+				require.NoError(t, err)
+
+				integrations, err := BuildReceiverIntegrationsWithManifests(
 					rand.Int63(),
+					recCfg,
+					tmpl,
+					&images.URLProvider{},
+					GetDecryptedValueFnForTesting,
+					DecodeSecretsFromBase64,
+					receivers.MockNotificationService(),
+					[]alertingHttp.ClientOption{
+						alertingHttp.WithDialer(net.Dialer{
+							// Prevent all network calls not going to oauth2Server or testServer.
+							// Since we're actually calling the real Notify method, this is to ensure that
+							// we don't start calling real endpoints in the tests.
+							// Additionally, it will help ensure the test is correctly validating the OAuth2 flow.
+							Control: func(_, address string, _ syscall.RawConn) error {
+								if _, ok := allowedUrls["http://"+address]; !ok {
+									return fmt.Errorf("%w: %s", invalidAddress, address)
+								}
+								return nil
+							},
+						}),
+					},
+					NoWrap,
 					fmt.Sprintf("Grafana v%d", rand.Uint32()),
+					log.NewNopLogger(),
 					nil,
-					alertingHttp.WithDialer(net.Dialer{
-						// Prevent all network calls not going to oauth2Server or testServer.
-						// Since we're actually calling the real Notify method, this is to ensure that
-						// we don't start calling real endpoints in the tests.
-						// Additionally, it will help ensure the test is correctly validating the OAuth2 flow.
-						Control: func(_, address string, _ syscall.RawConn) error {
-							if _, ok := allowedUrls["http://"+address]; !ok {
-								return fmt.Errorf("%w: %s", invalidAddress, address)
-							}
-							return nil
-						},
-					}),
 				)
 				require.NoError(t, err)
 

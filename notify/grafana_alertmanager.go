@@ -247,8 +247,6 @@ type GrafanaAlertmanagerOpts struct {
 	NotificationHistorian nfstatus.NotificationHistorian
 
 	DispatchTimer DispatchTimer
-
-	BuildWithManifestBuilder bool
 }
 
 func (c *GrafanaAlertmanagerOpts) Validate() error {
@@ -823,7 +821,6 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		am.opts.Version,
 		am.logger,
 		am.opts.NotificationHistorian,
-		am.opts.BuildWithManifestBuilder,
 	)
 	if err != nil {
 		return err
@@ -1066,23 +1063,7 @@ func (am *GrafanaAlertmanager) tenantString() string {
 }
 
 func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver models.ReceiverConfig, tmpls TemplatesProvider) ([]*Integration, error) {
-	if am.opts.BuildWithManifestBuilder {
-		return BuildReceiverIntegrationsWithManifests(
-			am.opts.TenantID,
-			receiver,
-			tmpls,
-			am.opts.ImageProvider,
-			am.opts.Decrypter,
-			DecodeSecretsFromBase64,
-			am.opts.EmailSender,
-			nil,
-			NoWrap,
-			am.opts.Version,
-			am.logger,
-			am.opts.NotificationHistorian,
-		)
-	}
-	return BuildReceiverIntegrations(
+	return BuildReceiverIntegrationsWithManifests(
 		am.opts.TenantID,
 		receiver,
 		tmpls,
