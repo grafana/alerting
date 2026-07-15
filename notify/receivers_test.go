@@ -120,7 +120,7 @@ func TestHTTPConfig(t *testing.T) {
 				// buildDecrypt mirrors how the manifest factory resolves secure settings
 				// (decode base64, then look up via the decrypt function) so parseHTTPConfig
 				// receives the same input it does in production.
-				buildDecrypt := func(secure map[string]string) receivers.DecryptFunc {
+				buildDecrypt := func(t *testing.T, secure map[string]string) receivers.DecryptFunc {
 					secureSettings, err := DecodeSecretsFromBase64(secure)
 					require.NoError(t, err)
 					return func(key string, fallback string) (string, bool) {
@@ -136,7 +136,7 @@ func TestHTTPConfig(t *testing.T) {
 						config.SecureSettings[key] = base64.StdEncoding.EncodeToString(value)
 					}
 
-					httpClientConfig, err := parseHTTPConfig(config, buildDecrypt(config.SecureSettings))
+					httpClientConfig, err := parseHTTPConfig(config, buildDecrypt(t, config.SecureSettings))
 					require.NoError(t, err)
 
 					expectedHTTPConfig := &alertingHttp.HTTPClientConfig{
@@ -171,7 +171,7 @@ func TestHTTPConfig(t *testing.T) {
 
 				t.Run("without secureSettings", func(t *testing.T) {
 					config.SecureSettings = nil
-					httpClientConfig, err := parseHTTPConfig(config, buildDecrypt(config.SecureSettings))
+					httpClientConfig, err := parseHTTPConfig(config, buildDecrypt(t, config.SecureSettings))
 					require.NoError(t, err)
 
 					expectedHTTPConfig := &alertingHttp.HTTPClientConfig{
