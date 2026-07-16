@@ -116,7 +116,9 @@ func (d Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) 
 	}
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, d.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, d.tmpl, as, l, &tmplErr)
+
+	receivers.ApplyExtraData(ctx, data.Alerts)
 
 	messageContent := tmpl(d.settings.Message)
 	if tmplErr != nil {
