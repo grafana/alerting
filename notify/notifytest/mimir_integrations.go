@@ -75,7 +75,7 @@ func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...v0mimirtest
 		// Create a new instance of the element type
 		elemPtr := reflect.New(elemType).Interface()
 		underlyingType := elemType
-		if underlyingType.Kind() == reflect.Ptr {
+		if underlyingType.Kind() == reflect.Pointer {
 			underlyingType = underlyingType.Elem()
 		}
 		if !slices.Contains(iTypes, underlyingType) {

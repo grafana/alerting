@@ -257,7 +257,7 @@ func IntegrationTypeFromMimirTypeReflect(t reflect.Type) (schema.IntegrationType
 		}
 		return itype, nil
 	}
-	if t.Kind() == reflect.Ptr {
+	if t.Kind() == reflect.Pointer {
 		return IntegrationTypeFromMimirTypeReflect(t.Elem())
 	}
 	if t.Kind() == reflect.Slice {
