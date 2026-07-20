@@ -12,7 +12,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -98,225 +97,6 @@ func TestProcessNotifierError(t *testing.T) {
 	})
 }
 
-func TestBuildReceiverConfiguration(t *testing.T) {
-	decrypt := GetDecryptedValueFnForTesting
-	t.Run("AllKnownV1ConfigsForTesting contains all notifier types", func(t *testing.T) {
-		// Sanity check to ensure this fails when not all notifier types are present in the configuration.
-		// If this doesn't pass, other tests that rely on this function will not be reliable.
-		_, missing := allReceivers(&GrafanaReceiverConfig{})
-		require.Greaterf(t, missing, 0, "all notifier types should be missing, allReceivers may no longer be reliable, missing: %d", missing)
-
-		recCfg := models.ReceiverConfig{Name: "test-receiver"}
-		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
-		}
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
-		require.NoError(t, err)
-		_, missing = allReceivers(&parsed)
-		require.Equalf(t, 0, missing, "all notifier types should be present, missing: %d", missing)
-	})
-	t.Run("should decode secrets from base64", func(t *testing.T) {
-		recCfg := models.ReceiverConfig{Name: "test-receiver"}
-		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
-		}
-		counter := 0
-		decryptCount := func(ctx context.Context, sjd map[string][]byte, key string, fallback string) string {
-			counter++
-			return decrypt(ctx, sjd, key, fallback)
-		}
-		_, _ = BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decryptCount)
-		require.Greater(t, counter, 0)
-	})
-	t.Run("should fail if at least one config is invalid", func(t *testing.T) {
-		recCfg := models.ReceiverConfig{Name: "test-receiver"}
-		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
-		}
-		bad := &models.IntegrationConfig{
-			UID:      "invalid-test",
-			Name:     "invalid-test",
-			Type:     schema.SlackType,
-			Version:  schema.V1,
-			Settings: json.RawMessage(`{ "test" : "test" }`),
-		}
-		recCfg.Integrations = append(recCfg.Integrations, bad)
-
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
-		require.NotNil(t, err)
-		require.Equal(t, GrafanaReceiverConfig{}, parsed)
-		require.ErrorAs(t, err, &IntegrationValidationError{})
-		typedError := err.(IntegrationValidationError)
-		require.NotNil(t, typedError.Integration)
-		require.Equal(t, bad, typedError.Integration)
-		require.ErrorContains(t, err, fmt.Sprintf(`failed to validate integration "%s" (UID %s) of type "%s"`, bad.Name, bad.UID, bad.Type))
-	})
-	t.Run("should accept empty config", func(t *testing.T) {
-		recCfg := models.ReceiverConfig{Name: "test-receiver"}
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
-		require.NoError(t, err)
-		require.Equal(t, recCfg.Name, parsed.Name)
-	})
-	t.Run("should support non-base64-encoded secrets", func(t *testing.T) {
-		recCfg := models.ReceiverConfig{Name: "test-receiver"}
-		// We decode all the secureSettings from base64 and then build then receivers. The test is to ensure that
-		// BuildReceiverConfiguration can handle the already decoded secrets correctly.
-		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			notifierRaw := cfg.GetRawNotifierConfig("")
-			if len(notifierRaw.SecureSettings) == 0 {
-				continue
-			}
-			for key := range notifierRaw.SecureSettings {
-				decoded, err := base64.StdEncoding.DecodeString(notifierRaw.SecureSettings[key])
-				require.NoError(t, err)
-				notifierRaw.SecureSettings[key] = string(decoded)
-			}
-			recCfg.Integrations = append(recCfg.Integrations, notifierRaw)
-		}
-
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, NoopDecode, NoopDecrypt)
-		require.NoError(t, err)
-		require.Equal(t, recCfg.Name, parsed.Name)
-		for _, notifier := range recCfg.Integrations {
-			if notifier.Type == schema.AlertManagerType {
-				require.Equal(t, notifier.SecureSettings["basicAuthPassword"], parsed.AlertmanagerConfigs[0].Settings.Password)
-			}
-		}
-
-	})
-	t.Run("should fail if notifier type is unknown", func(t *testing.T) {
-		recCfg := models.ReceiverConfig{Name: "test-receiver"}
-		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
-		}
-		bad := &models.IntegrationConfig{
-			UID:      "test",
-			Name:     "test",
-			Type:     schema.IntegrationType(fmt.Sprintf("invalid-%d", rand.Uint32())),
-			Version:  schema.V1,
-			Settings: json.RawMessage(`{ "test" : "test" }`),
-		}
-		recCfg.Integrations = append(recCfg.Integrations, bad)
-
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
-		require.NotNil(t, err)
-		require.Equal(t, GrafanaReceiverConfig{}, parsed)
-		require.ErrorAs(t, err, &IntegrationValidationError{})
-		typedError := err.(IntegrationValidationError)
-		require.NotNil(t, typedError.Integration)
-		require.Equal(t, bad, typedError.Integration)
-		require.ErrorContains(t, err, fmt.Sprintf("invalid integration type: %s", bad.Type))
-	})
-	t.Run("should recognize all known types", func(t *testing.T) {
-		recCfg := models.ReceiverConfig{Name: "test-receiver"}
-		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
-		}
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
-		require.NoError(t, err)
-		require.Equal(t, recCfg.Name, parsed.Name)
-
-		expectedNotifiers := make(map[schema.IntegrationType]struct{})
-		for _, notifier := range recCfg.Integrations {
-			expectedNotifiers[notifier.Type] = struct{}{}
-		}
-
-		// Ensure that one of every notifier is present in the parsed configuration.
-		all, _ := allReceivers(&parsed)
-		require.Len(t, all, len(notifytest.AllKnownV1ConfigsForTesting), "mismatch in number of notifiers, expected %d, got %d", len(notifytest.AllKnownV1ConfigsForTesting), len(all))
-		for _, recv := range all {
-			if _, ok := expectedNotifiers[recv.Type]; ok {
-				delete(expectedNotifiers, recv.Type)
-			} else {
-				t.Errorf("unexpected notifier type: %s", recv.Type)
-			}
-		}
-		require.Empty(t, expectedNotifiers, "not all expected notifiers were found in the parsed configuration")
-
-		t.Run("should populate metadata", func(t *testing.T) {
-			for idx, cfg := range all {
-				meta := cfg.Metadata
-				require.NotEmptyf(t, meta.Type, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
-				require.NotEmptyf(t, meta.UID, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
-				require.NotEmptyf(t, meta.Name, "%s notifier (idx: %d) '%s' uid: '%s'.", meta.Type, idx, meta.Name, meta.UID)
-				var notifierRaw *models.IntegrationConfig
-				for _, receiver := range recCfg.Integrations {
-					if receiver.Type == meta.Type && receiver.UID == meta.UID && receiver.Name == meta.Name && receiver.Version == meta.Version {
-						notifierRaw = receiver
-						break
-					}
-				}
-				require.NotNilf(t, notifierRaw, "cannot find raw settings for %s notifier '%s' uid: '%s'.", meta.Type, meta.Name, meta.UID)
-				require.Equalf(t, notifierRaw.DisableResolveMessage, meta.DisableResolveMessage, "%s notifier '%s' uid: '%s'.", meta.Type, meta.Name, meta.UID)
-			}
-		})
-	})
-	t.Run("should recognize type in any case", func(t *testing.T) {
-		recCfg := models.ReceiverConfig{Name: "test-receiver"}
-		for _, cfg := range notifytest.AllKnownV1ConfigsForTesting {
-			notifierRaw := cfg.GetRawNotifierConfig("")
-			notifierRaw.Type = schema.IntegrationType(strings.ToUpper(string(notifierRaw.Type)))
-			recCfg.Integrations = append(recCfg.Integrations, cfg.GetRawNotifierConfig(""))
-		}
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
-		require.NoError(t, err)
-
-		expectedNotifiers := make(map[schema.IntegrationType]struct{})
-		for _, notifier := range recCfg.Integrations {
-			expectedNotifiers[notifier.Type] = struct{}{}
-		}
-
-		// Ensure that one of every notifier is present in the parsed configuration.
-		all, _ := allReceivers(&parsed)
-		require.Len(t, all, len(notifytest.AllKnownV1ConfigsForTesting), "mismatch in number of notifiers, expected %d, got %d", len(notifytest.AllKnownV1ConfigsForTesting), len(all))
-		for _, recv := range all {
-			if _, ok := expectedNotifiers[recv.Type]; ok {
-				delete(expectedNotifiers, recv.Type)
-			} else {
-				t.Errorf("unexpected notifier type: %s", recv.Type)
-			}
-		}
-		require.Empty(t, expectedNotifiers, "not all expected notifiers were found in the parsed configuration")
-	})
-	t.Run("should resolve type alias", func(t *testing.T) {
-		// "line" is an alias for schema.LineType ("LINE")
-		cfg := notifytest.AllKnownV1ConfigsForTesting[schema.LineType]
-		raw := cfg.GetRawNotifierConfig("")
-		raw.Type = "line" // alias, not canonical type
-		recCfg := models.ReceiverConfig{
-			Name:         "test-receiver",
-			Integrations: []*models.IntegrationConfig{raw},
-		}
-		parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
-		require.NoError(t, err)
-		require.Len(t, parsed.LineConfigs, 1)
-	})
-	t.Run("should reject invalid version", func(t *testing.T) {
-		cfg := notifytest.AllKnownV1ConfigsForTesting[schema.WebhookType]
-		raw := cfg.GetRawNotifierConfig("")
-		raw.Version = "v99"
-		recCfg := models.ReceiverConfig{
-			Name:         "test-receiver",
-			Integrations: []*models.IntegrationConfig{raw},
-		}
-		_, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "invalid version v99")
-	})
-	t.Run("should reject non-V1 version", func(t *testing.T) {
-		cfg := notifytest.AllKnownV1ConfigsForTesting[schema.TeamsType]
-		raw := cfg.GetRawNotifierConfig("")
-		raw.Version = schema.V0mimir1
-		recCfg := models.ReceiverConfig{
-			Name:         "test-receiver",
-			Integrations: []*models.IntegrationConfig{raw},
-		}
-		_, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, decrypt)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "invalid receiver version")
-	})
-}
-
 func TestHTTPConfig(t *testing.T) {
 	for notifierType, cfg := range notifytest.AllKnownV1ConfigsForTesting {
 		t.Run(string(notifierType), func(t *testing.T) {
@@ -337,11 +117,18 @@ func TestHTTPConfig(t *testing.T) {
 				// Config should include http_config if the notifier supports it, but let's sanity check.
 				require.Containsf(t, string(config.Settings), "http_config", "notifier %s does not contain http_config", notifierType)
 
-				recCfg := models.ReceiverConfig{
-					Name: "test-receiver",
-					Integrations: []*models.IntegrationConfig{
-						config,
-					},
+				// buildDecrypt mirrors how the manifest factory resolves secure settings
+				// (decode base64, then look up via the decrypt function) so parseHTTPConfig
+				// receives the same input it does in production.
+				buildDecrypt := func(t *testing.T, secure map[string]string) receivers.DecryptFunc {
+					secureSettings, err := DecodeSecretsFromBase64(secure)
+					require.NoError(t, err)
+					return func(key string, fallback string) (string, bool) {
+						if _, ok := secureSettings[key]; !ok {
+							return fallback, false
+						}
+						return GetDecryptedValueFnForTesting(context.Background(), secureSettings, key, fallback), true
+					}
 				}
 
 				t.Run("with secureSettings", func(t *testing.T) {
@@ -349,13 +136,8 @@ func TestHTTPConfig(t *testing.T) {
 						config.SecureSettings[key] = base64.StdEncoding.EncodeToString(value)
 					}
 
-					parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
+					httpClientConfig, err := parseHTTPConfig(config, buildDecrypt(t, config.SecureSettings))
 					require.NoError(t, err)
-
-					recvs, _ := allReceivers(&parsed)
-					require.Len(t, recvs, 1)
-
-					recv := recvs[0]
 
 					expectedHTTPConfig := &alertingHttp.HTTPClientConfig{
 						OAuth2: &alertingHttp.OAuth2Config{
@@ -384,18 +166,13 @@ func TestHTTPConfig(t *testing.T) {
 						},
 					}
 
-					require.Equal(t, expectedHTTPConfig, recv.HTTPClientConfig)
+					require.Equal(t, expectedHTTPConfig, httpClientConfig)
 				})
 
 				t.Run("without secureSettings", func(t *testing.T) {
 					config.SecureSettings = nil
-					parsed, err := BuildReceiverConfiguration(context.Background(), recCfg, DecodeSecretsFromBase64, GetDecryptedValueFnForTesting)
+					httpClientConfig, err := parseHTTPConfig(config, buildDecrypt(t, config.SecureSettings))
 					require.NoError(t, err)
-
-					recvs, _ := allReceivers(&parsed)
-					require.Len(t, recvs, 1)
-
-					recv := recvs[0]
 
 					expectedHTTPConfig := &alertingHttp.HTTPClientConfig{
 						OAuth2: &alertingHttp.OAuth2Config{
@@ -424,7 +201,7 @@ func TestHTTPConfig(t *testing.T) {
 						},
 					}
 
-					require.Equal(t, expectedHTTPConfig, recv.HTTPClientConfig)
+					require.Equal(t, expectedHTTPConfig, httpClientConfig)
 				})
 			})
 			t.Run("should support notifying with oauth2 authorization", func(t *testing.T) {
@@ -587,41 +364,6 @@ func TestHTTPConfig(t *testing.T) {
 			})
 		})
 	}
-}
-
-func allReceivers(r *GrafanaReceiverConfig) ([]NotifierConfig[any], int) {
-	var recvs []NotifierConfig[any]
-	data, _ := json.Marshal(r)
-	var asMap map[string][]NotifierConfig[any]
-	_ = json.Unmarshal(data, &asMap)
-
-	notifierConfigPrefix := reflect.TypeOf((*NotifierConfig[any])(nil)).Elem().Name()
-	notifierConfigPrefix = notifierConfigPrefix[:strings.Index(notifierConfigPrefix, "[")+1]
-	isNotifierConfigField := func(name string) bool {
-		field, ok := reflect.TypeOf(GrafanaReceiverConfig{}).FieldByName(name)
-		if !ok || field.Type.Kind() != reflect.Slice {
-			return false
-		}
-
-		if !strings.HasPrefix(field.Type.Elem().Elem().Name(), notifierConfigPrefix) {
-			return false
-		}
-		return true
-	}
-
-	missing := 0
-	for k, configs := range asMap {
-		if !isNotifierConfigField(k) {
-			// Skip fields that are not of type []*NotifierConfig.
-			continue
-		}
-		if len(configs) == 0 {
-			missing++
-			continue
-		}
-		recvs = append(recvs, configs...)
-	}
-	return recvs, missing
 }
 
 // TestReceiver_JSONRoundTrip verifies JSON marshal/unmarshal roundtrip for a
