@@ -186,10 +186,10 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			PropertyName: "protect_content",
 		},
 		{
-			Label:        "Disable Notification",
+			Label:        "Disable Notifications",
 			Description:  "Sends the message silently. Users will receive a notification with no sound.",
 			Element:      schema.ElementTypeCheckbox,
-			PropertyName: "disable_notification",
+			PropertyName: "disable_notifications",
 		},
 	},
 })
