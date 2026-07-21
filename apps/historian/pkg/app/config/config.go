@@ -29,7 +29,9 @@ type NotificationConfig struct {
 	// alert rules the requesting user is allowed to read. When enabled, the app
 	// lists the tenant's folders via the multi-tenant folder API and then confirms
 	// alert.rules:read on each folder via AccessClient, keeping only the folders
-	// the caller may see. Results are filtered to those folders.
+	// the caller may see. Results are filtered to those folders. This works in
+	// multi-tenant deployments because both the folder API and the authz service
+	// are multi-tenant, unlike the single-tenant rules API.
 	RBACEnabled bool
 	// AccessClient authorizes alert.rules:read per folder for RBAC filtering. It is
 	// set programmatically by the deployment wiring (not via a flag). When
