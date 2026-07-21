@@ -183,7 +183,7 @@ func ConfigReceiverToMimirIntegrations(receiver ConfigReceiver) ([]MimirIntegrat
 		for j := 0; j < sliceVal.Len(); j++ {
 			var elem any
 			item := sliceVal.Index(j)
-			if elemType.Kind() == reflect.Ptr {
+			if elemType.Kind() == reflect.Pointer {
 				elem = item.Elem().Interface()
 			} else {
 				elem = item.Interface()
