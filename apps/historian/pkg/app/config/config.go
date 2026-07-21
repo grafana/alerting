@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/grafana/alerting/notify/historian/lokiclient"
+	authtypes "github.com/grafana/authlib/types"
 	"github.com/grafana/grafana-app-sdk/simple"
 )
 
@@ -24,12 +25,19 @@ type LokiConfig struct {
 type NotificationConfig struct {
 	Enabled bool
 	Loki    LokiConfig
-	// RBACEnabled restricts notification history results to the alert rules the
-	// requesting user is allowed to access. When enabled, the app lists accessible
-	// rules via the Kubernetes rules API (which enforces RBAC) and filters results
-	// to those rules. It requires the app to be able to reach the rules API using
-	// the request identity (e.g. Grafana's in-process loopback config).
+	// RBACEnabled restricts notification history results to the folders whose
+	// alert rules the requesting user is allowed to read. When enabled, the app
+	// lists the tenant's folders via the multi-tenant folder API and then confirms
+	// alert.rules:read on each folder via AccessClient, keeping only the folders
+	// the caller may see. Results are filtered to those folders. This works in
+	// multi-tenant deployments because both the folder API and the authz service
+	// are multi-tenant, unlike the single-tenant rules API.
 	RBACEnabled bool
+	// AccessClient authorizes alert.rules:read per folder for RBAC filtering. It is
+	// set programmatically by the deployment wiring (not via a flag). When
+	// RBACEnabled is true it must be non-nil, otherwise notification queries fail
+	// closed.
+	AccessClient authtypes.AccessClient
 }
 
 type RuntimeConfig struct {

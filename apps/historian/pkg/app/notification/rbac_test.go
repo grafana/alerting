@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	authtypes "github.com/grafana/authlib/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -17,17 +18,45 @@ import (
 	"github.com/grafana/grafana-app-sdk/logging"
 )
 
-// testFilter builds a filter over the given accessible rule and folder UIDs.
-func testFilter(rules, folders []string) *ruleFilter {
-	rset := make(ruleUIDSet, len(rules))
-	for _, r := range rules {
-		rset[r] = struct{}{}
-	}
+// testFilter builds a folder-only filter over the given accessible folder UIDs.
+func testFilter(folders ...string) *ruleFilter {
 	fset := make(ruleUIDSet, len(folders))
 	for _, f := range folders {
 		fset[f] = struct{}{}
 	}
-	return newRuleFilter(accessScope{rules: rset, folders: fset})
+	return newRuleFilter(fset)
+}
+
+// fakeAuthInfo satisfies authtypes.AuthInfo for tests. Its methods are never
+// invoked (the fake access client ignores the identity), so embedding the nil
+// interface is sufficient to place a value on the context.
+type fakeAuthInfo struct {
+	authtypes.AuthInfo
+}
+
+// fakeAccessClient is a test double for authtypes.AccessClient that grants access
+// to a fixed set of folder UIDs.
+type fakeAccessClient struct {
+	allowedFolders map[string]bool
+	// gotChecks records the folder-scoped checks issued, for assertions.
+	gotChecks []authtypes.BatchCheckItem
+}
+
+func (f *fakeAccessClient) Check(context.Context, authtypes.AuthInfo, authtypes.CheckRequest, string) (authtypes.CheckResponse, error) {
+	return authtypes.CheckResponse{}, nil
+}
+
+func (f *fakeAccessClient) Compile(context.Context, authtypes.AuthInfo, authtypes.ListRequest) (authtypes.ItemChecker, authtypes.Zookie, error) {
+	return func(_, folder string) bool { return f.allowedFolders[folder] }, &authtypes.NoopZookie{}, nil
+}
+
+func (f *fakeAccessClient) BatchCheck(_ context.Context, _ authtypes.AuthInfo, req authtypes.BatchCheckRequest) (authtypes.BatchCheckResponse, error) {
+	results := make(map[string]authtypes.BatchCheckResult, len(req.Checks))
+	for _, c := range req.Checks {
+		f.gotChecks = append(f.gotChecks, c)
+		results[c.CorrelationID] = authtypes.BatchCheckResult{Allowed: f.allowedFolders[c.Folder]}
+	}
+	return authtypes.BatchCheckResponse{Results: results}, nil
 }
 
 func TestBuildNotificationFolderFilter(t *testing.T) {
@@ -43,17 +72,17 @@ func TestBuildNotificationFolderFilter(t *testing.T) {
 		},
 		{
 			name:   "empty accessible set produces no matcher",
-			filter: testFilter(nil, nil),
+			filter: testFilter(),
 			want:   "",
 		},
 		{
 			name:   "single accessible folder",
-			filter: testFilter([]string{"ruleA"}, []string{"folderA"}),
+			filter: testFilter("folderA"),
 			want:   ` | folder_uids =~ "(^|.*,)(folderA)($|,.*)"`,
 		},
 		{
 			name:   "multiple accessible folders are sorted",
-			filter: testFilter([]string{"ruleA"}, []string{"folderB", "folderA"}),
+			filter: testFilter("folderB", "folderA"),
 			want:   ` | folder_uids =~ "(^|.*,)(folderA|folderB)($|,.*)"`,
 		},
 	}
@@ -78,12 +107,12 @@ func TestBuildAlertFolderFilter(t *testing.T) {
 		},
 		{
 			name:   "empty accessible set produces no matcher",
-			filter: testFilter(nil, nil),
+			filter: testFilter(),
 			want:   "",
 		},
 		{
 			name:   "multiple accessible folders are sorted",
-			filter: testFilter([]string{"ruleA"}, []string{"folderB", "folderA"}),
+			filter: testFilter("folderB", "folderA"),
 			want:   ` | folder_uid =~ "^(folderA|folderB)$"`,
 		},
 	}
@@ -96,7 +125,7 @@ func TestBuildAlertFolderFilter(t *testing.T) {
 }
 
 func TestBuildQuery_RBACFolderFilterPushedDown(t *testing.T) {
-	filter := testFilter([]string{"ruleA"}, []string{"folderA", "folderB"})
+	filter := testFilter("folderA", "folderB")
 
 	logql, err := buildQuery(Query{}, nil, filter)
 	require.NoError(t, err)
@@ -104,7 +133,7 @@ func TestBuildQuery_RBACFolderFilterPushedDown(t *testing.T) {
 }
 
 func TestBuildAlertQuery_RBACFolderFilterPushedDown(t *testing.T) {
-	filter := testFilter([]string{"ruleA"}, []string{"folderA", "folderB"})
+	filter := testFilter("folderA", "folderB")
 
 	logql, err := buildAlertQuery(AlertQuery{}, filter)
 	require.NoError(t, err)
@@ -118,8 +147,8 @@ func TestLokiReader_Query_EmptyFilterReturnsEmptyWithoutQuerying(t *testing.T) {
 		logger: &logging.NoOpLogger{},
 	}
 
-	// A non-nil but empty filter means the caller can access no rules.
-	result, err := reader.Query(context.Background(), Query{}, testFilter(nil, nil))
+	// A non-nil but empty filter means the caller can access no folders.
+	result, err := reader.Query(context.Background(), Query{}, testFilter())
 	require.NoError(t, err)
 	assert.Empty(t, result.Entries)
 	assert.Empty(t, result.Counts)
@@ -135,7 +164,7 @@ func TestLokiReader_QueryAlerts_EmptyFilterReturnsEmptyWithoutQuerying(t *testin
 		logger: &logging.NoOpLogger{},
 	}
 
-	result, err := reader.QueryAlerts(context.Background(), AlertQuery{}, testFilter(nil, nil))
+	result, err := reader.QueryAlerts(context.Background(), AlertQuery{}, testFilter())
 	require.NoError(t, err)
 	assert.Empty(t, result.Alerts)
 	mockClient.AssertNotCalled(t, "RangeQuery")
@@ -155,29 +184,33 @@ func TestLokiReader_Query_NonEmptyFilterAppliesMatcher(t *testing.T) {
 		logger: &logging.NoOpLogger{},
 	}
 
-	result, err := reader.Query(context.Background(), Query{}, testFilter([]string{"rule-uid-1"}, []string{"folder-1"}))
+	result, err := reader.Query(context.Background(), Query{}, testFilter("folder-1"))
 	require.NoError(t, err)
 	assert.Len(t, result.Entries, 1)
 	mockClient.AssertExpectations(t)
 }
 
-func TestExplodeRuleUIDCounts_DropsInaccessibleRules(t *testing.T) {
-	// A notification referencing both an accessible (ruleA) and inaccessible (ruleB)
-	// rule must only produce a per-rule count for the accessible one.
+func TestExplodeRuleUIDCounts_SplitsCommaSeparated(t *testing.T) {
+	// A notification referencing several rules is stored with a comma-separated
+	// rule_uids label; grouping by rule must emit an individual count per rule,
+	// each carrying the notification's count.
 	counts := []Count{
 		{RuleUID: stringPtr("ruleA,ruleB"), Count: 5},
 	}
-	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
 
-	got := explodeRuleUIDCounts(counts, 10, filter)
+	got := explodeRuleUIDCounts(counts, 10)
 
-	require.Len(t, got, 1)
-	require.NotNil(t, got[0].RuleUID)
-	assert.Equal(t, "ruleA", *got[0].RuleUID)
-	assert.Equal(t, int64(5), got[0].Count)
+	require.Len(t, got, 2)
+	byUID := map[string]int64{}
+	for _, c := range got {
+		require.NotNil(t, c.RuleUID)
+		byUID[*c.RuleUID] = c.Count
+	}
+	assert.Equal(t, int64(5), byUID["ruleA"])
+	assert.Equal(t, int64(5), byUID["ruleB"])
 }
 
-func TestK8sRuleAccessReader_AccessibleScope(t *testing.T) {
+func TestFolderAccessReader_AccessibleFolders(t *testing.T) {
 	var gotPaths []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPaths = append(gotPaths, r.URL.Path)
@@ -190,15 +223,15 @@ func TestK8sRuleAccessReader_AccessibleScope(t *testing.T) {
 			resp = map[string]any{
 				"metadata": map[string]any{"continue": "next-page"},
 				"items": []map[string]any{
-					{"metadata": map[string]any{"name": "rule-1", "labels": map[string]any{folderLabelKey: "folder-a"}}},
-					{"metadata": map[string]any{"name": "rule-2", "labels": map[string]any{folderLabelKey: "folder-a"}}},
+					{"metadata": map[string]any{"name": "folder-a"}},
+					{"metadata": map[string]any{"name": "folder-b"}},
 				},
 			}
 		} else {
 			resp = map[string]any{
 				"metadata": map[string]any{"continue": ""},
 				"items": []map[string]any{
-					{"metadata": map[string]any{"name": "rule-3", "labels": map[string]any{folderLabelKey: "folder-b"}}},
+					{"metadata": map[string]any{"name": "folder-c"}},
 				},
 			}
 		}
@@ -206,38 +239,68 @@ func TestK8sRuleAccessReader_AccessibleScope(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	reader, err := newK8sRuleAccessReader(rest.Config{Host: srv.URL}, &logging.NoOpLogger{})
+	// The caller may read alert rules in folder-a and folder-c but not folder-b.
+	access := &fakeAccessClient{allowedFolders: map[string]bool{"folder-a": true, "folder-c": true}}
+	reader, err := newFolderAccessReader(rest.Config{Host: srv.URL}, access, &logging.NoOpLogger{})
 	require.NoError(t, err)
 
-	scope, err := reader.AccessibleScope(context.Background(), "org-1")
+	ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{})
+	folders, err := reader.AccessibleFolders(ctx, "org-1")
 	require.NoError(t, err)
 
-	assert.True(t, scope.rules.Has("rule-1"))
-	assert.True(t, scope.rules.Has("rule-2"))
-	assert.True(t, scope.rules.Has("rule-3"))
-	assert.False(t, scope.rules.Has("rule-4"))
-	assert.Len(t, scope.rules, 3)
+	assert.True(t, folders.Has("folder-a"))
+	assert.False(t, folders.Has("folder-b"))
+	assert.True(t, folders.Has("folder-c"))
+	assert.Len(t, folders, 2)
 
-	// Folders are collected from the grafana.app/folder label and de-duplicated.
-	assert.True(t, scope.folders.Has("folder-a"))
-	assert.True(t, scope.folders.Has("folder-b"))
-	assert.Len(t, scope.folders, 2)
-
-	// Both pages should target the namespaced alertrules collection.
+	// Both pages should target the namespaced folders collection.
 	require.Len(t, gotPaths, 2)
 	for _, p := range gotPaths {
-		assert.Equal(t, "/apis/rules.alerting.grafana.app/v0alpha1/namespaces/org-1/alertrules", p)
+		assert.Equal(t, "/apis/folder.grafana.app/v1beta1/namespaces/org-1/folders", p)
+	}
+
+	// Every candidate folder is checked for alert.rules read access, folder-scoped.
+	require.Len(t, access.gotChecks, 3)
+	for _, c := range access.gotChecks {
+		assert.Equal(t, rulesAPIGroup, c.Group)
+		assert.Equal(t, alertRulesResource, c.Resource)
+		assert.Equal(t, c.CorrelationID, c.Folder)
+		assert.NotEmpty(t, c.Verb)
 	}
 }
 
-// fakeRuleAccessReader is a test double for ruleAccessReader.
-type fakeRuleAccessReader struct {
-	scope accessScope
-	err   error
+func TestFolderAccessReader_RequiresAuthInfo(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]any{
+			"metadata": map[string]any{"continue": ""},
+			"items":    []map[string]any{{"metadata": map[string]any{"name": "folder-a"}}},
+		}))
+	}))
+	t.Cleanup(srv.Close)
+
+	access := &fakeAccessClient{allowedFolders: map[string]bool{"folder-a": true}}
+	reader, err := newFolderAccessReader(rest.Config{Host: srv.URL}, access, &logging.NoOpLogger{})
+	require.NoError(t, err)
+
+	// No auth info on the context: the folder checks cannot be performed.
+	_, err = reader.AccessibleFolders(context.Background(), "org-1")
+	require.Error(t, err)
 }
 
-func (f fakeRuleAccessReader) AccessibleScope(_ context.Context, _ string) (accessScope, error) {
-	return f.scope, f.err
+func TestNewFolderAccessReader_RequiresAccessClient(t *testing.T) {
+	_, err := newFolderAccessReader(rest.Config{Host: "http://example"}, nil, &logging.NoOpLogger{})
+	require.Error(t, err)
+}
+
+// fakeFolderAccessReader is a test double for folderAccessReader.
+type fakeFolderAccessReader struct {
+	folders ruleUIDSet
+	err     error
+}
+
+func (f fakeFolderAccessReader) AccessibleFolders(_ context.Context, _ string) (ruleUIDSet, error) {
+	return f.folders, f.err
 }
 
 func TestNotification_ResolveRuleFilter(t *testing.T) {
@@ -249,26 +312,20 @@ func TestNotification_ResolveRuleFilter(t *testing.T) {
 	})
 
 	t.Run("rbac enabled without reader fails closed", func(t *testing.T) {
-		n := &Notification{rbacEnabled: true, ruleAccess: nil}
+		n := &Notification{rbacEnabled: true, folderAccess: nil}
 		_, err := n.resolveRuleFilter(context.Background(), "org-1")
 		require.Error(t, err)
 	})
 
 	t.Run("rbac enabled returns filter keyed by folder UIDs", func(t *testing.T) {
 		n := &Notification{
-			rbacEnabled: true,
-			ruleAccess: fakeRuleAccessReader{scope: accessScope{
-				rules:   ruleUIDSet{"ruleA": {}, "ruleB": {}},
-				folders: ruleUIDSet{"folderB": {}, "folderA": {}},
-			}},
+			rbacEnabled:  true,
+			folderAccess: fakeFolderAccessReader{folders: ruleUIDSet{"folderB": {}, "folderA": {}}},
 		}
 		filter, err := n.resolveRuleFilter(context.Background(), "org-1")
 		require.NoError(t, err)
 		require.NotNil(t, filter)
-		// The push-down is keyed by accessible folders...
+		// The push-down is keyed by the accessible folders, sorted.
 		assert.Equal(t, []string{"folderA", "folderB"}, filter.folderKeys)
-		// ...while the rule set is retained for per-rule count stripping.
-		assert.True(t, filter.rules.Has("ruleA"))
-		assert.True(t, filter.rules.Has("ruleB"))
 	})
 }
