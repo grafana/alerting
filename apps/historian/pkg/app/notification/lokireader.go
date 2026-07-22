@@ -146,7 +146,7 @@ func (h *LokiReader) Query(ctx context.Context, query Query, filter *ruleFilter)
 
 	switch qtype {
 	case v0alpha1.CreateNotificationqueryRequestBodyTypeEntries:
-		entries, err := h.runQuery(ctx, logqls, from, to, limit, filter)
+		entries, err := h.runQuery(ctx, logqls, from, to, limit)
 		if err != nil {
 			return QueryResult{}, err
 		}
@@ -159,7 +159,7 @@ func (h *LokiReader) Query(ctx context.Context, query Query, filter *ruleFilter)
 		if query.GroupBy != nil {
 			groupBy = *query.GroupBy
 		}
-		counts, err := h.runMetricsQuery(ctx, logqls, from, to, limit, groupBy, filter)
+		counts, err := h.runMetricsQuery(ctx, logqls, from, to, limit, groupBy)
 		if err != nil {
 			return QueryResult{}, err
 		}
@@ -176,7 +176,7 @@ func (h *LokiReader) Query(ctx context.Context, query Query, filter *ruleFilter)
 		if query.Step != nil && *query.Step > 0 {
 			step = time.Duration(*query.Step) * time.Second
 		}
-		rangeCounts, err := h.runMetricsRangeQuery(ctx, logqls, from, to, limit, step, groupBy, filter)
+		rangeCounts, err := h.runMetricsRangeQuery(ctx, logqls, from, to, limit, step, groupBy)
 		if err != nil {
 			return QueryResult{}, err
 		}
@@ -299,25 +299,13 @@ func buildMetricsRangeQuery(logqlInner string, step time.Duration, groupBy Query
 // for each folder batch and converts the metric samples into Count values.
 //
 // Results from multiple batches are aggregated by label set: the RuleUID group-by
-// path via explodeRuleUIDCounts, all other group-bys via collapseAccessibleCounts
-// (RBAC) or mergeCounts. A single non-RBAC batch (the common case) is left
-// untouched apart from sorting, preserving the server-side topk.
-func (h *LokiReader) runMetricsQuery(ctx context.Context, logqlInners []string, from, to time.Time, limit int64, groupBy QueryGroupBy, filter *ruleFilter) ([]Count, error) {
-	// RBAC: even when the client does not group by rule, group on rule_uids under
-	// the hood so notifications that survive the folder push-down but reference no
-	// accessible rule (e.g. snapshot skew, see runQuery) can be dropped client-side
-	// (fail-closed), matching the entries path. This also disables the server-side
-	// topk (see buildMetricsQuery), so the limit is re-applied by the client-side
-	// aggregation below. It costs extra series cardinality, incurred only when RBAC
-	// is active.
-	metricsGroupBy := groupBy
-	if filter != nil {
-		metricsGroupBy.RuleUID = true
-	}
-
+// path via explodeRuleUIDCounts, all other group-bys via mergeCounts. A single
+// batch (the common case) is left untouched apart from sorting, preserving the
+// server-side topk.
+func (h *LokiReader) runMetricsQuery(ctx context.Context, logqlInners []string, from, to time.Time, limit int64, groupBy QueryGroupBy) ([]Count, error) {
 	counts := make([]Count, 0)
 	for _, logqlInner := range logqlInners {
-		logql := buildMetricsQuery(logqlInner, from, to, limit, metricsGroupBy)
+		logql := buildMetricsQuery(logqlInner, from, to, limit, groupBy)
 
 		res, err := h.client.MetricsQuery(ctx, logql, to.UnixNano(), limit)
 		if err != nil {
@@ -337,14 +325,13 @@ func (h *LokiReader) runMetricsQuery(ctx context.Context, logqlInners []string, 
 	switch {
 	case groupBy.RuleUID:
 		// When grouping by RuleUID, explode the comma-separated rule_uids into
-		// individual counts, drop inaccessible rules, aggregate (merging batches),
-		// and apply client-side topk.
-		counts = explodeRuleUIDCounts(counts, limit, filter)
-	case filter != nil:
-		// The client did not group by rule: drop notifications with no accessible
-		// rule (fail-closed), strip the rule_uids dimension added only for the RBAC
-		// check, and re-aggregate (merging batches), applying the limit.
-		counts = collapseAccessibleCounts(counts, limit, filter)
+		// individual counts, aggregate (merging batches), and apply client-side topk.
+		counts = explodeRuleUIDCounts(counts, limit)
+	case len(logqlInners) > 1:
+		// Multiple folder batches were queried; merge their per-batch results and
+		// re-apply the limit, since the server-side topk only applied within each
+		// batch.
+		counts = mergeCounts(counts, limit)
 	}
 
 	// Sort counts by count (highest first).
@@ -353,37 +340,6 @@ func (h *LokiReader) runMetricsQuery(ctx context.Context, logqlInners []string, 
 	})
 
 	return counts, nil
-}
-
-// collapseAccessibleCounts post-processes counts fetched with an under-the-hood
-// rule_uids grouping (used purely to enforce RBAC on a non-rule group-by): it
-// drops notifications with no accessible rule (fail-closed, mirroring runQuery),
-// strips the rule_uids dimension the caller never asked for, and re-aggregates by
-// the remaining label set (also merging folder batches), applying the limit.
-func collapseAccessibleCounts(counts []Count, limit int64, filter *ruleFilter) []Count {
-	kept := make([]Count, 0, len(counts))
-	for _, c := range counts {
-		if !countHasAccessibleRule(c, filter) {
-			continue
-		}
-		c.RuleUID = nil
-		kept = append(kept, c)
-	}
-	return mergeCounts(kept, limit)
-}
-
-// countHasAccessibleRule reports whether a count whose RuleUID holds a
-// comma-separated rule_uids list references at least one accessible rule. A nil
-// filter (RBAC disabled) always returns true.
-func countHasAccessibleRule(c Count, filter *ruleFilter) bool {
-	if filter == nil {
-		return true
-	}
-	var ruleUIDs []string
-	if c.RuleUID != nil && *c.RuleUID != "" {
-		ruleUIDs = strings.Split(*c.RuleUID, ",")
-	}
-	return hasAccessibleRuleUID(ruleUIDs, filter)
 }
 
 // mergeCounts aggregates counts sharing the same label set (summing Count),
@@ -424,7 +380,7 @@ func mergeCounts(counts []Count, limit int64) []Count {
 // explodeRuleUIDCounts splits counts with comma-separated rule_uids into individual
 // counts per rule UID, aggregates (sums) counts sharing the same (ruleUID + other groupBy
 // dimensions) key, sorts by count descending, and applies the limit (client-side topk).
-func explodeRuleUIDCounts(counts []Count, limit int64, filter *ruleFilter) []Count {
+func explodeRuleUIDCounts(counts []Count, limit int64) []Count {
 	aggregated := make(map[string]*Count)
 
 	key := func(c Count) string {
@@ -440,13 +396,6 @@ func explodeRuleUIDCounts(counts []Count, limit int64, filter *ruleFilter) []Cou
 			ruleUIDs = strings.Split(*c.RuleUID, ",")
 		}
 		for _, uid := range ruleUIDs {
-			// RBAC: never emit a per-rule count for a rule the caller cannot access.
-			// A notification may reference several rules (comma-separated), only some
-			// of which are accessible; drop the inaccessible ones here. The folder
-			// push-down admits mixed notifications, so per-rule stripping is required.
-			if filter != nil && uid != "" && !filter.rules.Has(uid) {
-				continue
-			}
 			entry := c
 			uidCopy := uid
 			entry.RuleUID = &uidCopy
@@ -506,21 +455,12 @@ func defaultStep(from, to time.Time) time.Duration {
 // RangeCount values.
 //
 // Results from multiple batches are aggregated by label set: the RuleUID group-by
-// path via explodeRuleUIDRangeCounts, all other group-bys via
-// collapseAccessibleRangeCounts (RBAC) or mergeRangeCounts. A single non-RBAC
-// batch (the common case) is returned unchanged.
-func (h *LokiReader) runMetricsRangeQuery(ctx context.Context, logqlInners []string, from, to time.Time, limit int64, step time.Duration, groupBy QueryGroupBy, filter *ruleFilter) ([]Count, error) {
-	// RBAC: group on rule_uids under the hood even when the client does not group
-	// by rule, so notifications with no accessible rule can be dropped client-side
-	// (fail-closed). See runMetricsQuery for the rationale and trade-off.
-	metricsGroupBy := groupBy
-	if filter != nil {
-		metricsGroupBy.RuleUID = true
-	}
-
+// path via explodeRuleUIDRangeCounts, all other group-bys via mergeRangeCounts. A
+// single batch (the common case) is returned unchanged.
+func (h *LokiReader) runMetricsRangeQuery(ctx context.Context, logqlInners []string, from, to time.Time, limit int64, step time.Duration, groupBy QueryGroupBy) ([]Count, error) {
 	rangeCounts := make([]Count, 0)
 	for _, logqlInner := range logqlInners {
-		logql := buildMetricsRangeQuery(logqlInner, step, metricsGroupBy)
+		logql := buildMetricsRangeQuery(logqlInner, step, groupBy)
 
 		res, err := h.client.MetricsRangeQuery(ctx, logql, from.UnixNano(), to.UnixNano(), limit, int64(step.Seconds()))
 		if err != nil {
@@ -540,35 +480,16 @@ func (h *LokiReader) runMetricsRangeQuery(ctx context.Context, logqlInners []str
 	switch {
 	case groupBy.RuleUID:
 		// When grouping by RuleUID, explode the comma-separated rule_uids into
-		// individual time series, drop rules the caller cannot access, aggregate the
-		// per-timestamp values (merging batches), and apply client-side topk. This
-		// mirrors the instant counts path (explodeRuleUIDCounts); without it the raw
-		// rule_uids label would expose inaccessible UIDs and undivided combined counts.
-		rangeCounts = explodeRuleUIDRangeCounts(rangeCounts, limit, filter)
-	case filter != nil:
-		// The client did not group by rule: drop notifications with no accessible
-		// rule (fail-closed), strip the rule_uids dimension added only for the RBAC
-		// check, and re-aggregate the per-timestamp values (merging batches).
-		rangeCounts = collapseAccessibleRangeCounts(rangeCounts, filter)
+		// individual time series, aggregate the per-timestamp values (merging
+		// batches), and apply client-side topk. This mirrors the instant counts path
+		// (explodeRuleUIDCounts).
+		rangeCounts = explodeRuleUIDRangeCounts(rangeCounts, limit)
+	case len(logqlInners) > 1:
+		// Multiple folder batches were queried; merge their per-batch time series.
+		rangeCounts = mergeRangeCounts(rangeCounts)
 	}
 
 	return rangeCounts, nil
-}
-
-// collapseAccessibleRangeCounts is the range-query counterpart of
-// collapseAccessibleCounts: it drops range-count series with no accessible rule
-// (fail-closed), strips the rule_uids dimension, and re-aggregates the
-// per-timestamp values by the remaining label set (also merging folder batches).
-func collapseAccessibleRangeCounts(counts []Count, filter *ruleFilter) []Count {
-	kept := make([]Count, 0, len(counts))
-	for _, c := range counts {
-		if !countHasAccessibleRule(c, filter) {
-			continue
-		}
-		c.RuleUID = nil
-		kept = append(kept, c)
-	}
-	return mergeRangeCounts(kept)
 }
 
 // mergeRangeCounts aggregates range-count time series sharing the same label set,
@@ -611,12 +532,11 @@ func mergeRangeCounts(counts []Count) []Count {
 }
 
 // explodeRuleUIDRangeCounts splits range counts with comma-separated rule_uids into
-// individual time series per rule UID, drops rule UIDs the caller cannot access
-// (RBAC), aggregates (sums) the per-timestamp values of series sharing the same
-// (ruleUID + other groupBy dimensions) key, sorts by total count descending, and
-// applies the limit (client-side topk). It is the range-query counterpart of
-// explodeRuleUIDCounts.
-func explodeRuleUIDRangeCounts(counts []Count, limit int64, filter *ruleFilter) []Count {
+// individual time series per rule UID, aggregates (sums) the per-timestamp values
+// of series sharing the same (ruleUID + other groupBy dimensions) key, sorts by
+// total count descending, and applies the limit (client-side topk). It is the
+// range-query counterpart of explodeRuleUIDCounts.
+func explodeRuleUIDRangeCounts(counts []Count, limit int64) []Count {
 	type aggregate struct {
 		count  Count
 		values map[int64]int64
@@ -637,13 +557,6 @@ func explodeRuleUIDRangeCounts(counts []Count, limit int64, filter *ruleFilter) 
 			ruleUIDs = strings.Split(*c.RuleUID, ",")
 		}
 		for _, uid := range ruleUIDs {
-			// RBAC: never emit a per-rule series for a rule the caller cannot access.
-			// A notification may reference several rules (comma-separated), only some
-			// of which are accessible; drop the inaccessible ones here. The folder
-			// push-down admits mixed notifications, so per-rule stripping is required.
-			if filter != nil && uid != "" && !filter.rules.Has(uid) {
-				continue
-			}
 			entry := c
 			uidCopy := uid
 			entry.RuleUID = &uidCopy
@@ -1072,7 +985,7 @@ func (h *LokiReader) buildNotificationBatches(query Query, uuids []string, filte
 	}
 	logqls := make([]string, len(batches))
 	for i, batch := range batches {
-		logql, err := buildQuery(query, uuids, &ruleFilter{folderKeys: batch, rules: filter.rules})
+		logql, err := buildQuery(query, uuids, &ruleFilter{folderKeys: batch})
 		if err != nil {
 			return nil, err
 		}
@@ -1097,7 +1010,7 @@ func (h *LokiReader) buildAlertBatches(query AlertQuery, filter *ruleFilter) ([]
 	}
 	logqls := make([]string, len(batches))
 	for i, batch := range batches {
-		logql, err := buildAlertQuery(query, &ruleFilter{folderKeys: batch, rules: filter.rules})
+		logql, err := buildAlertQuery(query, &ruleFilter{folderKeys: batch})
 		if err != nil {
 			return nil, err
 		}
@@ -1122,7 +1035,7 @@ func (h *LokiReader) buildAlertLabelBatches(ruleUID *string, labels Matchers, fi
 	}
 	logqls := make([]string, len(batches))
 	for i, batch := range batches {
-		logql, err := buildAlertLabelQuery(ruleUID, labels, &ruleFilter{folderKeys: batch, rules: filter.rules})
+		logql, err := buildAlertLabelQuery(ruleUID, labels, &ruleFilter{folderKeys: batch})
 		if err != nil {
 			return nil, err
 		}
@@ -1134,15 +1047,15 @@ func (h *LokiReader) buildAlertLabelBatches(ruleUID *string, labels Matchers, fi
 // runQuery runs the notification query batches and collects results, grouping
 // alerts into notifications.
 //
-// filter, when non-nil, strips rule UIDs the caller cannot access from each
-// entry's RuleUIDs. The folder-based LogQL push-down only guarantees that a
-// notification references at least one accessible folder; a mixed notification
-// can still co-reference inaccessible rules, so those UIDs must be removed here.
+// Access is enforced entirely by the folder-based LogQL push-down: alert-rule
+// RBAC is strictly folder-scoped, so any notification that references an
+// accessible folder is fully accessible and its rule UIDs need no further
+// stripping.
 //
 // When more than one batch is queried a notification whose accessible folders are
 // spread across batches matches several batch queries, so results are
 // deduplicated by (timestamp, uuid).
-func (l *LokiReader) runQuery(ctx context.Context, logqls []string, from, to time.Time, limit int64, filter *ruleFilter) ([]Entry, error) {
+func (l *LokiReader) runQuery(ctx context.Context, logqls []string, from, to time.Time, limit int64) ([]Entry, error) {
 	entries := make([]Entry, 0)
 	seen := make(map[string]struct{})
 	dedup := len(logqls) > 1
@@ -1157,24 +1070,6 @@ func (l *LokiReader) runQuery(ctx context.Context, logqls []string, from, to tim
 				entry, err := parseLokiEntry(s)
 				if err != nil {
 					l.logger.Warn("Ignoring notification history entry", "err", err)
-					continue
-				}
-				entry.RuleUIDs = filterAccessibleRuleUIDs(entry.RuleUIDs, filter)
-				// RBAC (fail-closed): drop notifications left with no accessible rule
-				// after stripping, which would otherwise leak notification fields
-				// (receiver, status, uuid, ...) for rules the caller cannot access.
-				//
-				// Under the current strictly folder-scoped rule RBAC this cannot happen
-				// in a consistent snapshot: access is granted per folder, so every rule
-				// in an accessible folder is accessible, and a notification whose rules
-				// are all inaccessible carries only inaccessible folder_uids and is thus
-				// excluded by the folder push-down. The guard defends against the cases
-				// where the accessible-folders and accessible-rules sets can disagree for
-				// a folder: (1) snapshot skew, where a notification's stored folderUIDs
-				// still reference a folder that is accessible via another rule after the
-				// referenced rule moved to an inaccessible folder; and (2) any future
-				// move to rule-level RBAC finer-grained than folders.
-				if filter != nil && !hasAccessibleRuleUID(entry.RuleUIDs, filter) {
 					continue
 				}
 				if dedup {
@@ -1203,37 +1098,6 @@ func (l *LokiReader) runQuery(ctx context.Context, logqls []string, from, to tim
 	l.logger.Debug("Notification history query complete", "notifications", len(entries))
 
 	return entries, nil
-}
-
-// filterAccessibleRuleUIDs removes rule UIDs the caller cannot access from the
-// slice. A nil filter (RBAC disabled) returns the slice unchanged. The result is
-// always non-nil so entries consistently serialize an empty array rather than
-// null. It mirrors the per-rule stripping done for counts in explodeRuleUIDCounts.
-func filterAccessibleRuleUIDs(ruleUIDs []string, filter *ruleFilter) []string {
-	if filter == nil {
-		return ruleUIDs
-	}
-	accessible := make([]string, 0, len(ruleUIDs))
-	for _, uid := range ruleUIDs {
-		if uid != "" && !filter.rules.Has(uid) {
-			continue
-		}
-		accessible = append(accessible, uid)
-	}
-	return accessible
-}
-
-// hasAccessibleRuleUID reports whether ruleUIDs references at least one rule the
-// caller can access. It backs the fail-closed guard that drops notifications
-// which survive the folder push-down yet reference only rules the caller cannot
-// access (reachable via snapshot skew or future rule-level RBAC; see runQuery).
-func hasAccessibleRuleUID(ruleUIDs []string, filter *ruleFilter) bool {
-	for _, uid := range ruleUIDs {
-		if uid != "" && filter.rules.Has(uid) {
-			return true
-		}
-	}
-	return false
 }
 
 // parseLokiEntry unmarshals the JSON stored in the entry.

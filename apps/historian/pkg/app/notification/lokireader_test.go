@@ -528,7 +528,7 @@ func TestLokiReader_RunQuery(t *testing.T) {
 		logger: &logging.NoOpLogger{},
 	}
 
-	entries, err := reader.runQuery(context.Background(), []string{"test query"}, now.Add(-6*time.Hour), now, 1000, nil)
+	entries, err := reader.runQuery(context.Background(), []string{"test query"}, now.Add(-6*time.Hour), now, 1000)
 	require.NoError(t, err)
 	require.Len(t, entries, 3)
 
@@ -1701,7 +1701,7 @@ func TestExplodeRuleUIDCounts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := explodeRuleUIDCounts(tt.counts, tt.limit, nil)
+			got := explodeRuleUIDCounts(tt.counts, tt.limit)
 			require.Len(t, got, len(tt.want))
 			// Sort tied counts by ruleUID for deterministic comparison.
 			sort.SliceStable(got, func(i, j int) bool {
@@ -1732,7 +1732,6 @@ func TestExplodeRuleUIDRangeCounts(t *testing.T) {
 		name   string
 		counts []Count
 		limit  int64
-		filter *ruleFilter
 		want   []Count
 	}{
 		{
@@ -1787,17 +1786,6 @@ func TestExplodeRuleUIDRangeCounts(t *testing.T) {
 				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 5)}},
 			},
 		},
-		{
-			name: "RBAC drops inaccessible co-referenced rules",
-			counts: []Count{
-				{RuleUID: stringPtr("ruleA,ruleB"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
-			},
-			limit:  10,
-			filter: testFilter([]string{"ruleA"}, []string{"folderA"}),
-			want: []Count{
-				{RuleUID: stringPtr("ruleA"), Values: []RangeValue{rv(1, 4), rv(2, 6)}},
-			},
-		},
 	}
 
 	derefStr := func(p *string) string {
@@ -1809,7 +1797,7 @@ func TestExplodeRuleUIDRangeCounts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := explodeRuleUIDRangeCounts(tt.counts, tt.limit, tt.filter)
+			got := explodeRuleUIDRangeCounts(tt.counts, tt.limit)
 			require.Len(t, got, len(tt.want))
 
 			sortByRule := func(cs []Count) {
@@ -1840,59 +1828,13 @@ func rangeTotal(vs []RangeValue) int64 {
 	return sum
 }
 
-func TestFilterAccessibleRuleUIDs(t *testing.T) {
-	tests := []struct {
-		name     string
-		ruleUIDs []string
-		filter   *ruleFilter
-		want     []string
-	}{
-		{
-			name:     "nil filter leaves rule UIDs untouched",
-			ruleUIDs: []string{"ruleA", "ruleB"},
-			filter:   nil,
-			want:     []string{"ruleA", "ruleB"},
-		},
-		{
-			name:     "mixed notification drops inaccessible co-referenced rule",
-			ruleUIDs: []string{"ruleA", "ruleB"},
-			filter:   testFilter([]string{"ruleA"}, []string{"folderA"}),
-			want:     []string{"ruleA"},
-		},
-		{
-			name:     "all accessible rules are retained",
-			ruleUIDs: []string{"ruleA", "ruleB"},
-			filter:   testFilter([]string{"ruleA", "ruleB"}, []string{"folderA"}),
-			want:     []string{"ruleA", "ruleB"},
-		},
-		{
-			name:     "no accessible rules yields empty non-nil slice",
-			ruleUIDs: []string{"ruleA", "ruleB"},
-			filter:   testFilter([]string{"ruleC"}, []string{"folderC"}),
-			want:     []string{},
-		},
-		{
-			name:     "empty rule UID is retained (mirrors counts explode path)",
-			ruleUIDs: []string{"", "ruleA"},
-			filter:   testFilter([]string{"ruleA"}, []string{"folderA"}),
-			want:     []string{"", "ruleA"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := filterAccessibleRuleUIDs(tt.ruleUIDs, tt.filter)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestLokiReader_Query_Entries_RBACStripsCoReferencedRules(t *testing.T) {
+func TestLokiReader_Query_Entries_RBACFolderScopedNoStripping(t *testing.T) {
 	now := time.Now().UTC()
 
-	// A mixed notification referencing both an accessible (ruleA) and an
-	// inaccessible (ruleB) rule. It passes the folder push-down because folderA
-	// is accessible, but ruleB must not leak into the returned entry.
+	// A mixed notification referencing rules in an accessible (folderA) and an
+	// inaccessible (folderB) folder. Alert-rule RBAC is strictly folder-scoped, so
+	// once the notification is admitted via folderA it is fully visible: both rule
+	// UIDs are returned (no per-rule stripping).
 	entryJSON := fmt.Sprintf(`{
 		"schemaVersion": 2,
 		"uuid": "uuid-mixed",
@@ -1924,106 +1866,11 @@ func TestLokiReader_Query_Entries_RBACStripsCoReferencedRules(t *testing.T) {
 		logger: &logging.NoOpLogger{},
 	}
 
-	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
+	filter := testFilter("folderA")
 	result, err := reader.Query(context.Background(), Query{}, filter)
 	require.NoError(t, err)
 	require.Len(t, result.Entries, 1)
-	assert.Equal(t, []string{"ruleA"}, result.Entries[0].RuleUIDs, "inaccessible co-referenced rule UID must be stripped")
-}
-
-func TestLokiReader_Query_Entries_RBACDropsFullyInaccessibleNotification(t *testing.T) {
-	now := time.Now().UTC()
-
-	// Fail-closed guard: a notification can survive the folder push-down while
-	// referencing only inaccessible rules when the accessible-folders and
-	// accessible-rules sets disagree for a folder. Under strictly folder-scoped
-	// RBAC this does not occur in a consistent snapshot, but it is reachable via
-	// snapshot skew (the stored folderUIDs still reference folderA, which stays
-	// accessible via ruleA, after the referenced ruleB moved to an inaccessible
-	// folder) or future rule-level RBAC. Here folderA is accessible (via ruleA)
-	// but ruleB is not, so the second entry has no accessible rule after stripping
-	// and must be dropped rather than leaking its receiver/status/uuid with an
-	// empty ruleUIDs list.
-	//
-	// The filter models this disagreement directly: folderA is accessible but
-	// ruleB (referenced by the leaked notification) is not in the accessible rule
-	// set.
-	accessibleJSON := fmt.Sprintf(`{
-		"schemaVersion": 2,
-		"uuid": "uuid-accessible",
-		"receiver": "Accessible",
-		"status": "firing",
-		"error": "",
-		"ruleUIDs": ["ruleA"],
-		"folderUIDs": ["folderA"],
-		"alertCount": 1,
-		"retry": false,
-		"duration": 0,
-		"pipelineTime": "%s"
-	}`, now.Format(time.RFC3339Nano))
-
-	leakedJSON := fmt.Sprintf(`{
-		"schemaVersion": 2,
-		"uuid": "uuid-leaked",
-		"receiver": "Secret",
-		"status": "firing",
-		"error": "",
-		"ruleUIDs": ["ruleB"],
-		"folderUIDs": ["folderA"],
-		"alertCount": 1,
-		"retry": false,
-		"duration": 0,
-		"pipelineTime": "%s"
-	}`, now.Add(-time.Minute).Format(time.RFC3339Nano))
-
-	mockResponse := lokiclient.QueryRes{
-		Data: lokiclient.QueryData{
-			Result: []lokiclient.Stream{
-				{Values: []lokiclient.Sample{
-					{T: now, V: accessibleJSON},
-					{T: now.Add(-time.Minute), V: leakedJSON},
-				}},
-			},
-		},
-	}
-
-	mockClient := &mockLokiClient{}
-	mockClient.On("RangeQuery", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
-		Return(mockResponse, nil)
-
-	reader := &LokiReader{
-		client: mockClient,
-		logger: &logging.NoOpLogger{},
-	}
-
-	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
-	result, err := reader.Query(context.Background(), Query{}, filter)
-	require.NoError(t, err)
-	require.Len(t, result.Entries, 1, "notification referencing only inaccessible rules must be dropped")
-	assert.Equal(t, "uuid-accessible", result.Entries[0].Uuid)
-	assert.Equal(t, []string{"ruleA"}, result.Entries[0].RuleUIDs)
-}
-
-func TestHasAccessibleRuleUID(t *testing.T) {
-	filter := testFilter([]string{"ruleA"}, []string{"folderA"})
-
-	tests := []struct {
-		name     string
-		ruleUIDs []string
-		want     bool
-	}{
-		{name: "accessible rule present", ruleUIDs: []string{"ruleA"}, want: true},
-		{name: "mixed with accessible rule", ruleUIDs: []string{"ruleA", "ruleB"}, want: true},
-		{name: "only inaccessible rule", ruleUIDs: []string{"ruleB"}, want: false},
-		{name: "empty slice", ruleUIDs: []string{}, want: false},
-		{name: "only empty rule UID", ruleUIDs: []string{""}, want: false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, hasAccessibleRuleUID(tt.ruleUIDs, filter))
-		})
-	}
+	assert.Equal(t, []string{"ruleA", "ruleB"}, result.Entries[0].RuleUIDs, "folder-scoped RBAC returns co-referenced rules intact")
 }
 
 func countStatusPtr(s v0alpha1.CreateNotificationqueryNotificationStatus) *v0alpha1.CreateNotificationqueryNotificationStatus {

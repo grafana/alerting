@@ -24,11 +24,11 @@ type Notification struct {
 	loki   *LokiReader
 	logger logging.Logger
 
-	// rbacEnabled indicates results must be restricted to the accessible rules.
+	// rbacEnabled indicates results must be restricted to the accessible folders.
 	rbacEnabled bool
-	// ruleAccess resolves the alert rule UIDs the requester can access. When
-	// rbacEnabled is true this must be non-nil for queries to be served.
-	ruleAccess ruleAccessReader
+	// folderAccess resolves the folder UIDs whose alert rules the requester can
+	// read. When rbacEnabled is true this must be non-nil for queries to be served.
+	folderAccess folderAccessReader
 }
 
 func New(cfg config.NotificationConfig, kubeConfig rest.Config, reg prometheus.Registerer, logger logging.Logger, tracer trace.Tracer) *Notification {
@@ -43,13 +43,13 @@ func New(cfg config.NotificationConfig, kubeConfig rest.Config, reg prometheus.R
 	}
 
 	if cfg.RBACEnabled {
-		reader, err := newK8sRuleAccessReader(kubeConfig, logger)
+		reader, err := newFolderAccessReader(kubeConfig, cfg.AccessClient, logger)
 		if err != nil {
-			// Leave ruleAccess nil; handlers fail closed when RBAC is enabled but
+			// Leave folderAccess nil; handlers fail closed when RBAC is enabled but
 			// the reader could not be constructed.
-			logger.Error("Failed to construct rules access reader; RBAC-protected notification queries will be rejected", "err", err)
+			logger.Error("Failed to construct folder access reader; RBAC-protected notification queries will be rejected", "err", err)
 		} else {
-			n.ruleAccess = reader
+			n.folderAccess = reader
 		}
 	}
 
@@ -57,21 +57,21 @@ func New(cfg config.NotificationConfig, kubeConfig rest.Config, reg prometheus.R
 }
 
 // resolveRuleFilter returns the RBAC rule filter for the request. It returns a
-// nil filter when RBAC is disabled (no filtering). When RBAC is enabled it lists
-// the rules the requester can access and returns a filter restricting results to
-// them.
+// nil filter when RBAC is disabled (no filtering). When RBAC is enabled it
+// resolves the folders whose alert rules the requester can read and returns a
+// filter restricting results to those folders.
 func (n *Notification) resolveRuleFilter(ctx context.Context, namespace string) (*ruleFilter, error) {
 	if !n.rbacEnabled {
 		return nil, nil
 	}
-	if n.ruleAccess == nil {
-		return nil, errors.New("rule access reader is not configured")
+	if n.folderAccess == nil {
+		return nil, errors.New("folder access reader is not configured")
 	}
-	scope, err := n.ruleAccess.AccessibleScope(ctx, namespace)
+	folders, err := n.folderAccess.AccessibleFolders(ctx, namespace)
 	if err != nil {
 		return nil, err
 	}
-	return newRuleFilter(scope), nil
+	return newRuleFilter(folders), nil
 }
 
 func (n *Notification) QueryAlertsHandler(ctx context.Context, writer app.CustomRouteResponseWriter, request *app.CustomRouteRequest) error {

@@ -85,64 +85,66 @@ func TestIntegration_NotificationRBAC(t *testing.T) {
 	universe := ruleUIDSet{ruleA: {}, ruleB: {}}
 	folderUniverse := ruleUIDSet{folderA: {}, folderB: {}}
 	// newN builds an RBAC-enabled Notification. The push-down is folder-based, so
-	// the accessible folder set drives visibility; the rule set is still supplied
-	// so per-rule count stripping keeps working for mixed notifications.
-	newN := func(rules, folders ruleUIDSet) *Notification {
+	// the accessible folder set alone drives visibility. Alert-rule RBAC is
+	// strictly folder-scoped, so a notification that references an accessible
+	// folder is fully accessible (no per-rule stripping).
+	newN := func(folders ruleUIDSet) *Notification {
 		return &Notification{
-			loki:        reader,
-			logger:      &logging.NoOpLogger{},
-			rbacEnabled: true,
-			ruleAccess:  fakeRuleAccessReader{scope: accessScope{rules: rules, folders: folders}},
+			loki:         reader,
+			logger:       &logging.NoOpLogger{},
+			rbacEnabled:  true,
+			folderAccess: fakeFolderAccessReader{folders: folders},
 		}
 	}
 
 	// Wait until all seeded entries are queryable (admin sees everything).
-	admin := newN(universe, folderUniverse)
+	admin := newN(folderUniverse)
 	require.Eventually(t, func() bool {
 		res := queryEntries(t, admin)
 		return len(seededEntries(res.Entries, universe)) == len(seeded)
 	}, 20*time.Second, 250*time.Millisecond, "seeded notification entries never became queryable")
 
-	t.Run("user A sees only rule A entries plus the mixed entry", func(t *testing.T) {
-		res := queryEntries(t, newN(ruleUIDSet{ruleA: {}}, ruleUIDSet{folderA: {}}))
+	t.Run("user A sees folder A entries plus the mixed entry", func(t *testing.T) {
+		res := queryEntries(t, newN(ruleUIDSet{folderA: {}}))
 		entries := seededEntries(res.Entries, universe)
 
 		uuids := entryUUIDs(entries)
 		assert.ElementsMatch(t, []string{"uuid-a1-" + suffix, "uuid-a2-" + suffix, "uuid-mix-" + suffix}, uuids)
 		for _, e := range entries {
 			assert.Contains(t, e.RuleUIDs, ruleA, "every visible entry must reference rule A")
-			// The mixed entry co-references rule B, which user A cannot access;
-			// it must be stripped from the returned RuleUIDs.
-			assert.NotContains(t, e.RuleUIDs, ruleB, "inaccessible co-referenced rule B must be stripped")
+		}
+		// RBAC is folder-scoped: the mixed notification references accessible
+		// folder A, so it is fully visible including its co-referenced rule B.
+		for _, e := range entries {
+			if e.Uuid == "uuid-mix-"+suffix {
+				assert.Contains(t, e.RuleUIDs, ruleB, "mixed entry is fully visible via folder A")
+			}
 		}
 	})
 
-	t.Run("user B sees only rule B entries plus the mixed entry", func(t *testing.T) {
-		res := queryEntries(t, newN(ruleUIDSet{ruleB: {}}, ruleUIDSet{folderB: {}}))
+	t.Run("user B sees folder B entries plus the mixed entry", func(t *testing.T) {
+		res := queryEntries(t, newN(ruleUIDSet{folderB: {}}))
 		entries := seededEntries(res.Entries, universe)
 
 		uuids := entryUUIDs(entries)
 		assert.ElementsMatch(t, []string{"uuid-b1-" + suffix, "uuid-b2-" + suffix, "uuid-mix-" + suffix}, uuids)
 		for _, e := range entries {
 			assert.Contains(t, e.RuleUIDs, ruleB, "every visible entry must reference rule B")
-			// The mixed entry co-references rule A, which user B cannot access;
-			// it must be stripped from the returned RuleUIDs.
-			assert.NotContains(t, e.RuleUIDs, ruleA, "inaccessible co-referenced rule A must be stripped")
 		}
 	})
 
 	t.Run("admin sees all seeded entries", func(t *testing.T) {
-		res := queryEntries(t, newN(universe, folderUniverse))
+		res := queryEntries(t, newN(folderUniverse))
 		assert.Len(t, seededEntries(res.Entries, universe), len(seeded))
 	})
 
-	t.Run("no accessible rules yields no entries", func(t *testing.T) {
-		res := queryEntries(t, newN(ruleUIDSet{}, ruleUIDSet{}))
+	t.Run("no accessible folders yields no entries", func(t *testing.T) {
+		res := queryEntries(t, newN(ruleUIDSet{}))
 		assert.Empty(t, seededEntries(res.Entries, universe))
 	})
 
-	t.Run("counts grouped by rule UID drop inaccessible co-referenced rules", func(t *testing.T) {
-		res := queryCounts(t, newN(ruleUIDSet{ruleA: {}}, ruleUIDSet{folderA: {}}))
+	t.Run("counts grouped by rule UID include co-referenced rules in accessible folders", func(t *testing.T) {
+		res := queryCounts(t, newN(ruleUIDSet{folderA: {}}))
 
 		var gotA, gotB int64
 		for _, c := range res.Counts {
@@ -158,13 +160,13 @@ func TestIntegration_NotificationRBAC(t *testing.T) {
 		}
 		// Two rule-A notifications + the mixed one all count towards rule A.
 		assert.Equal(t, int64(3), gotA)
-		// Rule B was co-referenced by the mixed notification, but user A cannot
-		// access it, so it must not appear.
-		assert.Equal(t, int64(0), gotB)
+		// The mixed notification references accessible folder A, so it is fully
+		// visible: its co-referenced rule B is counted too (folder-scoped RBAC).
+		assert.Equal(t, int64(1), gotB)
 	})
 
 	t.Run("alerts query is filtered per folder UID", func(t *testing.T) {
-		res := queryAlerts(t, newN(ruleUIDSet{ruleA: {}}, ruleUIDSet{folderA: {}}))
+		res := queryAlerts(t, newN(ruleUIDSet{folderA: {}}))
 
 		var seen int
 		for _, a := range res.Alerts {
