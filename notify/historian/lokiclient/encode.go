@@ -13,6 +13,12 @@ import (
 	"github.com/prometheus/common/model"
 )
 
+// snappyExpectedCompressionRatio is a conservative estimate of how much SnappyProtoEncoder shrinks
+// the uncompressed size estimate for typical (repetitive) state-history payloads. It is used only
+// to size batches: a value below the true ratio simply makes the exact encoded-size check re-split
+// a little more often, never producing an oversized request.
+const snappyExpectedCompressionRatio = 1.7
+
 type JSONEncoder struct{}
 
 func (e JSONEncoder) encode(s []Stream) ([]byte, error) {
@@ -30,6 +36,11 @@ func (e JSONEncoder) headers() map[string]string {
 	return map[string]string{
 		"Content-Type": "application/json",
 	}
+}
+
+// expectedCompressionRatio is 1.0 because JSON payloads are sent uncompressed.
+func (e JSONEncoder) expectedCompressionRatio() float64 {
+	return 1.0
 }
 
 type SnappyProtoEncoder struct{}
@@ -74,6 +85,12 @@ func (e SnappyProtoEncoder) headers() map[string]string {
 		"Content-Type":     "application/x-protobuf",
 		"Content-Encoding": "snappy",
 	}
+}
+
+// expectedCompressionRatio reports the conservative snappy compression estimate used to size
+// batches before they are encoded and checked against the true limit.
+func (e SnappyProtoEncoder) expectedCompressionRatio() float64 {
+	return snappyExpectedCompressionRatio
 }
 
 // Copied from promtail.
