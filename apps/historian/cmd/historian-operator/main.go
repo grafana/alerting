@@ -39,6 +39,18 @@ func Main(args []string) error {
 		return err
 	}
 
+	// Notification-history RBAC needs an authz-backed AccessClient to authorize
+	// alert.rules:read per folder. It is wired programmatically (not via app
+	// flags); without it, RBAC-protected queries would fail closed, so fail fast
+	// at startup instead if it can't be built.
+	if cfg.App.Notification.RBACEnabled {
+		accessClient, err := newAccessClient(cfg.Authz)
+		if err != nil {
+			return fmt.Errorf("failed to build authz access client for notification RBAC: %w", err)
+		}
+		cfg.App.Notification.AccessClient = accessClient
+	}
+
 	operatorConfig := operator.RunnerConfig{
 		WebhookConfig: cfg.Webhook.RunnerWebhookConfig,
 		MetricsConfig: cfg.Metrics.RunnerMetricsConfig,

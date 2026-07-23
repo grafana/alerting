@@ -13,12 +13,16 @@ type config struct {
 	Webhook webhookConfig
 	Metrics metricsConfig
 	App     historianconfig.RuntimeConfig
+	// Authz configures the authz connection used for notification-history RBAC.
+	// Only required when App.Notification.RBACEnabled is set.
+	Authz authzConfig
 }
 
 func (c *config) AddFlags(flags *pflag.FlagSet) {
 	c.Webhook.AddFlags(flags)
 	c.Metrics.AddFlags(flags)
 	c.App.AddFlags(flags)
+	c.Authz.AddFlags(flags)
 }
 
 type webhookConfig struct {
