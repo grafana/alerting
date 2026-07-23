@@ -739,7 +739,7 @@ func TestLokiHTTPClientPushSplitting(t *testing.T) {
 
 func dedup(in []string) []string {
 	seen := make(map[string]struct{}, len(in))
-	var out []string
+	out := make([]string, 0, len(in))
 	for _, s := range in {
 		if _, ok := seen[s]; ok {
 			continue
@@ -852,7 +852,7 @@ func TestLokiHTTPClientPushSplittingSnappy(t *testing.T) {
 		"compression-aware packing should send fewer requests than uncompressed packing (%d)", uncompressedRequests)
 
 	// No lines are lost or duplicated across the split.
-	var got []string
+	got := make([]string, 0, n)
 	for _, b := range bodies {
 		got = append(got, decodeSnappyLines(t, b)...)
 	}
