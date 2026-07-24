@@ -1027,14 +1027,14 @@ func (e AlertValidationError) Error() string {
 
 // createReceiverStage creates a pipeline of stages for a receiver.
 func (am *GrafanaAlertmanager) createReceiverStage(name string, integrations []*notify.Integration, notificationLog notify.NotificationLog) notify.Stage {
-	var fs notify.FanoutStage
+	fs := make(notify.FanoutStage, 0, len(integrations))
 	for i := range integrations {
 		recv := &nflogpb.Receiver{
 			GroupName:   name,
 			Integration: integrations[i].Name(),
 			Idx:         uint32(integrations[i].Index()),
 		}
-		var s notify.MultiStage
+		s := make(notify.MultiStage, 0, 4)
 		s = append(s, stages.NewWaitStage(am.opts.Peer, am.opts.PeerTimeout))
 		s = append(s, notify.NewDedupStage(integrations[i], notificationLog, recv))
 		s = append(s, notify.NewRetryStage(integrations[i], name, am.stageMetrics))

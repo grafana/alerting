@@ -358,20 +358,20 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 
 	mentionChannel := strings.TrimSpace(sn.settings.MentionChannel)
 	if mentionChannel != "" {
-		mentionsBuilder.WriteString(fmt.Sprintf("<!%s|%s>", mentionChannel, mentionChannel))
+		fmt.Fprintf(&mentionsBuilder, "<!%s|%s>", mentionChannel, mentionChannel)
 	}
 
 	if len(sn.settings.MentionGroups) > 0 {
 		appendSpace()
 		for _, g := range sn.settings.MentionGroups {
-			mentionsBuilder.WriteString(fmt.Sprintf("<!subteam^%s>", tmpl(g)))
+			fmt.Fprintf(&mentionsBuilder, "<!subteam^%s>", tmpl(g))
 		}
 	}
 
 	if len(sn.settings.MentionUsers) > 0 {
 		appendSpace()
 		for _, u := range sn.settings.MentionUsers {
-			mentionsBuilder.WriteString(fmt.Sprintf("<@%s>", tmpl(u)))
+			fmt.Fprintf(&mentionsBuilder, "<@%s>", tmpl(u))
 		}
 	}
 

@@ -257,7 +257,7 @@ func (n *Notifier) searchExistingIssue(ctx context.Context, logger log.Logger, g
 	jql := strings.Builder{}
 
 	if n.conf.WontFixResolution != "" {
-		jql.WriteString(fmt.Sprintf(`resolution != %q and `, n.conf.WontFixResolution))
+		fmt.Fprintf(&jql, `resolution != %q and `, n.conf.WontFixResolution)
 	}
 
 	// If the group is firing, do not search for closed issues unless a reopen transition is defined.
@@ -268,12 +268,12 @@ func (n *Notifier) searchExistingIssue(ctx context.Context, logger log.Logger, g
 	} else {
 		reopenDuration := int64(time.Duration(n.conf.ReopenDuration).Minutes())
 		if reopenDuration != 0 {
-			jql.WriteString(fmt.Sprintf(`(resolutiondate is EMPTY OR resolutiondate >= -%dm) and `, reopenDuration))
+			fmt.Fprintf(&jql, `(resolutiondate is EMPTY OR resolutiondate >= -%dm) and `, reopenDuration)
 		}
 	}
 
 	alertLabel := fmt.Sprintf("ALERT{%s}", groupID)
-	jql.WriteString(fmt.Sprintf(`project=%q and labels=%q order by status ASC,resolutiondate DESC`, n.conf.Project, alertLabel))
+	fmt.Fprintf(&jql, `project=%q and labels=%q order by status ASC,resolutiondate DESC`, n.conf.Project, alertLabel)
 
 	requestBody := issueSearch{
 		JQL:        jql.String(),

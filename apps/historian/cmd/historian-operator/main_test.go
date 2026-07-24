@@ -87,6 +87,29 @@ func TestMain_OperatorComesUp(t *testing.T) {
 	}
 }
 
+// TestMain_RBACRequiresAuthz proves the operator fails fast at startup when
+// notification RBAC is enabled but the authz connection is not configured,
+// rather than starting and failing closed on every query.
+func TestMain_RBACRequiresAuthz(t *testing.T) {
+	ports := freePorts(t, 2)
+	webhookPort, metricsPort := ports[0], ports[1]
+	certPath, keyPath := writeTestCert(t)
+
+	err := Main([]string{
+		fmt.Sprintf("--webhook.port=%d", webhookPort),
+		"--webhook.tls.cert-path=" + certPath,
+		"--webhook.tls.key-path=" + keyPath,
+		fmt.Sprintf("--metrics.port=%d", metricsPort),
+		"--alerting.historian.notification.enabled=true",
+		"--alerting.historian.notification.loki.read-url=http://127.0.0.1:1/",
+		// RBAC on, but no --authz.* flags provided.
+		"--alerting.historian.notification.rbac-enabled=true",
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to build authz access client")
+	require.Contains(t, err.Error(), "authz.remote-address is required")
+}
+
 // freePorts returns n distinct free TCP ports. All listeners are held open
 // simultaneously so the kernel hands out distinct ports, then closed before
 // returning. There is still a small window before the caller binds them, but

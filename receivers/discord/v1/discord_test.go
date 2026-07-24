@@ -850,7 +850,7 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 		imageProvider := images.NewTokenProvider(tokenStore, log.NewNopLogger())
 
 		// Create 15 alerts with an image each, Discord's embed limit is 10, and we should be using a maximum of 9 for images.
-		var alerts []*types.Alert
+		alerts := make([]*types.Alert, 0, len(tokenStore.Images))
 		for token := range tokenStore.Images {
 			alertName := token
 			alert := types.Alert{
