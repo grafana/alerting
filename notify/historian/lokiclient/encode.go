@@ -32,6 +32,11 @@ func (e JSONEncoder) headers() map[string]string {
 	}
 }
 
+// expectedCompressionRatio is 1.0 because JSON payloads are sent uncompressed.
+func (e JSONEncoder) expectedCompressionRatio() float64 {
+	return 1.0
+}
+
 type SnappyProtoEncoder struct{}
 
 func (e SnappyProtoEncoder) encode(s []Stream) ([]byte, error) {
@@ -74,6 +79,11 @@ func (e SnappyProtoEncoder) headers() map[string]string {
 		"Content-Type":     "application/x-protobuf",
 		"Content-Encoding": "snappy",
 	}
+}
+
+// expectedCompressionRatio returns the conservative snappy estimate used to size batches.
+func (e SnappyProtoEncoder) expectedCompressionRatio() float64 {
+	return 1.7
 }
 
 // Copied from promtail.
