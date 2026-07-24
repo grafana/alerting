@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	authnlib "github.com/grafana/authlib/authn"
 	authtypes "github.com/grafana/authlib/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -306,14 +307,14 @@ func (f fakeFolderAccessReader) AccessibleFolders(_ context.Context, _ string) (
 func TestNotification_ResolveRuleFilter(t *testing.T) {
 	t.Run("rbac disabled returns nil filter", func(t *testing.T) {
 		n := &Notification{rbacEnabled: false}
-		filter, err := n.resolveRuleFilter(context.Background(), "org-1")
+		filter, err := n.resolveRuleFilter(context.Background(), "org-1", nil)
 		require.NoError(t, err)
 		assert.Nil(t, filter)
 	})
 
 	t.Run("rbac enabled without reader fails closed", func(t *testing.T) {
 		n := &Notification{rbacEnabled: true, folderAccess: nil}
-		_, err := n.resolveRuleFilter(context.Background(), "org-1")
+		_, err := n.resolveRuleFilter(context.Background(), "org-1", nil)
 		require.Error(t, err)
 	})
 
@@ -322,10 +323,66 @@ func TestNotification_ResolveRuleFilter(t *testing.T) {
 			rbacEnabled:  true,
 			folderAccess: fakeFolderAccessReader{folders: ruleUIDSet{"folderB": {}, "folderA": {}}},
 		}
-		filter, err := n.resolveRuleFilter(context.Background(), "org-1")
+		filter, err := n.resolveRuleFilter(context.Background(), "org-1", nil)
 		require.NoError(t, err)
 		require.NotNil(t, filter)
 		// The push-down is keyed by the accessible folders, sorted.
 		assert.Equal(t, []string{"folderA", "folderB"}, filter.folderKeys)
+	})
+}
+
+// fakeAuthenticator is a test double for authnlib.Authenticator.
+type fakeAuthenticator struct {
+	info   authtypes.AuthInfo
+	err    error
+	called bool
+}
+
+func (f *fakeAuthenticator) Authenticate(_ context.Context, _ authnlib.TokenProvider) (authtypes.AuthInfo, error) {
+	f.called = true
+	return f.info, f.err
+}
+
+func TestNotification_ContextWithAuthInfo(t *testing.T) {
+	t.Run("identity already in context is left untouched and authenticator not called", func(t *testing.T) {
+		auth := &fakeAuthenticator{info: fakeAuthInfo{}}
+		n := &Notification{authenticator: auth}
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{})
+
+		got, err := n.contextWithAuthInfo(ctx, http.Header{"X-Access-Token": {"tok"}})
+		require.NoError(t, err)
+		assert.Equal(t, ctx, got)
+		assert.False(t, auth.called, "authenticator must not run when identity is already present")
+	})
+
+	t.Run("no authenticator returns context unchanged so RBAC fails closed downstream", func(t *testing.T) {
+		n := &Notification{}
+		ctx := context.Background()
+
+		got, err := n.contextWithAuthInfo(ctx, http.Header{"X-Access-Token": {"tok"}})
+		require.NoError(t, err)
+		_, ok := authtypes.AuthInfoFrom(got)
+		assert.False(t, ok, "no identity should be injected without an authenticator")
+	})
+
+	t.Run("standalone reconstructs identity from forwarded tokens", func(t *testing.T) {
+		want := fakeAuthInfo{}
+		auth := &fakeAuthenticator{info: want}
+		n := &Notification{authenticator: auth}
+
+		got, err := n.contextWithAuthInfo(context.Background(), http.Header{"X-Access-Token": {"tok"}})
+		require.NoError(t, err)
+		require.True(t, auth.called)
+		info, ok := authtypes.AuthInfoFrom(got)
+		require.True(t, ok, "identity must be injected into the context")
+		assert.Equal(t, want, info)
+	})
+
+	t.Run("authentication failure is surfaced", func(t *testing.T) {
+		auth := &fakeAuthenticator{err: assert.AnError}
+		n := &Notification{authenticator: auth}
+
+		_, err := n.contextWithAuthInfo(context.Background(), http.Header{"X-Access-Token": {"bad"}})
+		require.Error(t, err)
 	})
 }
