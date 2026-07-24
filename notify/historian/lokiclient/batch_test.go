@@ -1,6 +1,7 @@
 package lokiclient
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func TestSampleSize(t *testing.T) {
-	t.Run("line length plus per-entry overhead", func(t *testing.T) {
+	t.Run("counts the line length only, ignoring timestamp and labels", func(t *testing.T) {
 		s := Sample{V: strings.Repeat("a", 100)}
 		require.Equal(t, 100, s.estimatedSize())
 	})
@@ -21,15 +22,18 @@ func TestSampleSize(t *testing.T) {
 	})
 }
 
-// fakeEncoder encodes to a byte slice whose length equals the uncompressed size estimate, so tests
-// can force the exact-size bisection deterministically. Its reported ratio does not affect the
-// encoded length; a ratio above 1 makes newBatchIterator pack more than actually fits, exercising
-// encodeAndSplit.
+// fakeEncoder encodes to a byte slice whose length equals the estimatedSize() sum, so tests can
+// force the exact-size bisection deterministically. A ratio above 1 makes newBatchIterator pack
+// more than actually fits, exercising encodeAndSplit; errOnEncode exercises the error path.
 type fakeEncoder struct {
-	ratio float64
+	ratio       float64
+	errOnEncode error
 }
 
 func (f fakeEncoder) encode(s []Stream) ([]byte, error) {
+	if f.errOnEncode != nil {
+		return nil, f.errOnEncode
+	}
 	n := 0
 	for i := range s {
 		for j := range s[i].Values {
@@ -42,7 +46,7 @@ func (f fakeEncoder) encode(s []Stream) ([]byte, error) {
 func (f fakeEncoder) headers() map[string]string        { return nil }
 func (f fakeEncoder) expectedCompressionRatio() float64 { return f.ratio }
 
-// sampleOfSize returns a sample whose size() is exactly n bytes.
+// sampleOfSize returns a sample whose estimatedSize() is exactly n bytes.
 func sampleOfSize(n int) Sample {
 	return Sample{V: strings.Repeat("a", n)}
 }
@@ -197,6 +201,7 @@ func TestEncodeAndSplit(t *testing.T) {
 	})
 
 	t.Run("emits a single oversized entry as one piece", func(t *testing.T) {
+		// One sample that alone exceeds the 100-byte limit and so cannot be split further.
 		it := newBatchIterator([]Stream{{Stream: labelsA, Values: []Sample{sampleOfSize(232)}}},
 			fakeEncoder{ratio: 1}, 100, log.NewNopLogger())
 
@@ -207,7 +212,7 @@ func TestEncodeAndSplit(t *testing.T) {
 	})
 }
 
-// countValues is a test helper: total samples across streams (the iterator itself no longer needs it).
+// countValues is a test helper: total samples across streams.
 func countValues(streams []Stream) int {
 	n := 0
 	for _, s := range streams {
@@ -239,5 +244,14 @@ func TestBatchIteratorNext(t *testing.T) {
 		it := newBatchIterator(nil, fakeEncoder{ratio: 1}, 100, log.NewNopLogger())
 		require.False(t, it.next())
 		require.NoError(t, it.err())
+	})
+
+	t.Run("stops and surfaces the error when encoding fails", func(t *testing.T) {
+		boom := errors.New("boom")
+		it := newBatchIterator([]Stream{{Stream: labelsA, Values: []Sample{sampleOfSize(10)}}},
+			fakeEncoder{ratio: 1, errOnEncode: boom}, 100, log.NewNopLogger())
+
+		require.False(t, it.next())
+		require.ErrorIs(t, it.err(), boom)
 	})
 }

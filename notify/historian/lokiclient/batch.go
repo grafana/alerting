@@ -5,9 +5,9 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-// estimatedSize estimates the uncompressed number of bytes this sample contributes to an encoded
-// request. It is only a cheap heuristic for packing samples into batches; the true encoded size is
-// verified separately by encoding the batch.
+// estimatedSize is a cheap under-estimate of the sample's encoded size, counting only the log line
+// and metadata (not the timestamp or per-stream labels). It is used to pack batches; encodeAndSplit
+// verifies the true encoded size and re-splits if a batch packed too much.
 func (r *Sample) estimatedSize() int {
 	size := len(r.V)
 	for k, v := range r.Metadata {
@@ -29,17 +29,12 @@ type window struct {
 }
 
 // batchIterator walks a read-only []Stream (never copied) and yields encoded batches that each
-// already satisfy len(batch) <= maxBytes. A batch is tracked as a window over the original streams,
-// so slicing never copies or flattens the samples.
-//
-// Producing a batch is two steps:
-//   - Pack (nextCandidate): greedily take samples up to budget = maxBytes * the encoder's expected
-//     compression ratio, using the cheap uncompressed estimate, so the encoded batch lands near
-//     maxBytes.
-//   - Encode and verify (encodeAndSplit): encode the candidate once; if its true encoded size still
-//     exceeds maxBytes (rare, e.g. poorly compressible data), halve the window and retry each half,
-//     down to a single sample. A lone sample that still doesn't fit is emitted as-is with a warning,
-//     since a log line cannot be split further.
+// satisfy len(batch) <= maxBytes. A batch is tracked as a window over the original streams, so
+// slicing never copies the samples. Producing a batch has two steps:
+//   - nextCandidate packs samples up to budget (maxBytes * the encoder's expected compression ratio)
+//     using the cheap estimate, so the encoded batch lands near maxBytes.
+//   - encodeAndSplit encodes the candidate and, if its true size still exceeds maxBytes, halves the
+//     window and retries each half. A lone sample that still doesn't fit is emitted with a warning.
 type batchIterator struct {
 	streams  []Stream
 	enc      encoder
@@ -71,11 +66,9 @@ func newBatchIterator(streams []Stream, enc encoder, maxBytes int, logger log.Lo
 	return it
 }
 
-// next advances to the next fitting encoded batch and reports whether one is available.
-// When it returns false the iteration is over; call err() to tell exhaustion apart
-// from an encoding failure. The current batch is read via batch().
-//
-// Example usage:
+// next advances to the next fitting encoded batch and reports whether one is available. When it
+// returns false, iteration is over; call err() to distinguish exhaustion from an encoding failure.
+// Read the current batch via batch():
 //
 //	for it.next() { use(it.batch()) }
 //	if it.err() != nil { ... }
@@ -121,8 +114,7 @@ func (it *batchIterator) nextCandidate() (window, bool) {
 	c := from
 	for c.si < len(it.streams) {
 		estimatedSize := it.streams[c.si].Values[c.vi].estimatedSize()
-		// Always include the first sample, then stop before the budget is exceeded.
-		// Covers the case when a single value exceeds the maxSize already
+		// Always take the first sample (so an oversized sample still makes progress), then stop at budget.
 		if c != from && size+estimatedSize > it.budget {
 			break
 		}
@@ -135,10 +127,9 @@ func (it *batchIterator) nextCandidate() (window, bool) {
 }
 
 // encodeAndSplit encodes the samples in w and returns encoded pieces that each fit within maxBytes.
-// The window was sized from an uncompressed estimate, so in the rare case its true encoded size
-// still exceeds maxBytes it is halved by sample countSamples and each half retried. A window of a single
-// sample that alone exceeds the limit is returned as-is with a warning. Splitting only ever touches
-// this one window, never the whole payload.
+// The window was sized from an estimate, so if its true encoded size still exceeds maxBytes it is
+// halved by sample count and each half retried. A single sample that alone exceeds the limit is
+// returned as-is with a warning.
 func (it *batchIterator) encodeAndSplit(w window) ([][]byte, error) {
 	enc, err := it.enc.encode(it.slice(w))
 	if err != nil {

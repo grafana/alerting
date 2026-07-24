@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -653,6 +654,18 @@ func TestLokiHTTPClientPushSplitting(t *testing.T) {
 		// No samples are lost or duplicated across the split requests.
 		require.ElementsMatch(t, []string{strings.Repeat("a", 500)}, dedup(collectLines(t, bodies)))
 		require.Len(t, collectLines(t, bodies), 20)
+	})
+
+	t.Run("returns the encoding error and sends nothing when encoding fails", func(t *testing.T) {
+		boom := errors.New("encode failed")
+		req := newRecordingRequester()
+		client := createTestLokiClientWithEncoder(req, fakeEncoder{ratio: 1, errOnEncode: boom})
+		client.cfg.MaxWriteBatchSize = 2000
+
+		err := client.Push(context.Background(), makeStream(20, 500))
+
+		require.ErrorIs(t, err, boom)
+		require.Empty(t, req.Bodies())
 	})
 
 	t.Run("returns an error when one split request fails", func(t *testing.T) {

@@ -37,9 +37,8 @@ type encoder interface {
 	encode(s []Stream) ([]byte, error)
 	// headers returns a set of HTTP-style headers that describes the encoding scheme used.
 	headers() map[string]string
-	// expectedCompressionRatio reports roughly how much this encoding shrinks the uncompressed
-	// size estimate. It is used only to size batches, never for correctness; 1.0 means no
-	// compression and 3.0 means uncompressed payload is 3x times the compressed size.
+	// expectedCompressionRatio estimates how much this encoding shrinks the uncompressed size, used
+	// only to size batches (never for correctness). 1.0 means no compression; 3.0 means 3x smaller.
 	expectedCompressionRatio() float64
 }
 
@@ -53,10 +52,10 @@ type LokiConfig struct {
 	Encoder           encoder
 	MaxQueryLength    time.Duration
 	MaxQuerySize      int
-	// MaxWriteBatchSize is the maximum size in bytes of a single encoded push request sent to Loki.
-	// Payloads that encode to more than this are split into multiple smaller requests sent in
-	// parallel. If a single sample exceeds this Max is still tried anyway.
-	// A value of 0 (the default) disables splitting and preserves the single-request behavior.
+	// MaxWriteBatchSize is the maximum size in bytes of a single encoded push request. Larger
+	// payloads are split into multiple requests sent in parallel (a single oversized sample is still
+	// sent on its own); 0 (the default) disables splitting. Because a split push sends several
+	// requests, a failure can be a partial write: some batches accepted, later ones never sent.
 	MaxWriteBatchSize int
 }
 
@@ -188,10 +187,10 @@ func (c *HTTPLokiClient) Push(ctx context.Context, s []Stream) error {
 	return c.pushEncoded(ctx, enc)
 }
 
-// batchedPush packs samples into encoded batches that each stay within MaxWriteBatchSize and sends
-// them in parallel, so no single request exceeds the Loki limit and requests load-balance across
-// frontends. A batchIterator produces the batches one at a time, so peak memory is proportional to a
-// few batches in flight rather than the whole payload; the errgroup only fans out the sends.
+// batchedPush packs samples into encoded batches within MaxWriteBatchSize and sends them in
+// parallel, so no request exceeds the Loki limit and the load balances across frontends. The
+// batchIterator yields batches one at a time, keeping peak memory proportional to the few batches in
+// flight rather than the whole payload. See MaxWriteBatchSize on the partial-write risk.
 func (c *HTTPLokiClient) batchedPush(ctx context.Context, streams []Stream) error {
 	it := newBatchIterator(streams, c.encoder, c.cfg.MaxWriteBatchSize, c.logger)
 	g, gctx := errgroup.WithContext(ctx)
@@ -207,9 +206,8 @@ func (c *HTTPLokiClient) batchedPush(ctx context.Context, streams []Stream) erro
 
 	err := g.Wait()
 	if batches > 1 {
-		// Logged at info: unlike per-write debug logs, this only fires on the rare oversized-payload
-		// path this split is meant to handle, and it correlates with state-history write-error alerts,
-		// so it needs to be visible on instances running at the default info level.
+		// Info, not debug: this fires only on the rare oversized-payload path and correlates with
+		// state-history write-error alerts, so it must be visible at the default info level.
 		level.Info(c.logger).Log("msg", "Split large Loki push into multiple requests",
 			"requests", batches, "encodedBytes", total, "maxBatchSize", c.cfg.MaxWriteBatchSize)
 	}
