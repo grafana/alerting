@@ -245,7 +245,7 @@ func IntegrationTypeFromMimirType(t any) (schema.IntegrationType, error) {
 }
 
 // IntegrationTypeFromMimirTypeReflect returns a valid integration type from a reflect.Type.
-// Can be type of ConfigReceiver fields, e.g EmailConfigs or type a particular configuration
+// Can be type of compat.Receiver fields, e.g EmailConfigs or type a particular configuration
 func IntegrationTypeFromMimirTypeReflect(t reflect.Type) (schema.IntegrationType, error) {
 	if t == nil {
 		return "", errors.New("nil type")
