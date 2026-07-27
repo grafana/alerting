@@ -12,8 +12,7 @@ import (
 	"github.com/prometheus/alertmanager/config"
 )
 
-// LoadCompat loads a PostableApiAlertingConfig from a YAML configuration
-// and runs validations to ensure that it works with the Mimir Alertmanager.
+// LoadCompat loads a PostableApiAlertingConfig from a YAML configuration and runs validations.
 func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 	if len(rawCfg) == 0 {
 		return nil, errors.New("empty input")
@@ -39,6 +38,9 @@ func LoadCompat(rawCfg []byte) (*PostableApiAlertingConfig, error) {
 		names[rcv.Name] = struct{}{}
 	}
 
+	if err := c.Validate(); err != nil {
+		return nil, err
+	}
 	return &c, nil
 }
 
