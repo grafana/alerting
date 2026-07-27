@@ -260,6 +260,150 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 	}
 }
 
+func TestNotify_SendMessageAsCaption(t *testing.T) {
+	tmpl := templates.ForTests(t)
+	provider := images.NewFakeProviderWithFile(t, 1)
+	notificationService := receivers.MockNotificationService()
+	n := &Notifier{
+		Base:   receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+		ns:     notificationService,
+		tmpl:   tmpl,
+		images: provider,
+		settings: Config{
+			BotToken:             "abcdefgh0123456789",
+			ChatID:               "someid",
+			MessageThreadID:      "threadid",
+			Message:              "Alert with screenshot",
+			ParseMode:            "HTML",
+			ProtectContent:       true,
+			DisableNotifications: true,
+			SendMessageAsCaption: true,
+		},
+	}
+	alerts := []*types.Alert{{
+		Alert: model.Alert{
+			Labels:      model.LabelSet{"alertname": "alert1"},
+			Annotations: model.LabelSet{"__alertImageToken__": "test-image-1"},
+		},
+	}}
+	ctx := notify.WithGroupKey(context.Background(), "alertname")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+
+	recoverable, err := n.Notify(ctx, alerts...)
+	require.NoError(t, err)
+	assert.True(t, recoverable)
+	require.Len(t, notificationService.WebhookCalls, 1)
+
+	call := notificationService.WebhookCalls[0]
+	assert.Equal(t, "https://api.telegram.org/bot"+n.settings.BotToken+"/sendPhoto", call.URL)
+	mediaType, params, err := mime.ParseMediaType(call.HTTPHeader["Content-Type"])
+	require.NoError(t, err)
+	require.Equal(t, "multipart/form-data", mediaType)
+
+	reader := multipart.NewReader(strings.NewReader(call.Body), params["boundary"])
+	data := map[string]string{}
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		require.NoError(t, err)
+		content, err := io.ReadAll(part)
+		require.NoError(t, err)
+		if part.FileName() != "" {
+			data[part.FormName()] = part.FileName()
+		} else {
+			data[part.FormName()] = string(content)
+		}
+	}
+	assert.Equal(t, map[string]string{
+		"caption":              "Alert with screenshot",
+		"chat_id":              "someid",
+		"disable_notification": "true",
+		"message_thread_id":    "threadid",
+		"parse_mode":           "HTML",
+		"photo":                "test-image-1.jpg",
+		"protect_content":      "true",
+	}, data)
+}
+
+func TestNotify_SendMessageAsCaptionFallsBack(t *testing.T) {
+	tmpl := templates.ForTests(t)
+	provider := images.NewFakeProviderWithFile(t, 2)
+	cases := []struct {
+		name    string
+		message string
+		alerts  []*types.Alert
+		calls   int
+	}{
+		{
+			name:    "message exceeds caption limit",
+			message: strings.Repeat("x", telegramMaxCaptionLenRunes+1),
+			alerts: []*types.Alert{{
+				Alert: model.Alert{
+					Labels:      model.LabelSet{"alertname": "alert1"},
+					Annotations: model.LabelSet{"__alertImageToken__": "test-image-1"},
+				},
+			}},
+			calls: 2,
+		},
+		{
+			name:    "notification has multiple images",
+			message: "Multiple screenshots",
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1"},
+						Annotations: model.LabelSet{"__alertImageToken__": "test-image-1"},
+					},
+				},
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert2"},
+						Annotations: model.LabelSet{"__alertImageToken__": "test-image-2"},
+					},
+				},
+			},
+			calls: 3,
+		},
+		{
+			name:    "notification has no image",
+			message: "No screenshot",
+			alerts: []*types.Alert{{
+				Alert: model.Alert{Labels: model.LabelSet{"alertname": "alert1"}},
+			}},
+			calls: 1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			notificationService := receivers.MockNotificationService()
+			n := &Notifier{
+				Base:   receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+				ns:     notificationService,
+				tmpl:   tmpl,
+				images: provider,
+				settings: Config{
+					BotToken:             "abcdefgh0123456789",
+					ChatID:               "someid",
+					Message:              tc.message,
+					ParseMode:            "HTML",
+					SendMessageAsCaption: true,
+				},
+			}
+			ctx := notify.WithGroupKey(context.Background(), "alertname")
+			ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+
+			recoverable, err := n.Notify(ctx, tc.alerts...)
+			require.NoError(t, err)
+			assert.True(t, recoverable)
+			require.Len(t, notificationService.WebhookCalls, tc.calls)
+			assert.Equal(t, "https://api.telegram.org/bot"+n.settings.BotToken+"/sendMessage", notificationService.WebhookCalls[0].URL)
+		})
+	}
+}
+
 func TestNotify_ExtraData(t *testing.T) {
 	tmpl := templates.ForTests(t)
 
