@@ -94,11 +94,43 @@ func (n *Notification) resolveRuleFilter(ctx context.Context, namespace string, 
 	if err != nil {
 		return nil, err
 	}
-	folders, err := n.folderAccess.AccessibleFolders(ctx, namespace)
+	folders, err := n.folderAccess.AccessibleFolders(ctx, namespace, n.forwardedIdentityHeaders(headers))
 	if err != nil {
 		return nil, err
 	}
 	return newRuleFilter(folders), nil
+}
+
+// headerAccessToken and headerGrafanaID carry the caller's signed access and ID
+// tokens. They identify the acting user to Grafana's aggregated API servers and
+// are the same headers the authenticator reads to reconstruct the identity.
+const (
+	headerAccessToken = "X-Access-Token"
+	headerGrafanaID   = "X-Grafana-Id"
+)
+
+// forwardedIdentityHeaders returns the caller identity headers to attach to
+// outbound folder API requests. Injecting the reconstructed identity into the
+// context is enough for the AccessClient (BatchCheck takes the identity
+// explicitly), but the folder list goes through the kube REST client, which does
+// not read that identity. Running standalone (the historian operator) its kube
+// client authenticates as the operator's own service account, so without
+// forwarding these headers folder enumeration would run under the operator
+// identity and skip the caller's folders:read check. Behind the aggregated API
+// server (authenticator nil) the kube client already forwards the caller identity
+// from the request context, so nil is returned and nothing extra is attached.
+func (n *Notification) forwardedIdentityHeaders(headers http.Header) http.Header {
+	if n.authenticator == nil {
+		return nil
+	}
+	out := http.Header{}
+	if v := headers.Get(headerAccessToken); v != "" {
+		out.Set(headerAccessToken, v)
+	}
+	if v := headers.Get(headerGrafanaID); v != "" {
+		out.Set(headerGrafanaID, v)
+	}
+	return out
 }
 
 // contextWithAuthInfo ensures the context carries the caller identity used for

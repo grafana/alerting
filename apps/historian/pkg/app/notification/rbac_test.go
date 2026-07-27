@@ -213,8 +213,11 @@ func TestExplodeRuleUIDCounts_SplitsCommaSeparated(t *testing.T) {
 
 func TestFolderAccessReader_AccessibleFolders(t *testing.T) {
 	var gotPaths []string
+	var gotAccessTokens, gotGrafanaIDs []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPaths = append(gotPaths, r.URL.Path)
+		gotAccessTokens = append(gotAccessTokens, r.Header.Get("X-Access-Token"))
+		gotGrafanaIDs = append(gotGrafanaIDs, r.Header.Get("X-Grafana-Id"))
 		w.Header().Set("Content-Type", "application/json")
 
 		cont := r.URL.Query().Get("continue")
@@ -246,7 +249,10 @@ func TestFolderAccessReader_AccessibleFolders(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{})
-	folders, err := reader.AccessibleFolders(ctx, "org-1")
+	// Standalone forwards the caller's identity headers on the folder API request
+	// so folder enumeration is RBAC-scoped to the caller, not the operator SA.
+	identity := http.Header{"X-Access-Token": {"caller-access-token"}, "X-Grafana-Id": {"caller-grafana-id"}}
+	folders, err := reader.AccessibleFolders(ctx, "org-1", identity)
 	require.NoError(t, err)
 
 	assert.True(t, folders.Has("folder-a"))
@@ -258,6 +264,16 @@ func TestFolderAccessReader_AccessibleFolders(t *testing.T) {
 	require.Len(t, gotPaths, 2)
 	for _, p := range gotPaths {
 		assert.Equal(t, "/apis/folder.grafana.app/v1beta1/namespaces/org-1/folders", p)
+	}
+
+	// The caller identity must be forwarded on every folder API request (including
+	// paginated follow-ups), so the folder API enforces RBAC as the caller.
+	require.Len(t, gotAccessTokens, 2)
+	for _, tok := range gotAccessTokens {
+		assert.Equal(t, "caller-access-token", tok)
+	}
+	for _, id := range gotGrafanaIDs {
+		assert.Equal(t, "caller-grafana-id", id)
 	}
 
 	// Every candidate folder is checked for alert.rules read access, folder-scoped.
@@ -285,7 +301,7 @@ func TestFolderAccessReader_RequiresAuthInfo(t *testing.T) {
 	require.NoError(t, err)
 
 	// No auth info on the context: the folder checks cannot be performed.
-	_, err = reader.AccessibleFolders(context.Background(), "org-1")
+	_, err = reader.AccessibleFolders(context.Background(), "org-1", nil)
 	require.Error(t, err)
 }
 
@@ -300,7 +316,7 @@ type fakeFolderAccessReader struct {
 	err     error
 }
 
-func (f fakeFolderAccessReader) AccessibleFolders(_ context.Context, _ string) (ruleUIDSet, error) {
+func (f fakeFolderAccessReader) AccessibleFolders(_ context.Context, _ string, _ http.Header) (ruleUIDSet, error) {
 	return f.folders, f.err
 }
 
@@ -384,5 +400,36 @@ func TestNotification_ContextWithAuthInfo(t *testing.T) {
 
 		_, err := n.contextWithAuthInfo(context.Background(), http.Header{"X-Access-Token": {"bad"}})
 		require.Error(t, err)
+	})
+}
+
+func TestNotification_ForwardedIdentityHeaders(t *testing.T) {
+	headers := http.Header{
+		"X-Access-Token": {"tok"},
+		"X-Grafana-Id":   {"id"},
+		"X-Other":        {"ignored"},
+	}
+
+	t.Run("in-process (no authenticator) forwards nothing; the kube client forwards identity from context", func(t *testing.T) {
+		n := &Notification{}
+		assert.Nil(t, n.forwardedIdentityHeaders(headers))
+	})
+
+	t.Run("standalone forwards only the caller identity headers", func(t *testing.T) {
+		n := &Notification{authenticator: &fakeAuthenticator{}}
+		got := n.forwardedIdentityHeaders(headers)
+		assert.Equal(t, "tok", got.Get("X-Access-Token"))
+		assert.Equal(t, "id", got.Get("X-Grafana-Id"))
+		// Only the identity headers are forwarded, nothing else.
+		assert.Empty(t, got.Get("X-Other"))
+		assert.Len(t, got, 2)
+	})
+
+	t.Run("standalone omits absent identity headers", func(t *testing.T) {
+		n := &Notification{authenticator: &fakeAuthenticator{}}
+		got := n.forwardedIdentityHeaders(http.Header{"X-Access-Token": {"tok"}})
+		assert.Equal(t, "tok", got.Get("X-Access-Token"))
+		assert.Empty(t, got.Get("X-Grafana-Id"))
+		assert.Len(t, got, 1)
 	})
 }
