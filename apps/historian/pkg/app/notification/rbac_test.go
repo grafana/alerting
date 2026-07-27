@@ -3,6 +3,8 @@ package notification
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
 	"github.com/grafana/grafana-app-sdk/logging"
@@ -28,11 +31,18 @@ func testFilter(folders ...string) *ruleFilter {
 	return newRuleFilter(fset)
 }
 
-// fakeAuthInfo satisfies authtypes.AuthInfo for tests. Its methods are never
-// invoked (the fake access client ignores the identity), so embedding the nil
-// interface is sufficient to place a value on the context.
+// fakeAuthInfo satisfies authtypes.AuthInfo for tests. Its other methods are
+// never invoked (the fake access client ignores the identity), so embedding the
+// nil interface is sufficient to place a value on the context. GetIdentityType is
+// overridden so the delegated-user guard can be exercised; the zero value reports
+// an empty (non-access-policy) type, which the guard allows.
 type fakeAuthInfo struct {
 	authtypes.AuthInfo
+	identityType authtypes.IdentityType
+}
+
+func (f fakeAuthInfo) GetIdentityType() authtypes.IdentityType {
+	return f.identityType
 }
 
 // fakeAccessClient is a test double for authtypes.AccessClient that grants access
@@ -314,9 +324,11 @@ func TestNewFolderAccessReader_RequiresAccessClient(t *testing.T) {
 type fakeFolderAccessReader struct {
 	folders ruleUIDSet
 	err     error
+	called  bool
 }
 
-func (f fakeFolderAccessReader) AccessibleFolders(_ context.Context, _ string, _ http.Header) (ruleUIDSet, error) {
+func (f *fakeFolderAccessReader) AccessibleFolders(_ context.Context, _ string, _ http.Header) (ruleUIDSet, error) {
+	f.called = true
 	return f.folders, f.err
 }
 
@@ -337,13 +349,58 @@ func TestNotification_ResolveRuleFilter(t *testing.T) {
 	t.Run("rbac enabled returns filter keyed by folder UIDs", func(t *testing.T) {
 		n := &Notification{
 			rbacEnabled:  true,
-			folderAccess: fakeFolderAccessReader{folders: ruleUIDSet{"folderB": {}, "folderA": {}}},
+			folderAccess: &fakeFolderAccessReader{folders: ruleUIDSet{"folderB": {}, "folderA": {}}},
 		}
 		filter, err := n.resolveRuleFilter(context.Background(), "org-1", nil)
 		require.NoError(t, err)
 		require.NotNil(t, filter)
 		// The push-down is keyed by the accessible folders, sorted.
 		assert.Equal(t, []string{"folderA", "folderB"}, filter.folderKeys)
+	})
+
+	t.Run("bare service identity is rejected before any folder access", func(t *testing.T) {
+		// A service (access-policy) token would be authorized from its own broad
+		// scope rather than a user's folder ACLs, so notification history must not
+		// be served for it. The folder reader must not even be consulted.
+		reader := &fakeFolderAccessReader{folders: ruleUIDSet{"folderA": {}}}
+		n := &Notification{rbacEnabled: true, folderAccess: reader}
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{identityType: authtypes.TypeAccessPolicy})
+
+		_, err := n.resolveRuleFilter(ctx, "org-1", nil)
+		require.ErrorIs(t, err, errServiceIdentityForbidden)
+		assert.False(t, reader.called, "folder access must not run for a rejected service identity")
+	})
+
+	t.Run("delegated user identity is allowed", func(t *testing.T) {
+		reader := &fakeFolderAccessReader{folders: ruleUIDSet{"folderA": {}}}
+		n := &Notification{rbacEnabled: true, folderAccess: reader}
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{identityType: authtypes.TypeUser})
+
+		filter, err := n.resolveRuleFilter(ctx, "org-1", nil)
+		require.NoError(t, err)
+		require.NotNil(t, filter)
+		assert.True(t, reader.called)
+	})
+}
+
+func TestNotification_RequireDelegatedUserIdentity(t *testing.T) {
+	t.Run("access-policy (service) identity is forbidden", func(t *testing.T) {
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{identityType: authtypes.TypeAccessPolicy})
+		require.ErrorIs(t, requireDelegatedUserIdentity(ctx), errServiceIdentityForbidden)
+	})
+
+	t.Run("user identity is allowed", func(t *testing.T) {
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{identityType: authtypes.TypeUser})
+		require.NoError(t, requireDelegatedUserIdentity(ctx))
+	})
+
+	t.Run("service-account identity is allowed", func(t *testing.T) {
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{identityType: authtypes.TypeServiceAccount})
+		require.NoError(t, requireDelegatedUserIdentity(ctx))
+	})
+
+	t.Run("no identity is a no-op so RBAC fails closed downstream", func(t *testing.T) {
+		require.NoError(t, requireDelegatedUserIdentity(context.Background()))
 	})
 }
 
@@ -394,12 +451,48 @@ func TestNotification_ContextWithAuthInfo(t *testing.T) {
 		assert.Equal(t, want, info)
 	})
 
-	t.Run("authentication failure is surfaced", func(t *testing.T) {
-		auth := &fakeAuthenticator{err: assert.AnError}
+	t.Run("invalid token is classified as unauthenticated (client error)", func(t *testing.T) {
+		// A missing/invalid/expired token is the caller's fault and must be
+		// distinguishable from an internal failure so handlers can return 401.
+		auth := &fakeAuthenticator{err: authnlib.ErrMissingRequiredToken}
 		n := &Notification{authenticator: auth}
 
 		_, err := n.contextWithAuthInfo(context.Background(), http.Header{"X-Access-Token": {"bad"}})
 		require.Error(t, err)
+		assert.ErrorIs(t, err, errUnauthenticated, "invalid token must be marked as unauthenticated")
+	})
+
+	t.Run("non-token failure is not classified as unauthenticated (stays internal)", func(t *testing.T) {
+		// e.g. the JWKS endpoint could not be reached: not the caller's fault, so
+		// it must remain an internal server error rather than a 401.
+		auth := &fakeAuthenticator{err: authnlib.ErrFetchingSigningKey}
+		n := &Notification{authenticator: auth}
+
+		_, err := n.contextWithAuthInfo(context.Background(), http.Header{"X-Access-Token": {"tok"}})
+		require.Error(t, err)
+		assert.NotErrorIs(t, err, errUnauthenticated, "a server-side failure must not be reported as unauthenticated")
+	})
+}
+
+func TestNotification_RuleFilterStatusError(t *testing.T) {
+	n := &Notification{logger: &logging.NoOpLogger{}}
+
+	t.Run("unauthenticated maps to 401 without being logged as a server error", func(t *testing.T) {
+		err := fmt.Errorf("%w: %w", errUnauthenticated, authnlib.ErrMissingRequiredToken)
+		status := n.ruleFilterStatusError("authorization failed", err, time.Now())
+		assert.Equal(t, int32(http.StatusUnauthorized), status.ErrStatus.Code)
+		assert.Equal(t, metav1.StatusReasonUnauthorized, status.ErrStatus.Reason)
+	})
+
+	t.Run("service identity maps to 403", func(t *testing.T) {
+		status := n.ruleFilterStatusError("authorization failed", errServiceIdentityForbidden, time.Now())
+		assert.Equal(t, int32(http.StatusForbidden), status.ErrStatus.Code)
+		assert.Equal(t, metav1.StatusReasonForbidden, status.ErrStatus.Reason)
+	})
+
+	t.Run("any other error maps to 500", func(t *testing.T) {
+		status := n.ruleFilterStatusError("authorization failed", errors.New("folder access reader is not configured"), time.Now())
+		assert.Equal(t, int32(http.StatusInternalServerError), status.ErrStatus.Code)
 	})
 }
 

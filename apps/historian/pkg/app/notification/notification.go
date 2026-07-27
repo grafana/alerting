@@ -94,11 +94,44 @@ func (n *Notification) resolveRuleFilter(ctx context.Context, namespace string, 
 	if err != nil {
 		return nil, err
 	}
+	if err := requireDelegatedUserIdentity(ctx); err != nil {
+		return nil, err
+	}
 	folders, err := n.folderAccess.AccessibleFolders(ctx, namespace, n.forwardedIdentityHeaders(headers))
 	if err != nil {
 		return nil, err
 	}
 	return newRuleFilter(folders), nil
+}
+
+// errServiceIdentityForbidden marks a request authenticated as a bare service
+// (access-policy) identity rather than an end user. Notification history is
+// user-scoped: authorization must reflect the caller's own folder ACLs, not a
+// service token's embedded scope. authlib returns the raw access-token
+// permissions (authtypes.AuthInfo.GetTokenPermissions) precisely when the
+// identity type is TypeAccessPolicy, so a service JWT carrying a broad
+// alertrules:list scope would otherwise read history across every folder,
+// bypassing user RBAC. Such a caller is authenticated but not permitted here, so
+// it surfaces as 403 Forbidden.
+var errServiceIdentityForbidden = errors.New("service identity is not permitted to query user-scoped notification history")
+
+// requireDelegatedUserIdentity rejects callers whose authorization would be based
+// on a service token's own scope instead of a delegated end-user identity. It
+// applies in both deployment modes (in-process and standalone): the identity is
+// read from the context after contextWithAuthInfo has populated it. A caller
+// acting on behalf of a user (an ID token, or an access token embedding a user
+// actor) resolves to a non-access-policy type and is allowed, because authz then
+// evaluates the user's folder ACLs rather than the token scope. When no identity
+// is present the check is a no-op and downstream RBAC fails closed.
+func requireDelegatedUserIdentity(ctx context.Context) error {
+	info, ok := authtypes.AuthInfoFrom(ctx)
+	if !ok {
+		return nil
+	}
+	if info.GetIdentityType() == authtypes.TypeAccessPolicy {
+		return errServiceIdentityForbidden
+	}
+	return nil
 }
 
 // headerAccessToken and headerGrafanaID carry the caller's signed access and ID
@@ -133,6 +166,15 @@ func (n *Notification) forwardedIdentityHeaders(headers http.Header) http.Header
 	return out
 }
 
+// errUnauthenticated marks a failure to reconstruct the caller identity from the
+// tokens forwarded on a standalone request (missing, malformed, expired, or
+// otherwise invalid X-Access-Token / X-Grafana-Id). It is a client error and
+// must surface as 401 Unauthorized rather than being reported as a server fault,
+// which would invite retries and mask the auth problem. Failures that are not the
+// caller's fault (e.g. the JWKS endpoint being unreachable) are not wrapped and
+// remain internal server errors.
+var errUnauthenticated = errors.New("unauthenticated")
+
 // contextWithAuthInfo ensures the context carries the caller identity used for
 // RBAC. Behind the aggregated API server the identity is authenticated upstream
 // and already present, so the context is returned unchanged. Running standalone
@@ -151,9 +193,51 @@ func (n *Notification) contextWithAuthInfo(ctx context.Context, headers http.Hea
 	provider := authnlib.NewHTTPTokenProvider(&http.Request{Header: headers})
 	info, err := n.authenticator.Authenticate(ctx, provider)
 	if err != nil {
+		// A bad or missing token is the caller's fault (401); mark it so the
+		// handlers do not report it as an internal server error. Other failures
+		// (e.g. the signing keys could not be fetched) stay internal.
+		if authnlib.IsUnauthenticatedErr(err) {
+			return nil, fmt.Errorf("%w: %w", errUnauthenticated, err)
+		}
 		return nil, fmt.Errorf("authenticate request: %w", err)
 	}
 	return authtypes.WithAuthInfo(ctx, info), nil
+}
+
+// ruleFilterStatusError maps a resolveRuleFilter failure to the appropriate API
+// status. A failure to reconstruct the caller identity from the forwarded tokens
+// is a client error (401 Unauthorized); a request authenticated as a bare service
+// identity is 403 Forbidden; everything else is an internal server error. Keeping
+// these client cases out of the 500 path stops callers and monitors from treating
+// an auth problem as a server fault.
+func (n *Notification) ruleFilterStatusError(msg string, err error, start time.Time) *apierrors.StatusError {
+	if errors.Is(err, errUnauthenticated) {
+		n.logger.Debug(msg, "err", err, "duration", time.Since(start))
+		return &apierrors.StatusError{
+			ErrStatus: metav1.Status{
+				Status:  metav1.StatusFailure,
+				Reason:  metav1.StatusReasonUnauthorized,
+				Code:    http.StatusUnauthorized,
+				Message: fmt.Sprintf("%s: %s", msg, err.Error()),
+			}}
+	}
+	if errors.Is(err, errServiceIdentityForbidden) {
+		n.logger.Debug(msg, "err", err, "duration", time.Since(start))
+		return &apierrors.StatusError{
+			ErrStatus: metav1.Status{
+				Status:  metav1.StatusFailure,
+				Reason:  metav1.StatusReasonForbidden,
+				Code:    http.StatusForbidden,
+				Message: fmt.Sprintf("%s: %s", msg, err.Error()),
+			}}
+	}
+	n.logger.Error(msg, "err", err, "duration", time.Since(start))
+	return &apierrors.StatusError{
+		ErrStatus: metav1.Status{
+			Status:  metav1.StatusFailure,
+			Code:    http.StatusInternalServerError,
+			Message: fmt.Sprintf("%s: %s", msg, err.Error()),
+		}}
 }
 
 func (n *Notification) QueryAlertsHandler(ctx context.Context, writer app.CustomRouteResponseWriter, request *app.CustomRouteRequest) error {
@@ -185,14 +269,7 @@ func (n *Notification) QueryAlertsHandler(ctx context.Context, writer app.Custom
 
 	filter, err := n.resolveRuleFilter(ctx, request.ResourceIdentifier.Namespace, request.Headers)
 	if err != nil {
-		const msg = "Notification alerts query authorization failed"
-		n.logger.Error(msg, "err", err, "duration", time.Since(start))
-		return &apierrors.StatusError{
-			ErrStatus: metav1.Status{
-				Status:  metav1.StatusFailure,
-				Code:    http.StatusInternalServerError,
-				Message: fmt.Sprintf("%s: %s", msg, err.Error()),
-			}}
+		return n.ruleFilterStatusError("Notification alerts query authorization failed", err, start)
 	}
 
 	response, err := n.loki.QueryAlerts(ctx, body, filter)
@@ -255,14 +332,7 @@ func (n *Notification) QueryHandler(ctx context.Context, writer app.CustomRouteR
 
 	filter, err := n.resolveRuleFilter(ctx, request.ResourceIdentifier.Namespace, request.Headers)
 	if err != nil {
-		const msg = "Notification history query authorization failed"
-		n.logger.Error(msg, "err", err, "duration", time.Since(start))
-		return &apierrors.StatusError{
-			ErrStatus: metav1.Status{
-				Status:  metav1.StatusFailure,
-				Code:    http.StatusInternalServerError,
-				Message: fmt.Sprintf("%s: %s", msg, err.Error()),
-			}}
+		return n.ruleFilterStatusError("Notification history query authorization failed", err, start)
 	}
 
 	response, err := n.loki.Query(ctx, body, filter)
