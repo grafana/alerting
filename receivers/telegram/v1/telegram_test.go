@@ -404,6 +404,80 @@ func TestNotify_SendMessageAsCaptionFallsBack(t *testing.T) {
 	}
 }
 
+func TestNotify_SendMessageAsCaptionFallsBackOnError(t *testing.T) {
+	t.Run("when image data cannot be read", func(t *testing.T) {
+		notificationService := receivers.MockNotificationService()
+		notifier := &Notifier{
+			Base: receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+			settings: Config{
+				BotToken:             "token",
+				ChatID:               "1234",
+				Message:              "Alert with screenshot",
+				SendMessageAsCaption: true,
+			},
+			images: images.NewFakeProvider(1),
+			ns:     notificationService,
+			tmpl:   templates.ForTests(t),
+		}
+
+		alerts := []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1"},
+				Annotations: model.LabelSet{"__alertImageToken__": "test-image-1"},
+			},
+		}}
+		ctx := notify.WithGroupKey(context.Background(), "alertname")
+		ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+
+		recoverable, err := notifier.Notify(ctx, alerts...)
+
+		require.NoError(t, err)
+		require.True(t, recoverable)
+		require.Len(t, notificationService.WebhookCalls, 1)
+		require.Equal(t, "https://api.telegram.org/bottoken/sendMessage", notificationService.WebhookCalls[0].URL)
+	})
+
+	t.Run("when sendPhoto fails", func(t *testing.T) {
+		sender := receivers.NewMockWebhookSender()
+		sender.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
+			if strings.HasSuffix(cmd.URL, "/sendPhoto") {
+				return errors.New("sendPhoto failed")
+			}
+			return nil
+		}
+		notifier := &Notifier{
+			Base: receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+			settings: Config{
+				BotToken:             "token",
+				ChatID:               "1234",
+				Message:              "Alert with screenshot",
+				SendMessageAsCaption: true,
+			},
+			images: images.NewFakeProviderWithFile(t, 1),
+			ns:     sender,
+			tmpl:   templates.ForTests(t),
+		}
+
+		alerts := []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1"},
+				Annotations: model.LabelSet{"__alertImageToken__": "test-image-1"},
+			},
+		}}
+		ctx := notify.WithGroupKey(context.Background(), "alertname")
+		ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+
+		recoverable, err := notifier.Notify(ctx, alerts...)
+
+		require.NoError(t, err)
+		require.True(t, recoverable)
+		require.Len(t, sender.Calls, 3)
+		require.Equal(t, "https://api.telegram.org/bottoken/sendPhoto", sender.Calls[0].Args[2].(*receivers.SendWebhookSettings).URL)
+		require.Equal(t, "https://api.telegram.org/bottoken/sendMessage", sender.Calls[1].Args[2].(*receivers.SendWebhookSettings).URL)
+		require.Equal(t, "https://api.telegram.org/bottoken/sendPhoto", sender.Calls[2].Args[2].(*receivers.SendWebhookSettings).URL)
+	})
+}
+
 func TestNotify_ExtraData(t *testing.T) {
 	tmpl := templates.ForTests(t)
 

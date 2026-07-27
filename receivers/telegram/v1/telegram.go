@@ -58,9 +58,8 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	if tn.settings.SendMessageAsCaption {
 		sent, err := tn.notifyWithCaption(ctx, l, as)
 		if err != nil {
-			return false, err
-		}
-		if sent {
+			_ = level.Warn(l).Log("msg", "failed to send Telegram image with caption, falling back to separate messages", "error", err)
+		} else if sent {
 			return true, nil
 		}
 	}
