@@ -691,6 +691,40 @@ func TestLokiHTTPClientPushSplitting(t *testing.T) {
 		require.Error(t, err)
 	})
 
+	t.Run("returns the context error and sends nothing when the context is already cancelled", func(t *testing.T) {
+		req := newRecordingRequester()
+		client := createTestLokiClient(req)
+		client.cfg.MaxWriteBatchSize = 100 // smaller than each line below, so every sample is its own batch
+
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		err := client.Push(ctx, makeStream(50, 500))
+
+		// The whole payload was dropped, so this must be an error, not a silent success.
+		require.ErrorIs(t, err, context.Canceled)
+		require.Empty(t, req.Bodies(), "an already-cancelled context must not report success after sending nothing")
+	})
+
+	t.Run("returns the context error when cancelled between batches with samples still unsent", func(t *testing.T) {
+		req := newRecordingRequester()
+		ctx, cancel := context.WithCancel(context.Background())
+		// Cancel as soon as the first batch is sent, mimicking a timeout partway through the payload.
+		// The concurrency limit keeps the submit loop from outrunning the workers, so the remaining
+		// batches are never sent.
+		req.afterDo = cancel
+		client := createTestLokiClient(req)
+		client.cfg.MaxWriteBatchSize = 100 // smaller than each line below, so every sample is its own batch
+
+		err := client.Push(ctx, makeStream(50, 500))
+
+		// A partial write must surface the cancellation rather than a silent success that would let
+		// callers treat the dropped history as fully written.
+		require.ErrorIs(t, err, context.Canceled)
+		require.NotEmpty(t, req.Bodies())
+		require.Less(t, len(req.Bodies()), 50, "cancellation must stop the remaining batches from being sent")
+	})
+
 	t.Run("sends a single oversized entry as one request without splitting forever", func(t *testing.T) {
 		req := newRecordingRequester()
 		client := createTestLokiClient(req)
@@ -769,6 +803,9 @@ type recordingRequester struct {
 	mu             sync.Mutex
 	bodies         []string
 	failIfContains string
+	// afterDo, if set, is called after each request is recorded. Tests use it to cancel the push
+	// context partway through a split payload.
+	afterDo func()
 }
 
 func newRecordingRequester() *recordingRequester {
@@ -791,7 +828,12 @@ func (r *recordingRequester) Do(req *http.Request) (*http.Response, error) {
 	r.mu.Lock()
 	r.bodies = append(r.bodies, string(body))
 	shouldFail := r.failIfContains != "" && strings.Contains(string(body), r.failIfContains)
+	afterDo := r.afterDo
 	r.mu.Unlock()
+
+	if afterDo != nil {
+		afterDo()
+	}
 
 	if shouldFail {
 		return &http.Response{

@@ -197,7 +197,17 @@ func (c *HTTPLokiClient) batchedPush(ctx context.Context, streams []Stream) erro
 	g.SetLimit(maxWriteConcurrency)
 
 	var batches, total int
-	for gctx.Err() == nil && it.next() {
+	stoppedEarly := false
+	for it.next() {
+		// Cancellation with samples still unsent is a partial write, not success. Record it here
+		// rather than checking gctx after the loop: errgroup cancels gctx inside Wait(), and even
+		// before Wait() a gctx read can't tell "stopped because cancelled" from "drained, then the
+		// parent cancelled a moment later". Break instead of returning so in-flight pushes drain and
+		// a concrete push error (e.g. a 429) wins over the generic cancellation below.
+		if gctx.Err() != nil {
+			stoppedEarly = true
+			break
+		}
 		enc := it.batch()
 		batches++
 		total += len(enc)
@@ -214,7 +224,13 @@ func (c *HTTPLokiClient) batchedPush(ctx context.Context, streams []Stream) erro
 	if it.err() != nil {
 		return it.err()
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	if stoppedEarly {
+		return gctx.Err()
+	}
+	return nil
 }
 
 // pushEncoded sends an already-encoded payload as a single Loki request.
