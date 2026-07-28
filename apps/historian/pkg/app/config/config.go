@@ -36,6 +36,18 @@ type NotificationConfig struct {
 	// RBACEnabled is true it must be non-nil, otherwise notification queries fail
 	// closed.
 	AccessClient authtypes.AccessClient
+	// SigningKeysURL is the JWKS endpoint used to verify the access/ID tokens
+	// forwarded on notification requests when the app runs standalone (as the
+	// historian operator). Behind the aggregated API server the caller identity is
+	// authenticated upstream and placed in the request context; the standalone
+	// operator's custom-route server does not authenticate requests, so identity
+	// must be reconstructed from the forwarded tokens. Leave empty when running
+	// in-process (identity is already present in the context).
+	SigningKeysURL string
+	// AllowedAudiences restricts which audiences the forwarded access token may
+	// carry (typically the historian's own API audience). Empty disables audience
+	// validation. Only used when SigningKeysURL is set.
+	AllowedAudiences []string
 }
 
 type RuntimeConfig struct {
@@ -46,6 +58,8 @@ type RuntimeConfig struct {
 func (n *NotificationConfig) AddFlagsWithPrefix(prefix string, flags *pflag.FlagSet) {
 	flags.BoolVar(&n.Enabled, prefix+".enabled", false, "Enable notification query endpoints")
 	flags.BoolVar(&n.RBACEnabled, prefix+".rbac-enabled", false, "Restrict notification history to the alert rules the requesting user can access")
+	flags.StringVar(&n.SigningKeysURL, prefix+".rbac.signing-keys-url", "", "JWKS URL used to verify the access/ID tokens forwarded on notification requests when running standalone (the historian operator). Leave empty when running in-process, where the caller identity is already present in the request context")
+	flags.StringSliceVar(&n.AllowedAudiences, prefix+".rbac.allowed-audiences", nil, "Comma-separated list of audiences the forwarded access token must carry (typically the historian API audience). Empty disables audience validation")
 	addLokiFlags(&n.Loki.LokiConfig, prefix+".loki", flags)
 }
 

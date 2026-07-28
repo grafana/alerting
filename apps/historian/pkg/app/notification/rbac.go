@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"regexp"
 	"sort"
 	"strconv"
@@ -43,7 +44,15 @@ type folderAccessReader interface {
 	// caller may read. Both the folder enumeration and the per-folder
 	// authorization are RBAC-enforced, so the returned set only ever contains
 	// folders the caller is permitted to see.
-	AccessibleFolders(ctx context.Context, namespace string) (ruleUIDSet, error)
+	//
+	// identity carries the caller's identity headers (X-Access-Token /
+	// X-Grafana-Id) to forward on the folder API request. It must be set when
+	// running standalone (the historian operator), whose kube client authenticates
+	// as the operator's own service account and would otherwise enumerate folders
+	// under that identity rather than the caller's. It is nil in-process (behind
+	// the aggregated API server), where the kube client already forwards the caller
+	// identity from the request context.
+	AccessibleFolders(ctx context.Context, namespace string, identity http.Header) (ruleUIDSet, error)
 }
 
 // ruleFilter constrains a query to what the caller can access. A nil *ruleFilter
@@ -252,8 +261,8 @@ type partialFolderList struct {
 // enforced by that API server) and then confirms alert.rules:read on each folder
 // through the AccessClient, so the result reflects alert-rule read access rather
 // than mere folder visibility.
-func (r *k8sFolderAccessReader) AccessibleFolders(ctx context.Context, namespace string) (ruleUIDSet, error) {
-	candidates, err := r.listFolders(ctx, namespace)
+func (r *k8sFolderAccessReader) AccessibleFolders(ctx context.Context, namespace string, identity http.Header) (ruleUIDSet, error) {
+	candidates, err := r.listFolders(ctx, namespace, identity)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +274,13 @@ func (r *k8sFolderAccessReader) AccessibleFolders(ctx context.Context, namespace
 
 // listFolders lists all folder UIDs visible to the caller in the namespace,
 // following pagination until the full set is collected.
-func (r *k8sFolderAccessReader) listFolders(ctx context.Context, namespace string) ([]string, error) {
+//
+// identity carries the caller's identity headers (X-Access-Token / X-Grafana-Id)
+// forwarded onto each request so the folder API enforces RBAC as the caller. It
+// is nil in-process, where the kube client forwards the identity from the request
+// context; it must be set when running standalone, where the kube client
+// otherwise authenticates as the operator's own service account.
+func (r *k8sFolderAccessReader) listFolders(ctx context.Context, namespace string, identity http.Header) ([]string, error) {
 	var folders []string
 	cont := ""
 	for {
@@ -275,6 +290,12 @@ func (r *k8sFolderAccessReader) listFolders(ctx context.Context, namespace strin
 			// Request only object metadata to avoid transferring full folder specs.
 			SetHeader("Accept", "application/json;as=PartialObjectMetadataList;g=meta.k8s.io;v=v1,application/json").
 			Param("limit", strconv.Itoa(folderListPageSize))
+		// Forward the caller's identity so folder enumeration is RBAC-scoped to the
+		// caller rather than the operator's service account (standalone only; nil
+		// in-process where the client already forwards identity from the context).
+		for key, values := range identity {
+			req = req.SetHeader(key, values...)
+		}
 		if cont != "" {
 			req = req.Param("continue", cont)
 		}

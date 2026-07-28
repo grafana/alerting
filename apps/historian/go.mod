@@ -3,6 +3,7 @@ module github.com/grafana/alerting/apps/historian
 go 1.26.4
 
 require (
+	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/go-kit/log v0.2.1
 	github.com/grafana/alerting v0.0.0-20260616104851-587c401ed754
 	github.com/grafana/authlib v0.0.0-20260603144019-18cfcbc9496a
@@ -39,7 +40,6 @@ require (
 	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/getkin/kin-openapi v0.140.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
