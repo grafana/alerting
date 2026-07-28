@@ -102,12 +102,37 @@ func TestMain_RBACRequiresAuthz(t *testing.T) {
 		fmt.Sprintf("--metrics.port=%d", metricsPort),
 		"--alerting.historian.notification.enabled=true",
 		"--alerting.historian.notification.loki.read-url=http://127.0.0.1:1/",
-		// RBAC on, but no --authz.* flags provided.
+		// RBAC on, but no --authz.* flags provided. A signing-keys URL is required
+		// before the authz check, so supply one to exercise the authz validation.
 		"--alerting.historian.notification.rbac-enabled=true",
+		"--alerting.historian.notification.rbac.signing-keys-url=http://127.0.0.1:1/keys",
 	})
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to build authz access client")
 	require.Contains(t, err.Error(), "authz.remote-address is required")
+}
+
+// TestMain_RBACRequiresSigningKeysURL proves the operator fails fast at startup
+// when notification RBAC is enabled but no JWKS signing-keys URL is configured,
+// rather than starting and then failing closed on every query because it cannot
+// reconstruct the caller identity from the forwarded tokens.
+func TestMain_RBACRequiresSigningKeysURL(t *testing.T) {
+	ports := freePorts(t, 2)
+	webhookPort, metricsPort := ports[0], ports[1]
+	certPath, keyPath := writeTestCert(t)
+
+	err := Main([]string{
+		fmt.Sprintf("--webhook.port=%d", webhookPort),
+		"--webhook.tls.cert-path=" + certPath,
+		"--webhook.tls.key-path=" + keyPath,
+		fmt.Sprintf("--metrics.port=%d", metricsPort),
+		"--alerting.historian.notification.enabled=true",
+		"--alerting.historian.notification.loki.read-url=http://127.0.0.1:1/",
+		// RBAC on, but no --alerting.historian.notification.rbac.signing-keys-url.
+		"--alerting.historian.notification.rbac-enabled=true",
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "signing-keys-url is required")
 }
 
 // freePorts returns n distinct free TCP ports. All listeners are held open
