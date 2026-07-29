@@ -39,6 +39,13 @@ type Notification struct {
 	// the aggregated API server) the identity is already in the context and this is
 	// nil.
 	authenticator authnlib.Authenticator
+	// folderAPIRemote indicates the folder list targets a remote folder API (a
+	// dedicated FolderAPIConfig was supplied) rather than the app's loopback kube
+	// config. A remote REST client does not carry the request-context identity over
+	// the wire, so the caller's identity headers must be forwarded explicitly on the
+	// folder request even when the identity is already in the context (authenticator
+	// nil). See forwardedIdentityHeaders.
+	folderAPIRemote bool
 }
 
 func New(cfg config.NotificationConfig, kubeConfig rest.Config, reg prometheus.Registerer, logger logging.Logger, tracer trace.Tracer) *Notification {
@@ -53,7 +60,17 @@ func New(cfg config.NotificationConfig, kubeConfig rest.Config, reg prometheus.R
 	}
 
 	if cfg.RBACEnabled {
-		reader, err := newFolderAccessReader(kubeConfig, cfg.AccessClient, logger)
+		// Use the dedicated folder API config when supplied (split multi-apiserver
+		// deployment, where the app's own API server does not serve
+		// folder.grafana.app); otherwise fall back to the app's kube config, which
+		// in-process is a loopback serving every group.
+		folderConfig := kubeConfig
+		if cfg.FolderAPIConfig != nil {
+			folderConfig = *cfg.FolderAPIConfig
+			n.folderAPIRemote = true
+		}
+
+		reader, err := newFolderAccessReader(folderConfig, cfg.AccessClient, logger)
 		if err != nil {
 			// Leave folderAccess nil; handlers fail closed when RBAC is enabled but
 			// the reader could not be constructed.
@@ -146,14 +163,21 @@ const (
 // outbound folder API requests. Injecting the reconstructed identity into the
 // context is enough for the AccessClient (BatchCheck takes the identity
 // explicitly), but the folder list goes through the kube REST client, which does
-// not read that identity. Running standalone (the historian operator) its kube
-// client authenticates as the operator's own service account, so without
-// forwarding these headers folder enumeration would run under the operator
-// identity and skip the caller's folders:read check. Behind the aggregated API
-// server (authenticator nil) the kube client already forwards the caller identity
-// from the request context, so nil is returned and nothing extra is attached.
+// not read that identity. Headers are forwarded in two cases:
+//
+//   - Standalone (the historian operator, authenticator non-nil): its kube client
+//     authenticates as the operator's own service account, so without forwarding
+//     these headers folder enumeration would run under the operator identity and
+//     skip the caller's folders:read check.
+//   - Remote folder API (folderAPIRemote, a dedicated FolderAPIConfig was set):
+//     the REST client opens a fresh connection to another API server and does not
+//     carry the request-context identity over the wire, so it must be forwarded
+//     even though the identity is already in the context.
+//
+// In-process the app's loopback kube client preserves the request-context
+// identity via its in-memory transport, so nil is returned and nothing is added.
 func (n *Notification) forwardedIdentityHeaders(headers http.Header) http.Header {
-	if n.authenticator == nil {
+	if n.authenticator == nil && !n.folderAPIRemote {
 		return nil
 	}
 	out := http.Header{}
