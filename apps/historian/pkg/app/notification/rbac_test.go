@@ -13,12 +13,15 @@ import (
 
 	authnlib "github.com/grafana/authlib/authn"
 	authtypes "github.com/grafana/authlib/types"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
+	"github.com/grafana/alerting/apps/historian/pkg/app/config"
 	"github.com/grafana/grafana-app-sdk/logging"
 )
 
@@ -320,6 +323,31 @@ func TestNewFolderAccessReader_RequiresAccessClient(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestNew_FolderAPIConfigSelectsRemoteFolderClient(t *testing.T) {
+	base := config.NotificationConfig{
+		Enabled:      true,
+		RBACEnabled:  true,
+		AccessClient: &fakeAccessClient{},
+	}
+	newN := func(cfg config.NotificationConfig) *Notification {
+		return New(cfg, rest.Config{Host: "http://loopback"}, prometheus.NewRegistry(), &logging.NoOpLogger{}, noop.NewTracerProvider().Tracer(""))
+	}
+
+	t.Run("without FolderAPIConfig uses the loopback and does not force header forwarding", func(t *testing.T) {
+		n := newN(base)
+		require.NotNil(t, n.folderAccess)
+		assert.False(t, n.folderAPIRemote)
+	})
+
+	t.Run("with FolderAPIConfig targets the remote folder API and forces header forwarding", func(t *testing.T) {
+		cfg := base
+		cfg.FolderAPIConfig = &rest.Config{Host: "http://folder-app"}
+		n := newN(cfg)
+		require.NotNil(t, n.folderAccess)
+		assert.True(t, n.folderAPIRemote)
+	})
+}
+
 // fakeFolderAccessReader is a test double for folderAccessReader.
 type fakeFolderAccessReader struct {
 	folders ruleUIDSet
@@ -524,5 +552,17 @@ func TestNotification_ForwardedIdentityHeaders(t *testing.T) {
 		assert.Equal(t, "tok", got.Get("X-Access-Token"))
 		assert.Empty(t, got.Get("X-Grafana-Id"))
 		assert.Len(t, got, 1)
+	})
+
+	t.Run("remote folder API forwards identity even without an authenticator", func(t *testing.T) {
+		// Split multi-apiserver deployment: identity is already in the context
+		// (authenticator nil), but the folder list opens a fresh connection to the
+		// remote folder API, so the caller identity must be forwarded explicitly.
+		n := &Notification{folderAPIRemote: true}
+		got := n.forwardedIdentityHeaders(headers)
+		assert.Equal(t, "tok", got.Get("X-Access-Token"))
+		assert.Equal(t, "id", got.Get("X-Grafana-Id"))
+		assert.Empty(t, got.Get("X-Other"))
+		assert.Len(t, got, 2)
 	})
 }
