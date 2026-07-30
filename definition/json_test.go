@@ -10,17 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/timeinterval"
-	commoncfg "github.com/prometheus/common/config"
-
-	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/receivers"
-	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
-	webhook_v0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
 )
 
 func TestMarshalJSONWithSecrets(t *testing.T) {
-	u := "https://grafana.com/webhook"
-	testURL, err := url.Parse(u)
+	slackAPIURL := "https://grafana.com/slack-webhook"
+	testURL, err := url.Parse(slackAPIURL)
 	require.NoError(t, err)
 
 	amsLoc, err := time.LoadLocation("Europe/Amsterdam")
@@ -32,8 +26,13 @@ func TestMarshalJSONWithSecrets(t *testing.T) {
 	require.NoError(t, err)
 	maskedSecret := string(maskedSecretBytes)
 
+	globalConfig := config.DefaultGlobalConfig()
+	globalConfig.SMTPAuthPassword = config.Secret("smtp-password")
+	globalConfig.SlackAPIURL = (*config.SecretURL)(&config.URL{URL: testURL})
+
 	cfg := PostableApiAlertingConfig{
 		Config: Config{
+			Global: &globalConfig,
 			Route: &Route{
 				Receiver: "test-receiver",
 			},
@@ -85,46 +84,16 @@ func TestMarshalJSONWithSecrets(t *testing.T) {
 		},
 		Receivers: []*PostableApiReceiver{
 			{
-				Receiver: Receiver{
-					Name: "test-receiver",
-					WebhookConfigs: []*webhook_v0mimir1.Config{
+				Name: "test-receiver",
+				PostableGrafanaReceivers: PostableGrafanaReceivers{
+					GrafanaManagedReceivers: []*PostableGrafanaReceiver{
 						{
-							URL: &receivers.SecretURL{URL: testURL},
-							HTTPConfig: &httpcfg.HTTPClientConfig{
-								BasicAuth: &httpcfg.BasicAuth{
-									Username: "user",
-									Password: commoncfg.Secret("password"),
-								},
+							UID:  "test-uid",
+							Name: "test-receiver",
+							Type: "slack",
+							SecureSettings: map[string]string{
+								"url": "https://grafana.com/slack-webhook",
 							},
-						},
-						{
-							URL: &receivers.SecretURL{URL: testURL},
-							HTTPConfig: &httpcfg.HTTPClientConfig{
-								Authorization: &httpcfg.Authorization{
-									Type:        "Bearer",
-									Credentials: commoncfg.Secret("bearer-token-secret"),
-								},
-							},
-						},
-					},
-					EmailConfigs: []*email_v0mimir1.Config{
-						{
-							To:           "test@grafana.com",
-							From:         "alerts@grafana.com",
-							AuthUsername: "smtp-user",
-							AuthPassword: receivers.Secret("smtp-password"),
-							AuthSecret:   receivers.Secret("smtp-secret"),
-							Headers:      map[string]string{},
-							HTML:         "{{ template \"email.default.html\" . }}",
-						},
-						{
-							To:           "test2@grafana.com",
-							From:         "alerts2@grafana.com",
-							AuthUsername: "smtp-user2",
-							AuthPassword: receivers.Secret(""),
-							AuthSecret:   receivers.Secret("smtp-secret2"),
-							Headers:      map[string]string{},
-							HTML:         "{{ template \"email.default.html\" . }}",
 						},
 					},
 				},

@@ -1,7 +1,6 @@
 package definition
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -9,9 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/pkg/labels"
-
-	"github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/receivers"
 )
 
 func TestLoadCompat(t *testing.T) {
@@ -40,41 +36,6 @@ func TestLoadCompat(t *testing.T) {
 			input: []byte(testConfigWithoutGlobal),
 		},
 		{
-			name:   "no slack api url",
-			input:  []byte(fmt.Sprintf(missingValuesTemplate, "slack_configs")),
-			expErr: "no global Slack API URL set",
-		},
-		{
-			name:   "no Opsgenie api key",
-			input:  []byte(fmt.Sprintf(missingValuesTemplate, "opsgenie_configs")),
-			expErr: "no global OpsGenie API Key set",
-		},
-		{
-			name:   "no WeChat api secret",
-			input:  []byte(fmt.Sprintf(missingValuesTemplate, "wechat_configs")),
-			expErr: "no global Wechat ApiSecret set",
-		},
-		{
-			name:   "no VictorOps api key",
-			input:  []byte(fmt.Sprintf(missingValuesTemplate, "victorops_configs")),
-			expErr: "no global VictorOps API Key set",
-		},
-		{
-			name:   "no Discord url",
-			input:  []byte(fmt.Sprintf(missingValuesTemplate, "discord_configs")),
-			expErr: "missing webhook_url",
-		},
-		{
-			name:   "no MSTeams url",
-			input:  []byte(fmt.Sprintf(missingValuesTemplate, "msteams_configs")),
-			expErr: "missing webhook_url",
-		},
-		{
-			name:   "no smarthost",
-			input:  []byte(fmt.Sprintf(missingValuesTemplate, "email_configs")),
-			expErr: "no global SMTP smarthost set",
-		},
-		{
 			name:  "with global config",
 			input: []byte(testConfigWithGlobal),
 		},
@@ -93,34 +54,8 @@ func TestLoadCompat(t *testing.T) {
 
 			// It should add the default global config.
 			require.NotNil(t, c.Global)
-			globalConfig := c.Global
-
-			// All configs should have the default http config set except for Webex.
-			expectedHTTPConfig := v0mimir.FromCommonHTTPClientConfig(globalConfig.HTTPConfig)
-			require.Equal(t, expectedHTTPConfig, c.Receivers[0].DiscordConfigs[0].HTTPConfig)
-			require.Equal(t, expectedHTTPConfig, c.Receivers[0].MSTeamsConfigs[0].HTTPConfig)
-			require.Equal(t, expectedHTTPConfig, c.Receivers[0].OpsGenieConfigs[0].HTTPConfig)
-			require.Equal(t, expectedHTTPConfig, c.Receivers[0].PagerdutyConfigs[0].HTTPConfig)
-			require.Equal(t, expectedHTTPConfig, c.Receivers[0].PushoverConfigs[0].HTTPConfig)
-			require.Equal(t, expectedHTTPConfig, c.Receivers[0].SNSConfigs[0].HTTPConfig)
-			require.Equal(t, expectedHTTPConfig, c.Receivers[0].SlackConfigs[0].HTTPConfig)
-			require.Equal(t, expectedHTTPConfig, c.Receivers[0].TelegramConfigs[0].HTTPConfig)
-			require.Equal(t, expectedHTTPConfig, c.Receivers[0].VictorOpsConfigs[0].HTTPConfig)
-			require.Equal(t, expectedHTTPConfig, c.Receivers[0].WebhookConfigs[0].HTTPConfig)
-			require.Equal(t, expectedHTTPConfig, c.Receivers[0].WechatConfigs[0].HTTPConfig)
-
-			if len(c.Receivers[0].EmailConfigs) > 0 {
-				require.Equal(t, c.Receivers[0].EmailConfigs[0].Smarthost, receivers.HostPort(globalConfig.SMTPSmarthost))
-				require.Equal(t, c.Receivers[0].EmailConfigs[0].From, globalConfig.SMTPFrom)
-				require.Equal(t, c.Receivers[0].EmailConfigs[0].AuthUsername, globalConfig.SMTPAuthUsername)
-				require.Equal(t, c.Receivers[0].EmailConfigs[0].AuthPassword, receivers.Secret(globalConfig.SMTPAuthPassword))
-				require.Equal(t, c.Receivers[0].EmailConfigs[0].AuthSecret, receivers.Secret(globalConfig.SMTPAuthSecret))
-				require.Equal(t, c.Receivers[0].EmailConfigs[0].AuthIdentity, globalConfig.SMTPAuthIdentity)
-				require.Equal(t, *c.Receivers[0].EmailConfigs[0].RequireTLS, globalConfig.SMTPRequireTLS)
-			}
 		})
 	}
-
 }
 
 func TestAsAMRoute(t *testing.T) {
@@ -158,38 +93,6 @@ route:
     - receiver: test
 receivers:
   - name: test
-    discord_configs:
-      - webhook_url: http://test.com
-    msteams_configs:
-      - webhook_url: http://test.com
-    opsgenie_configs:
-      - api_key: test
-    pagerduty_configs:
-      - routing_key: test
-    pushover_configs:
-      - user_key: test
-        token: test
-    slack_configs:
-      - api_url: http://test.com
-    sns_configs:
-      - topic_arn: test
-    telegram_configs:
-      - bot_token: test
-        chat_id: 1
-    victorops_configs:
-      - api_key: test
-        routing_key: test
-    webhook_configs:
-      - url: http://test.com
-    wechat_configs:
-      - api_key: test
-        api_secret: test
-        corp_id: test
-    webex_configs:
-      - api_url: http://test.com
-        room_id: test
-        http_config:
-          bearer_token: test
 `
 
 const testConfigWithGlobal = `
@@ -202,53 +105,12 @@ global:
     enable_http2: false
   smtp_hello: test
   smtp_require_tls: false
-  pagerduty_url: https://pagerdutytest.com
-  slack_api_url: https://slacktest.com
-  opsgenie_api_url: https://opsgenietest.com
-  opsgenie_api_key: test
-  wechat_api_url: https://wechattest.com
-  wechat_api_secret: test
-  wechat_api_corp_id: test_id
-  victorops_api_url: https://victoropstest.com
-  victorops_api_key: test
-  telegram_api_url: https://telegramtest.com
-  webex_api_url: https://webextest.com
 route:
   receiver: test
   routes:
     - receiver: test
 receivers:
   - name: test
-    email_configs:
-      - to: test
-    discord_configs:
-      - webhook_url: http://test.com
-    msteams_configs:
-      - webhook_url: http://test.com
-    opsgenie_configs:
-      - send_resolved: true
-    pagerduty_configs:
-      - routing_key: test
-    pushover_configs:
-      - user_key: test
-        token: test
-    slack_configs:
-      - channel: test
-    sns_configs:
-      - topic_arn: test
-    telegram_configs:
-      - bot_token: test
-        chat_id: 1
-    victorops_configs:
-      - routing_key: test
-    webhook_configs:
-      - url: http://test.com
-    wechat_configs:
-      - api_key: test
-    webex_configs:
-      - room_id: test
-        http_config:
-          bearer_token: test
 `
 
 const testConfigDuplicatedReceivers = `
@@ -259,24 +121,6 @@ route:
 receivers:
   - name: test
   - name: test
-`
-
-const missingValuesTemplate = `
-global:
-  resolve_timeout: 5m
-  http_config:
-    follow_redirects: false
-    enable_http2: false
-route:
-  receiver: test
-  routes:
-    - receiver: test
-receivers:
-  - name: test
-    %s:
-      - send_resolved: false
-        routing_key: test
-        to: test
 `
 
 const testConfigWithComplexRoutes = `
@@ -348,9 +192,5 @@ route:
                 - test1
 receivers:
   - name: recv
-    webhook_configs:
-      - url: http://localhost:8080/alert
   - name: recv2
-    webhook_configs:
-      - url: http://localhost:8080/alert
 `
