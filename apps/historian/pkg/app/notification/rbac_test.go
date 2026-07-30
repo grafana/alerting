@@ -3,18 +3,25 @@ package notification
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
+	authnlib "github.com/grafana/authlib/authn"
 	authtypes "github.com/grafana/authlib/types"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
+	"github.com/grafana/alerting/apps/historian/pkg/app/config"
 	"github.com/grafana/grafana-app-sdk/logging"
 )
 
@@ -27,11 +34,18 @@ func testFilter(folders ...string) *ruleFilter {
 	return newRuleFilter(fset)
 }
 
-// fakeAuthInfo satisfies authtypes.AuthInfo for tests. Its methods are never
-// invoked (the fake access client ignores the identity), so embedding the nil
-// interface is sufficient to place a value on the context.
+// fakeAuthInfo satisfies authtypes.AuthInfo for tests. Its other methods are
+// never invoked (the fake access client ignores the identity), so embedding the
+// nil interface is sufficient to place a value on the context. GetIdentityType is
+// overridden so the delegated-user guard can be exercised; the zero value reports
+// an empty (non-access-policy) type, which the guard allows.
 type fakeAuthInfo struct {
 	authtypes.AuthInfo
+	identityType authtypes.IdentityType
+}
+
+func (f fakeAuthInfo) GetIdentityType() authtypes.IdentityType {
+	return f.identityType
 }
 
 // fakeAccessClient is a test double for authtypes.AccessClient that grants access
@@ -212,8 +226,11 @@ func TestExplodeRuleUIDCounts_SplitsCommaSeparated(t *testing.T) {
 
 func TestFolderAccessReader_AccessibleFolders(t *testing.T) {
 	var gotPaths []string
+	var gotAccessTokens, gotGrafanaIDs []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPaths = append(gotPaths, r.URL.Path)
+		gotAccessTokens = append(gotAccessTokens, r.Header.Get("X-Access-Token"))
+		gotGrafanaIDs = append(gotGrafanaIDs, r.Header.Get("X-Grafana-Id"))
 		w.Header().Set("Content-Type", "application/json")
 
 		cont := r.URL.Query().Get("continue")
@@ -245,7 +262,10 @@ func TestFolderAccessReader_AccessibleFolders(t *testing.T) {
 	require.NoError(t, err)
 
 	ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{})
-	folders, err := reader.AccessibleFolders(ctx, "org-1")
+	// Standalone forwards the caller's identity headers on the folder API request
+	// so folder enumeration is RBAC-scoped to the caller, not the operator SA.
+	identity := http.Header{"X-Access-Token": {"caller-access-token"}, "X-Grafana-Id": {"caller-grafana-id"}}
+	folders, err := reader.AccessibleFolders(ctx, "org-1", identity)
 	require.NoError(t, err)
 
 	assert.True(t, folders.Has("folder-a"))
@@ -257,6 +277,16 @@ func TestFolderAccessReader_AccessibleFolders(t *testing.T) {
 	require.Len(t, gotPaths, 2)
 	for _, p := range gotPaths {
 		assert.Equal(t, "/apis/folder.grafana.app/v1beta1/namespaces/org-1/folders", p)
+	}
+
+	// The caller identity must be forwarded on every folder API request (including
+	// paginated follow-ups), so the folder API enforces RBAC as the caller.
+	require.Len(t, gotAccessTokens, 2)
+	for _, tok := range gotAccessTokens {
+		assert.Equal(t, "caller-access-token", tok)
+	}
+	for _, id := range gotGrafanaIDs {
+		assert.Equal(t, "caller-grafana-id", id)
 	}
 
 	// Every candidate folder is checked for alert.rules read access, folder-scoped.
@@ -284,7 +314,7 @@ func TestFolderAccessReader_RequiresAuthInfo(t *testing.T) {
 	require.NoError(t, err)
 
 	// No auth info on the context: the folder checks cannot be performed.
-	_, err = reader.AccessibleFolders(context.Background(), "org-1")
+	_, err = reader.AccessibleFolders(context.Background(), "org-1", nil)
 	require.Error(t, err)
 }
 
@@ -293,39 +323,246 @@ func TestNewFolderAccessReader_RequiresAccessClient(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestNew_FolderAPIConfigSelectsRemoteFolderClient(t *testing.T) {
+	base := config.NotificationConfig{
+		Enabled:      true,
+		RBACEnabled:  true,
+		AccessClient: &fakeAccessClient{},
+	}
+	newN := func(cfg config.NotificationConfig) *Notification {
+		return New(cfg, rest.Config{Host: "http://loopback"}, prometheus.NewRegistry(), &logging.NoOpLogger{}, noop.NewTracerProvider().Tracer(""))
+	}
+
+	t.Run("without FolderAPIConfig uses the loopback and does not force header forwarding", func(t *testing.T) {
+		n := newN(base)
+		require.NotNil(t, n.folderAccess)
+		assert.False(t, n.folderAPIRemote)
+	})
+
+	t.Run("with FolderAPIConfig targets the remote folder API and forces header forwarding", func(t *testing.T) {
+		cfg := base
+		cfg.FolderAPIConfig = &rest.Config{Host: "http://folder-app"}
+		n := newN(cfg)
+		require.NotNil(t, n.folderAccess)
+		assert.True(t, n.folderAPIRemote)
+	})
+}
+
 // fakeFolderAccessReader is a test double for folderAccessReader.
 type fakeFolderAccessReader struct {
 	folders ruleUIDSet
 	err     error
+	called  bool
 }
 
-func (f fakeFolderAccessReader) AccessibleFolders(_ context.Context, _ string) (ruleUIDSet, error) {
+func (f *fakeFolderAccessReader) AccessibleFolders(_ context.Context, _ string, _ http.Header) (ruleUIDSet, error) {
+	f.called = true
 	return f.folders, f.err
 }
 
 func TestNotification_ResolveRuleFilter(t *testing.T) {
 	t.Run("rbac disabled returns nil filter", func(t *testing.T) {
 		n := &Notification{rbacEnabled: false}
-		filter, err := n.resolveRuleFilter(context.Background(), "org-1")
+		filter, err := n.resolveRuleFilter(context.Background(), "org-1", nil)
 		require.NoError(t, err)
 		assert.Nil(t, filter)
 	})
 
 	t.Run("rbac enabled without reader fails closed", func(t *testing.T) {
 		n := &Notification{rbacEnabled: true, folderAccess: nil}
-		_, err := n.resolveRuleFilter(context.Background(), "org-1")
+		_, err := n.resolveRuleFilter(context.Background(), "org-1", nil)
 		require.Error(t, err)
 	})
 
 	t.Run("rbac enabled returns filter keyed by folder UIDs", func(t *testing.T) {
 		n := &Notification{
 			rbacEnabled:  true,
-			folderAccess: fakeFolderAccessReader{folders: ruleUIDSet{"folderB": {}, "folderA": {}}},
+			folderAccess: &fakeFolderAccessReader{folders: ruleUIDSet{"folderB": {}, "folderA": {}}},
 		}
-		filter, err := n.resolveRuleFilter(context.Background(), "org-1")
+		filter, err := n.resolveRuleFilter(context.Background(), "org-1", nil)
 		require.NoError(t, err)
 		require.NotNil(t, filter)
 		// The push-down is keyed by the accessible folders, sorted.
 		assert.Equal(t, []string{"folderA", "folderB"}, filter.folderKeys)
+	})
+
+	t.Run("bare service identity is rejected before any folder access", func(t *testing.T) {
+		// A service (access-policy) token would be authorized from its own broad
+		// scope rather than a user's folder ACLs, so notification history must not
+		// be served for it. The folder reader must not even be consulted.
+		reader := &fakeFolderAccessReader{folders: ruleUIDSet{"folderA": {}}}
+		n := &Notification{rbacEnabled: true, folderAccess: reader}
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{identityType: authtypes.TypeAccessPolicy})
+
+		_, err := n.resolveRuleFilter(ctx, "org-1", nil)
+		require.ErrorIs(t, err, errServiceIdentityForbidden)
+		assert.False(t, reader.called, "folder access must not run for a rejected service identity")
+	})
+
+	t.Run("delegated user identity is allowed", func(t *testing.T) {
+		reader := &fakeFolderAccessReader{folders: ruleUIDSet{"folderA": {}}}
+		n := &Notification{rbacEnabled: true, folderAccess: reader}
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{identityType: authtypes.TypeUser})
+
+		filter, err := n.resolveRuleFilter(ctx, "org-1", nil)
+		require.NoError(t, err)
+		require.NotNil(t, filter)
+		assert.True(t, reader.called)
+	})
+}
+
+func TestNotification_RequireDelegatedUserIdentity(t *testing.T) {
+	t.Run("access-policy (service) identity is forbidden", func(t *testing.T) {
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{identityType: authtypes.TypeAccessPolicy})
+		require.ErrorIs(t, requireDelegatedUserIdentity(ctx), errServiceIdentityForbidden)
+	})
+
+	t.Run("user identity is allowed", func(t *testing.T) {
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{identityType: authtypes.TypeUser})
+		require.NoError(t, requireDelegatedUserIdentity(ctx))
+	})
+
+	t.Run("service-account identity is allowed", func(t *testing.T) {
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{identityType: authtypes.TypeServiceAccount})
+		require.NoError(t, requireDelegatedUserIdentity(ctx))
+	})
+
+	t.Run("no identity is a no-op so RBAC fails closed downstream", func(t *testing.T) {
+		require.NoError(t, requireDelegatedUserIdentity(context.Background()))
+	})
+}
+
+// fakeAuthenticator is a test double for authnlib.Authenticator.
+type fakeAuthenticator struct {
+	info   authtypes.AuthInfo
+	err    error
+	called bool
+}
+
+func (f *fakeAuthenticator) Authenticate(_ context.Context, _ authnlib.TokenProvider) (authtypes.AuthInfo, error) {
+	f.called = true
+	return f.info, f.err
+}
+
+func TestNotification_ContextWithAuthInfo(t *testing.T) {
+	t.Run("identity already in context is left untouched and authenticator not called", func(t *testing.T) {
+		auth := &fakeAuthenticator{info: fakeAuthInfo{}}
+		n := &Notification{authenticator: auth}
+		ctx := authtypes.WithAuthInfo(context.Background(), fakeAuthInfo{})
+
+		got, err := n.contextWithAuthInfo(ctx, http.Header{"X-Access-Token": {"tok"}})
+		require.NoError(t, err)
+		assert.Equal(t, ctx, got)
+		assert.False(t, auth.called, "authenticator must not run when identity is already present")
+	})
+
+	t.Run("no authenticator returns context unchanged so RBAC fails closed downstream", func(t *testing.T) {
+		n := &Notification{}
+		ctx := context.Background()
+
+		got, err := n.contextWithAuthInfo(ctx, http.Header{"X-Access-Token": {"tok"}})
+		require.NoError(t, err)
+		_, ok := authtypes.AuthInfoFrom(got)
+		assert.False(t, ok, "no identity should be injected without an authenticator")
+	})
+
+	t.Run("standalone reconstructs identity from forwarded tokens", func(t *testing.T) {
+		want := fakeAuthInfo{}
+		auth := &fakeAuthenticator{info: want}
+		n := &Notification{authenticator: auth}
+
+		got, err := n.contextWithAuthInfo(context.Background(), http.Header{"X-Access-Token": {"tok"}})
+		require.NoError(t, err)
+		require.True(t, auth.called)
+		info, ok := authtypes.AuthInfoFrom(got)
+		require.True(t, ok, "identity must be injected into the context")
+		assert.Equal(t, want, info)
+	})
+
+	t.Run("invalid token is classified as unauthenticated (client error)", func(t *testing.T) {
+		// A missing/invalid/expired token is the caller's fault and must be
+		// distinguishable from an internal failure so handlers can return 401.
+		auth := &fakeAuthenticator{err: authnlib.ErrMissingRequiredToken}
+		n := &Notification{authenticator: auth}
+
+		_, err := n.contextWithAuthInfo(context.Background(), http.Header{"X-Access-Token": {"bad"}})
+		require.Error(t, err)
+		assert.ErrorIs(t, err, errUnauthenticated, "invalid token must be marked as unauthenticated")
+	})
+
+	t.Run("non-token failure is not classified as unauthenticated (stays internal)", func(t *testing.T) {
+		// e.g. the JWKS endpoint could not be reached: not the caller's fault, so
+		// it must remain an internal server error rather than a 401.
+		auth := &fakeAuthenticator{err: authnlib.ErrFetchingSigningKey}
+		n := &Notification{authenticator: auth}
+
+		_, err := n.contextWithAuthInfo(context.Background(), http.Header{"X-Access-Token": {"tok"}})
+		require.Error(t, err)
+		assert.NotErrorIs(t, err, errUnauthenticated, "a server-side failure must not be reported as unauthenticated")
+	})
+}
+
+func TestNotification_RuleFilterStatusError(t *testing.T) {
+	n := &Notification{logger: &logging.NoOpLogger{}}
+
+	t.Run("unauthenticated maps to 401 without being logged as a server error", func(t *testing.T) {
+		err := fmt.Errorf("%w: %w", errUnauthenticated, authnlib.ErrMissingRequiredToken)
+		status := n.ruleFilterStatusError("authorization failed", err, time.Now())
+		assert.Equal(t, int32(http.StatusUnauthorized), status.ErrStatus.Code)
+		assert.Equal(t, metav1.StatusReasonUnauthorized, status.ErrStatus.Reason)
+	})
+
+	t.Run("service identity maps to 403", func(t *testing.T) {
+		status := n.ruleFilterStatusError("authorization failed", errServiceIdentityForbidden, time.Now())
+		assert.Equal(t, int32(http.StatusForbidden), status.ErrStatus.Code)
+		assert.Equal(t, metav1.StatusReasonForbidden, status.ErrStatus.Reason)
+	})
+
+	t.Run("any other error maps to 500", func(t *testing.T) {
+		status := n.ruleFilterStatusError("authorization failed", errors.New("folder access reader is not configured"), time.Now())
+		assert.Equal(t, int32(http.StatusInternalServerError), status.ErrStatus.Code)
+	})
+}
+
+func TestNotification_ForwardedIdentityHeaders(t *testing.T) {
+	headers := http.Header{
+		"X-Access-Token": {"tok"},
+		"X-Grafana-Id":   {"id"},
+		"X-Other":        {"ignored"},
+	}
+
+	t.Run("in-process (no authenticator) forwards nothing; the kube client forwards identity from context", func(t *testing.T) {
+		n := &Notification{}
+		assert.Nil(t, n.forwardedIdentityHeaders(headers))
+	})
+
+	t.Run("standalone forwards only the caller identity headers", func(t *testing.T) {
+		n := &Notification{authenticator: &fakeAuthenticator{}}
+		got := n.forwardedIdentityHeaders(headers)
+		assert.Equal(t, "tok", got.Get("X-Access-Token"))
+		assert.Equal(t, "id", got.Get("X-Grafana-Id"))
+		// Only the identity headers are forwarded, nothing else.
+		assert.Empty(t, got.Get("X-Other"))
+		assert.Len(t, got, 2)
+	})
+
+	t.Run("standalone omits absent identity headers", func(t *testing.T) {
+		n := &Notification{authenticator: &fakeAuthenticator{}}
+		got := n.forwardedIdentityHeaders(http.Header{"X-Access-Token": {"tok"}})
+		assert.Equal(t, "tok", got.Get("X-Access-Token"))
+		assert.Empty(t, got.Get("X-Grafana-Id"))
+		assert.Len(t, got, 1)
+	})
+
+	t.Run("remote folder API forwards identity even without an authenticator", func(t *testing.T) {
+		// Split multi-apiserver deployment: identity is already in the context
+		// (authenticator nil), but the folder list opens a fresh connection to the
+		// remote folder API, so the caller identity must be forwarded explicitly.
+		n := &Notification{folderAPIRemote: true}
+		got := n.forwardedIdentityHeaders(headers)
+		assert.Equal(t, "tok", got.Get("X-Access-Token"))
+		assert.Equal(t, "id", got.Get("X-Grafana-Id"))
+		assert.Empty(t, got.Get("X-Other"))
+		assert.Len(t, got, 2)
 	})
 }
