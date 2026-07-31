@@ -20,7 +20,7 @@ func TestSampleSize(t *testing.T) {
 	})
 }
 
-func TestSplitStreams(t *testing.T) {
+func TestSplitIntoBatches(t *testing.T) {
 	labelsA := map[string]string{"rule": "A"}
 	labelsB := map[string]string{"rule": "B"}
 
@@ -35,7 +35,7 @@ func TestSplitStreams(t *testing.T) {
 			{Stream: labelsB, Values: []Sample{sample("b1", 10)}},
 		}
 
-		batches := splitStreams(in, 100)
+		batches := splitIntoBatches(in, 100)
 
 		require.Len(t, batches, 1)
 		require.Equal(t, in, batches[0])
@@ -44,7 +44,7 @@ func TestSplitStreams(t *testing.T) {
 	t.Run("splits within a stream, repeating its labels in both batches", func(t *testing.T) {
 		in := []Stream{{Stream: labelsA, Values: []Sample{sample("a1", 10), sample("a2", 10), sample("a3", 10)}}}
 
-		batches := splitStreams(in, 20)
+		batches := splitIntoBatches(in, 20)
 
 		require.Len(t, batches, 2)
 		require.Equal(t, []Stream{{Stream: labelsA, Values: in[0].Values[0:2]}}, batches[0])
@@ -57,7 +57,7 @@ func TestSplitStreams(t *testing.T) {
 			{Stream: labelsB, Values: []Sample{sample("b1", 10)}},
 		}
 
-		batches := splitStreams(in, 20)
+		batches := splitIntoBatches(in, 20)
 
 		require.Len(t, batches, 2)
 		require.Equal(t, []Stream{in[0]}, batches[0])
@@ -67,7 +67,7 @@ func TestSplitStreams(t *testing.T) {
 	t.Run("gives a sample larger than the limit a batch of its own", func(t *testing.T) {
 		in := []Stream{{Stream: labelsA, Values: []Sample{sample("a1", 10), sample("big", 500), sample("a3", 10)}}}
 
-		batches := splitStreams(in, 20)
+		batches := splitIntoBatches(in, 20)
 
 		require.Len(t, batches, 3)
 		for i, batch := range batches {
@@ -86,7 +86,7 @@ func TestSplitStreams(t *testing.T) {
 		}
 
 		for _, maxBytes := range []int{10, 20, 1000} {
-			batches := splitStreams(in, maxBytes)
+			batches := splitIntoBatches(in, maxBytes)
 
 			var lines []string
 			for _, batch := range batches {
@@ -103,7 +103,7 @@ func TestSplitStreams(t *testing.T) {
 	})
 
 	t.Run("returns no batches for an empty payload", func(t *testing.T) {
-		require.Empty(t, splitStreams(nil, 100))
-		require.Empty(t, splitStreams([]Stream{{Stream: labelsA}}, 100))
+		require.Empty(t, splitIntoBatches(nil, 100))
+		require.Empty(t, splitIntoBatches([]Stream{{Stream: labelsA}}, 100))
 	})
 }

@@ -10,35 +10,44 @@ func (r *Sample) size() int {
 	return size
 }
 
-// splitStreams groups the samples of streams into batches of at most maxBytes, each to be pushed as
-// its own request. Batches point into the given streams rather than copying their samples, and
-// consecutive samples keep the labels of the stream they came from. A sample that alone exceeds
-// maxBytes gets a batch of its own.
-func splitStreams(streams []Stream, maxBytes int) [][]Stream {
+// splitIntoBatches groups the samples of streams into batches of at most maxBytes. Batches
+// point into the given streams rather than copying their samples, and consecutive samples
+// keep the labels of the stream they came from.
+// A sample that alone exceeds maxBytes gets a batch of its own.
+func splitIntoBatches(streams []Stream, maxBytes int) [][]Stream {
 	var (
-		batches [][]Stream
-		batch   []Stream
-		size    int
+		batches      [][]Stream
+		currentBatch []Stream
+		currentSize  int
 	)
+	// take adds stream.Values[from:to] to the current batch, under that stream's labels.
+	take := func(stream Stream, from, to int) {
+		if from < to {
+			currentBatch = append(currentBatch, Stream{Stream: stream.Stream, Values: stream.Values[from:to]})
+		}
+	}
+	// flush closes the current batch, if anything was taken into it.
+	flush := func() {
+		if len(currentBatch) > 0 {
+			batches = append(batches, currentBatch)
+			currentBatch, currentSize = nil, 0
+		}
+	}
+
 	for _, stream := range streams {
-		from := 0
+		runStart := 0
 		for i := range stream.Values {
 			sampleSize := stream.Values[i].size()
-			if size > 0 && size+sampleSize > maxBytes {
-				if i > from {
-					batch = append(batch, Stream{Stream: stream.Stream, Values: stream.Values[from:i]})
-				}
-				batches = append(batches, batch)
-				batch, size, from = nil, 0, i
+			// An empty batch always takes the sample, so an oversized one still makes progress.
+			if currentSize > 0 && currentSize+sampleSize > maxBytes {
+				take(stream, runStart, i)
+				flush()
+				runStart = i
 			}
-			size += sampleSize
+			currentSize += sampleSize
 		}
-		if len(stream.Values) > from {
-			batch = append(batch, Stream{Stream: stream.Stream, Values: stream.Values[from:]})
-		}
+		take(stream, runStart, len(stream.Values))
 	}
-	if len(batch) > 0 {
-		batches = append(batches, batch)
-	}
+	flush()
 	return batches
 }

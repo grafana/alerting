@@ -30,7 +30,7 @@ const defaultMaxWriteConcurrency = 4
 
 var defaultWriteBackoff = backoff.Config{
 	MinBackoff: 100 * time.Millisecond,
-	MaxBackoff: 2 * time.Second,
+	MaxBackoff: 1 * time.Second,
 	MaxRetries: 3,
 }
 
@@ -192,13 +192,18 @@ func (r *Sample) UnmarshalJSON(b []byte) error {
 }
 
 func (c *HTTPLokiClient) Push(ctx context.Context, s []Stream) error {
-	batches := [][]Stream{s}
-	if c.cfg.MaxWriteBatchSize > 0 {
-		batches = splitStreams(s, c.cfg.MaxWriteBatchSize)
-		if len(batches) > 1 {
-			level.Info(c.logger).Log("msg", "Splitting Loki push into multiple requests",
-				"requests", len(batches), "maxBatchSize", c.cfg.MaxWriteBatchSize)
+	if c.cfg.MaxWriteBatchSize <= 0 {
+		enc, err := c.encoder.encode(s)
+		if err != nil {
+			return err
 		}
+		return c.pushWithRetries(ctx, enc)
+	}
+
+	batches := splitIntoBatches(s, c.cfg.MaxWriteBatchSize)
+	if len(batches) > 1 {
+		level.Info(c.logger).Log("msg", "Splitting Loki push into multiple requests",
+			"requests", len(batches), "maxBatchSize", c.cfg.MaxWriteBatchSize)
 	}
 
 	g, gctx := errgroup.WithContext(ctx)
@@ -212,25 +217,24 @@ func (c *HTTPLokiClient) Push(ctx context.Context, s []Stream) error {
 			if err != nil {
 				return err
 			}
-			return c.pushEncoded(gctx, enc)
+			return c.pushWithRetries(gctx, enc)
 		})
 	}
 	return g.Wait()
 }
 
-// pushEncoded sends an already-encoded payload as a single Loki request, backing off and retrying
-// while Loki rate-limits or fails to serve it.
-func (c *HTTPLokiClient) pushEncoded(ctx context.Context, enc []byte) error {
+// pushWithRetries sends an already-encoded payload, backing off and retrying while Loki rate-limits
+// or fails to serve it.
+func (c *HTTPLokiClient) pushWithRetries(ctx context.Context, enc []byte) error {
 	b := backoff.New(ctx, c.cfg.WriteBackoff)
 	for {
 		err := c.sendPush(ctx, enc)
-		if err == nil {
-			return nil
-		}
-		if !isRetryablePushError(err) || !b.Ongoing() {
+		// Done on success, on a rejection that will not improve, and once the retry budget or the
+		// context is spent. Deciding before b.Wait() keeps the last attempt from sleeping for nothing.
+		if err == nil || !isRetryablePushError(err) || !b.Ongoing() {
 			return err
 		}
-		level.Warn(c.logger).Log("msg", "Loki rejected the push, retrying", "err", err, "retries", b.NumRetries())
+		level.Warn(c.logger).Log("msg", "Loki rejected the push, retrying", "err", err, "attempt", b.NumRetries()+1)
 		b.Wait()
 	}
 }
