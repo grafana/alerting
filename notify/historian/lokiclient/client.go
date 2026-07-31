@@ -229,12 +229,18 @@ func (c *HTTPLokiClient) pushWithRetries(ctx context.Context, enc []byte) error 
 	b := backoff.New(ctx, c.cfg.WriteBackoff)
 	for {
 		err := c.sendPush(ctx, enc)
-		// Done on success, on a rejection that will not improve, and once the retry budget or the
-		// context is spent. Deciding before b.Wait() keeps the last attempt from sleeping for nothing.
-		if err == nil || !isRetryablePushError(err) || !b.Ongoing() {
+		if err == nil {
+			// Counted on the attempt that landed the payload, so retries of it do not inflate the counter.
+			c.bytesWritten.Add(float64(len(enc)))
+			return nil
+		}
+		// Done on a rejection that will not improve, and once the retry budget or the context is spent
+		// (b.Ongoing() reports both). Deciding before b.Wait() keeps the last attempt from sleeping for
+		// nothing.
+		if !isRetryablePushError(err) || !b.Ongoing() {
 			return err
 		}
-		level.Warn(c.logger).Log("msg", "Loki rejected the push, retrying", "err", err, "attempt", b.NumRetries()+1)
+		level.Warn(c.logger).Log("msg", "Failed to push to Loki, retrying", "err", err, "attempt", b.NumRetries()+1)
 		b.Wait()
 	}
 }
@@ -251,7 +257,6 @@ func (c *HTTPLokiClient) sendPush(ctx context.Context, enc []byte) error {
 		req.Header.Add(k, v)
 	}
 
-	c.bytesWritten.Add(float64(len(enc)))
 	req = req.WithContext(ctx)
 	resp, err := c.client.Do(req)
 	if err != nil {
