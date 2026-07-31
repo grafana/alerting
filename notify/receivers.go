@@ -46,8 +46,6 @@ type TestIntegrationConfigResult struct {
 	Error  string `json:"error"`
 }
 
-type ConfigReceiver = definition.Receiver
-
 type TestReceiversConfigBodyParams struct {
 	Alert     *models.TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
 	Receivers []models.ReceiverConfig                `yaml:"receivers,omitempty" json:"receivers,omitempty"`
