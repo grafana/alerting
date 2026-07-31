@@ -9,18 +9,17 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/go-kit/log"
-	"github.com/gogo/protobuf/proto"
-	"github.com/golang/snappy"
 	alertingInstrument "github.com/grafana/alerting/http/instrument"
 	"github.com/grafana/alerting/http/instrument/instrumenttest"
+	"github.com/grafana/dskit/backoff"
 	"github.com/grafana/dskit/instrument"
-	"github.com/grafana/loki/pkg/push"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
@@ -582,230 +581,265 @@ func reqBody(t *testing.T, req *http.Request) string {
 	return string(byt)
 }
 
+// makeStream builds one stream of n samples whose lines are distinct and exactly lineLen bytes long,
+// so batch sizes are predictable and lost or duplicated lines are detectable.
+func makeStream(n, lineLen int) []Stream {
+	now := time.Now().UTC()
+	values := make([]Sample, 0, n)
+	for i := 0; i < n; i++ {
+		values = append(values, Sample{T: now.Add(time.Duration(i)), V: testLine(i, lineLen)})
+	}
+	return []Stream{{Stream: map[string]string{"from": "state-history"}, Values: values}}
+}
+
+func testLine(i, lineLen int) string {
+	prefix := fmt.Sprintf("line-%d-", i)
+	return prefix + strings.Repeat("a", lineLen-len(prefix))
+}
+
+type pushedStream struct {
+	Labels map[string]string `json:"stream"`
+	Values [][]string        `json:"values"`
+}
+
+func parsePush(t *testing.T, body string) []pushedStream {
+	t.Helper()
+	var parsed struct {
+		Streams []pushedStream `json:"streams"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(body), &parsed))
+	return parsed.Streams
+}
+
 func TestLokiHTTPClientPushSplitting(t *testing.T) {
-	// makeStream builds a single stream of n samples, each line being a repeated character of the
-	// given length, so batch sizes are predictable.
-	makeStream := func(n, lineLen int) []Stream {
-		now := time.Now().UTC()
-		values := make([]Sample, 0, n)
-		for i := 0; i < n; i++ {
-			values = append(values, Sample{T: now.Add(time.Duration(i)), V: strings.Repeat("a", lineLen)})
-		}
-		return []Stream{{Stream: map[string]string{"from": "state-history"}, Values: values}}
-	}
-
-	// collectLines parses recorded JSON push bodies and returns every log line that was sent.
-	collectLines := func(t *testing.T, bodies []string) []string {
-		t.Helper()
-		var lines []string
-		for _, body := range bodies {
-			var parsed struct {
-				Streams []struct {
-					Values [][]string `json:"values"`
-				} `json:"streams"`
-			}
-			require.NoError(t, json.Unmarshal([]byte(body), &parsed))
-			for _, s := range parsed.Streams {
-				for _, v := range s.Values {
-					lines = append(lines, v[1])
-				}
-			}
-		}
-		return lines
-	}
-
-	t.Run("sends a single request when payload is under the limit", func(t *testing.T) {
+	t.Run("sends a single request when the payload fits the batch size", func(t *testing.T) {
 		req := newRecordingRequester()
 		client := createTestLokiClient(req)
-		client.cfg.MaxWriteBatchSize = 1 << 20 // 1MB, far above the payload
+		client.cfg.MaxWriteBatchSize = 1 << 20
 
-		err := client.Push(context.Background(), makeStream(10, 100))
-
-		require.NoError(t, err)
+		require.NoError(t, client.Push(context.Background(), makeStream(10, 100)))
 		require.Len(t, req.Bodies(), 1)
 	})
 
-	t.Run("sends a single request when splitting is disabled (size 0)", func(t *testing.T) {
+	t.Run("sends a single request when splitting is disabled", func(t *testing.T) {
 		req := newRecordingRequester()
 		client := createTestLokiClient(req)
 		client.cfg.MaxWriteBatchSize = 0
 
-		err := client.Push(context.Background(), makeStream(100, 1000))
-
-		require.NoError(t, err)
+		require.NoError(t, client.Push(context.Background(), makeStream(100, 1000)))
 		require.Len(t, req.Bodies(), 1)
 	})
 
-	t.Run("splits oversized payloads into multiple bounded requests", func(t *testing.T) {
+	t.Run("splits an oversized payload into bounded requests without losing samples", func(t *testing.T) {
 		req := newRecordingRequester()
 		client := createTestLokiClient(req)
-		maxBatch := 2000
-		client.cfg.MaxWriteBatchSize = maxBatch
-		input := makeStream(20, 500)
-
-		err := client.Push(context.Background(), input)
-
-		require.NoError(t, err)
-		bodies := req.Bodies()
-		require.Greater(t, len(bodies), 1, "expected the payload to be split into multiple requests")
-		for _, body := range bodies {
-			require.LessOrEqual(t, len(body), maxBatch, "each request must stay within the configured limit")
-		}
-		// No samples are lost or duplicated across the split requests.
-		require.ElementsMatch(t, []string{strings.Repeat("a", 500)}, dedup(collectLines(t, bodies)))
-		require.Len(t, collectLines(t, bodies), 20)
-	})
-
-	t.Run("returns the encoding error and sends nothing when encoding fails", func(t *testing.T) {
-		boom := errors.New("encode failed")
-		req := newRecordingRequester()
-		client := createTestLokiClientWithEncoder(req, fakeEncoder{ratio: 1, errOnEncode: boom})
 		client.cfg.MaxWriteBatchSize = 2000
 
-		err := client.Push(context.Background(), makeStream(20, 500))
+		require.NoError(t, client.Push(context.Background(), makeStream(20, 500)))
 
-		require.ErrorIs(t, err, boom)
-		require.Empty(t, req.Bodies())
+		bodies := req.Bodies()
+		require.Len(t, bodies, 5, "20 lines of 500 bytes fill four lines per 2000-byte batch")
+		var lines []string
+		for _, body := range bodies {
+			sent := 0
+			for _, stream := range parsePush(t, body) {
+				for _, v := range stream.Values {
+					sent += len(v[1])
+					lines = append(lines, v[1])
+				}
+			}
+			require.LessOrEqual(t, sent, client.cfg.MaxWriteBatchSize)
+		}
+		want := make([]string, 0, 20)
+		for i := 0; i < 20; i++ {
+			want = append(want, testLine(i, 500))
+		}
+		require.ElementsMatch(t, want, lines)
 	})
 
-	t.Run("returns an error when one split request fails", func(t *testing.T) {
-		sentinel := "FAIL_ME"
+	t.Run("keeps every line under the labels of the stream it came from", func(t *testing.T) {
 		req := newRecordingRequester()
-		req.failIfContains = sentinel
 		client := createTestLokiClient(req)
 		client.cfg.MaxWriteBatchSize = 2000
 
 		now := time.Now().UTC()
-		values := make([]Sample, 0, 20)
-		for i := 0; i < 20; i++ {
-			v := strings.Repeat("a", 500)
-			if i == 10 {
-				v = sentinel + strings.Repeat("a", 500)
+		values := func(prefix string) []Sample {
+			out := make([]Sample, 0, 8)
+			for i := 0; i < 8; i++ {
+				out = append(out, Sample{T: now.Add(time.Duration(i)), V: prefix + strings.Repeat("a", 500)})
 			}
-			values = append(values, Sample{T: now.Add(time.Duration(i)), V: v})
+			return out
 		}
-		input := []Stream{{Stream: map[string]string{"from": "state-history"}, Values: values}}
+		input := []Stream{
+			{Stream: map[string]string{"from": "state-history", "rule": "A"}, Values: values("A-")},
+			{Stream: map[string]string{"from": "state-history", "rule": "B"}, Values: values("B-")},
+		}
 
-		err := client.Push(context.Background(), input)
+		require.NoError(t, client.Push(context.Background(), input))
 
-		require.Error(t, err)
+		got := map[string]int{}
+		for _, body := range req.Bodies() {
+			for _, stream := range parsePush(t, body) {
+				rule := stream.Labels["rule"]
+				for _, v := range stream.Values {
+					require.True(t, strings.HasPrefix(v[1], rule+"-"), "line %q sent under rule=%s", v[1], rule)
+					got[rule]++
+				}
+			}
+		}
+		require.Equal(t, map[string]int{"A": 8, "B": 8}, got)
+	})
+
+	t.Run("returns the encoding error", func(t *testing.T) {
+		boom := errors.New("encode failed")
+		req := newRecordingRequester()
+		client := createTestLokiClientWithEncoder(req, failingEncoder{err: boom})
+		client.cfg.MaxWriteBatchSize = 2000
+
+		require.ErrorIs(t, client.Push(context.Background(), makeStream(20, 500)), boom)
+		require.Empty(t, req.Bodies())
+	})
+
+	t.Run("returns an error when one of the split requests is rejected", func(t *testing.T) {
+		req := newRecordingRequester()
+		req.respond = func(_ int, body string) int {
+			if strings.Contains(body, testLine(10, 500)) {
+				return http.StatusBadRequest
+			}
+			return http.StatusOK
+		}
+		client := createTestLokiClient(req)
+		client.cfg.MaxWriteBatchSize = 2000
+
+		require.Error(t, client.Push(context.Background(), makeStream(20, 500)))
+	})
+
+	t.Run("keeps at most MaxWriteConcurrency requests in flight", func(t *testing.T) {
+		req := newRecordingRequester()
+		req.block = make(chan struct{})
+		client := createTestLokiClient(req)
+		client.cfg.MaxWriteBatchSize = 100
+		client.cfg.MaxWriteConcurrency = 2
+
+		done := make(chan error, 1)
+		go func() { done <- client.Push(context.Background(), makeStream(10, 500)) }()
+
+		require.Eventually(t, func() bool { return req.MaxInFlight() == 2 }, 10*time.Second, time.Millisecond,
+			"expected the pushes to run in parallel up to the limit")
+		close(req.block)
+
+		require.NoError(t, <-done)
+		require.Equal(t, 2, req.MaxInFlight())
+		require.Len(t, req.Bodies(), 10)
 	})
 
 	t.Run("returns the context error and sends nothing when the context is already cancelled", func(t *testing.T) {
 		req := newRecordingRequester()
 		client := createTestLokiClient(req)
-		client.cfg.MaxWriteBatchSize = 100 // smaller than each line below, so every sample is its own batch
+		client.cfg.MaxWriteBatchSize = 100
 
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
 
 		err := client.Push(ctx, makeStream(50, 500))
 
-		// The whole payload was dropped, so this must be an error, not a silent success.
 		require.ErrorIs(t, err, context.Canceled)
-		require.Empty(t, req.Bodies(), "an already-cancelled context must not report success after sending nothing")
+		require.Empty(t, req.Bodies())
 	})
 
-	t.Run("returns the context error when cancelled between batches with samples still unsent", func(t *testing.T) {
+	t.Run("surfaces cancellation instead of reporting a partial write as success", func(t *testing.T) {
 		req := newRecordingRequester()
 		ctx, cancel := context.WithCancel(context.Background())
-		// Cancel as soon as the first batch is sent, mimicking a timeout partway through the payload.
-		// The concurrency limit keeps the submit loop from outrunning the workers, so the remaining
-		// batches are never sent.
-		req.afterDo = cancel
+		// Cancel while the first request is being served, mimicking a timeout partway through the payload.
+		req.respond = func(_ int, _ string) int {
+			cancel()
+			return http.StatusOK
+		}
 		client := createTestLokiClient(req)
-		client.cfg.MaxWriteBatchSize = 100 // smaller than each line below, so every sample is its own batch
+		client.cfg.MaxWriteBatchSize = 100
 
 		err := client.Push(ctx, makeStream(50, 500))
 
-		// A partial write must surface the cancellation rather than a silent success that would let
-		// callers treat the dropped history as fully written.
 		require.ErrorIs(t, err, context.Canceled)
-		require.NotEmpty(t, req.Bodies())
-		require.Less(t, len(req.Bodies()), 50, "cancellation must stop the remaining batches from being sent")
+		require.Less(t, len(req.Bodies()), 50, "cancellation must stop the remaining batches")
+	})
+}
+
+func TestLokiHTTPClientPushRetries(t *testing.T) {
+	fastBackoff := backoff.Config{MinBackoff: time.Millisecond, MaxBackoff: time.Millisecond, MaxRetries: 2}
+
+	t.Run("retries a rate-limited push until Loki accepts it", func(t *testing.T) {
+		req := newRecordingRequester()
+		req.respond = func(attempt int, _ string) int {
+			if attempt == 1 {
+				return http.StatusTooManyRequests
+			}
+			return http.StatusOK
+		}
+		client := createTestLokiClient(req)
+		client.cfg.WriteBackoff = fastBackoff
+
+		require.NoError(t, client.Push(context.Background(), makeStream(1, 100)))
+		require.Len(t, req.Bodies(), 2)
 	})
 
-	t.Run("sends a single oversized entry as one request without splitting forever", func(t *testing.T) {
+	t.Run("gives up after the configured number of retries", func(t *testing.T) {
 		req := newRecordingRequester()
+		req.respond = func(_ int, _ string) int { return http.StatusTooManyRequests }
 		client := createTestLokiClient(req)
-		client.cfg.MaxWriteBatchSize = 100 // smaller than the single line below
+		client.cfg.WriteBackoff = fastBackoff
 
-		err := client.Push(context.Background(), makeStream(1, 5000))
+		err := client.Push(context.Background(), makeStream(1, 100))
 
-		require.NoError(t, err)
+		require.ErrorContains(t, err, "429")
+		require.Len(t, req.Bodies(), 3, "the initial attempt plus MaxRetries")
+	})
+
+	t.Run("retries a server error", func(t *testing.T) {
+		req := newRecordingRequester()
+		req.respond = func(attempt int, _ string) int {
+			if attempt == 1 {
+				return http.StatusInternalServerError
+			}
+			return http.StatusOK
+		}
+		client := createTestLokiClient(req)
+		client.cfg.WriteBackoff = fastBackoff
+
+		require.NoError(t, client.Push(context.Background(), makeStream(1, 100)))
+		require.Len(t, req.Bodies(), 2)
+	})
+
+	t.Run("does not retry a rejected payload", func(t *testing.T) {
+		req := newRecordingRequester()
+		req.respond = func(_ int, _ string) int { return http.StatusBadRequest }
+		client := createTestLokiClient(req)
+		client.cfg.WriteBackoff = fastBackoff
+
+		require.Error(t, client.Push(context.Background(), makeStream(1, 100)))
 		require.Len(t, req.Bodies(), 1)
 	})
-
-	t.Run("preserves per-stream labels when splitting across multiple streams", func(t *testing.T) {
-		req := newRecordingRequester()
-		client := createTestLokiClient(req)
-		client.cfg.MaxWriteBatchSize = 2000
-
-		now := time.Now().UTC()
-		mkValues := func(prefix string, n int) []Sample {
-			out := make([]Sample, 0, n)
-			for i := 0; i < n; i++ {
-				out = append(out, Sample{T: now.Add(time.Duration(i)), V: prefix + strings.Repeat("a", 500)})
-			}
-			return out
-		}
-		input := []Stream{
-			{Stream: map[string]string{"from": "state-history", "rule": "A"}, Values: mkValues("A-", 8)},
-			{Stream: map[string]string{"from": "state-history", "rule": "B"}, Values: mkValues("B-", 8)},
-		}
-
-		err := client.Push(context.Background(), input)
-		require.NoError(t, err)
-
-		// Every line must still travel under its original stream's labels, with none lost.
-		got := map[string][]string{} // rule label -> lines
-		for _, body := range req.Bodies() {
-			var parsed struct {
-				Streams []struct {
-					Stream map[string]string `json:"stream"`
-					Values [][]string        `json:"values"`
-				} `json:"streams"`
-			}
-			require.NoError(t, json.Unmarshal([]byte(body), &parsed))
-			for _, s := range parsed.Streams {
-				for _, v := range s.Values {
-					got[s.Stream["rule"]] = append(got[s.Stream["rule"]], v[1])
-				}
-			}
-		}
-		require.Len(t, got["A"], 8)
-		require.Len(t, got["B"], 8)
-		for _, line := range got["A"] {
-			require.True(t, strings.HasPrefix(line, "A-"), "line under rule=A must be an A line: %q", line)
-		}
-		for _, line := range got["B"] {
-			require.True(t, strings.HasPrefix(line, "B-"), "line under rule=B must be a B line: %q", line)
-		}
-	})
 }
 
-func dedup(in []string) []string {
-	seen := make(map[string]struct{}, len(in))
-	out := make([]string, 0, len(in))
-	for _, s := range in {
-		if _, ok := seen[s]; ok {
-			continue
-		}
-		seen[s] = struct{}{}
-		out = append(out, s)
-	}
-	return out
+type failingEncoder struct {
+	err error
 }
 
-// recordingRequester is a concurrency-safe fake HTTP requester that records every request body and
-// can be configured to fail requests whose body contains a sentinel substring.
+func (e failingEncoder) encode([]Stream) ([]byte, error) { return nil, e.err }
+func (e failingEncoder) headers() map[string]string      { return nil }
+
+// recordingRequester is a concurrency-safe fake requester that records the body of every request it
+// serves and tracks how many it serves at once.
 type recordingRequester struct {
-	mu             sync.Mutex
-	bodies         []string
-	failIfContains string
-	// afterDo, if set, is called after each request is recorded. Tests use it to cancel the push
-	// context partway through a split payload.
-	afterDo func()
+	mu          sync.Mutex
+	bodies      []string
+	inFlight    int
+	maxInFlight int
+
+	// respond, when set, returns the status to answer the given 1-based attempt with.
+	respond func(attempt int, body string) int
+	// block, when set, holds every request until the channel is closed.
+	block chan struct{}
 }
 
 func newRecordingRequester() *recordingRequester {
@@ -815,9 +849,13 @@ func newRecordingRequester() *recordingRequester {
 func (r *recordingRequester) Bodies() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	out := make([]string, len(r.bodies))
-	copy(out, r.bodies)
-	return out
+	return slices.Clone(r.bodies)
+}
+
+func (r *recordingRequester) MaxInFlight() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.maxInFlight
 }
 
 func (r *recordingRequester) Do(req *http.Request) (*http.Response, error) {
@@ -825,91 +863,30 @@ func (r *recordingRequester) Do(req *http.Request) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	r.mu.Lock()
 	r.bodies = append(r.bodies, string(body))
-	shouldFail := r.failIfContains != "" && strings.Contains(string(body), r.failIfContains)
-	afterDo := r.afterDo
+	attempt := len(r.bodies)
+	r.inFlight++
+	r.maxInFlight = max(r.maxInFlight, r.inFlight)
+	respond := r.respond
 	r.mu.Unlock()
 
-	if afterDo != nil {
-		afterDo()
+	status := http.StatusOK
+	if respond != nil {
+		status = respond(attempt, string(body))
+	}
+	if r.block != nil {
+		<-r.block
 	}
 
-	if shouldFail {
-		return &http.Response{
-			Status:     "400 Bad Request",
-			StatusCode: http.StatusBadRequest,
-			Body:       io.NopCloser(bytes.NewBufferString("payload rejected")),
-			Header:     make(http.Header),
-		}, nil
-	}
+	r.mu.Lock()
+	r.inFlight--
+	r.mu.Unlock()
+
 	return &http.Response{
-		Status:     "200 OK",
-		StatusCode: http.StatusOK,
-		Body:       io.NopCloser(bytes.NewBufferString("")),
+		StatusCode: status,
+		Body:       io.NopCloser(strings.NewReader("")),
 		Header:     make(http.Header),
 	}, nil
-}
-
-func TestLokiHTTPClientPushSplittingSnappy(t *testing.T) {
-	// decodeSnappyLines reverses SnappyProtoEncoder: snappy-decompress, proto-unmarshal, collect lines.
-	decodeSnappyLines := func(t *testing.T, body string) []string {
-		t.Helper()
-		raw, err := snappy.Decode(nil, []byte(body))
-		require.NoError(t, err)
-		var req push.PushRequest
-		require.NoError(t, proto.Unmarshal(raw, &req))
-		var lines []string
-		for _, s := range req.Streams {
-			for _, e := range s.Entries {
-				lines = append(lines, e.Line)
-			}
-		}
-		return lines
-	}
-
-	// A realistic, highly repetitive state-history payload: many near-identical lines that snappy
-	// compresses well, so packing against the compressed limit fits far more per request than the
-	// uncompressed estimate would.
-	const (
-		n       = 400
-		lineLen = 512
-		maxByte = 4096
-	)
-	now := time.Now().UTC()
-	values := make([]Sample, 0, n)
-	uncompressed := 0
-	for i := 0; i < n; i++ {
-		s := Sample{T: now.Add(time.Duration(i)), V: strings.Repeat("a", lineLen)}
-		values = append(values, s)
-		uncompressed += s.estimatedSize()
-	}
-	input := []Stream{{Stream: map[string]string{"from": "state-history"}, Values: values}}
-
-	req := newRecordingRequester()
-	client := createTestLokiClientWithEncoder(req, SnappyProtoEncoder{})
-	client.cfg.MaxWriteBatchSize = maxByte
-
-	require.NoError(t, client.Push(context.Background(), input))
-
-	bodies := req.Bodies()
-	require.NotEmpty(t, bodies)
-
-	// Every request stays within the (compressed) limit.
-	for _, b := range bodies {
-		require.LessOrEqual(t, len(b), maxByte, "each snappy request must stay within the limit")
-	}
-
-	// Packing against the compressed size yields materially fewer requests than a naive uncompressed
-	// packer, which would need ~uncompressed/maxByte requests.
-	uncompressedRequests := (uncompressed + maxByte - 1) / maxByte
-	require.Less(t, len(bodies), uncompressedRequests,
-		"compression-aware packing should send fewer requests than uncompressed packing (%d)", uncompressedRequests)
-
-	// No lines are lost or duplicated across the split.
-	got := make([]string, 0, n)
-	for _, b := range bodies {
-		got = append(got, decodeSnappyLines(t, b)...)
-	}
-	require.Len(t, got, n)
 }
