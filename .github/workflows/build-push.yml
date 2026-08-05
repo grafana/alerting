@@ -14,6 +14,8 @@ on:
       - "**/go.mod"
       - "**/go.sum"
       - "apps/historian/Dockerfile"
+      - "apps/historian/Makefile"
+      - "apps/historian/sdk.mk"
       - "Makefile"
       - ".github/workflows/build-push.yml"
 
