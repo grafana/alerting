@@ -236,6 +236,7 @@ func (s *defaultEmailSender) buildEmail(msg *Message) *gomail.Message {
 	}
 	m.SetHeader("From", msg.From)
 	if s.cfg.UseBCC && !msg.SingleEmail {
+		m.SetHeader("To", "undisclosed-recipients:;")
 		m.SetHeader("Bcc", msg.To...)
 	} else {
 		m.SetHeader("To", msg.To...)
