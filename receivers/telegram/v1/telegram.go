@@ -5,12 +5,12 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
+	"strings"
 
+	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/types"
-
-	"github.com/go-kit/log"
 
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
@@ -173,8 +173,13 @@ func (tn *Notifier) newWebhookSyncCmd(action string, fn func(writer *multipart.W
 		return nil, fmt.Errorf("failed to close multipart: %w", err)
 	}
 
+	requestURL := fmt.Sprintf(APIURL, tn.settings.BotToken, action)
+	if tn.settings.APIURL != "" {
+		requestURL = fmt.Sprintf("%s/bot%s/%s", strings.TrimRight(tn.settings.APIURL, "/"), tn.settings.BotToken, action)
+	}
+
 	cmd := &receivers.SendWebhookSettings{
-		URL:        fmt.Sprintf(APIURL, tn.settings.BotToken, action),
+		URL:        requestURL,
 		Body:       b.String(),
 		HTTPMethod: "POST",
 		HTTPHeader: map[string]string{
