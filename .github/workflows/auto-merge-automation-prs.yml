@@ -1,0 +1,36 @@
+name: Auto-merge Automation PRs
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions: {}
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: write
+      checks: read
+      statuses: read
+    if: |
+      github.event.pull_request.user.login == 'renovate-sh-app[bot]' &&
+      contains(github.event.pull_request.labels.*.name, 'automerge-security-update') &&
+      !contains(github.event.pull_request.labels.*.name, 'security-needs-review')
+    steps:
+      - name: Approve and auto-merge
+        if: github.event.pull_request.draft == false
+        # Keep the "enable auto-merge" -> approve order.
+        # If auto-merge is already enabled, approving will trigger the merge and the job will fail trying to enable auto-merge.
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
+        with:
+          max_attempts: 3
+          timeout_seconds: 30
+          command: |
+            gh pr merge --auto --squash "$PR_URL"
+            gh pr review --approve "$PR_URL" --body "PR approved by workflow \"${{ github.workflow }}\""
+        env:
+          PR_URL: ${{github.event.pull_request.html_url}}
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
