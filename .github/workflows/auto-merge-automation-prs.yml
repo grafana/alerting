@@ -30,6 +30,7 @@ jobs:
           max_attempts: 3
           timeout_seconds: 30
           command: |
+            set -e
             gh pr merge --auto --squash "$PR_URL"
             gh pr review --approve "$PR_URL" --body "PR approved by workflow \"${{ github.workflow }}\""
         env:
