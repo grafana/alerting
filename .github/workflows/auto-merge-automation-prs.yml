@@ -2,6 +2,7 @@ name: Auto-merge Automation PRs
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     branches:
       - main
 
