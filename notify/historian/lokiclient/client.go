@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,14 +15,24 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	alertingInstrument "github.com/grafana/alerting/http/instrument"
+	"github.com/grafana/dskit/backoff"
 	"github.com/grafana/dskit/instrument"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const defaultPageSize = 1000
 const maximumPageSize = 5000
+
+const defaultMaxWriteConcurrency = 4
+
+var defaultWriteBackoff = backoff.Config{
+	MinBackoff: 100 * time.Millisecond,
+	MaxBackoff: 1 * time.Second,
+	MaxRetries: 3,
+}
 
 func NewRequester() alertingInstrument.Requester {
 	return &http.Client{}
@@ -45,6 +56,17 @@ type LokiConfig struct {
 	Encoder           encoder
 	MaxQueryLength    time.Duration
 	MaxQuerySize      int
+	// MaxWriteBatchSize is the maximum number of bytes, as Loki accounts for them (log lines plus
+	// structured metadata, uncompressed), that a single push request may carry. Larger payloads are
+	// split into several requests sent in parallel, so a failure can leave a partial write: some
+	// batches accepted, others not. 0 (the default) disables splitting.
+	MaxWriteBatchSize int
+	// MaxWriteConcurrency is the number of push requests of a split payload that may be in
+	// flight at once. Defaults to defaultMaxWriteConcurrency.
+	MaxWriteConcurrency int
+	// WriteBackoff controls the retries of a push request that Loki rate-limited or failed to
+	// serve. The zero value defaults to defaultWriteBackoff.
+	WriteBackoff backoff.Config
 }
 
 type HTTPLokiClient struct {
@@ -70,6 +92,12 @@ const (
 )
 
 func NewLokiClient(cfg LokiConfig, req alertingInstrument.Requester, bytesWritten prometheus.Counter, writeDuration *instrument.HistogramCollector, logger log.Logger, tracer trace.Tracer, spanName string) *HTTPLokiClient {
+	if cfg.MaxWriteConcurrency <= 0 {
+		cfg.MaxWriteConcurrency = defaultMaxWriteConcurrency
+	}
+	if cfg.WriteBackoff == (backoff.Config{}) {
+		cfg.WriteBackoff = defaultWriteBackoff
+	}
 	tc := alertingInstrument.NewTimedClient(req, writeDuration)
 	trc := alertingInstrument.NewTracedClient(tc, tracer, spanName)
 	return &HTTPLokiClient{
@@ -164,11 +192,60 @@ func (r *Sample) UnmarshalJSON(b []byte) error {
 }
 
 func (c *HTTPLokiClient) Push(ctx context.Context, s []Stream) error {
-	enc, err := c.encoder.encode(s)
-	if err != nil {
-		return err
+	if c.cfg.MaxWriteBatchSize <= 0 {
+		enc, err := c.encoder.encode(s)
+		if err != nil {
+			return err
+		}
+		return c.pushWithRetries(ctx, enc)
 	}
 
+	batches := splitIntoBatches(s, c.cfg.MaxWriteBatchSize)
+	if len(batches) > 1 {
+		level.Info(c.logger).Log("msg", "Splitting Loki push into multiple requests",
+			"requests", len(batches), "maxBatchSize", c.cfg.MaxWriteBatchSize)
+	}
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(c.cfg.MaxWriteConcurrency)
+	for _, batch := range batches {
+		g.Go(func() error {
+			if err := gctx.Err(); err != nil {
+				return err
+			}
+			enc, err := c.encoder.encode(batch)
+			if err != nil {
+				return err
+			}
+			return c.pushWithRetries(gctx, enc)
+		})
+	}
+	return g.Wait()
+}
+
+// pushWithRetries sends an already-encoded payload, backing off and retrying while Loki rate-limits
+// or fails to serve it.
+func (c *HTTPLokiClient) pushWithRetries(ctx context.Context, enc []byte) error {
+	b := backoff.New(ctx, c.cfg.WriteBackoff)
+	for {
+		err := c.sendPush(ctx, enc)
+		if err == nil {
+			// Counted on the attempt that landed the payload, so retries of it do not inflate the counter.
+			c.bytesWritten.Add(float64(len(enc)))
+			return nil
+		}
+		// Done on a rejection that will not improve, and once the retry budget or the context is spent
+		// (b.Ongoing() reports both). Deciding before b.Wait() keeps the last attempt from sleeping for
+		// nothing.
+		if !isRetryablePushError(err) || !b.Ongoing() {
+			return err
+		}
+		level.Warn(c.logger).Log("msg", "Failed to push to Loki, retrying", "err", err, "attempt", b.NumRetries()+1)
+		b.Wait()
+	}
+}
+
+func (c *HTTPLokiClient) sendPush(ctx context.Context, enc []byte) error {
 	uri := c.cfg.WritePathURL.JoinPath("/loki/api/v1/push")
 	req, err := http.NewRequest(http.MethodPost, uri.String(), bytes.NewBuffer(enc))
 	if err != nil {
@@ -180,7 +257,6 @@ func (c *HTTPLokiClient) Push(ctx context.Context, s []Stream) error {
 		req.Header.Add(k, v)
 	}
 
-	c.bytesWritten.Add(float64(len(enc)))
 	req = req.WithContext(ctx)
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -447,10 +523,30 @@ func (c *HTTPLokiClient) handleLokiResponse(logger log.Logger, res *http.Respons
 		} else {
 			level.Error(logger).Log("msg", "Error response from Loki with an empty body", "status", res.StatusCode)
 		}
-		return nil, fmt.Errorf("received a non-200 response from loki, status: %d, body: %q", res.StatusCode, string(data))
+		return nil, statusError{statusCode: res.StatusCode, body: string(data)}
 	}
 
 	return data, nil
+}
+
+// statusError is a non-2xx response from Loki.
+type statusError struct {
+	statusCode int
+	body       string
+}
+
+func (e statusError) Error() string {
+	return fmt.Sprintf("received a non-200 response from loki, status: %d, body: %q", e.statusCode, e.body)
+}
+
+// isRetryablePushError reports whether Loki may accept the same push later: it rate-limited the
+// request or failed to serve it. Any other rejection is the payload's fault and will not improve.
+func isRetryablePushError(err error) bool {
+	var statusErr statusError
+	if !errors.As(err, &statusErr) {
+		return false
+	}
+	return statusErr.statusCode == http.StatusTooManyRequests || statusErr.statusCode >= http.StatusInternalServerError
 }
 
 // ClampRange ensures that the time range is within the configured maximum query length.

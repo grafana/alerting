@@ -23,27 +23,42 @@ import (
 
 const subjectSizeLimit = 100
 
+// snsClient is the subset of the Amazon SNS client used by the Notifier. It is
+// implemented by *sns.SNS and allows the client to be mocked in tests.
+type snsClient interface {
+	Publish(input *sns.PublishInput) (*sns.PublishOutput, error)
+}
+
 // Notifier is responsible for sending
 // alert notifications to Amazon SNS.
 type Notifier struct {
 	*receivers.Base
 	tmpl     *templates.Template
 	settings Config
+	// newSNSClient builds the SNS client used to publish the notification. It is
+	// a field so it can be overridden in tests.
+	newSNSClient func(tmpl func(string) string) (snsClient, error)
 }
 
 func New(cfg Config, meta receivers.Metadata, template *templates.Template, logger log.Logger) *Notifier {
-	return &Notifier{
+	n := &Notifier{
 		Base:     receivers.NewBase(meta, logger),
 		tmpl:     template,
 		settings: cfg,
 	}
+	n.newSNSClient = func(tmpl func(string) string) (snsClient, error) {
+		return n.createSNSClient(tmpl)
+	}
+	return n
 }
 
 // Notify sends the alert notification to sns.
 func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := s.GetLogger(ctx)
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, s.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, s.tmpl, as, l, &tmplErr)
+
+	receivers.ApplyExtraData(ctx, data.Alerts)
 
 	level.Info(l).Log("msg", "Sending notification")
 
@@ -52,7 +67,7 @@ func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		return false, err
 	}
 
-	snsClient, err := s.createSNSClient(tmpl)
+	snsClient, err := s.newSNSClient(tmpl)
 	if err != nil {
 		return true, err
 	}

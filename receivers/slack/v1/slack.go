@@ -268,7 +268,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 
 // commonAlertGeneratorURL returns the common GeneratorURL for all alerts, or an empty string if they differ.
 func commonAlertGeneratorURL(_ context.Context, alerts templates.ExtendedAlerts) string {
-	if len(alerts[0].GeneratorURL) == 0 {
+	if len(alerts) == 0 || len(alerts[0].GeneratorURL) == 0 {
 		return ""
 	}
 	firstURL := alerts[0].GeneratorURL
@@ -358,20 +358,20 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 
 	mentionChannel := strings.TrimSpace(sn.settings.MentionChannel)
 	if mentionChannel != "" {
-		mentionsBuilder.WriteString(fmt.Sprintf("<!%s|%s>", mentionChannel, mentionChannel))
+		fmt.Fprintf(&mentionsBuilder, "<!%s|%s>", mentionChannel, mentionChannel)
 	}
 
 	if len(sn.settings.MentionGroups) > 0 {
 		appendSpace()
 		for _, g := range sn.settings.MentionGroups {
-			mentionsBuilder.WriteString(fmt.Sprintf("<!subteam^%s>", tmpl(g)))
+			fmt.Fprintf(&mentionsBuilder, "<!subteam^%s>", tmpl(g))
 		}
 	}
 
 	if len(sn.settings.MentionUsers) > 0 {
 		appendSpace()
 		for _, u := range sn.settings.MentionUsers {
-			mentionsBuilder.WriteString(fmt.Sprintf("<@%s>", tmpl(u)))
+			fmt.Fprintf(&mentionsBuilder, "<@%s>", tmpl(u))
 		}
 	}
 

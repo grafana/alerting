@@ -1,0 +1,93 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/grafana/grafana-app-sdk/logging"
+	"github.com/grafana/grafana-app-sdk/operator"
+	"github.com/grafana/grafana-app-sdk/simple"
+	"github.com/spf13/pflag"
+
+	historianapis "github.com/grafana/alerting/apps/historian/pkg/apis"
+	historianapp "github.com/grafana/alerting/apps/historian/pkg/app"
+)
+
+func main() {
+	if err := Main(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func Main(args []string) error {
+	// Configure the default logger to use slog.
+	logging.DefaultLogger = logging.NewSLogLogger(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
+
+	var cfg config
+
+	flags := pflag.NewFlagSet("historian-operator", pflag.ContinueOnError)
+	cfg.AddFlags(flags)
+
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
+	// Notification-history RBAC needs an authz-backed AccessClient to authorize
+	// alert.rules:read per folder. It is wired programmatically (not via app
+	// flags); without it, RBAC-protected queries would fail closed, so fail fast
+	// at startup instead if it can't be built.
+	if cfg.App.Notification.RBACEnabled {
+		// The standalone operator's custom-route server does not authenticate
+		// requests, so notification RBAC reconstructs the caller identity from the
+		// tokens forwarded on each request, verifying them against this JWKS
+		// endpoint. Without it every RBAC-protected query fails closed at request
+		// time, so fail fast at startup instead. (Behind the aggregated API server
+		// the identity is already in the request context and the verifier is never
+		// consulted, but requiring it keeps a standalone deployment from silently
+		// denying every query.)
+		if cfg.App.Notification.SigningKeysURL == "" {
+			return fmt.Errorf("alerting.historian.notification.rbac.signing-keys-url is required when notification RBAC is enabled")
+		}
+
+		accessClient, err := newAccessClient(cfg.Authz)
+		if err != nil {
+			return fmt.Errorf("failed to build authz access client for notification RBAC: %w", err)
+		}
+		cfg.App.Notification.AccessClient = accessClient
+	}
+
+	operatorConfig := operator.RunnerConfig{
+		WebhookConfig: cfg.Webhook.RunnerWebhookConfig,
+		MetricsConfig: cfg.Metrics.RunnerMetricsConfig,
+	}
+
+	runner, err := operator.NewRunner(operatorConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create operator runner: %w", err)
+	}
+
+	// Cancel on SIGINT (Ctrl-C) and SIGTERM (Kubernetes pod stop) for graceful shutdown.
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer cancel()
+
+	provider := simple.NewAppProvider(historianapis.LocalManifest(), cfg.App, historianapp.New)
+
+	manifest := provider.Manifest().ManifestData
+	logging.DefaultLogger.Info("Starting operator for app",
+		"name", manifest.AppName,
+		"group", manifest.Group)
+
+	if err := runner.Run(ctx, provider); err != nil {
+		return fmt.Errorf("operator exited with error: %w", err)
+	}
+
+	logging.DefaultLogger.Info("Normal operator exit")
+	return nil
+}

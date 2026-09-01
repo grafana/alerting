@@ -1,13 +1,14 @@
 package compat
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/prometheus/alertmanager/config"
 	commonconfig "github.com/prometheus/common/config"
 	"github.com/prometheus/common/sigv4"
 
-	"github.com/grafana/alerting/definition"
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
 	discord_v0mimir1 "github.com/grafana/alerting/receivers/discord/v0mimir1"
@@ -27,9 +28,130 @@ import (
 	wechat_v0mimir1 "github.com/grafana/alerting/receivers/wechat/v0mimir1"
 )
 
-// UpstreamReceiverToDefinitionReceiver converts an upstream alertmanager config.Receiver to a definition.Receiver.
-func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver {
-	def := definition.Receiver{Name: r.Name}
+// Receiver configuration provides configuration on how to contact a legacy (Mimir/upstream) receiver.
+type Receiver struct {
+	// A unique identifier for this receiver.
+	Name string `yaml:"name" json:"name"`
+
+	DiscordConfigs   []*discord_v0mimir1.Config   `yaml:"discord_configs,omitempty" json:"discord_configs,omitempty"`
+	EmailConfigs     []*email_v0mimir1.Config     `yaml:"email_configs,omitempty" json:"email_configs,omitempty"`
+	PagerdutyConfigs []*pagerduty_v0mimir1.Config `yaml:"pagerduty_configs,omitempty" json:"pagerduty_configs,omitempty"`
+	SlackConfigs     []*slack_v0mimir1.Config     `yaml:"slack_configs,omitempty" json:"slack_configs,omitempty"`
+	WebhookConfigs   []*webhook_v0mimir1.Config   `yaml:"webhook_configs,omitempty" json:"webhook_configs,omitempty"`
+	OpsGenieConfigs  []*opsgenie_v0mimir1.Config  `yaml:"opsgenie_configs,omitempty" json:"opsgenie_configs,omitempty"`
+	WechatConfigs    []*wechat_v0mimir1.Config    `yaml:"wechat_configs,omitempty" json:"wechat_configs,omitempty"`
+	PushoverConfigs  []*pushover_v0mimir1.Config  `yaml:"pushover_configs,omitempty" json:"pushover_configs,omitempty"`
+	VictorOpsConfigs []*victorops_v0mimir1.Config `yaml:"victorops_configs,omitempty" json:"victorops_configs,omitempty"`
+	SNSConfigs       []*sns_v0mimir1.Config       `yaml:"sns_configs,omitempty" json:"sns_configs,omitempty"`
+	TelegramConfigs  []*telegram_v0mimir1.Config  `yaml:"telegram_configs,omitempty" json:"telegram_configs,omitempty"`
+	WebexConfigs     []*webex_v0mimir1.Config     `yaml:"webex_configs,omitempty" json:"webex_configs,omitempty"`
+	MSTeamsConfigs   []*teams_v0mimir1.Config     `yaml:"msteams_configs,omitempty" json:"msteams_configs,omitempty"`
+	MSTeamsV2Configs []*teams_v0mimir2.Config     `yaml:"msteamsv2_configs,omitempty" json:"msteamsv2_configs,omitempty"`
+	JiraConfigs      []*jira_v0mimir1.Config      `yaml:"jira_configs,omitempty" json:"jira_configs,omitempty"`
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface for Receiver.
+func (c *Receiver) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type plain Receiver
+	if err := unmarshal((*plain)(c)); err != nil {
+		return err
+	}
+	if c.Name == "" {
+		return fmt.Errorf("missing name in receiver")
+	}
+	return nil
+}
+
+// Validate calls Validate on all integration configs and accumulates errors.
+// Each error is annotated with the integration type (JSON tag) and index.
+func (c *Receiver) Validate() error {
+	var errs []error
+
+	if c.Name == "" {
+		errs = append(errs, errors.New("missing name in receiver"))
+	}
+
+	for i, cfg := range c.DiscordConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("discord [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.EmailConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("email [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.PagerdutyConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("pagerduty [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.SlackConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("slack [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.WebhookConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("webhook [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.OpsGenieConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("opsgenie [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.WechatConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("wechat [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.PushoverConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("pushover [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.VictorOpsConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("victorops [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.SNSConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("sns [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.TelegramConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("telegram [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.WebexConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("webex [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.MSTeamsConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("msteams [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.MSTeamsV2Configs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("msteamsv2 [%d]: %w", i, err))
+		}
+	}
+	for i, cfg := range c.JiraConfigs {
+		if err := cfg.Validate(); err != nil {
+			errs = append(errs, fmt.Errorf("jira [%d]: %w", i, err))
+		}
+	}
+	return errors.Join(errs...)
+}
+
+// UpstreamReceiverToDefinitionReceiver converts an upstream alertmanager config.Receiver to a Receiver.
+func UpstreamReceiverToDefinitionReceiver(r config.Receiver) Receiver {
+	def := Receiver{Name: r.Name}
 
 	for _, c := range r.DiscordConfigs {
 		def.DiscordConfigs = append(def.DiscordConfigs, &discord_v0mimir1.Config{
@@ -285,8 +407,8 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) definition.Receiver
 	return def
 }
 
-// DefinitionReceiverToUpstreamReceiver converts a definition.Receiver to an upstream alertmanager config.Receiver.
-func DefinitionReceiverToUpstreamReceiver(r definition.Receiver) config.Receiver {
+// DefinitionReceiverToUpstreamReceiver converts a Receiver to an upstream alertmanager config.Receiver.
+func DefinitionReceiverToUpstreamReceiver(r Receiver) config.Receiver {
 	upstream := config.Receiver{Name: r.Name}
 
 	for _, c := range r.DiscordConfigs {
