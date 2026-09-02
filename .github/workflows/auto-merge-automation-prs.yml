@@ -22,8 +22,12 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'automerge-security-update') &&
       !contains(github.event.pull_request.labels.*.name, 'security-needs-review')
     steps:
-      # Renovate PRs need a real code-owner-recognized approval, which the
-      # default token can't provide -- see grafana/alerting-squad#1993.
+      # Renovate PRs need an approval to satisfy branch protection, but no
+      # plain token counts as one here -- code owner review is required and
+      # alerting-team isn't a code owner either. alerting-team is instead
+      # configured as a bypass actor on the ruleset, so its approve+merge
+      # skips that requirement rather than satisfying it. See
+      # grafana/alerting-squad#1993.
       - name: Get GitHub App token
         id: get-github-app-token
         uses: grafana/shared-workflows/actions/create-github-app-token@46f48da11e78ebdba7a8747ae456b11062fac83e # create-github-app-token/v0.3.1
@@ -40,7 +44,9 @@ jobs:
           timeout_seconds: 30
           command: |
             set -e
-            gh pr merge --auto --squash "$PR_URL"
+            if [ "$(gh pr view "$PR_URL" --json autoMergeRequest --jq '.autoMergeRequest != null')" != "true" ]; then
+              gh pr merge --auto --squash "$PR_URL"
+            fi
             gh pr review --approve "$PR_URL" --body "PR approved by workflow \"${{ github.workflow }}\""
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
