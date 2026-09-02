@@ -78,7 +78,9 @@ func (kn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := kn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, kn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, kn.tmpl, as, l, &tmplErr)
+
+	receivers.ApplyExtraData(ctx, data.Alerts)
 
 	topicURL := kn.settings.Endpoint + "/topics/" + tmpl(kn.settings.Topic)
 	if tmplErr != nil {
@@ -116,7 +118,9 @@ func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bo
 func (kn *Notifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := kn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, kn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, kn.tmpl, as, l, &tmplErr)
+
+	receivers.ApplyExtraData(ctx, data.Alerts)
 
 	// For v3 the Produce URL is like this,
 	// <Endpoint>/v3/clusters/<KafkaClusterID>/topics/<Topic>/records

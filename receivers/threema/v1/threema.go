@@ -76,7 +76,9 @@ func (tn *Notifier) SendResolved() bool {
 
 func (tn *Notifier) buildMessage(ctx context.Context, l log.Logger, as ...*types.Alert) string {
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+
+	receivers.ApplyExtraData(ctx, data.Alerts)
 
 	message := fmt.Sprintf("%s%s\n\n*Message:*\n%s\n*URL:* %s\n",
 		selectEmoji(as...),

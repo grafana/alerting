@@ -101,7 +101,9 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logger, groupID string, as ...*types.Alert) issue {
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, n.tmpl, as, logger, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, n.tmpl, as, logger, &tmplErr)
+
+	receivers.ApplyExtraData(ctx, data.Alerts)
 
 	renderOrDefault := func(fieldName, template, fallback string) string {
 		defer func() {
@@ -275,7 +277,7 @@ func getSearchJql(conf Config, groupID string, firing bool) issueSearch {
 	jql := strings.Builder{}
 
 	if conf.WontFixResolution != "" {
-		jql.WriteString(fmt.Sprintf(`resolution != %q and `, conf.WontFixResolution))
+		fmt.Fprintf(&jql, `resolution != %q and `, conf.WontFixResolution)
 	}
 
 	if firing {
@@ -285,7 +287,7 @@ func getSearchJql(conf Config, groupID string, firing bool) issueSearch {
 	} else {
 		reopenDuration := int64(time.Duration(conf.ReopenDuration).Minutes())
 		if reopenDuration != 0 {
-			jql.WriteString(fmt.Sprintf(`(resolutiondate is EMPTY OR resolutiondate >= -%dm) and `, reopenDuration))
+			fmt.Fprintf(&jql, `(resolutiondate is EMPTY OR resolutiondate >= -%dm) and `, reopenDuration)
 		} else {
 			jql.WriteString(`statusCategory != Done and `)
 		}
@@ -293,12 +295,12 @@ func getSearchJql(conf Config, groupID string, firing bool) issueSearch {
 
 	alertLabel := fmt.Sprintf("ALERT{%s}", groupID)
 	if conf.DedupKeyFieldName != "" {
-		jql.WriteString(fmt.Sprintf(`(labels = %q or cf[%s] ~ %q) and `, alertLabel, conf.DedupKeyFieldName, groupID))
+		fmt.Fprintf(&jql, `(labels = %q or cf[%s] ~ %q) and `, alertLabel, conf.DedupKeyFieldName, groupID)
 	} else {
-		jql.WriteString(fmt.Sprintf(`labels = %q and `, alertLabel))
+		fmt.Fprintf(&jql, `labels = %q and `, alertLabel)
 	}
 
-	jql.WriteString(fmt.Sprintf(`project=%q order by status ASC,resolutiondate DESC`, conf.Project))
+	fmt.Fprintf(&jql, `project=%q order by status ASC,resolutiondate DESC`, conf.Project)
 
 	return issueSearch{
 		JQL:        jql.String(),
