@@ -1,7 +1,7 @@
 name: Auto-merge Automation PRs
 
-on: # zizmor: ignore[dangerous-triggers] never checks out or runs PR-authored code, so pull_request_target carries no extra risk here
-  pull_request_target:
+on:
+  pull_request:
     types: [opened, synchronize, reopened, labeled]
     branches:
       - main
