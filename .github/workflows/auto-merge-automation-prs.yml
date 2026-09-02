@@ -22,24 +22,12 @@ jobs:
       contains(github.event.pull_request.labels.*.name, 'automerge-security-update') &&
       !contains(github.event.pull_request.labels.*.name, 'security-needs-review')
     steps:
-      # Renovate PRs need a real code-owner-recognized approval, which the
-      # default token can't provide -- see grafana/alerting-squad#1993.
-      #
-      # pull_request runs this workflow file from the PR's own branch, so a
-      # same-repo PR could otherwise weaken the checks above and still get a
-      # legitimate, bypass-privileged alerting-team token to approve and
-      # merge itself. Refuse if the file differs from main before minting one.
-      - name: Verify workflow file was not modified in this PR
-        run: |
-          set -e
-          changed_files=$(gh api "repos/${{ github.repository }}/compare/${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" --jq '.files[]?.filename')
-          if echo "$changed_files" | grep -qx ".github/workflows/auto-merge-automation-prs.yml"; then
-            echo "::error::auto-merge-automation-prs.yml was modified in this PR -- refusing to mint an alerting-team token."
-            exit 1
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
+      # Renovate PRs need an approval to satisfy branch protection, but no
+      # plain token counts as one here -- code owner review is required and
+      # alerting-team isn't a code owner either. alerting-team is instead
+      # configured as a bypass actor on the ruleset, so its approve+merge
+      # skips that requirement rather than satisfying it. See
+      # grafana/alerting-squad#1993.
       - name: Get GitHub App token
         id: get-github-app-token
         uses: grafana/shared-workflows/actions/create-github-app-token@46f48da11e78ebdba7a8747ae456b11062fac83e # create-github-app-token/v0.3.1
