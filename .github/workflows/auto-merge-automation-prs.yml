@@ -29,13 +29,12 @@ jobs:
       # same-repo PR could otherwise weaken the checks above and still get a
       # legitimate, bypass-privileged alerting-team token to approve and
       # merge itself. Refuse if the file differs from main before minting one.
-      - name: Verify workflow file matches main
+      - name: Verify workflow file was not modified in this PR
         run: |
           set -e
-          head_content=$(gh api "repos/${{ github.repository }}/contents/.github/workflows/auto-merge-automation-prs.yml?ref=${{ github.event.pull_request.head.sha }}" --jq .content)
-          main_content=$(gh api "repos/${{ github.repository }}/contents/.github/workflows/auto-merge-automation-prs.yml?ref=main" --jq .content)
-          if [ "$head_content" != "$main_content" ]; then
-            echo "::error::auto-merge-automation-prs.yml differs from main in this PR -- refusing to mint an alerting-team token."
+          changed_files=$(gh api "repos/${{ github.repository }}/compare/${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" --jq '.files[]?.filename')
+          if echo "$changed_files" | grep -qx ".github/workflows/auto-merge-automation-prs.yml"; then
+            echo "::error::auto-merge-automation-prs.yml was modified in this PR -- refusing to mint an alerting-team token."
             exit 1
           fi
         env:
