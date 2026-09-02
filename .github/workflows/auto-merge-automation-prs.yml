@@ -16,11 +16,20 @@ jobs:
       contents: write
       checks: read
       statuses: read
+      id-token: write
     if: |
       github.event.pull_request.user.login == 'renovate-sh-app[bot]' &&
       contains(github.event.pull_request.labels.*.name, 'automerge-security-update') &&
       !contains(github.event.pull_request.labels.*.name, 'security-needs-review')
     steps:
+      # Renovate PRs need a real code-owner-recognized approval, which the
+      # default token can't provide -- see grafana/alerting-squad#1993.
+      - name: Get GitHub App token
+        id: get-github-app-token
+        uses: grafana/shared-workflows/actions/create-github-app-token@46f48da11e78ebdba7a8747ae456b11062fac83e # create-github-app-token/v0.3.1
+        with:
+          github_app: alerting-team
+
       - name: Approve and auto-merge
         if: github.event.pull_request.draft == false
         # Keep the "enable auto-merge" -> approve order.
@@ -35,4 +44,4 @@ jobs:
             gh pr review --approve "$PR_URL" --body "PR approved by workflow \"${{ github.workflow }}\""
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GITHUB_TOKEN: ${{ steps.get-github-app-token.outputs.token }}
