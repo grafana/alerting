@@ -24,6 +24,23 @@ jobs:
     steps:
       # Renovate PRs need a real code-owner-recognized approval, which the
       # default token can't provide -- see grafana/alerting-squad#1993.
+      #
+      # pull_request runs this workflow file from the PR's own branch, so a
+      # same-repo PR could otherwise weaken the checks above and still get a
+      # legitimate, bypass-privileged alerting-team token to approve and
+      # merge itself. Refuse if the file differs from main before minting one.
+      - name: Verify workflow file matches main
+        run: |
+          set -e
+          head_content=$(gh api "repos/${{ github.repository }}/contents/.github/workflows/auto-merge-automation-prs.yml?ref=${{ github.event.pull_request.head.sha }}" --jq .content)
+          main_content=$(gh api "repos/${{ github.repository }}/contents/.github/workflows/auto-merge-automation-prs.yml?ref=main" --jq .content)
+          if [ "$head_content" != "$main_content" ]; then
+            echo "::error::auto-merge-automation-prs.yml differs from main in this PR -- refusing to mint an alerting-team token."
+            exit 1
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Get GitHub App token
         id: get-github-app-token
         uses: grafana/shared-workflows/actions/create-github-app-token@46f48da11e78ebdba7a8747ae456b11062fac83e # create-github-app-token/v0.3.1
@@ -40,7 +57,9 @@ jobs:
           timeout_seconds: 30
           command: |
             set -e
-            gh pr merge --auto --squash "$PR_URL"
+            if [ "$(gh pr view "$PR_URL" --json autoMergeRequest --jq '.autoMergeRequest != null')" != "true" ]; then
+              gh pr merge --auto --squash "$PR_URL"
+            fi
             gh pr review --approve "$PR_URL" --body "PR approved by workflow \"${{ github.workflow }}\""
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
