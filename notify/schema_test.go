@@ -20,7 +20,6 @@ import (
 	"github.com/grafana/alerting/receivers/googlechat"
 	"github.com/grafana/alerting/receivers/jira"
 	"github.com/grafana/alerting/receivers/kafka"
-	"github.com/grafana/alerting/receivers/line"
 	"github.com/grafana/alerting/receivers/mqtt"
 	"github.com/grafana/alerting/receivers/oncall"
 	"github.com/grafana/alerting/receivers/opsgenie"
@@ -76,7 +75,6 @@ func TestGetSecretKeysForContactPointType(t *testing.T) {
 		{receiverType: alertmanager.Type, version: schema.V1, expectedSecretFields: []string{"basicAuthPassword"}},
 		{receiverType: discord.Type, version: schema.V1, expectedSecretFields: []string{"url"}},
 		{receiverType: googlechat.Type, version: schema.V1, expectedSecretFields: []string{"url"}},
-		{receiverType: line.Type, version: schema.V1, expectedSecretFields: []string{"token"}},
 		{receiverType: threema.Type, version: schema.V1, expectedSecretFields: []string{"api_secret"}},
 		{receiverType: opsgenie.Type, version: schema.V1, expectedSecretFields: []string{"apiKey"}},
 		{receiverType: webex.Type, version: schema.V1, expectedSecretFields: []string{"bot_token"}},
@@ -153,6 +151,15 @@ func TestGetAvailableNotifiers(t *testing.T) {
 				require.Equal(t, currentVersion, notifier.GetCurrentVersion().Version)
 			})
 		})
+	}
+}
+
+func TestLineIntegrationIsNotAdvertised(t *testing.T) {
+	_, ok := GetSchemaForIntegration(schema.LineType)
+	require.False(t, ok)
+
+	for _, integrationSchema := range GetSchemaForAllIntegrations() {
+		require.NotEqual(t, schema.LineType, integrationSchema.Type)
 	}
 }
 
@@ -237,9 +244,6 @@ func TestIsAliasType(t *testing.T) {
 			t.Run(string(version.TypeAlias), func(t *testing.T) {
 				require.Truef(t, IsAliasType(version.TypeAlias), "type %s should be alias type", plugin.Type)
 			})
-		}
-		if plugin.Type == line.Type {
-			continue
 		}
 		assert.Falsef(t, IsAliasType(plugin.Type), "type %s should not be alias", plugin.Type)
 	}
