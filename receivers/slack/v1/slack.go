@@ -268,7 +268,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 
 // commonAlertGeneratorURL returns the common GeneratorURL for all alerts, or an empty string if they differ.
 func commonAlertGeneratorURL(_ context.Context, alerts templates.ExtendedAlerts) string {
-	if len(alerts[0].GeneratorURL) == 0 {
+	if len(alerts) == 0 || len(alerts[0].GeneratorURL) == 0 {
 		return ""
 	}
 	firstURL := alerts[0].GeneratorURL
