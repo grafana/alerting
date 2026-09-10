@@ -260,3 +260,65 @@ func TestNotify(t *testing.T) {
 		})
 	}
 }
+
+func TestNotify_ExtraData(t *testing.T) {
+	tmpl := templates.ForTests(t)
+
+	externalURL, err := url.Parse("http://localhost")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+
+	settings := Config{
+		URL:         "http://localhost",
+		MessageType: DefaultMessageType,
+		Title:       templates.DefaultMessageTitleEmbed,
+		Description: `{{ range $i, $a := .Alerts }}Alert {{ $i }}: {{ printf "%s" $a.ExtraData }} {{ end }}`,
+	}
+
+	// Create test alerts
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		},
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+				Annotations: model.LabelSet{"ann1": "annv2"},
+			},
+		},
+	}
+
+	// Create extra data that will be passed via context
+	extraData1 := json.RawMessage(`{"customField": "customValue1", "priority": "high"}`)
+	extraData2 := json.RawMessage(`{"customField": "customValue2", "priority": "medium"}`)
+	extraDataSlice := []json.RawMessage{extraData1, extraData2}
+
+	webhookSender := receivers.MockNotificationService()
+
+	pn := &Notifier{
+		Base:       receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+		ns:         webhookSender,
+		tmpl:       tmpl,
+		settings:   settings,
+		images:     images2.NewFakeProvider(2),
+		appVersion: fmt.Sprintf("%d.0.0", rand.Uint64()),
+	}
+
+	// Create context with extra data
+	ctx := notify.WithGroupKey(context.Background(), "alertname")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+	ctx = context.WithValue(ctx, receivers.ExtraDataKey, extraDataSlice)
+
+	// Call Notify
+	ok, err := pn.Notify(ctx, alerts...)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	// Verify that extra data is present in the request body (state_message field)
+	require.Contains(t, webhookSender.Webhook.Body, "customField")
+	require.Contains(t, webhookSender.Webhook.Body, "customValue1")
+	require.Contains(t, webhookSender.Webhook.Body, "customValue2")
+}

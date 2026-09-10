@@ -487,7 +487,7 @@ func TestGetSearchJql(t *testing.T) {
 				Project: "TEST",
 			},
 			firing:      false,
-			expectedJql: `labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
+			expectedJql: `statusCategory != Done and labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 		{
 			name: "resolved and reopen duration specified",
@@ -505,7 +505,7 @@ func TestGetSearchJql(t *testing.T) {
 				WontFixResolution: "won't fix",
 			},
 			firing:      false,
-			expectedJql: `resolution != "won't fix" and labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
+			expectedJql: `resolution != "won't fix" and statusCategory != Done and labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 		{
 			name: "resolved and custom dedup key field",
@@ -514,7 +514,7 @@ func TestGetSearchJql(t *testing.T) {
 				DedupKeyFieldName: "12345",
 			},
 			firing:      false,
-			expectedJql: `(labels = "ALERT{group1}" or cf[12345] ~ "group1") and project="TEST" order by status ASC,resolutiondate DESC`,
+			expectedJql: `statusCategory != Done and (labels = "ALERT{group1}" or cf[12345] ~ "group1") and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 	}
 
@@ -1072,6 +1072,70 @@ func TestNotify(t *testing.T) {
 		})
 
 	})
+}
+
+func TestNotify_ExtraData(t *testing.T) {
+	ctx := notify.WithGroupKey(context.Background(), "test_group")
+	tmpl := templates.ForTests(t)
+	baseURL := "https://jira.example.com/2"
+
+	// Create test alerts
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		},
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+				Annotations: model.LabelSet{"ann1": "annv2"},
+			},
+		},
+	}
+
+	// Create extra data that will be passed via context
+	extraData1 := json.RawMessage(`{"customField": "customValue1", "priority": "high"}`)
+	extraData2 := json.RawMessage(`{"customField": "customValue2", "priority": "medium"}`)
+	extraDataSlice := []json.RawMessage{extraData1, extraData2}
+
+	// Create context with extra data
+	ctx = context.WithValue(ctx, receivers.ExtraDataKey, extraDataSlice)
+
+	u, _ := url.Parse(baseURL)
+	cfg := Config{
+		URL:         u,
+		Summary:     "sum",
+		Description: `{{ range $i, $a := .Alerts }}Alert {{ $i }}: {{ printf "%s" $a.ExtraData }} {{ end }}`,
+		User:        "test",
+		Password:    "test",
+	}
+
+	mock := receivers.NewMockWebhookSender()
+	mock.SendWebhookFunc = func(_ context.Context, cmd *receivers.SendWebhookSettings) error {
+		switch cmd.URL {
+		case baseURL + "/search":
+			return cmd.Validation(mustMarshal(issueSearchResultV2{}), 200)
+		case baseURL + "/issue":
+			return cmd.Validation(nil, 201)
+		default:
+			t.Fatalf("unexpected url: %s", cmd.URL)
+			return nil
+		}
+	}
+
+	n := New(cfg, receivers.Metadata{}, tmpl, mock, log.NewNopLogger())
+	retry, err := n.Notify(ctx, alerts...)
+	require.NoError(t, err)
+	require.False(t, retry)
+	require.Len(t, mock.Calls, 2)
+
+	// Verify that extra data is present in the submitted issue body (description field)
+	submitRequest := mock.Calls[1].Args[2].(*receivers.SendWebhookSettings)
+	require.Contains(t, submitRequest.Body, "customField")
+	require.Contains(t, submitRequest.Body, "customValue1")
+	require.Contains(t, submitRequest.Body, "customValue2")
 }
 
 func mustMarshal(v interface{}) []byte {

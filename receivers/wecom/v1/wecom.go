@@ -42,7 +42,9 @@ func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, w.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, w.tmpl, as, l, &tmplErr)
+
+	receivers.ApplyExtraData(ctx, data.Alerts)
 
 	bodyMsg := map[string]interface{}{
 		"msgtype": w.settings.MsgType,

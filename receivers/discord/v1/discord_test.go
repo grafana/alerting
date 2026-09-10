@@ -381,6 +381,75 @@ func TestNotify(t *testing.T) {
 			},
 			expMsgError: nil,
 		},
+		{
+			name: "UseEmbedDescription moves the message into the embed",
+			settings: Config{
+				Title:               templates.DefaultMessageTitleEmbed,
+				Message:             templates.DefaultMessageEmbed,
+				AvatarURL:           "",
+				WebhookURL:          "http://localhost",
+				UseDiscordUsername:  false,
+				UseEmbedDescription: true,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"content": "",
+				"embeds": []interface{}{map[string]interface{}{
+					"color":       1.4037554e+07,
+					"description": "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+					"footer": map[string]interface{}{
+						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+						"text":     "Grafana v" + appVersion,
+					},
+					"title": "[FIRING:1]  (val1)",
+					"url":   "http://localhost/alerting/list",
+					"type":  "rich",
+				}},
+				"username": "Grafana",
+			},
+			expMsgError: nil,
+		},
+		{
+			name: "UseEmbedDescription still truncates too long messages",
+			settings: Config{
+				Title:               templates.DefaultMessageTitleEmbed,
+				Message:             strings.Repeat("Y", discordMaxMessageLen+rand.Intn(100)+1),
+				AvatarURL:           "",
+				WebhookURL:          "http://localhost",
+				UseDiscordUsername:  true,
+				UseEmbedDescription: true,
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+						Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh"},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"content": "",
+				"embeds": []interface{}{map[string]interface{}{
+					"color":       1.4037554e+07,
+					"description": strings.Repeat("Y", discordMaxMessageLen-1) + "…",
+					"footer": map[string]interface{}{
+						"icon_url": "https://grafana.com/static/assets/img/fav32.png",
+						"text":     "Grafana v" + appVersion,
+					},
+					"title": "[FIRING:1]  (val1)",
+					"url":   "http://localhost/alerting/list",
+					"type":  "rich",
+				}},
+			},
+			expMsgError: nil,
+		},
 	}
 
 	for _, c := range cases {
@@ -781,7 +850,7 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 		imageProvider := images.NewTokenProvider(tokenStore, log.NewNopLogger())
 
 		// Create 15 alerts with an image each, Discord's embed limit is 10, and we should be using a maximum of 9 for images.
-		var alerts []*types.Alert
+		alerts := make([]*types.Alert, 0, len(tokenStore.Images))
 		for token := range tokenStore.Images {
 			alertName := token
 			alert := types.Alert{
@@ -856,4 +925,67 @@ Silence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=aler
 		require.Len(tt, embeds, 10)
 		require.Equal(tt, expEmbeds, embeds)
 	})
+}
+
+func TestNotify_ExtraData(t *testing.T) {
+	tmpl := templates.ForTests(t)
+
+	externalURL, err := url.Parse("http://localhost")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+
+	appVersion := fmt.Sprintf("%d.0.0", rand.Uint32())
+
+	settings := Config{
+		Title:      templates.DefaultMessageTitleEmbed,
+		Message:    `{{ range $i, $a := .Alerts }}Alert {{ $i }}: {{ printf "%s" $a.ExtraData }} {{ end }}`,
+		WebhookURL: "http://localhost",
+	}
+
+	// Create test alerts
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		},
+		{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert2", "lbl1": "val2"},
+				Annotations: model.LabelSet{"ann1": "annv2"},
+			},
+		},
+	}
+
+	// Create extra data that will be passed via context
+	extraData1 := json.RawMessage(`{"customField": "customValue1", "priority": "high"}`)
+	extraData2 := json.RawMessage(`{"customField": "customValue2", "priority": "medium"}`)
+	extraDataSlice := []json.RawMessage{extraData1, extraData2}
+
+	webhookSender := receivers.MockNotificationService()
+
+	dn := &Notifier{
+		Base:       receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
+		ns:         webhookSender,
+		tmpl:       tmpl,
+		settings:   settings,
+		images:     &images.UnavailableProvider{},
+		appVersion: appVersion,
+	}
+
+	// Create context with extra data
+	ctx := notify.WithGroupKey(context.Background(), "alertname")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": ""})
+	ctx = context.WithValue(ctx, receivers.ExtraDataKey, extraDataSlice)
+
+	// Call Notify
+	ok, err := dn.Notify(ctx, alerts...)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	// Verify that extra data is present in the request body (message field)
+	require.Contains(t, webhookSender.Webhook.Body, "customField")
+	require.Contains(t, webhookSender.Webhook.Body, "customValue1")
+	require.Contains(t, webhookSender.Webhook.Body, "customValue2")
 }

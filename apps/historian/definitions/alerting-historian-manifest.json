@@ -1,0 +1,619 @@
+{
+    "apiVersion": "apps.grafana.app/v1alpha2",
+    "kind": "AppManifest",
+    "metadata": {
+        "name": "alerting-historian"
+    },
+    "spec": {
+        "appName": "alerting-historian",
+        "appDisplayName": "alerting-historian",
+        "group": "historian.alerting.grafana.app",
+        "versions": [
+            {
+                "name": "v0alpha1",
+                "served": true,
+                "kinds": [
+                    {
+                        "kind": "Dummy",
+                        "plural": "Dummys",
+                        "scope": "Namespaced",
+                        "userReadable": false,
+                        "schemas": {
+                            "Dummy": {
+                                "properties": {
+                                    "spec": {
+                                        "$ref": "#/components/schemas/spec"
+                                    },
+                                    "status": {
+                                        "$ref": "#/components/schemas/status"
+                                    }
+                                },
+                                "required": [
+                                    "spec"
+                                ]
+                            },
+                            "OperatorState": {
+                                "additionalProperties": false,
+                                "properties": {
+                                    "descriptiveState": {
+                                        "description": "descriptiveState is an optional more descriptive state field which has no requirements on format",
+                                        "type": "string"
+                                    },
+                                    "details": {
+                                        "additionalProperties": true,
+                                        "description": "details contains any extra information that is operator-specific",
+                                        "type": "object"
+                                    },
+                                    "lastEvaluation": {
+                                        "description": "lastEvaluation is the ResourceVersion last evaluated",
+                                        "type": "string"
+                                    },
+                                    "state": {
+                                        "description": "state describes the state of the lastEvaluation.\nIt is limited to three possible states for machine evaluation.",
+                                        "enum": [
+                                            "success",
+                                            "in_progress",
+                                            "failed"
+                                        ],
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "lastEvaluation",
+                                    "state"
+                                ],
+                                "type": "object"
+                            },
+                            "spec": {
+                                "additionalProperties": false,
+                                "description": "Spec is the schema of our resource. The spec should include all the user-editable information for the kind.",
+                                "properties": {
+                                    "dummyField": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "required": [
+                                    "dummyField"
+                                ],
+                                "type": "object"
+                            },
+                            "status": {
+                                "additionalProperties": false,
+                                "properties": {
+                                    "additionalFields": {
+                                        "additionalProperties": true,
+                                        "description": "additionalFields is reserved for future use",
+                                        "type": "object"
+                                    },
+                                    "operatorStates": {
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/OperatorState"
+                                        },
+                                        "description": "operatorStates is a map of operator ID to operator state evaluations.\nAny operator which consumes this kind SHOULD add its state evaluation information to this field.",
+                                        "type": "object"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "conversion": false
+                    }
+                ],
+                "routes": {
+                    "namespaced": {
+                        "/alertstate/history": {
+                            "get": {
+                                "operationId": "getAlertstatehistory",
+                                "responses": {
+                                    "default": {
+                                        "description": "Default OK response",
+                                        "content": {
+                                            "application/json": {
+                                                "schema": {
+                                                    "type": "object",
+                                                    "required": [
+                                                        "body"
+                                                    ],
+                                                    "properties": {
+                                                        "body": {
+                                                            "type": "object",
+                                                            "additionalProperties": true
+                                                        }
+                                                    },
+                                                    "additionalProperties": false
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "/notification/query": {
+                            "post": {
+                                "operationId": "createNotificationquery",
+                                "requestBody": {
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "from": {
+                                                        "description": "From is the starting timestamp for the query.",
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "groupBy": {
+                                                        "description": "GroupBy specifies how to aggregate counts queries.",
+                                                        "type": "object",
+                                                        "required": [
+                                                            "receiver",
+                                                            "integration",
+                                                            "integrationIndex",
+                                                            "status",
+                                                            "outcome",
+                                                            "error",
+                                                            "ruleUID"
+                                                        ],
+                                                        "properties": {
+                                                            "error": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "integration": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "integrationIndex": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "outcome": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "receiver": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "ruleUID": {
+                                                                "type": "boolean"
+                                                            },
+                                                            "status": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "additionalProperties": false
+                                                    },
+                                                    "groupLabels": {
+                                                        "description": "GroupLabels optionally filters the entries by matching group labels.",
+                                                        "$ref": "#/components/schemas/createNotificationqueryMatchers"
+                                                    },
+                                                    "labels": {
+                                                        "description": "Labels optionally filters the entries by matching alert labels.",
+                                                        "$ref": "#/components/schemas/createNotificationqueryMatchers"
+                                                    },
+                                                    "limit": {
+                                                        "description": "Limit is the maximum number of entries to return.",
+                                                        "type": "integer"
+                                                    },
+                                                    "outcome": {
+                                                        "description": "Outcome optionally filters the entries to only either successful or failed attempts.",
+                                                        "$ref": "#/components/schemas/createNotificationqueryNotificationOutcome"
+                                                    },
+                                                    "receiver": {
+                                                        "description": "Receiver optionally filters the entries by receiver title (contact point).",
+                                                        "type": "string"
+                                                    },
+                                                    "ruleUID": {
+                                                        "description": "RuleUID optionally filters the entries to a specific alert rule.",
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "description": "Status optionally filters the entries to only either firing or resolved.",
+                                                        "$ref": "#/components/schemas/createNotificationqueryNotificationStatus"
+                                                    },
+                                                    "step": {
+                                                        "description": "Step is the step interval in seconds for range_counts queries.",
+                                                        "type": "integer"
+                                                    },
+                                                    "to": {
+                                                        "description": "To is the starting timestamp for the query.",
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "type": {
+                                                        "description": "Type of query to perform (default: entries)",
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "entries",
+                                                            "counts",
+                                                            "range_counts"
+                                                        ]
+                                                    }
+                                                },
+                                                "additionalProperties": false
+                                            }
+                                        }
+                                    }
+                                },
+                                "responses": {
+                                    "default": {
+                                        "description": "Default OK response",
+                                        "content": {
+                                            "application/json": {
+                                                "schema": {
+                                                    "type": "object",
+                                                    "required": [
+                                                        "entries",
+                                                        "counts"
+                                                    ],
+                                                    "properties": {
+                                                        "counts": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/createNotificationqueryNotificationCount"
+                                                            }
+                                                        },
+                                                        "entries": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/createNotificationqueryNotificationEntry"
+                                                            }
+                                                        }
+                                                    },
+                                                    "additionalProperties": false
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "/notifications/queryalerts": {
+                            "post": {
+                                "operationId": "createNotificationsqueryalerts",
+                                "requestBody": {
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "from": {
+                                                        "description": "From is the starting timestamp for the query.",
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "limit": {
+                                                        "description": "Limit is the maximum number of entries to return.",
+                                                        "type": "integer"
+                                                    },
+                                                    "to": {
+                                                        "description": "To is the ending timestamp for the query.",
+                                                        "type": "string",
+                                                        "format": "date-time"
+                                                    },
+                                                    "uuid": {
+                                                        "description": "UUID filters the alerts to those belonging to a specific alert rule.",
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "additionalProperties": false
+                                            }
+                                        }
+                                    }
+                                },
+                                "responses": {
+                                    "default": {
+                                        "description": "Default OK response",
+                                        "content": {
+                                            "application/json": {
+                                                "schema": {
+                                                    "type": "object",
+                                                    "required": [
+                                                        "alerts"
+                                                    ],
+                                                    "properties": {
+                                                        "alerts": {
+                                                            "type": "array",
+                                                            "items": {
+                                                                "$ref": "#/components/schemas/createNotificationsqueryalertsNotificationEntryAlert"
+                                                            }
+                                                        }
+                                                    },
+                                                    "additionalProperties": false
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "schemas": {
+                        "createNotificationqueryMatcher": {
+                            "type": "object",
+                            "required": [
+                                "type",
+                                "label",
+                                "value"
+                            ],
+                            "properties": {
+                                "label": {
+                                    "type": "string"
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "=",
+                                        "!=",
+                                        "=~",
+                                        "!~"
+                                    ]
+                                },
+                                "value": {
+                                    "type": "string"
+                                }
+                            },
+                            "additionalProperties": false
+                        },
+                        "createNotificationqueryMatchers": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/components/schemas/createNotificationqueryMatcher"
+                            }
+                        },
+                        "createNotificationqueryNotificationCount": {
+                            "type": "object",
+                            "required": [
+                                "count",
+                                "values"
+                            ],
+                            "properties": {
+                                "count": {
+                                    "description": "Count is the number of notification attempts in the time period. Set for counts queries.",
+                                    "type": "integer"
+                                },
+                                "error": {
+                                    "type": "string"
+                                },
+                                "integration": {
+                                    "type": "string"
+                                },
+                                "integrationIndex": {
+                                    "type": "integer"
+                                },
+                                "outcome": {
+                                    "$ref": "#/components/schemas/createNotificationqueryNotificationOutcome"
+                                },
+                                "receiver": {
+                                    "type": "string"
+                                },
+                                "ruleUID": {
+                                    "type": "string"
+                                },
+                                "status": {
+                                    "$ref": "#/components/schemas/createNotificationqueryNotificationStatus"
+                                },
+                                "values": {
+                                    "description": "Values is the list of (timestamp, count) pairs in the time series. Set for range_counts queries.",
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/createNotificationqueryNotificationRangeValue"
+                                    }
+                                }
+                            },
+                            "additionalProperties": false
+                        },
+                        "createNotificationqueryNotificationEntry": {
+                            "type": "object",
+                            "required": [
+                                "timestamp",
+                                "uuid",
+                                "receiver",
+                                "integration",
+                                "integrationIndex",
+                                "status",
+                                "outcome",
+                                "groupLabels",
+                                "ruleUIDs",
+                                "alertCount",
+                                "alerts",
+                                "retry",
+                                "duration",
+                                "pipelineTime",
+                                "groupKey"
+                            ],
+                            "properties": {
+                                "alertCount": {
+                                    "description": "AlertCount is the total number of alerts included in the notification.",
+                                    "type": "integer"
+                                },
+                                "alerts": {
+                                    "description": "Alerts are the alerts grouped into the notification. Deprecated: not populated, will be removed.",
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/createNotificationqueryNotificationEntryAlert"
+                                    }
+                                },
+                                "duration": {
+                                    "description": "Duration is the length of time the notification attempt took in nanoseconds.",
+                                    "type": "integer"
+                                },
+                                "error": {
+                                    "description": "Error is the message returned by the contact point if delivery failed.",
+                                    "type": "string"
+                                },
+                                "groupKey": {
+                                    "description": "GroupKey uniquely idenifies the dispatcher alert group.",
+                                    "type": "string"
+                                },
+                                "groupLabels": {
+                                    "description": "GroupLabels are the labels uniquely identifying the alert group within a route.",
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                },
+                                "integration": {
+                                    "description": "Integration is the integration (contact point type) name.",
+                                    "type": "string"
+                                },
+                                "integrationIndex": {
+                                    "description": "IntegrationIndex is the index of the integration within the receiver.",
+                                    "type": "integer"
+                                },
+                                "outcome": {
+                                    "description": "Outcome indicaes if the notificaion attempt was successful or if it failed.",
+                                    "$ref": "#/components/schemas/createNotificationqueryNotificationOutcome"
+                                },
+                                "pipelineTime": {
+                                    "description": "PipelineTime is the time at which the flush began.",
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
+                                "receiver": {
+                                    "description": "Receiver is the receiver (contact point) title.",
+                                    "type": "string"
+                                },
+                                "retry": {
+                                    "description": "Retry indicates if the attempt was a retried attempt.",
+                                    "type": "boolean"
+                                },
+                                "ruleUIDs": {
+                                    "description": "RuleUIDs are the unique identifiers of the alert rules included in the notification.",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string"
+                                    }
+                                },
+                                "status": {
+                                    "description": "Status indicates if the notification contains one or more firing alerts.",
+                                    "$ref": "#/components/schemas/createNotificationqueryNotificationStatus"
+                                },
+                                "timestamp": {
+                                    "description": "Timestamp is the time at which the notification attempt completed.",
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
+                                "uuid": {
+                                    "description": "Uuid is a unique identifier for the notification attempt.",
+                                    "type": "string"
+                                }
+                            },
+                            "additionalProperties": false
+                        },
+                        "createNotificationqueryNotificationEntryAlert": {
+                            "type": "object",
+                            "required": [
+                                "status",
+                                "labels",
+                                "annotations",
+                                "startsAt",
+                                "endsAt"
+                            ],
+                            "properties": {
+                                "annotations": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                },
+                                "endsAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
+                                "enrichments": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                },
+                                "labels": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                },
+                                "startsAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            },
+                            "additionalProperties": false
+                        },
+                        "createNotificationqueryNotificationOutcome": {
+                            "type": "string",
+                            "enum": [
+                                "success",
+                                "error"
+                            ]
+                        },
+                        "createNotificationqueryNotificationRangeValue": {
+                            "description": "NotificationRangeValue is a single (timestamp, count) data point in a range count series.",
+                            "type": "object",
+                            "required": [
+                                "timestamp",
+                                "count"
+                            ],
+                            "properties": {
+                                "count": {
+                                    "description": "Count is the number of notification attempts at this point in time.",
+                                    "type": "integer"
+                                },
+                                "timestamp": {
+                                    "description": "Timestamp is the Unix epoch in seconds for this data point.",
+                                    "type": "integer"
+                                }
+                            },
+                            "additionalProperties": false
+                        },
+                        "createNotificationqueryNotificationStatus": {
+                            "type": "string",
+                            "enum": [
+                                "firing",
+                                "resolved"
+                            ]
+                        },
+                        "createNotificationsqueryalertsNotificationEntryAlert": {
+                            "type": "object",
+                            "required": [
+                                "status",
+                                "labels",
+                                "annotations",
+                                "startsAt",
+                                "endsAt"
+                            ],
+                            "properties": {
+                                "annotations": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                },
+                                "endsAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
+                                "enrichments": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                },
+                                "labels": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                },
+                                "startsAt": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                },
+                                "status": {
+                                    "type": "string"
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    }
+                }
+            }
+        ],
+        "preferredVersion": "v0alpha1"
+    }
+}

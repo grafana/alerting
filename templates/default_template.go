@@ -263,7 +263,7 @@ func DefaultTemplate(omitTemplates []string) (TemplateDefinition, error) {
 			// TODO: Can remove with GO v1.24.
 			def = strings.Replace(def, "$first := false", "$first = false", 1)
 		}
-		combinedTemplate.WriteString(fmt.Sprintf("{{ define \"%s\" }}%s{{ end }}\n\n", tmpl.Name(), def))
+		fmt.Fprintf(&combinedTemplate, "{{ define \"%s\" }}%s{{ end }}\n\n", tmpl.Name(), def)
 	}
 	return TemplateDefinition{
 		Name:     DefaultTemplateName,

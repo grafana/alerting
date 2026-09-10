@@ -15,10 +15,6 @@ import (
 	"github.com/prometheus/alertmanager/featurecontrol"
 	"github.com/prometheus/alertmanager/matchers/compat"
 	"github.com/prometheus/alertmanager/pkg/labels"
-
-	"github.com/grafana/alerting/receivers"
-	email_v0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
-	slack_v0mimir1 "github.com/grafana/alerting/receivers/slack/v0mimir1"
 )
 
 func Test_ApiReceiver_Marshaling(t *testing.T) {
@@ -28,24 +24,9 @@ func Test_ApiReceiver_Marshaling(t *testing.T) {
 		err   bool
 	}{
 		{
-			desc: "success AM",
-			input: PostableApiReceiver{
-				Receiver: Receiver{
-					Name: "foo",
-					EmailConfigs: []*email_v0mimir1.Config{{
-						To:      "test@test.com",
-						HTML:    email_v0mimir1.DefaultConfig.HTML,
-						Headers: map[string]string{},
-					}},
-				},
-			},
-		},
-		{
 			desc: "success GM",
 			input: PostableApiReceiver{
-				Receiver: Receiver{
-					Name: "foo",
-				},
+				Name: "foo",
 				PostableGrafanaReceivers: PostableGrafanaReceivers{
 					GrafanaManagedReceivers: []*PostableGrafanaReceiver{{}},
 				},
@@ -118,21 +99,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: Receiver{
-							Name: "am",
-							EmailConfigs: []*email_v0mimir1.Config{{
-								Smarthost: receivers.HostPort{
-									Host: "test",
-									Port: "567",
-								},
-								Hello:      "localhost",
-								RequireTLS: func() *bool { b := true; return &b }(),
-								From:       "grafana",
-								To:         "test@test.com",
-								HTML:       email_v0mimir1.DefaultConfig.HTML,
-								Headers:    map[string]string{},
-							}},
-						},
+						Name: "am",
 					},
 				},
 			},
@@ -153,9 +120,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: Receiver{
-							Name: "graf",
-						},
+						Name: "graf",
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
 							GrafanaManagedReceivers: []*PostableGrafanaReceiver{{}},
 						},
@@ -179,14 +144,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: Receiver{
-							Name: "am",
-							EmailConfigs: []*email_v0mimir1.Config{{
-								To:      "test@test.com",
-								HTML:    email_v0mimir1.DefaultConfig.HTML,
-								Headers: map[string]string{},
-							}},
-						},
+						Name: "am",
 					},
 				},
 			},
@@ -208,9 +166,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: Receiver{
-							Name: "graf",
-						},
+						Name: "graf",
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
 							GrafanaManagedReceivers: []*PostableGrafanaReceiver{{}},
 						},
@@ -224,9 +180,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 			input: PostableApiAlertingConfig{
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: Receiver{
-							Name: "graf",
-						},
+						Name: "graf",
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
 							GrafanaManagedReceivers: []*PostableGrafanaReceiver{{}},
 						},
@@ -250,9 +204,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: Receiver{
-							Name: "graf",
-						},
+						Name: "graf",
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
 							GrafanaManagedReceivers: []*PostableGrafanaReceiver{{}},
 						},
@@ -278,9 +230,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: Receiver{
-							Name: "graf",
-						},
+						Name: "graf",
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
 							GrafanaManagedReceivers: []*PostableGrafanaReceiver{{}},
 						},
@@ -306,9 +256,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: Receiver{
-							Name: "graf",
-						},
+						Name: "graf",
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
 							GrafanaManagedReceivers: []*PostableGrafanaReceiver{{}},
 						},
@@ -344,21 +292,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: Receiver{
-							Name: "am",
-							EmailConfigs: []*email_v0mimir1.Config{{
-								Smarthost: receivers.HostPort{
-									Host: "test",
-									Port: "567",
-								},
-								Hello:      "localhost",
-								RequireTLS: func() *bool { b := true; return &b }(),
-								From:       "grafana",
-								To:         "test@test.com",
-								HTML:       email_v0mimir1.DefaultConfig.HTML,
-								Headers:    map[string]string{},
-							}},
-						},
+						Name: "am",
 					},
 				},
 			},
@@ -391,9 +325,7 @@ func Test_ApiAlertingConfig_Marshaling(t *testing.T) {
 				},
 				Receivers: []*PostableApiReceiver{
 					{
-						Receiver: Receiver{
-							Name: "graf",
-						},
+						Name: "graf",
 						PostableGrafanaReceivers: PostableGrafanaReceivers{
 							GrafanaManagedReceivers: []*PostableGrafanaReceiver{{}},
 						},
@@ -1437,13 +1369,6 @@ func TestPostableApiTemplateValidate(t *testing.T) {
 }
 
 func TestCopyIntegrations(t *testing.T) {
-	mimirEmail := &email_v0mimir1.Config{
-		From: "test",
-		To:   "test",
-	}
-	mimirSlack := &slack_v0mimir1.Config{
-		Title: "test",
-	}
 	grafana := &PostableGrafanaReceiver{
 		UID:  "test-uid",
 		Name: "test",
@@ -1459,15 +1384,7 @@ func TestCopyIntegrations(t *testing.T) {
 	t.Run("should copy all integrations from src to dest by reference", func(t *testing.T) {
 		dst := PostableApiReceiver{}
 		src := PostableApiReceiver{
-			Receiver: Receiver{
-				Name: "source",
-				EmailConfigs: []*email_v0mimir1.Config{
-					mimirEmail,
-				},
-				SlackConfigs: []*slack_v0mimir1.Config{
-					mimirSlack,
-				},
-			},
+			Name: "source",
 			PostableGrafanaReceivers: PostableGrafanaReceivers{
 				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
 					grafana,
@@ -1476,33 +1393,18 @@ func TestCopyIntegrations(t *testing.T) {
 		}
 		require.NoError(t, CopyIntegrations(&src, &dst))
 		require.Equal(t, PostableApiReceiver{
-			Receiver: Receiver{
-				EmailConfigs: []*email_v0mimir1.Config{
-					mimirEmail,
-				},
-				SlackConfigs: []*slack_v0mimir1.Config{
-					mimirSlack,
-				},
-			},
 			PostableGrafanaReceivers: PostableGrafanaReceivers{
 				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
 					grafana,
 				},
 			},
 		}, dst)
-		require.Same(t, mimirEmail, dst.EmailConfigs[0])
-		require.Same(t, mimirSlack, dst.SlackConfigs[0])
 		require.Same(t, grafana, dst.GrafanaManagedReceivers[0])
 	})
 
 	t.Run("should append to existing integrations", func(t *testing.T) {
 		dst := PostableApiReceiver{
-			Receiver: Receiver{
-				Name: "dest",
-				SlackConfigs: []*slack_v0mimir1.Config{
-					mimirSlack,
-				},
-			},
+			Name: "dest",
 			PostableGrafanaReceivers: PostableGrafanaReceivers{
 				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
 					grafana,
@@ -1510,12 +1412,7 @@ func TestCopyIntegrations(t *testing.T) {
 			},
 		}
 		src := PostableApiReceiver{
-			Receiver: Receiver{
-				Name: "source",
-				SlackConfigs: []*slack_v0mimir1.Config{
-					mimirSlack,
-				},
-			},
+			Name: "source",
 			PostableGrafanaReceivers: PostableGrafanaReceivers{
 				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
 					grafana,
@@ -1524,13 +1421,7 @@ func TestCopyIntegrations(t *testing.T) {
 		}
 		require.NoError(t, CopyIntegrations(&src, &dst))
 		require.Equal(t, PostableApiReceiver{
-			Receiver: Receiver{
-				Name: "dest",
-				SlackConfigs: []*slack_v0mimir1.Config{
-					mimirSlack,
-					mimirSlack,
-				},
-			},
+			Name: "dest",
 			PostableGrafanaReceivers: PostableGrafanaReceivers{
 				GrafanaManagedReceivers: []*PostableGrafanaReceiver{
 					grafana,

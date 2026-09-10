@@ -113,7 +113,9 @@ func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert,
 		}
 	}()
 
-	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+
+	receivers.ApplyExtraData(ctx, data.Alerts)
 	// Telegram supports 4096 chars max
 	messageText, truncated := receivers.TruncateInRunes(tmpl(tn.settings.Message), telegramMaxMessageLenRunes)
 	if truncated {

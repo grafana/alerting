@@ -160,12 +160,12 @@ func TestPutAlert(t *testing.T) {
 				}
 			},
 		}, {
-			title: "Removing empty labels and annotations",
+			title: "Removing empty-name and empty-value labels and annotations",
 			postableAlerts: amv2.PostableAlerts{
 				{
-					Annotations: amv2.LabelSet{"msg": "Alert4 annotation", "empty": ""},
+					Annotations: amv2.LabelSet{"msg": "Alert4 annotation", "empty": "", "": "empty name"},
 					Alert: amv2.Alert{
-						Labels:       amv2.LabelSet{"alertname": "Alert4", "emptylabel": ""},
+						Labels:       amv2.LabelSet{"alertname": "Alert4", "emptylabel": "", "": "empty name"},
 						GeneratorURL: "http://localhost/url1",
 					},
 					StartsAt: strfmt.DateTime{},

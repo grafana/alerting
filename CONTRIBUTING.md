@@ -11,6 +11,35 @@ flow][github-flow] guide from GitHub.
 
 [github-flow]: https://guides.github.com/introduction/flow/
 
+## Adding a new integration
+
+Before proposing a new first-class integration (a receiver under `receivers/`),
+check whether the templated [webhook] integration already covers your target.
+The webhook lets you set the URL, HTTP method, authorization, and a Go-templated
+payload, so it can talk to most HTTP-based notification services without any code
+changes.
+
+Every first-class integration is a long-term maintenance commitment: we have to
+track the upstream API, keep the config and schema in sync, and carry the test
+surface. To keep that cost in check, we default to the webhook and add a
+dedicated integration only when the webhook genuinely cannot do the job.
+
+A dedicated integration is accepted when it:
+
+* **Cannot be expressed with webhook templates** — e.g. the protocol is not plain
+  templated HTTP, the payload needs binary encoding, or the service requires
+  request signing the webhook can't produce.
+
+* **Requires a multi-step flow** — e.g. an auth handshake, token refresh, or a
+  sequence of dependent API calls that a single webhook request can't model.
+
+If your target fits the webhook, please ship it as a documented webhook
+configuration instead of a code change. If you're unsure which side of the line
+you're on, open an issue or a draft PR describing the target API and ask before
+investing in a full integration — we're happy to help you decide.
+
+[webhook]: ./receivers/webhook
+
 You are welcome to create draft PRs at any stage of readiness - this can be
 helpful to ask for assistance or to develop an idea. But before a piece of work
 is finished it should:

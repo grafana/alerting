@@ -250,7 +250,9 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := tn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, _ := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+
+	receivers.ApplyExtraData(ctx, data.Alerts)
 
 	card := NewAdaptiveCard()
 	card.AppendItem(AdaptiveCardTextBlockItem{

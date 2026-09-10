@@ -1,0 +1,1150 @@
+package notification
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/grafana/alerting/notify/historian"
+	"github.com/grafana/alerting/notify/historian/lokiclient"
+	"github.com/grafana/dskit/instrument"
+	"github.com/grafana/grafana-app-sdk/logging"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.opentelemetry.io/otel/trace"
+
+	"github.com/grafana/alerting/apps/historian/pkg/apis/alertinghistorian/v0alpha1"
+	"github.com/grafana/alerting/apps/historian/pkg/app/config"
+	"github.com/grafana/alerting/apps/historian/pkg/app/logutil"
+)
+
+const (
+	LokiClientSpanName = "grafana.apps.alerting.historian.client"
+	defaultQueryRange  = 6 * time.Hour
+	defaultLimit       = 100
+	maxLimit           = 1000
+	Namespace          = "grafana"
+	Subsystem          = "alerting"
+)
+
+var (
+	// ErrInvalidQuery is returned if the query is invalid.
+	ErrInvalidQuery = errors.New("invalid query")
+
+	validLabelKeyRegex = regexp.MustCompile("^[a-zA-Z_][a-zA-Z0-9_]*$")
+	validRuleUIDRegex  = regexp.MustCompile(`^[a-zA-Z0-9\-\_]*$`)
+)
+
+type lokiClient interface {
+	RangeQuery(ctx context.Context, logQL string, start, end, limit int64) (lokiclient.QueryRes, error)
+	MetricsQuery(ctx context.Context, logQL string, ts int64, limit int64) (lokiclient.MetricsQueryRes, error)
+	MetricsRangeQuery(ctx context.Context, logQL string, start, end, limit, step int64) (lokiclient.MetricsRangeQueryRes, error)
+}
+
+type LokiReader struct {
+	client lokiClient
+	logger logging.Logger
+	// maxQuerySize is the maximum LogQL string length Loki will accept. When the
+	// RBAC folder push-down would exceed it, the accessible folder set is split
+	// into several batched queries whose results are merged. A value <= 0 disables
+	// batching (used by unit tests that construct LokiReader directly).
+	maxQuerySize int
+}
+
+func NewLokiReader(cfg config.LokiConfig, reg prometheus.Registerer, logger logging.Logger, tracer trace.Tracer) *LokiReader {
+	duration := instrument.NewHistogramCollector(promauto.With(reg).NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: Namespace,
+		Subsystem: Subsystem,
+		Name:      "notification_history_read_request_duration_seconds",
+		Help:      "Histogram of read request durations to the notification history store.",
+		Buckets:   instrument.DefBuckets,
+	}, instrument.HistogramCollectorBuckets))
+
+	requester := &http.Client{
+		Transport: cfg.Transport,
+	}
+
+	gkLogger := logutil.ToGoKitLogger(logger)
+	return &LokiReader{
+		client:       lokiclient.NewLokiClient(cfg.LokiConfig, requester, nil, duration, gkLogger, tracer, LokiClientSpanName),
+		logger:       logger,
+		maxQuerySize: cfg.MaxQuerySize,
+	}
+}
+
+// Query retrieves notification history from an external Loki instance.
+// When query.Type is "counts", it returns aggregated counts via a metrics query.
+// Otherwise it returns individual notification entries via a range query.
+//
+// When query.Labels is set, a two-phase cross-stream lookup is performed:
+// first the alerts stream is queried for matching labels to collect UUIDs,
+// then the notifications stream is filtered by those UUIDs.
+//
+// filter, when non-nil, restricts results to the alert rule UIDs the caller can
+// access (RBAC). A nil filter disables RBAC filtering.
+func (h *LokiReader) Query(ctx context.Context, query Query, filter *ruleFilter) (QueryResult, error) {
+	// RBAC: if the caller can access no rules, there is nothing to return.
+	if filter != nil && filter.empty() {
+		return QueryResult{Entries: []Entry{}, Counts: []Count{}}, nil
+	}
+
+	now := time.Now().UTC()
+	from := now.Add(-defaultQueryRange)
+	if query.From != nil {
+		from = *query.From
+	}
+	to := now
+	if query.To != nil {
+		to = *query.To
+	}
+
+	limit := int64(defaultLimit)
+	if query.Limit != nil {
+		limit = *query.Limit
+	}
+
+	if limit > maxLimit {
+		return QueryResult{}, fmt.Errorf("%w: limit (%d) over maximum allowed (%d)", ErrInvalidQuery, limit, maxLimit)
+	}
+
+	// Phase 1: If labels are specified, query the alerts stream to collect matching UUIDs.
+	var labelUUIDs []string
+	if query.Labels != nil && len(*query.Labels) > 0 {
+		alertLogqls, err := h.buildAlertLabelBatches(query.RuleUID, *query.Labels, filter)
+		if err != nil {
+			return QueryResult{}, err
+		}
+		labelUUIDs, err = h.runAlertUUIDQuery(ctx, alertLogqls, from, to)
+		if err != nil {
+			return QueryResult{}, err
+		}
+		if len(labelUUIDs) == 0 {
+			// No alerts match the label filter — return empty result.
+			return QueryResult{Entries: []Entry{}, Counts: []Count{}}, nil
+		}
+	}
+
+	// Phase 2: Build and run the notifications query, optionally filtered by UUIDs.
+	// A large accessible folder set is split across several batched queries so a
+	// single query never exceeds the Loki max query size.
+	logqls, err := h.buildNotificationBatches(query, labelUUIDs, filter)
+	if err != nil {
+		return QueryResult{}, err
+	}
+
+	qtype := v0alpha1.CreateNotificationqueryRequestBodyTypeEntries
+	if query.Type != nil {
+		qtype = *query.Type
+	}
+
+	switch qtype {
+	case v0alpha1.CreateNotificationqueryRequestBodyTypeEntries:
+		entries, err := h.runQuery(ctx, logqls, from, to, limit)
+		if err != nil {
+			return QueryResult{}, err
+		}
+
+		return QueryResult{Entries: entries}, nil
+
+	case v0alpha1.CreateNotificationqueryRequestBodyTypeCounts:
+		// Default to no grouping (all false).
+		groupBy := QueryGroupBy{}
+		if query.GroupBy != nil {
+			groupBy = *query.GroupBy
+		}
+		counts, err := h.runMetricsQuery(ctx, logqls, from, to, limit, groupBy)
+		if err != nil {
+			return QueryResult{}, err
+		}
+
+		return QueryResult{Counts: counts}, nil
+
+	case v0alpha1.CreateNotificationqueryRequestBodyTypeRangeCounts:
+		// Default to no grouping (all false).
+		groupBy := QueryGroupBy{}
+		if query.GroupBy != nil {
+			groupBy = *query.GroupBy
+		}
+		step := defaultStep(from, to)
+		if query.Step != nil && *query.Step > 0 {
+			step = time.Duration(*query.Step) * time.Second
+		}
+		rangeCounts, err := h.runMetricsRangeQuery(ctx, logqls, from, to, limit, step, groupBy)
+		if err != nil {
+			return QueryResult{}, err
+		}
+
+		return QueryResult{Counts: rangeCounts}, nil
+
+	default:
+		return QueryResult{}, fmt.Errorf("%w: unknown query type (%s)", ErrInvalidQuery, string(qtype))
+	}
+}
+
+// QueryAlerts retrieves individual alert entries from an external Loki instance.
+//
+// filter, when non-nil, restricts results to the alert rule UIDs the caller can
+// access (RBAC). A nil filter disables RBAC filtering.
+func (h *LokiReader) QueryAlerts(ctx context.Context, query AlertQuery, filter *ruleFilter) (AlertQueryResult, error) {
+	// RBAC: if the caller can access no rules, there is nothing to return.
+	if filter != nil && filter.empty() {
+		return AlertQueryResult{Alerts: []AlertEntry{}}, nil
+	}
+
+	now := time.Now().UTC()
+	from := now.Add(-defaultQueryRange)
+	if query.From != nil {
+		from = *query.From
+	}
+	to := now
+	if query.To != nil {
+		to = *query.To
+	}
+
+	limit := int64(defaultLimit)
+	if query.Limit != nil {
+		limit = *query.Limit
+	}
+
+	if limit > maxLimit {
+		return AlertQueryResult{}, fmt.Errorf("%w: limit (%d) over maximum allowed (%d)", ErrInvalidQuery, limit, maxLimit)
+	}
+
+	// A large accessible folder set is split across several batched queries so a
+	// single query never exceeds the Loki max query size.
+	logqls, err := h.buildAlertBatches(query, filter)
+	if err != nil {
+		return AlertQueryResult{}, err
+	}
+
+	alerts, err := h.runAlertQuery(ctx, logqls, from, to, limit)
+	if err != nil {
+		return AlertQueryResult{}, err
+	}
+
+	// Prune alerts to the requested limit.
+	if int64(len(alerts)) > limit {
+		alerts = alerts[:limit]
+	}
+
+	return AlertQueryResult{
+		Alerts: alerts,
+	}, nil
+}
+
+// buildMetricsQuery constructs the LogQL metrics query that wraps a log filter in a
+// topk(sum(count_over_time(...))) aggregation.
+func buildMetricsQuery(logqlInner string, from, to time.Time, limit int64, groupBy QueryGroupBy) string {
+	inner := buildMetricsRangeQuery(logqlInner, to.Sub(from), groupBy)
+	// Skip topk when grouping by RuleUID because the raw rule_uids label contains
+	// comma-separated UIDs that must be exploded client-side before applying topk.
+	if groupBy.RuleUID {
+		return inner
+	}
+	return fmt.Sprintf(`topk(%d, %s)`, limit, inner)
+}
+
+// buildMetricsRangeQuery constructs a LogQL sum(count_over_time(...)) expression
+// with the given step as the range selector.
+func buildMetricsRangeQuery(logqlInner string, step time.Duration, groupBy QueryGroupBy) string {
+	// Additional expressions for the inner query if needed.
+	logqlInnerExtra := ""
+
+	// If grouping by outcome, create a field based on whether error is empty.
+	if groupBy.Outcome {
+		logqlInnerExtra += ` | label_format outcome="{{ if .error }}error{{ else }}success{{ end }}"`
+	}
+
+	// Optionally add the grouping, if any.
+	var labels []string
+	if groupBy.Receiver {
+		labels = append(labels, "receiver")
+	}
+	if groupBy.Integration {
+		labels = append(labels, "integration")
+	}
+	if groupBy.IntegrationIndex {
+		labels = append(labels, "integrationIdx")
+	}
+	if groupBy.Status {
+		labels = append(labels, "status")
+	}
+	if groupBy.Outcome {
+		labels = append(labels, "outcome")
+	}
+	if groupBy.Error {
+		labels = append(labels, "error")
+	}
+	if groupBy.RuleUID {
+		labels = append(labels, "rule_uids")
+	}
+	sumBy := ""
+	if len(labels) > 0 {
+		sumBy = fmt.Sprintf(" by (%s) ", strings.Join(labels, ","))
+	}
+
+	stepSeconds := int64(step.Seconds())
+	return fmt.Sprintf(`sum%s(count_over_time(%s%s[%ds]))`,
+		sumBy, logqlInner, logqlInnerExtra, stepSeconds)
+}
+
+// runMetricsQuery executes a sum(count_over_time(...)) instant query against Loki
+// for each folder batch and converts the metric samples into Count values.
+//
+// Results from multiple batches are aggregated by label set: the RuleUID group-by
+// path via explodeRuleUIDCounts, all other group-bys via mergeCounts. A single
+// batch (the common case) is left untouched apart from sorting, preserving the
+// server-side topk.
+func (h *LokiReader) runMetricsQuery(ctx context.Context, logqlInners []string, from, to time.Time, limit int64, groupBy QueryGroupBy) ([]Count, error) {
+	counts := make([]Count, 0)
+	for _, logqlInner := range logqlInners {
+		logql := buildMetricsQuery(logqlInner, from, to, limit, groupBy)
+
+		res, err := h.client.MetricsQuery(ctx, logql, to.UnixNano(), limit)
+		if err != nil {
+			return nil, fmt.Errorf("loki metrics query: %w", err)
+		}
+
+		for _, sample := range res.Data.Result {
+			count, err := parseCount(sample)
+			if err != nil {
+				h.logger.Warn("Ignoring metric sample", "err", err)
+				continue
+			}
+			counts = append(counts, count)
+		}
+	}
+
+	switch {
+	case groupBy.RuleUID:
+		// When grouping by RuleUID, explode the comma-separated rule_uids into
+		// individual counts, aggregate (merging batches), and apply client-side topk.
+		counts = explodeRuleUIDCounts(counts, limit)
+	case len(logqlInners) > 1:
+		// Multiple folder batches were queried; merge their per-batch results and
+		// re-apply the limit, since the server-side topk only applied within each
+		// batch.
+		counts = mergeCounts(counts, limit)
+	}
+
+	// Sort counts by count (highest first).
+	sort.Slice(counts, func(i, j int) bool {
+		return counts[i].Count > counts[j].Count
+	})
+
+	return counts, nil
+}
+
+// mergeCounts aggregates counts sharing the same label set (summing Count),
+// sorts by count descending with a deterministic tie-break, and applies the limit
+// (client-side topk). It is used to combine the per-batch results of a folder-
+// batched instant metrics query.
+func mergeCounts(counts []Count, limit int64) []Count {
+	aggregated := make(map[string]*Count)
+	for _, c := range counts {
+		k := countSortKey(c)
+		if existing, ok := aggregated[k]; ok {
+			existing.Count += c.Count
+		} else {
+			cc := c
+			aggregated[k] = &cc
+		}
+	}
+
+	result := make([]Count, 0, len(aggregated))
+	for _, c := range aggregated {
+		result = append(result, *c)
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Count != result[j].Count {
+			return result[i].Count > result[j].Count
+		}
+		return countSortKey(result[i]) < countSortKey(result[j])
+	})
+
+	if int64(len(result)) > limit {
+		result = result[:limit]
+	}
+
+	return result
+}
+
+// explodeRuleUIDCounts splits counts with comma-separated rule_uids into individual
+// counts per rule UID, aggregates (sums) counts sharing the same (ruleUID + other groupBy
+// dimensions) key, sorts by count descending, and applies the limit (client-side topk).
+func explodeRuleUIDCounts(counts []Count, limit int64) []Count {
+	aggregated := make(map[string]*Count)
+
+	key := func(c Count) string {
+		c0 := c
+		c0.Count = 0
+		b, _ := json.Marshal(c0)
+		return string(b)
+	}
+
+	for _, c := range counts {
+		ruleUIDs := []string{""}
+		if c.RuleUID != nil && *c.RuleUID != "" {
+			ruleUIDs = strings.Split(*c.RuleUID, ",")
+		}
+		for _, uid := range ruleUIDs {
+			entry := c
+			uidCopy := uid
+			entry.RuleUID = &uidCopy
+			k := key(entry)
+			if existing, ok := aggregated[k]; ok {
+				existing.Count += entry.Count
+			} else {
+				aggregated[k] = &entry
+			}
+		}
+	}
+
+	result := make([]Count, 0, len(aggregated))
+	for _, c := range aggregated {
+		result = append(result, *c)
+	}
+
+	// Sort by count descending, breaking ties deterministically so the client-side
+	// topk cutoff is stable when several groups share the same count.
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Count != result[j].Count {
+			return result[i].Count > result[j].Count
+		}
+		return countSortKey(result[i]) < countSortKey(result[j])
+	})
+
+	// Apply limit (client-side topk).
+	if int64(len(result)) > limit {
+		result = result[:limit]
+	}
+
+	return result
+}
+
+// countSortKey returns a deterministic identity for a Count that ignores the
+// aggregated magnitude (Count/Values), used as a stable tie-break so equal-magnitude
+// groups sort in a reproducible order (and the topk cutoff is deterministic).
+func countSortKey(c Count) string {
+	c.Count = 0
+	c.Values = nil
+	b, _ := json.Marshal(c)
+	return string(b)
+}
+
+// defaultStep returns a sensible default step interval for a range query over the given time range.
+// It targets roughly 100 data points across the range.
+func defaultStep(from, to time.Time) time.Duration {
+	d := to.Sub(from) / 100
+	if d < time.Minute {
+		d = time.Minute
+	}
+	return d
+}
+
+// runMetricsRangeQuery executes a sum(count_over_time(...)) range query against
+// Loki for each folder batch and converts the metric matrix results into
+// RangeCount values.
+//
+// Results from multiple batches are aggregated by label set: the RuleUID group-by
+// path via explodeRuleUIDRangeCounts, all other group-bys via mergeRangeCounts. A
+// single batch (the common case) is returned unchanged.
+func (h *LokiReader) runMetricsRangeQuery(ctx context.Context, logqlInners []string, from, to time.Time, limit int64, step time.Duration, groupBy QueryGroupBy) ([]Count, error) {
+	rangeCounts := make([]Count, 0)
+	for _, logqlInner := range logqlInners {
+		logql := buildMetricsRangeQuery(logqlInner, step, groupBy)
+
+		res, err := h.client.MetricsRangeQuery(ctx, logql, from.UnixNano(), to.UnixNano(), limit, int64(step.Seconds()))
+		if err != nil {
+			return nil, fmt.Errorf("loki metrics range query: %w", err)
+		}
+
+		for _, sample := range res.Data.Result {
+			rangeCount, err := parseRangeCount(sample)
+			if err != nil {
+				h.logger.Warn("Ignoring metric range sample", "err", err)
+				continue
+			}
+			rangeCounts = append(rangeCounts, rangeCount)
+		}
+	}
+
+	switch {
+	case groupBy.RuleUID:
+		// When grouping by RuleUID, explode the comma-separated rule_uids into
+		// individual time series, aggregate the per-timestamp values (merging
+		// batches), and apply client-side topk. This mirrors the instant counts path
+		// (explodeRuleUIDCounts).
+		rangeCounts = explodeRuleUIDRangeCounts(rangeCounts, limit)
+	case len(logqlInners) > 1:
+		// Multiple folder batches were queried; merge their per-batch time series.
+		rangeCounts = mergeRangeCounts(rangeCounts)
+	}
+
+	return rangeCounts, nil
+}
+
+// mergeRangeCounts aggregates range-count time series sharing the same label set,
+// summing their per-timestamp values. It is used to combine the per-batch results
+// of a folder-batched range metrics query.
+func mergeRangeCounts(counts []Count) []Count {
+	type aggregate struct {
+		count  Count
+		values map[int64]int64
+	}
+	aggregated := make(map[string]*aggregate)
+
+	for _, c := range counts {
+		k := countSortKey(c)
+		agg, ok := aggregated[k]
+		if !ok {
+			agg = &aggregate{count: c, values: make(map[int64]int64)}
+			aggregated[k] = agg
+		}
+		for _, v := range c.Values {
+			agg.values[v.Timestamp] += v.Count
+		}
+	}
+
+	result := make([]Count, 0, len(aggregated))
+	for _, agg := range aggregated {
+		values := make([]RangeValue, 0, len(agg.values))
+		for ts, cnt := range agg.values {
+			values = append(values, RangeValue{Timestamp: ts, Count: cnt})
+		}
+		sort.Slice(values, func(i, j int) bool {
+			return values[i].Timestamp < values[j].Timestamp
+		})
+		c := agg.count
+		c.Values = values
+		result = append(result, c)
+	}
+
+	return result
+}
+
+// explodeRuleUIDRangeCounts splits range counts with comma-separated rule_uids into
+// individual time series per rule UID, aggregates (sums) the per-timestamp values
+// of series sharing the same (ruleUID + other groupBy dimensions) key, sorts by
+// total count descending, and applies the limit (client-side topk). It is the
+// range-query counterpart of explodeRuleUIDCounts.
+func explodeRuleUIDRangeCounts(counts []Count, limit int64) []Count {
+	type aggregate struct {
+		count  Count
+		values map[int64]int64
+	}
+	aggregated := make(map[string]*aggregate)
+
+	key := func(c Count) string {
+		c0 := c
+		c0.Count = 0
+		c0.Values = nil
+		b, _ := json.Marshal(c0)
+		return string(b)
+	}
+
+	for _, c := range counts {
+		ruleUIDs := []string{""}
+		if c.RuleUID != nil && *c.RuleUID != "" {
+			ruleUIDs = strings.Split(*c.RuleUID, ",")
+		}
+		for _, uid := range ruleUIDs {
+			entry := c
+			uidCopy := uid
+			entry.RuleUID = &uidCopy
+			k := key(entry)
+			agg, ok := aggregated[k]
+			if !ok {
+				agg = &aggregate{count: entry, values: make(map[int64]int64)}
+				aggregated[k] = agg
+			}
+			for _, v := range entry.Values {
+				agg.values[v.Timestamp] += v.Count
+			}
+		}
+	}
+
+	total := func(values []RangeValue) int64 {
+		var sum int64
+		for _, v := range values {
+			sum += v.Count
+		}
+		return sum
+	}
+
+	result := make([]Count, 0, len(aggregated))
+	for _, agg := range aggregated {
+		values := make([]RangeValue, 0, len(agg.values))
+		for ts, cnt := range agg.values {
+			values = append(values, RangeValue{Timestamp: ts, Count: cnt})
+		}
+		sort.Slice(values, func(i, j int) bool {
+			return values[i].Timestamp < values[j].Timestamp
+		})
+		c := agg.count
+		c.Values = values
+		result = append(result, c)
+	}
+
+	// Sort by total count descending, breaking ties deterministically so the
+	// client-side topk cutoff is stable when several series share the same total.
+	sort.Slice(result, func(i, j int) bool {
+		ti, tj := total(result[i].Values), total(result[j].Values)
+		if ti != tj {
+			return ti > tj
+		}
+		return countSortKey(result[i]) < countSortKey(result[j])
+	})
+
+	// Apply limit (client-side topk).
+	if int64(len(result)) > limit {
+		result = result[:limit]
+	}
+
+	return result
+}
+
+// parseRangeCount converts a single Loki MetricRangeSample into a Count.
+func parseRangeCount(sample lokiclient.MetricRangeSample) (Count, error) {
+	entry, err := parseCountLabels(sample.Metric)
+	if err != nil {
+		return Count{}, err
+	}
+
+	entry.Values = make([]RangeValue, 0, len(sample.Values))
+	for _, sv := range sample.Values {
+		ts, err := sv.Timestamp()
+		if err != nil {
+			return Count{}, fmt.Errorf("unparseable timestamp: %w", err)
+		}
+		countStr, err := sv.Value()
+		if err != nil {
+			return Count{}, fmt.Errorf("unparseable value: %w", err)
+		}
+		count, err := strconv.ParseInt(countStr, 10, 64)
+		if err != nil {
+			return Count{}, fmt.Errorf("non-integer count %q: %w", countStr, err)
+		}
+		entry.Values = append(entry.Values, RangeValue{
+			Timestamp: int64(ts),
+			Count:     count,
+		})
+	}
+
+	return entry, nil
+}
+
+// parseCount converts a single Loki MetricSample into a Count.
+func parseCount(sample lokiclient.MetricSample) (Count, error) {
+	countStr, err := sample.Value.Value()
+	if err != nil {
+		return Count{}, fmt.Errorf("unparseable value: %w", err)
+	}
+	count, err := strconv.ParseInt(countStr, 10, 64)
+	if err != nil {
+		return Count{}, fmt.Errorf("non-integer count %q: %w", countStr, err)
+	}
+
+	entry, err := parseCountLabels(sample.Metric)
+	if err != nil {
+		return Count{}, err
+	}
+	entry.Count = count
+
+	return entry, nil
+}
+
+// parseCountLabels converts a single Loki MetricSample into a Count.
+func parseCountLabels(m map[string]string) (Count, error) {
+	entry := Count{}
+	if v, ok := m["receiver"]; ok {
+		entry.Receiver = &v
+	}
+	if v, ok := m["integration"]; ok {
+		entry.Integration = &v
+	}
+	if v, ok := m["integrationIdx"]; ok {
+		i, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return Count{}, fmt.Errorf("non-integer integrationIdx %q: %w", v, err)
+		}
+		entry.IntegrationIndex = &i
+	}
+	if v, ok := m["status"]; ok {
+		s := Status(v)
+		entry.Status = &s
+	}
+	if v, ok := m["outcome"]; ok {
+		o := Outcome(v)
+		entry.Outcome = &o
+	}
+	if v, ok := m["error"]; ok {
+		entry.Error = &v
+	}
+	if v, ok := m["rule_uids"]; ok {
+		// Store the raw comma-separated rule_uids string temporarily in the RuleUID
+		// field. The explodeRuleUIDCounts function will split and reaggregate later.
+		entry.RuleUID = &v
+	}
+	return entry, nil
+}
+
+// buildAlertQuery creates the LogQL to perform the requested alert query.
+// When filter is non-nil, an RBAC matcher restricts results to accessible rule UIDs.
+func buildAlertQuery(query AlertQuery, filter *ruleFilter) (string, error) {
+	selectors := []string{
+		fmt.Sprintf(`%s=%q`, historian.LabelFrom, historian.LabelFromValueAlerts),
+	}
+
+	logql := fmt.Sprintf(`{%s}`, strings.Join(selectors, `,`))
+
+	// UUID filtering uses structured metadata.
+	if query.Uuid != nil && *query.Uuid != "" {
+		logql += fmt.Sprintf(` | uuid = %q`, *query.Uuid)
+	}
+
+	// RBAC: restrict to accessible folders using the single-valued folder_uid metadata.
+	logql += buildAlertFolderFilter(filter)
+
+	logql += ` | json`
+
+	return logql, nil
+}
+
+// runAlertQuery runs the alert query batches and collects alert results. The
+// alerts stream carries a single folder_uid per entry, so folder batches are
+// mutually exclusive and their results can be concatenated without deduplication.
+func (l *LokiReader) runAlertQuery(ctx context.Context, logqls []string, from, to time.Time, limit int64) ([]AlertEntry, error) {
+	alerts := make([]AlertEntry, 0)
+	for _, logql := range logqls {
+		r, err := l.client.RangeQuery(ctx, logql, from.UnixNano(), to.UnixNano(), limit)
+		if err != nil {
+			return nil, fmt.Errorf("loki range query: %w", err)
+		}
+
+		for _, stream := range r.Data.Result {
+			for _, s := range stream.Values {
+				alert, err := parseLokiAlertEntry(s)
+				if err != nil {
+					l.logger.Warn("Ignoring alert history entry", "err", err)
+					continue
+				}
+				alerts = append(alerts, alert)
+			}
+		}
+	}
+
+	// Sort entries by timestamp (descending - newest first).
+	sort.Slice(alerts, func(i, j int) bool {
+		return alerts[i].StartsAt.After(alerts[j].StartsAt)
+	})
+
+	l.logger.Debug("Alert history query complete", "alerts", len(alerts))
+
+	return alerts, nil
+}
+
+// parseLokiAlertEntry unmarshals the JSON stored in an alert entry.
+func parseLokiAlertEntry(s lokiclient.Sample) (AlertEntry, error) {
+	var lokiEntry historian.NotificationHistoryLokiEntryAlert
+	err := json.Unmarshal([]byte(s.V), &lokiEntry)
+	if err != nil {
+		return AlertEntry{}, fmt.Errorf("failed to unmarshal alert entry [%s]: %w", s.T, err)
+	}
+
+	if lokiEntry.SchemaVersion != historian.SchemaVersion {
+		return AlertEntry{}, fmt.Errorf("unsupported schema version [%s]: %d", s.T, lokiEntry.SchemaVersion)
+	}
+
+	labels := lokiEntry.Labels
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+
+	annotations := lokiEntry.Annotations
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+
+	return AlertEntry{
+		Status:      lokiEntry.Status,
+		Labels:      labels,
+		Annotations: annotations,
+		StartsAt:    lokiEntry.StartsAt,
+		EndsAt:      lokiEntry.EndsAt,
+		Enrichments: lokiEntry.ExtraData,
+	}, nil
+}
+
+// buildAlertLabelQuery builds a LogQL query against the alerts stream with label matchers.
+// When ruleUID is provided, a structured metadata filter is added before JSON parsing
+// so Loki can discard non-matching entries without deserializing the log line.
+// After | json, Loki flattens nested label keys so labels.alertname becomes labels_alertname.
+func buildAlertLabelQuery(ruleUID *string, labels Matchers, filter *ruleFilter) (string, error) {
+	logql := fmt.Sprintf(`{%s=%q}`, historian.LabelFrom, historian.LabelFromValueAlerts)
+
+	if ruleUID != nil && *ruleUID != "" {
+		if !validRuleUIDRegex.MatchString(*ruleUID) {
+			return "", fmt.Errorf("%w: rule uid: %q", ErrInvalidQuery, *ruleUID)
+		}
+		logql += fmt.Sprintf(` | rule_uid = %q`, *ruleUID)
+	}
+
+	// RBAC: restrict to accessible folders using the single-valued folder_uid metadata.
+	logql += buildAlertFolderFilter(filter)
+
+	logql += ` | json`
+	for _, matcher := range labels {
+		if !validLabelKeyRegex.MatchString(matcher.Label) {
+			return "", fmt.Errorf("%w: label: %q", ErrInvalidQuery, matcher.Label)
+		}
+		switch matcher.Type {
+		case "=", "!=", "=~", "!~":
+		default:
+			return "", fmt.Errorf("%w: matcher type: %s", ErrInvalidQuery, matcher.Type)
+		}
+		logql += fmt.Sprintf(` | labels_%s %s %q`, matcher.Label, matcher.Type, matcher.Value)
+	}
+	return logql, nil
+}
+
+// buildAlertUUIDMetricsQuery wraps an alert label LogQL query in a
+// sum by (uuid) (count_over_time(...)) aggregation so Loki deduplicates UUIDs server-side.
+func buildAlertUUIDMetricsQuery(logqlInner string, from, to time.Time) string {
+	rangeSeconds := int64(to.Sub(from).Seconds())
+	return fmt.Sprintf(`sum by (uuid) (count_over_time(%s[%ds]))`, logqlInner, rangeSeconds)
+}
+
+// runAlertUUIDQuery runs a metrics query against the alerts stream for each
+// folder batch and extracts the unique UUIDs from the resulting metric labels.
+// Loki deduplicates within a batch server-side via sum by (uuid)
+// (count_over_time(...)); UUIDs are additionally deduplicated across batches here.
+func (l *LokiReader) runAlertUUIDQuery(ctx context.Context, logqls []string, from, to time.Time) ([]string, error) {
+	var uuids []string
+	seen := make(map[string]struct{})
+	for _, logql := range logqls {
+		metricsLogql := buildAlertUUIDMetricsQuery(logql, from, to)
+		r, err := l.client.MetricsQuery(ctx, metricsLogql, to.UnixNano(), maxLimit)
+		if err != nil {
+			return nil, fmt.Errorf("loki metrics query (alert labels): %w", err)
+		}
+		for _, sample := range r.Data.Result {
+			uuid, ok := sample.Metric["uuid"]
+			if !ok || uuid == "" {
+				continue
+			}
+			if _, dup := seen[uuid]; dup {
+				continue
+			}
+			seen[uuid] = struct{}{}
+			uuids = append(uuids, uuid)
+		}
+	}
+	return uuids, nil
+}
+
+// buildNotificationFolderFilter returns a LogQL structured-metadata matcher that
+// keeps only notifications referencing at least one accessible folder. The
+// notifications stream stores folder_uids as a comma-separated list, so each
+// folder UID is anchored to a comma or the start/end of the value. It returns an
+// empty string when filter is nil (RBAC disabled) or grants no access.
+//
+// It renders the full accessible folder set in one fragment; callers that must
+// respect the Loki max query size split the folder set into batches first (see
+// splitFolderKeys) and render one fragment per batch.
+func buildNotificationFolderFilter(filter *ruleFilter) string {
+	if filter.empty() {
+		return ""
+	}
+	return notificationFolderSpec.render(escapeFolderKeys(filter.folderKeys))
+}
+
+// buildAlertFolderFilter returns a LogQL structured-metadata matcher that keeps
+// only alerts belonging to one of the accessible folders. The alerts stream
+// stores a single folder_uid per entry. It returns an empty string when filter
+// is nil or grants no access.
+func buildAlertFolderFilter(filter *ruleFilter) string {
+	if filter.empty() {
+		return ""
+	}
+	return alertFolderSpec.render(escapeFolderKeys(filter.folderKeys))
+}
+
+// escapeFolderKeys regex-escapes each folder UID so it can be embedded safely in
+// a folder push-down alternation.
+func escapeFolderKeys(keys []string) []string {
+	escaped := make([]string, len(keys))
+	for i, key := range keys {
+		escaped[i] = regexp.QuoteMeta(key)
+	}
+	return escaped
+}
+
+// buildQuery creates the LogQL to perform the requested query.
+// If uuids is non-empty, an additional filter is added after | json to match
+// only notifications with one of the given UUIDs.
+func buildQuery(query Query, uuids []string, filter *ruleFilter) (string, error) {
+	selectors := []string{
+		fmt.Sprintf(`%s=%q`, historian.LabelFrom, historian.LabelFromValue),
+	}
+
+	logql := fmt.Sprintf(`{%s}`, strings.Join(selectors, `,`))
+
+	// RuleUID filtering can be performed using the comma separated structured metadata fields.
+	// We can match the uid exactly by anchoring the match to a comma or start/end.
+	if query.RuleUID != nil && *query.RuleUID != "" {
+		// Validate the uid close to where it is used to form the query,
+		// to reduce the risk of introducing a query injection bug.
+		if !validRuleUIDRegex.MatchString(*query.RuleUID) {
+			return "", fmt.Errorf("%w: rule uid: %q", ErrInvalidQuery, *query.RuleUID)
+		}
+		logql += fmt.Sprintf(` | rule_uids =~ "(^|.*,)%s($|,.*)"`, *query.RuleUID)
+	}
+
+	// RBAC: restrict to notifications referencing at least one accessible folder,
+	// using the comma-separated folder_uids structured metadata.
+	logql += buildNotificationFolderFilter(filter)
+
+	// Receiver filtering can be done entirely using structured metadata fields.
+	if query.Receiver != nil && *query.Receiver != "" {
+		logql += fmt.Sprintf(` | receiver = %q`, *query.Receiver)
+	}
+
+	logql += ` | json`
+
+	// Add status filter if specified.
+	if query.Status != nil && *query.Status != "" {
+		logql += fmt.Sprintf(` | status = %q`, *query.Status)
+	}
+
+	// Add group labels filter if specified.
+	if query.GroupLabels != nil {
+		for _, matcher := range *query.GroupLabels {
+			// Validate the matcher close to where it is used to form the query,
+			// to reduce the risk of introducing a query injection bug.
+			if !validLabelKeyRegex.MatchString(matcher.Label) {
+				return "", fmt.Errorf("%w: group label: %q", ErrInvalidQuery, matcher.Label)
+			}
+			switch matcher.Type {
+			case "=", "!=", "=~", "!~":
+			default:
+				return "", fmt.Errorf("%w: matcher type: %s", ErrInvalidQuery, matcher.Type)
+			}
+			logql += fmt.Sprintf(` | groupLabels_%s %s %q`, matcher.Label, matcher.Type, matcher.Value)
+		}
+	}
+
+	// Add UUID filter if specified (used by cross-stream label filtering).
+	// uuid is a JSON field on the notifications stream, so this goes after | json.
+	if len(uuids) > 0 {
+		escaped := make([]string, len(uuids))
+		for i, u := range uuids {
+			escaped[i] = regexp.QuoteMeta(u)
+		}
+		logql += fmt.Sprintf(` | uuid =~ %q`, strings.Join(escaped, "|"))
+	}
+
+	// Add outcome filter if specified.
+	if query.Outcome != nil && *query.Outcome != "" {
+		switch *query.Outcome {
+		case v0alpha1.CreateNotificationqueryRequestNotificationOutcomeSuccess:
+			logql += ` | error = ""`
+		case v0alpha1.CreateNotificationqueryRequestNotificationOutcomeError:
+			logql += ` | error != ""`
+		}
+	}
+
+	return logql, nil
+}
+
+// buildNotificationBatches builds the notification-stream LogQL for each folder
+// batch. When RBAC is disabled (nil filter) or the accessible folder set fits in
+// one query it returns a single query; otherwise it returns one query per batch
+// so no query exceeds the Loki max query size. Every batch shares the same base
+// query (selectors, rule/receiver/label/uuid filters); only the folder push-down
+// alternation differs.
+func (h *LokiReader) buildNotificationBatches(query Query, uuids []string, filter *ruleFilter) ([]string, error) {
+	base, err := buildQuery(query, uuids, nil)
+	if err != nil {
+		return nil, err
+	}
+	if filter == nil {
+		return []string{base}, nil
+	}
+	batches, err := splitFolderKeys(filter.folderKeys, notificationFolderSpec, len(base), h.maxQuerySize)
+	if err != nil {
+		return nil, err
+	}
+	logqls := make([]string, len(batches))
+	for i, batch := range batches {
+		logql, err := buildQuery(query, uuids, &ruleFilter{folderKeys: batch})
+		if err != nil {
+			return nil, err
+		}
+		logqls[i] = logql
+	}
+	return logqls, nil
+}
+
+// buildAlertBatches builds the alerts-stream LogQL for each folder batch, using
+// the single-valued folder_uid push-down. See buildNotificationBatches.
+func (h *LokiReader) buildAlertBatches(query AlertQuery, filter *ruleFilter) ([]string, error) {
+	base, err := buildAlertQuery(query, nil)
+	if err != nil {
+		return nil, err
+	}
+	if filter == nil {
+		return []string{base}, nil
+	}
+	batches, err := splitFolderKeys(filter.folderKeys, alertFolderSpec, len(base), h.maxQuerySize)
+	if err != nil {
+		return nil, err
+	}
+	logqls := make([]string, len(batches))
+	for i, batch := range batches {
+		logql, err := buildAlertQuery(query, &ruleFilter{folderKeys: batch})
+		if err != nil {
+			return nil, err
+		}
+		logqls[i] = logql
+	}
+	return logqls, nil
+}
+
+// buildAlertLabelBatches builds the alerts-stream label LogQL for each folder
+// batch (phase 1 of the cross-stream label lookup). See buildNotificationBatches.
+func (h *LokiReader) buildAlertLabelBatches(ruleUID *string, labels Matchers, filter *ruleFilter) ([]string, error) {
+	base, err := buildAlertLabelQuery(ruleUID, labels, nil)
+	if err != nil {
+		return nil, err
+	}
+	if filter == nil {
+		return []string{base}, nil
+	}
+	batches, err := splitFolderKeys(filter.folderKeys, alertFolderSpec, len(base), h.maxQuerySize)
+	if err != nil {
+		return nil, err
+	}
+	logqls := make([]string, len(batches))
+	for i, batch := range batches {
+		logql, err := buildAlertLabelQuery(ruleUID, labels, &ruleFilter{folderKeys: batch})
+		if err != nil {
+			return nil, err
+		}
+		logqls[i] = logql
+	}
+	return logqls, nil
+}
+
+// runQuery runs the notification query batches and collects results, grouping
+// alerts into notifications.
+//
+// Access is enforced entirely by the folder-based LogQL push-down: alert-rule
+// RBAC is strictly folder-scoped, so any notification that references an
+// accessible folder is fully accessible and its rule UIDs need no further
+// stripping.
+//
+// When more than one batch is queried a notification whose accessible folders are
+// spread across batches matches several batch queries, so results are
+// deduplicated by (timestamp, uuid).
+func (l *LokiReader) runQuery(ctx context.Context, logqls []string, from, to time.Time, limit int64) ([]Entry, error) {
+	entries := make([]Entry, 0)
+	seen := make(map[string]struct{})
+	dedup := len(logqls) > 1
+	for _, logql := range logqls {
+		r, err := l.client.RangeQuery(ctx, logql, from.UnixNano(), to.UnixNano(), limit)
+		if err != nil {
+			return nil, fmt.Errorf("loki range query: %w", err)
+		}
+
+		for _, stream := range r.Data.Result {
+			for _, s := range stream.Values {
+				entry, err := parseLokiEntry(s)
+				if err != nil {
+					l.logger.Warn("Ignoring notification history entry", "err", err)
+					continue
+				}
+				if dedup {
+					key := fmt.Sprintf("%d\x00%s", s.T.UnixNano(), entry.Uuid)
+					if _, ok := seen[key]; ok {
+						continue
+					}
+					seen[key] = struct{}{}
+				}
+				entries = append(entries, entry)
+			}
+		}
+	}
+
+	// Sort entries by timestamp (descending - newest first)
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Timestamp.After(entries[j].Timestamp)
+	})
+
+	// Each batch is capped at limit server-side, but merging multiple folder
+	// batches can exceed it, so truncate to the requested limit (newest first).
+	if int64(len(entries)) > limit {
+		entries = entries[:limit]
+	}
+
+	l.logger.Debug("Notification history query complete", "notifications", len(entries))
+
+	return entries, nil
+}
+
+// parseLokiEntry unmarshals the JSON stored in the entry.
+func parseLokiEntry(s lokiclient.Sample) (Entry, error) {
+	var lokiEntry historian.NotificationHistoryLokiEntry
+	err := json.Unmarshal([]byte(s.V), &lokiEntry)
+	if err != nil {
+		return Entry{}, fmt.Errorf("failed to unmarshal entry [%s]: %w", s.T, err)
+	}
+
+	if lokiEntry.SchemaVersion != 2 {
+		return Entry{}, fmt.Errorf("unsupported schema version [%s]: %d", s.T, lokiEntry.SchemaVersion)
+	}
+
+	outcome := OutcomeSuccess
+	var entryError *string
+	if lokiEntry.Error != "" {
+		outcome = OutcomeError
+		entryError = &lokiEntry.Error
+	}
+
+	groupLabels := lokiEntry.GroupLabels
+	if groupLabels == nil {
+		groupLabels = make(map[string]string)
+	}
+
+	ruleUIDs := lokiEntry.RuleUIDs
+	if ruleUIDs == nil {
+		ruleUIDs = []string{}
+	}
+
+	return Entry{
+		Timestamp:        s.T,
+		Uuid:             lokiEntry.UUID,
+		Receiver:         lokiEntry.Receiver,
+		Integration:      lokiEntry.Integration,
+		IntegrationIndex: int64(lokiEntry.IntegrationIdx),
+		Status:           Status(lokiEntry.Status),
+		Outcome:          outcome,
+		GroupKey:         lokiEntry.GroupKey,
+		GroupLabels:      groupLabels,
+		RuleUIDs:         ruleUIDs,
+		AlertCount:       int64(lokiEntry.AlertCount),
+		Alerts:           []EntryAlert{},
+		Retry:            lokiEntry.Retry,
+		Error:            entryError,
+		Duration:         lokiEntry.Duration,
+		PipelineTime:     lokiEntry.PipelineTime,
+	}, nil
+}

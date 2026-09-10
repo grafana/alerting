@@ -11,11 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/definition"
+	"github.com/grafana/alerting/definition/compat"
 	"github.com/grafana/alerting/http/v0mimir/v0mimirtest"
 )
 
 // ForEachIntegrationTypeReceiver runs the given function for each integration type.
-func ForEachIntegrationTypeReceiver(t *testing.T, f func(configType reflect.Type, receiver definition.Receiver, rawConfig string)) {
+func ForEachIntegrationTypeReceiver(t *testing.T, f func(configType reflect.Type, receiver compat.Receiver, rawConfig string)) {
 	t.Helper()
 	keys := slices.SortedFunc(maps.Keys(AllValidMimirConfigs), func(r reflect.Type, r2 reflect.Type) int {
 		return strings.Compare(r.Name(), r2.Name())

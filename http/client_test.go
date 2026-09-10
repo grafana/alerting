@@ -571,9 +571,9 @@ func TestRedactError(t *testing.T) {
 			want: `Post "<redacted>": dial tcp: i/o timeout`,
 		},
 		{
-			name: "wrapped url.Error is unwrapped and redacted",
+			name: "wrapped url.Error is redacted and keeps outer context",
 			err:  fmt.Errorf("send failed: %w", &url.Error{Op: "Post", URL: "https://secret.example.com/x", Err: errors.New("EOF")}),
-			want: `Post "<redacted>": EOF`,
+			want: `send failed: Post "<redacted>": EOF`,
 		},
 		{
 			name: "non-url error passes through unchanged",

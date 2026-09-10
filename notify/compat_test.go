@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/definition"
+	"github.com/grafana/alerting/definition/compat"
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers/email"
@@ -23,9 +24,7 @@ import (
 func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 	t.Run("returns empty when no receivers", func(t *testing.T) {
 		r := &definition.PostableApiReceiver{
-			Receiver: definition.Receiver{
-				Name: "test-receiver",
-			},
+			Name: "test-receiver",
 		}
 		actual, err := PostableAPIReceiverToReceiverConfig(r)
 		require.NoError(t, err)
@@ -34,9 +33,7 @@ func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 	})
 	t.Run("converts receivers", func(t *testing.T) {
 		r := &definition.PostableApiReceiver{
-			Receiver: definition.Receiver{
-				Name: "test-receiver",
-			},
+			Name: "test-receiver",
 			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
 				GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{
 					{
@@ -75,7 +72,7 @@ func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 	})
 	t.Run("returns error for unknown integration type", func(t *testing.T) {
 		r := &definition.PostableApiReceiver{
-			Receiver: definition.Receiver{Name: "test-receiver"},
+			Name: "test-receiver",
 			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
 				GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{
 					{UID: "uid", Name: "name", Type: "unknown_type"},
@@ -87,7 +84,7 @@ func TestPostableAPIReceiverToAPIReceiver(t *testing.T) {
 	})
 	t.Run("returns error for invalid version", func(t *testing.T) {
 		r := &definition.PostableApiReceiver{
-			Receiver: definition.Receiver{Name: "test-receiver"},
+			Name: "test-receiver",
 			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
 				GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{
 					{UID: "uid", Name: "name", Type: "slack", Version: "v99"},
@@ -145,9 +142,7 @@ func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 	})
 	receivers := []*definition.PostableApiReceiver{
 		{
-			Receiver: definition.Receiver{
-				Name: "test-receiver",
-			},
+			Name: "test-receiver",
 			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
 				GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{
 					{
@@ -164,9 +159,7 @@ func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 			},
 		},
 		{
-			Receiver: definition.Receiver{
-				Name: "test-receiver2",
-			},
+			Name: "test-receiver2",
 			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
 				GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{
 					{
@@ -189,7 +182,7 @@ func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
 	t.Run("returns error when a receiver has invalid integration", func(t *testing.T) {
 		invalid := []*definition.PostableApiReceiver{
 			{
-				Receiver: definition.Receiver{Name: "bad-receiver"},
+				Name: "bad-receiver",
 				PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
 					GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{
 						{UID: "uid", Name: "name", Type: "unknown_type"},
@@ -243,46 +236,38 @@ func TestConfigReceiverToMimirIntegrations(t *testing.T) {
 		assert.Equal(t, 2, found, "expected 2 teams integrations")
 	})
 	t.Run("should not fail if empty", func(t *testing.T) {
-		actual, err = ConfigReceiverToMimirIntegrations(ConfigReceiver{Name: "empty"})
+		actual, err = ConfigReceiverToMimirIntegrations(compat.Receiver{Name: "empty"})
 		require.NoError(t, err)
 		require.Empty(t, actual)
 	})
 }
 
 func TestPostableMimirReceiverToPostableGrafanaReceiver(t *testing.T) {
-	t.Run("returns original pointer when receiver has only Grafana integrations", func(t *testing.T) {
-		receiver := &definition.PostableApiReceiver{
-			Receiver: definition.Receiver{Name: "test"},
-			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
-				GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{
-					{UID: "grafana-uid", Name: "test", Type: "email"},
-				},
-			},
-		}
-		result, err := PostableMimirReceiverToPostableGrafanaReceiver(receiver)
+	t.Run("returns receiver with no integrations when legacy receiver has none", func(t *testing.T) {
+		legacy := compat.Receiver{Name: "test"}
+		result, err := PostableMimirReceiverToPostableGrafanaReceiver(legacy)
 		require.NoError(t, err)
-		assert.Same(t, receiver, result)
+		require.NotNil(t, result)
+		assert.Equal(t, "test", result.Name)
+		assert.Empty(t, result.GrafanaManagedReceivers)
 	})
 
 	t.Run("converts Mimir integrations to Grafana integrations", func(t *testing.T) {
 		wh := webhookV0.GetFullValidConfig()
-		receiver := &definition.PostableApiReceiver{
-			Receiver: definition.Receiver{
-				Name:           "test-receiver",
-				WebhookConfigs: []*webhookV0.Config{&wh},
-			},
+		legacy := compat.Receiver{
+			Name:           "test-receiver",
+			WebhookConfigs: []*webhookV0.Config{&wh},
 		}
 
-		mimirConfigs, err := ConfigReceiverToMimirIntegrations(receiver.Receiver)
+		mimirConfigs, err := ConfigReceiverToMimirIntegrations(legacy)
 		require.NoError(t, err)
 		require.Len(t, mimirConfigs, 1)
 		expectedJSON, err := mimirConfigs[0].ConfigJSON()
 		require.NoError(t, err)
 
-		result, err := PostableMimirReceiverToPostableGrafanaReceiver(receiver)
+		result, err := PostableMimirReceiverToPostableGrafanaReceiver(legacy)
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		assert.NotSame(t, receiver, result)
 		require.Len(t, result.GrafanaManagedReceivers, 1)
 
 		converted := result.GrafanaManagedReceivers[0]
@@ -292,46 +277,19 @@ func TestPostableMimirReceiverToPostableGrafanaReceiver(t *testing.T) {
 		assert.JSONEq(t, string(expectedJSON), string(converted.Settings))
 		assert.False(t, converted.DisableResolveMessage)
 		assert.Nil(t, converted.SecureSettings)
-		assert.False(t, result.HasMimirIntegrations())
-	})
-
-	t.Run("existing Grafana integrations appear before converted Mimir ones", func(t *testing.T) {
-		wh := webhookV0.GetFullValidConfig()
-		grafanaRecv := &definition.PostableGrafanaReceiver{
-			UID:  "existing-uid",
-			Name: "existing",
-			Type: "email",
-		}
-		receiver := &definition.PostableApiReceiver{
-			Receiver: definition.Receiver{
-				Name:           "mixed-receiver",
-				WebhookConfigs: []*webhookV0.Config{&wh},
-			},
-			PostableGrafanaReceivers: definition.PostableGrafanaReceivers{
-				GrafanaManagedReceivers: []*definition.PostableGrafanaReceiver{grafanaRecv},
-			},
-		}
-
-		result, err := PostableMimirReceiverToPostableGrafanaReceiver(receiver)
-		require.NoError(t, err)
-		require.Len(t, result.GrafanaManagedReceivers, 2)
-		assert.Same(t, grafanaRecv, result.GrafanaManagedReceivers[0])
-		assert.Equal(t, "webhook", result.GrafanaManagedReceivers[1].Type)
 	})
 
 	t.Run("assigns per-type UIDs to converted Mimir integrations", func(t *testing.T) {
 		// UIDs are indexed per integration type, so each type starts at 0.
 		em := email_v0mimir1.GetFullValidConfig()
 		wh := webhookV0.GetFullValidConfig()
-		receiver := &definition.PostableApiReceiver{
-			Receiver: definition.Receiver{
-				Name:           "multi-receiver",
-				EmailConfigs:   []*email_v0mimir1.Config{&em},
-				WebhookConfigs: []*webhookV0.Config{&wh},
-			},
+		legacy := compat.Receiver{
+			Name:           "multi-receiver",
+			EmailConfigs:   []*email_v0mimir1.Config{&em},
+			WebhookConfigs: []*webhookV0.Config{&wh},
 		}
 
-		result, err := PostableMimirReceiverToPostableGrafanaReceiver(receiver)
+		result, err := PostableMimirReceiverToPostableGrafanaReceiver(legacy)
 		require.NoError(t, err)
 		require.Len(t, result.GrafanaManagedReceivers, 2)
 
