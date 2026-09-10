@@ -24,8 +24,6 @@ import (
 	jirav1 "github.com/grafana/alerting/receivers/jira/v1"
 	"github.com/grafana/alerting/receivers/kafka"
 	kafkav1 "github.com/grafana/alerting/receivers/kafka/v1"
-	"github.com/grafana/alerting/receivers/line"
-	linev1 "github.com/grafana/alerting/receivers/line/v1"
 	"github.com/grafana/alerting/receivers/mqtt"
 	mqttv1 "github.com/grafana/alerting/receivers/mqtt/v1"
 	"github.com/grafana/alerting/receivers/oncall"
@@ -114,12 +112,6 @@ var AllKnownV1ConfigsForTesting = map[schema.IntegrationType]NotifierConfigTest{
 		Version:      schema.V1,
 		Config:       kafkav1.FullValidConfigForTesting,
 		Secrets:      kafkav1.FullValidSecretsForTesting,
-	},
-	line.Type: {
-		NotifierType: line.Type,
-		Version:      schema.V1,
-		Config:       linev1.FullValidConfigForTesting,
-		Secrets:      linev1.FullValidSecretsForTesting,
 	},
 	mqtt.Type: {
 		NotifierType:                mqtt.Type,
@@ -310,12 +302,6 @@ var AllKnownConfigsForTesting = map[IntegrationVersionKey]NotifierConfigTest{
 		Version:      schema.V1,
 		Config:       kafkav1.FullValidConfigForTesting,
 		Secrets:      kafkav1.FullValidSecretsForTesting,
-	},
-	{line.Type, schema.V1}: {
-		NotifierType: line.Type,
-		Version:      schema.V1,
-		Config:       linev1.FullValidConfigForTesting,
-		Secrets:      linev1.FullValidSecretsForTesting,
 	},
 	{mqtt.Type, schema.V1}: {
 		NotifierType:                mqtt.Type,

@@ -91,6 +91,15 @@ func BuildReceiverIntegrationsWithManifests(
 		// This preserves notification log management ordering (see createReceiverStage).
 		typeCounters := make(map[schema.IntegrationType]int)
 		for _, cfg := range receiver.Integrations {
+			if isRetiredIntegrationType(cfg.Type) {
+				level.Warn(logger).Log(
+					"msg", "skipping retired notification integration",
+					"receiver_name", receiver.Name,
+					"integration_name", cfg.Name,
+					"integration_type", cfg.Type,
+				)
+				continue
+			}
 			idx := typeCounters[cfg.Type]
 			typeCounters[cfg.Type]++
 
