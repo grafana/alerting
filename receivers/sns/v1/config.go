@@ -104,7 +104,7 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 					InputType:    schema.InputTypeText,
 					Placeholder:  "",
 					PropertyName: "access_key",
-					Secure:       true,
+					Secure:       false,
 				},
 				{
 					Label:        "Secret Key",

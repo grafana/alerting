@@ -180,16 +180,6 @@ var knownViolations = map[string]string{
 	// the schema PropertyName) is "chat_id".
 	"telegram/v0mimir1/chat:" + kindStructFieldMissingSchema:    "telegram/v0mimir1 Config.ChatID has json tag \"chat\" but yaml tag/PropertyName \"chat_id\"",
 	"telegram/v0mimir1/chat_id:" + kindSchemaFieldMissingStruct: "telegram/v0mimir1 schema PropertyName \"chat_id\" matches Config.ChatID's yaml tag, not its json tag \"chat\"",
-
-	// pagerduty/v0mimir1: the "images" subform's "source" field doesn't match PagerdutyImage's "src"
-	// json tag - looks like a typo (PagerdutyImage has Src/Alt/Href, not Source).
-	"pagerduty/v0mimir1/images.src:" + kindStructFieldMissingSchema:    "pagerduty/v0mimir1 PagerdutyImage.Src (json tag \"src\") has no matching schema field",
-	"pagerduty/v0mimir1/images.source:" + kindSchemaFieldMissingStruct: "pagerduty/v0mimir1 images subform PropertyName \"source\" doesn't match PagerdutyImage's \"src\" json tag",
-
-	// wecom/v1: Config.EndpointURL (json tag "endpointUrl") is read from settings by NewConfig (it
-	// overrides the default WeCom API endpoint) but isn't exposed as a schema field, so there's no
-	// supported way to set it through the UI.
-	"wecom/v1/endpointUrl:" + kindStructFieldMissingSchema: "wecom/v1 Config.EndpointURL is read from settings in NewConfig but has no schema field",
 }
 
 func TestIntegrationSchemasMatchConfigStructs(t *testing.T) {

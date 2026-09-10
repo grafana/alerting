@@ -174,6 +174,15 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			Placeholder:  "@all",
 			PropertyName: "touser",
 		},
+		{
+			Label:        "Endpoint URL",
+			Description:  "Override the default WeCom API endpoint",
+			Element:      schema.ElementTypeInput,
+			InputType:    schema.InputTypeText,
+			Placeholder:  weComEndpoint,
+			PropertyName: "endpointUrl",
+			Protected:    true,
+		},
 	},
 })
 

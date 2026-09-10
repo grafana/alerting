@@ -80,7 +80,7 @@ func TestGetSecretKeysForContactPointType(t *testing.T) {
 		{receiverType: threema.Type, version: schema.V1, expectedSecretFields: []string{"api_secret"}},
 		{receiverType: opsgenie.Type, version: schema.V1, expectedSecretFields: []string{"apiKey"}},
 		{receiverType: webex.Type, version: schema.V1, expectedSecretFields: []string{"bot_token"}},
-		{receiverType: sns.Type, version: schema.V1, expectedSecretFields: []string{"sigv4.access_key", "sigv4.secret_key"}},
+		{receiverType: sns.Type, version: schema.V1, expectedSecretFields: []string{"sigv4.secret_key"}},
 		{receiverType: mqtt.Type, version: schema.V1, expectedSecretFields: []string{"password", "tlsConfig.caCertificate", "tlsConfig.clientCertificate", "tlsConfig.clientKey"}},
 		{receiverType: jira.Type, version: schema.V1, expectedSecretFields: []string{"user", "password", "api_token"}},
 		{receiverType: victorops.Type, version: schema.V0mimir1, expectedSecretFields: append([]string{"api_key"}, httpConfigSecrets...)},
