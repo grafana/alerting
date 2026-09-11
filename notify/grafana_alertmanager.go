@@ -520,7 +520,7 @@ type result struct {
 	Error        error
 }
 
-func newTestReceiversResult(alert types.Alert, results []result, receivers []models.ReceiverConfig, notifiedAt time.Time) (*TestReceiversResult, int) {
+func newTestReceiversResult(alerts []types.Alert, results []result, receivers []models.ReceiverConfig, notifiedAt time.Time) (*TestReceiversResult, int) {
 	var numBadRequests, numTimeouts, numUnknownErrors int
 
 	m := make(map[string]TestReceiverResult)
@@ -565,7 +565,10 @@ func newTestReceiversResult(alert types.Alert, results []result, receivers []mod
 		m[next.ReceiverName] = tmp
 	}
 	v := new(TestReceiversResult)
-	v.Alert = alert
+	v.Alerts = alerts
+	if len(alerts) > 0 {
+		v.Alert = alerts[0]
+	}
 	v.Receivers = make([]TestReceiverResult, 0, len(receivers))
 	v.NotifedAt = notifiedAt
 	for _, next := range m {
@@ -601,7 +604,8 @@ func TestReceivers(
 	tmplProvider TemplatesProvider,
 ) (*TestReceiversResult, int, error) {
 	now := time.Now() // The start time of the test
-	testAlert := newTestAlert(c.Alert, now, now)
+	testAlerts := newTestAlerts(resolveTestAlertParams(c), now, now)
+	testAlertValues := testAlertsAsValues(testAlerts)
 
 	// All invalid receiver configurations
 	invalid := make([]result, 0, len(c.Receivers))
@@ -638,7 +642,7 @@ func TestReceivers(
 	}
 
 	if len(jobs) == 0 {
-		res, status := newTestReceiversResult(testAlert, invalid, c.Receivers, now)
+		res, status := newTestReceiversResult(testAlertValues, invalid, c.Receivers, now)
 		return res, status, nil
 	}
 
@@ -661,7 +665,7 @@ func TestReceivers(
 				v := result{
 					Config:       next.Config,
 					ReceiverName: next.ReceiverName,
-					Error:        TestNotifier(ctx, next.Notifier, testAlert, now),
+					Error:        TestNotifier(ctx, next.Notifier, testAlerts, now),
 				}
 				resultCh <- v
 			}
@@ -681,7 +685,7 @@ func TestReceivers(
 		results = append(results, next)
 	}
 
-	res, status := newTestReceiversResult(testAlert, append(invalid, results...), c.Receivers, now)
+	res, status := newTestReceiversResult(testAlertValues, append(invalid, results...), c.Receivers, now)
 	return res, status, nil
 }
 
