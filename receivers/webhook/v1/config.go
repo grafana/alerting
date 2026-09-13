@@ -258,7 +258,7 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			Label:        "Authorization Header - Credentials",
 			Description:  "Credentials for the Authorization Request header. Only one of HTTP Basic Authentication or Authorization Request Header can be set.",
 			Element:      schema.ElementTypeInput,
-			InputType:    schema.InputTypeText,
+			InputType:    schema.InputTypePassword,
 			PropertyName: "authorization_credentials",
 			Secure:       true,
 		},
