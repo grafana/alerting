@@ -473,6 +473,16 @@ func TestGetSearchJql(t *testing.T) {
 			expectedJql: `labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
 		},
 		{
+			name: "firing and reopen transition and reopen duration are set",
+			conf: Config{
+				Project:          "TEST",
+				ReopenTransition: "test",
+				ReopenDuration:   model.Duration(10 * time.Minute),
+			},
+			firing:      true,
+			expectedJql: `(statusCategory != Done OR resolutiondate >= -10m) and labels = "ALERT{group1}" and project="TEST" order by status ASC,resolutiondate DESC`,
+		},
+		{
 			name: "firing and custom dedup key field",
 			conf: Config{
 				Project:           "TEST",
