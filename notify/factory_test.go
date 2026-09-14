@@ -155,6 +155,25 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 		require.ErrorContains(t, err, "invalid integration type or version")
 	})
 
+	t.Run("should skip a persisted retired LINE integration", func(t *testing.T) {
+		recCfg := models.ReceiverConfig{
+			Name: "test-receiver",
+			Integrations: []*models.IntegrationConfig{
+				{
+					UID:      "legacy-line-uid",
+					Name:     "legacy-line",
+					Type:     schema.LineType,
+					Version:  schema.V1,
+					Settings: json.RawMessage(`{"token":"retired"}`),
+				},
+			},
+		}
+
+		integrations, err := build(t, recCfg, noopWrapper)
+		require.NoError(t, err)
+		require.Empty(t, integrations)
+	})
+
 	t.Run("should return error for unknown version", func(t *testing.T) {
 		recCfg := models.ReceiverConfig{
 			Name: "test-receiver",
