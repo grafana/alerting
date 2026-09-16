@@ -166,21 +166,10 @@ const (
 	kindSecureFieldNotSecretLike = "secure_field_not_secret_like"
 )
 
-// knownViolations is a documented allow-list of pre-existing mismatches. Fixing them would mean
-// changing an integration's config struct or schema, which is out of scope for this test - it only
-// enforces the invariant mechanically and reports violations. Any violation NOT in this list still
-// fails the suite. If an entry here stops occurring, the test also fails, so the list can't drift.
-var knownViolations = map[string]string{
-	// jira/v0mimir1: the "Fields" struct field's JSON tag is "custom_fields", but its YAML tag (and
-	// the schema PropertyName) is "fields". Per CLAUDE.md, PropertyName must track the JSON tag.
-	"jira/v0mimir1/custom_fields:" + kindStructFieldMissingSchema: "jira/v0mimir1 Config.Fields has json tag \"custom_fields\" but yaml tag/PropertyName \"fields\"",
-	"jira/v0mimir1/fields:" + kindSchemaFieldMissingStruct:        "jira/v0mimir1 schema PropertyName \"fields\" matches Config.Fields' yaml tag, not its json tag \"custom_fields\"",
-
-	// telegram/v0mimir1: same class of bug - "ChatID"'s JSON tag is "chat", but its YAML tag (and
-	// the schema PropertyName) is "chat_id".
-	"telegram/v0mimir1/chat:" + kindStructFieldMissingSchema:    "telegram/v0mimir1 Config.ChatID has json tag \"chat\" but yaml tag/PropertyName \"chat_id\"",
-	"telegram/v0mimir1/chat_id:" + kindSchemaFieldMissingStruct: "telegram/v0mimir1 schema PropertyName \"chat_id\" matches Config.ChatID's yaml tag, not its json tag \"chat\"",
-}
+// knownViolations allow-lists a mismatch we accept, keyed by violation and explaining why. Any
+// violation absent from this list fails the suite; an entry that stops occurring also fails it, so
+// the list cannot silently drift out of date. It is empty: every violation found so far was a bug.
+var knownViolations = map[string]string{}
 
 func TestIntegrationSchemasMatchConfigStructs(t *testing.T) {
 	cases := []schemaCase{

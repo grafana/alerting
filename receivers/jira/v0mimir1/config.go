@@ -212,7 +212,7 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			Label:        "Fields",
 			Description:  "Other issue and custom fields",
 			Element:      schema.ElementTypeKeyValueMap,
-			PropertyName: "fields",
+			PropertyName: "custom_fields",
 		},
 		httpcfg.V0HttpConfigOption(),
 	},
