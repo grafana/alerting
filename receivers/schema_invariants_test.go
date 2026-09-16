@@ -1,7 +1,6 @@
 package receivers_test
 
 import (
-	"fmt"
 	"reflect"
 	"sort"
 	"strings"
@@ -146,31 +145,6 @@ func newSchemaCase(t *testing.T, integration string, s schema.IntegrationTypeSch
 	}
 }
 
-// violation is one mismatch between a schema field and its config struct.
-type violation struct {
-	integration string
-	version     schema.Version
-	path        string
-	kind        string
-	detail      string
-}
-
-func (v violation) key() string {
-	return fmt.Sprintf("%s/%s/%s:%s", v.integration, v.version, v.path, v.kind)
-}
-
-const (
-	kindSchemaFieldMissingStruct = "schema_field_missing_struct_field"
-	kindStructFieldMissingSchema = "struct_field_missing_schema_field"
-	kindSecretTypeNotSecure      = "secret_type_not_marked_secure"
-	kindSecureFieldNotSecretLike = "secure_field_not_secret_like"
-)
-
-// knownViolations allow-lists a mismatch we accept, keyed by violation and explaining why. Any
-// violation absent from this list fails the suite; an entry that stops occurring also fails it, so
-// the list cannot silently drift out of date. It is empty: every violation found so far was a bug.
-var knownViolations = map[string]string{}
-
 func TestIntegrationSchemasMatchConfigStructs(t *testing.T) {
 	cases := []schemaCase{
 		newSchemaCase(t, "dingding", dingding.Schema, dingdingv1.Version, dingdingv1.Config{}),
@@ -227,85 +201,43 @@ func TestIntegrationSchemasMatchConfigStructs(t *testing.T) {
 		newSchemaCase(t, "wecom", wecom.Schema, wecomv1.Version, wecomv1.Config{}),
 	}
 
-	var violations []violation
 	for _, c := range cases {
-		compareFieldsToStruct(c.integration, c.version, "", c.fields, c.configType, &violations)
+		t.Run(c.integration+"/"+string(c.version), func(t *testing.T) {
+			compareFieldsToStruct(t, "", c.fields, c.configType)
+		})
 	}
-
-	unexpected := make([]violation, 0, len(violations))
-	seenKnown := map[string]bool{}
-	for _, v := range violations {
-		if _, ok := knownViolations[v.key()]; ok {
-			seenKnown[v.key()] = true
-			continue
-		}
-		unexpected = append(unexpected, v)
-	}
-
-	// A knownViolations entry that no longer reproduces means the underlying bug was fixed - the
-	// allow-list must be trimmed so it can't silently mask a regression later.
-	var stale []string
-	for key := range knownViolations {
-		if !seenKnown[key] {
-			stale = append(stale, key)
-		}
-	}
-	sort.Strings(stale)
-
-	if len(unexpected) == 0 && len(stale) == 0 {
-		return
-	}
-
-	sort.Slice(unexpected, func(i, j int) bool { return unexpected[i].key() < unexpected[j].key() })
-
-	var sb strings.Builder
-	if len(unexpected) > 0 {
-		fmt.Fprintf(&sb, "%d unexpected schema/config invariant violation(s):\n", len(unexpected))
-		for _, v := range unexpected {
-			fmt.Fprintf(&sb, "  [%s] %s %s: %s\n", v.kind, v.integration, v.version, v.detail)
-		}
-	}
-	if len(stale) > 0 {
-		fmt.Fprintf(&sb, "%d stale knownViolations entry/entries (no longer reproduces - remove from the allow-list):\n", len(stale))
-		for _, key := range stale {
-			fmt.Fprintf(&sb, "  %s: %s\n", key, knownViolations[key])
-		}
-	}
-	t.Error(sb.String())
 }
 
-// compareFieldsToStruct compares one schema version's Options against the flattened fields of its
-// backing config struct t, recording every mismatch into violations. path is the dotted location of
-// fields/t within the integration (empty for the top-level struct, "http_config" etc. for subforms).
-func compareFieldsToStruct(integration string, version schema.Version, path string, fields []schema.Field, t reflect.Type, violations *[]violation) {
-	flat := flattenConfigFields(t)
-
+// compareFieldsToStruct checks schema fields against the flattened config fields.
+// path identifies nested fields in failure messages.
+func compareFieldsToStruct(t *testing.T, path string, fields []schema.Field, configType reflect.Type) {
+	t.Helper()
+	flat := flattenConfigFields(configType)
 	seen := make(map[string]bool, len(fields))
 	for _, f := range fields {
 		seen[f.PropertyName] = true
-
+		fieldPath := joinPath(path, f.PropertyName)
 		sf, ok := flat[f.PropertyName]
 		if !ok {
-			*violations = append(*violations, violation{
-				integration: integration,
-				version:     version,
-				path:        joinPath(path, f.PropertyName),
-				kind:        kindSchemaFieldMissingStruct,
-				detail:      fmt.Sprintf("schema field %q has no struct field with a matching json tag in %s", f.PropertyName, t),
-			})
+			t.Errorf("%s: schema field has no struct field with a matching json tag in %s", fieldPath, configType)
 			continue
 		}
 
-		checkSecretInvariant(integration, version, joinPath(path, f.PropertyName), f, sf, violations)
+		if isSecretGoType(sf.Type) && !f.Secure {
+			t.Errorf("%s: struct field %s has type %s but schema field is not marked Secure", fieldPath, sf.Name, sf.Type)
+		}
+		// Native receivers may decrypt secrets into plain strings.
+		if f.Secure && !isPlausibleSecretHolder(sf.Type) {
+			t.Errorf("%s: schema field is marked Secure but struct field %s has type %s, which can't hold a secret", fieldPath, sf.Name, sf.Type)
+		}
 
 		if !isRecursableElement(f.Element) {
 			continue
 		}
 		nested := subformStructType(sf.Type)
-		if nested == nil || !isDeepCheckable(nested) {
-			continue
+		if nested != nil && isDeepCheckable(nested) {
+			compareFieldsToStruct(t, fieldPath, f.SubformOptions, nested)
 		}
-		compareFieldsToStruct(integration, version, joinPath(path, f.PropertyName), f.SubformOptions, nested, violations)
 	}
 
 	// Sort for deterministic output.
@@ -315,44 +247,10 @@ func compareFieldsToStruct(integration string, version schema.Version, path stri
 	}
 	sort.Strings(tags)
 	for _, tag := range tags {
-		if seen[tag] {
-			continue
+		if !seen[tag] {
+			sf := flat[tag]
+			t.Errorf("%s: struct field %s (type %s) has no matching schema field", joinPath(path, tag), sf.Name, sf.Type)
 		}
-		sf := flat[tag]
-		*violations = append(*violations, violation{
-			integration: integration,
-			version:     version,
-			path:        joinPath(path, tag),
-			kind:        kindStructFieldMissingSchema,
-			detail:      fmt.Sprintf("struct field %s (json tag %q, type %s) has no matching schema field", sf.Name, tag, sf.Type),
-		})
-	}
-}
-
-// checkSecretInvariant enforces rule 2: a Secret/SecretURL-typed struct field must be Secure in the
-// schema, and a Secure schema field must map to a struct field that's actually capable of holding a
-// secret. Plain strings are accepted on the Secure side because several receiver generations (v1
-// receivers, and shared types like receivers.TLSConfig) decrypt secrets into a plain string field
-// rather than a receivers.Secret/SecretURL - only the legacy v0mimir1/v0mimir2 receivers use the
-// latter. A struct/slice/bool/etc. field marked Secure would be a real bug; a string one is not.
-func checkSecretInvariant(integration string, version schema.Version, path string, f schema.Field, sf reflect.StructField, violations *[]violation) {
-	if isSecretGoType(sf.Type) && !f.Secure {
-		*violations = append(*violations, violation{
-			integration: integration,
-			version:     version,
-			path:        path,
-			kind:        kindSecretTypeNotSecure,
-			detail:      fmt.Sprintf("struct field %s has type %s but schema field %q is not marked Secure", sf.Name, sf.Type, f.PropertyName),
-		})
-	}
-	if f.Secure && !isPlausibleSecretHolder(sf.Type) {
-		*violations = append(*violations, violation{
-			integration: integration,
-			version:     version,
-			path:        path,
-			kind:        kindSecureFieldNotSecretLike,
-			detail:      fmt.Sprintf("schema field %q is marked Secure but struct field %s has type %s, which can't hold a secret", f.PropertyName, sf.Name, sf.Type),
-		})
 	}
 }
 
