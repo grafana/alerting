@@ -1,4 +1,4 @@
-package receivers_test
+package notify
 
 import (
 	"reflect"
@@ -9,81 +9,37 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/receivers"
-	"github.com/grafana/alerting/receivers/schema"
-
-	"github.com/grafana/alerting/receivers/dingding"
 	dingdingv1 "github.com/grafana/alerting/receivers/dingding/v1"
-
-	"github.com/grafana/alerting/receivers/discord"
 	discordv0mimir1 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	discordv1 "github.com/grafana/alerting/receivers/discord/v1"
-
-	"github.com/grafana/alerting/receivers/email"
 	emailv0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
-
-	"github.com/grafana/alerting/receivers/googlechat"
 	googlechatv1 "github.com/grafana/alerting/receivers/googlechat/v1"
-
-	"github.com/grafana/alerting/receivers/jira"
 	jirav0mimir1 "github.com/grafana/alerting/receivers/jira/v0mimir1"
-
-	"github.com/grafana/alerting/receivers/kafka"
 	kafkav1 "github.com/grafana/alerting/receivers/kafka/v1"
-
-	"github.com/grafana/alerting/receivers/line"
 	linev1 "github.com/grafana/alerting/receivers/line/v1"
-
-	"github.com/grafana/alerting/receivers/mqtt"
 	mqttv1 "github.com/grafana/alerting/receivers/mqtt/v1"
-
-	"github.com/grafana/alerting/receivers/opsgenie"
 	opsgeniev0mimir1 "github.com/grafana/alerting/receivers/opsgenie/v0mimir1"
-
-	"github.com/grafana/alerting/receivers/pagerduty"
 	pagerdutyv0mimir1 "github.com/grafana/alerting/receivers/pagerduty/v0mimir1"
 	pagerdutyv1 "github.com/grafana/alerting/receivers/pagerduty/v1"
-
-	"github.com/grafana/alerting/receivers/pushover"
 	pushoverv0mimir1 "github.com/grafana/alerting/receivers/pushover/v0mimir1"
-
-	"github.com/grafana/alerting/receivers/sensugo"
+	"github.com/grafana/alerting/receivers/schema"
 	sensugov1 "github.com/grafana/alerting/receivers/sensugo/v1"
-
-	"github.com/grafana/alerting/receivers/slack"
 	slackv0mimir1 "github.com/grafana/alerting/receivers/slack/v0mimir1"
 	slackv1 "github.com/grafana/alerting/receivers/slack/v1"
-
-	"github.com/grafana/alerting/receivers/sns"
 	snsv0mimir1 "github.com/grafana/alerting/receivers/sns/v0mimir1"
 	snsv1 "github.com/grafana/alerting/receivers/sns/v1"
-
-	"github.com/grafana/alerting/receivers/teams"
 	teamsv0mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
 	teamsv0mimir2 "github.com/grafana/alerting/receivers/teams/v0mimir2"
 	teamsv1 "github.com/grafana/alerting/receivers/teams/v1"
-
-	"github.com/grafana/alerting/receivers/telegram"
 	telegramv0mimir1 "github.com/grafana/alerting/receivers/telegram/v0mimir1"
 	telegramv1 "github.com/grafana/alerting/receivers/telegram/v1"
-
-	"github.com/grafana/alerting/receivers/threema"
 	threemav1 "github.com/grafana/alerting/receivers/threema/v1"
-
-	"github.com/grafana/alerting/receivers/victorops"
 	victoropsv0mimir1 "github.com/grafana/alerting/receivers/victorops/v0mimir1"
 	victoropsv1 "github.com/grafana/alerting/receivers/victorops/v1"
-
-	"github.com/grafana/alerting/receivers/webex"
 	webexv0mimir1 "github.com/grafana/alerting/receivers/webex/v0mimir1"
 	webexv1 "github.com/grafana/alerting/receivers/webex/v1"
-
-	"github.com/grafana/alerting/receivers/webhook"
 	webhookv0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
-
-	"github.com/grafana/alerting/receivers/wechat"
 	wechatv0mimir1 "github.com/grafana/alerting/receivers/wechat/v0mimir1"
-
-	"github.com/grafana/alerting/receivers/wecom"
 	wecomv1 "github.com/grafana/alerting/receivers/wecom/v1"
 )
 
@@ -127,15 +83,15 @@ const receiversPkgPrefix = "github.com/grafana/alerting/receivers"
 // json.RawMessage-based factory functions, not the concrete Config type, so there's no way to
 // derive this table from the registry - it has to be listed explicitly.
 type schemaCase struct {
-	integration string
+	integration schema.IntegrationType
 	version     schema.Version
 	fields      []schema.Field
 	configType  reflect.Type
 }
 
-func newSchemaCase(t *testing.T, integration string, s schema.IntegrationTypeSchema, version schema.Version, cfg any) schemaCase {
+func newSchemaCase(t *testing.T, integration schema.IntegrationType, version schema.Version, cfg any) schemaCase {
 	t.Helper()
-	v, ok := s.GetVersion(version)
+	v, ok := GetSchemaVersionForIntegration(integration, version)
 	require.True(t, ok, "%s: version %s not found in its IntegrationTypeSchema", integration, version)
 	return schemaCase{
 		integration: integration,
@@ -147,62 +103,62 @@ func newSchemaCase(t *testing.T, integration string, s schema.IntegrationTypeSch
 
 func TestIntegrationSchemasMatchConfigStructs(t *testing.T) {
 	cases := []schemaCase{
-		newSchemaCase(t, "dingding", dingding.Schema, dingdingv1.Version, dingdingv1.Config{}),
+		newSchemaCase(t, "dingding", dingdingv1.Version, dingdingv1.Config{}),
 
-		newSchemaCase(t, "discord", discord.Schema, discordv0mimir1.Version, discordv0mimir1.Config{}),
-		newSchemaCase(t, "discord", discord.Schema, discordv1.Version, discordv1.Config{}),
+		newSchemaCase(t, "discord", discordv0mimir1.Version, discordv0mimir1.Config{}),
+		newSchemaCase(t, "discord", discordv1.Version, discordv1.Config{}),
 
-		newSchemaCase(t, "email", email.Schema, emailv0mimir1.Version, emailv0mimir1.Config{}),
+		newSchemaCase(t, "email", emailv0mimir1.Version, emailv0mimir1.Config{}),
 
-		newSchemaCase(t, "googlechat", googlechat.Schema, googlechatv1.Version, googlechatv1.Config{}),
+		newSchemaCase(t, "googlechat", googlechatv1.Version, googlechatv1.Config{}),
 
-		newSchemaCase(t, "jira", jira.Schema, jirav0mimir1.Version, jirav0mimir1.Config{}),
+		newSchemaCase(t, "jira", jirav0mimir1.Version, jirav0mimir1.Config{}),
 
-		newSchemaCase(t, "kafka", kafka.Schema, kafkav1.Version, kafkav1.Config{}),
+		newSchemaCase(t, "kafka", kafkav1.Version, kafkav1.Config{}),
 
-		newSchemaCase(t, "line", line.Schema, linev1.Version, linev1.Config{}),
+		newSchemaCase(t, "line", linev1.Version, linev1.Config{}),
 
-		newSchemaCase(t, "mqtt", mqtt.Schema, mqttv1.Version, mqttv1.Config{}),
+		newSchemaCase(t, "mqtt", mqttv1.Version, mqttv1.Config{}),
 
-		newSchemaCase(t, "opsgenie", opsgenie.Schema, opsgeniev0mimir1.Version, opsgeniev0mimir1.Config{}),
+		newSchemaCase(t, "opsgenie", opsgeniev0mimir1.Version, opsgeniev0mimir1.Config{}),
 
-		newSchemaCase(t, "pagerduty", pagerduty.Schema, pagerdutyv0mimir1.Version, pagerdutyv0mimir1.Config{}),
-		newSchemaCase(t, "pagerduty", pagerduty.Schema, pagerdutyv1.Version, pagerdutyv1.Config{}),
+		newSchemaCase(t, "pagerduty", pagerdutyv0mimir1.Version, pagerdutyv0mimir1.Config{}),
+		newSchemaCase(t, "pagerduty", pagerdutyv1.Version, pagerdutyv1.Config{}),
 
-		newSchemaCase(t, "pushover", pushover.Schema, pushoverv0mimir1.Version, pushoverv0mimir1.Config{}),
+		newSchemaCase(t, "pushover", pushoverv0mimir1.Version, pushoverv0mimir1.Config{}),
 
-		newSchemaCase(t, "sensugo", sensugo.Schema, sensugov1.Version, sensugov1.Config{}),
+		newSchemaCase(t, "sensugo", sensugov1.Version, sensugov1.Config{}),
 
-		newSchemaCase(t, "slack", slack.Schema, slackv0mimir1.Version, slackv0mimir1.Config{}),
-		newSchemaCase(t, "slack", slack.Schema, slackv1.Version, slackv1.Config{}),
+		newSchemaCase(t, "slack", slackv0mimir1.Version, slackv0mimir1.Config{}),
+		newSchemaCase(t, "slack", slackv1.Version, slackv1.Config{}),
 
-		newSchemaCase(t, "sns", sns.Schema, snsv0mimir1.Version, snsv0mimir1.Config{}),
-		newSchemaCase(t, "sns", sns.Schema, snsv1.Version, snsv1.Config{}),
+		newSchemaCase(t, "sns", snsv0mimir1.Version, snsv0mimir1.Config{}),
+		newSchemaCase(t, "sns", snsv1.Version, snsv1.Config{}),
 
-		newSchemaCase(t, "teams", teams.Schema, teamsv0mimir1.Version, teamsv0mimir1.Config{}),
-		newSchemaCase(t, "teams", teams.Schema, teamsv0mimir2.Version, teamsv0mimir2.Config{}),
-		newSchemaCase(t, "teams", teams.Schema, teamsv1.Version, teamsv1.Config{}),
+		newSchemaCase(t, "teams", teamsv0mimir1.Version, teamsv0mimir1.Config{}),
+		newSchemaCase(t, "teams", teamsv0mimir2.Version, teamsv0mimir2.Config{}),
+		newSchemaCase(t, "teams", teamsv1.Version, teamsv1.Config{}),
 
-		newSchemaCase(t, "telegram", telegram.Schema, telegramv0mimir1.Version, telegramv0mimir1.Config{}),
-		newSchemaCase(t, "telegram", telegram.Schema, telegramv1.Version, telegramv1.Config{}),
+		newSchemaCase(t, "telegram", telegramv0mimir1.Version, telegramv0mimir1.Config{}),
+		newSchemaCase(t, "telegram", telegramv1.Version, telegramv1.Config{}),
 
-		newSchemaCase(t, "threema", threema.Schema, threemav1.Version, threemav1.Config{}),
+		newSchemaCase(t, "threema", threemav1.Version, threemav1.Config{}),
 
-		newSchemaCase(t, "victorops", victorops.Schema, victoropsv0mimir1.Version, victoropsv0mimir1.Config{}),
-		newSchemaCase(t, "victorops", victorops.Schema, victoropsv1.Version, victoropsv1.Config{}),
+		newSchemaCase(t, "victorops", victoropsv0mimir1.Version, victoropsv0mimir1.Config{}),
+		newSchemaCase(t, "victorops", victoropsv1.Version, victoropsv1.Config{}),
 
-		newSchemaCase(t, "webex", webex.Schema, webexv0mimir1.Version, webexv0mimir1.Config{}),
-		newSchemaCase(t, "webex", webex.Schema, webexv1.Version, webexv1.Config{}),
+		newSchemaCase(t, "webex", webexv0mimir1.Version, webexv0mimir1.Config{}),
+		newSchemaCase(t, "webex", webexv1.Version, webexv1.Config{}),
 
-		newSchemaCase(t, "webhook", webhook.Schema, webhookv0mimir1.Version, webhookv0mimir1.Config{}),
+		newSchemaCase(t, "webhook", webhookv0mimir1.Version, webhookv0mimir1.Config{}),
 
-		newSchemaCase(t, "wechat", wechat.Schema, wechatv0mimir1.Version, wechatv0mimir1.Config{}),
+		newSchemaCase(t, "wechat", wechatv0mimir1.Version, wechatv0mimir1.Config{}),
 
-		newSchemaCase(t, "wecom", wecom.Schema, wecomv1.Version, wecomv1.Config{}),
+		newSchemaCase(t, "wecom", wecomv1.Version, wecomv1.Config{}),
 	}
 
 	for _, c := range cases {
-		t.Run(c.integration+"/"+string(c.version), func(t *testing.T) {
+		t.Run(string(c.integration)+"/"+string(c.version), func(t *testing.T) {
 			compareFieldsToStruct(t, "", c.fields, c.configType)
 		})
 	}
