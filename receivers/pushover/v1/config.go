@@ -164,6 +164,12 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			SelectOptions: pushoverSoundOptions,
 			PropertyName:  "okSound",
 		},
+		{
+			Label:        "Upload image",
+			Description:  "Upload an image with the notification. Enabled by default.",
+			Element:      schema.ElementTypeCheckbox,
+			PropertyName: "uploadImage",
+		},
 		{ // New in 9.3.
 			Label:        "Title",
 			Element:      schema.ElementTypeTextArea,
