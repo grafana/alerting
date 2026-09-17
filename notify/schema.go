@@ -266,14 +266,14 @@ func IntegrationTypeFromMimirTypeReflect(t reflect.Type) (schema.IntegrationType
 	return "", errors.New("not a struct or slice")
 }
 
-func GetFactoryForIntegrationVersion(t schema.IntegrationType, v schema.Version) (receivers.IntegrationVersionFactory, bool) {
+func GetFactoryForIntegrationVersion(t schema.IntegrationType, v schema.Version) (receivers.VersionFactory, bool) {
 	initSchemaOnce.Do(initSchemas)
 	if canonical, ok := aliasToType[t]; ok {
 		t = canonical
 	}
 	sch, ok := allSchemas[t]
 	if !ok {
-		return receivers.IntegrationVersionFactory{}, false
+		return nil, false
 	}
 	return sch.GetFactoryForVersion(v)
 }

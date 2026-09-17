@@ -349,8 +349,10 @@ func TestGetFactoryForIntegrationVersion(t *testing.T) {
 	t.Run("should return factory for all known integration versions", func(t *testing.T) {
 		for key := range notifytest.AllKnownConfigsForTesting {
 			t.Run(fmt.Sprintf("%s-%s", key.Type, key.Version), func(t *testing.T) {
-				_, ok := GetFactoryForIntegrationVersion(key.Type, key.Version)
+				factory, ok := GetFactoryForIntegrationVersion(key.Type, key.Version)
 				require.True(t, ok)
+				assert.Equal(t, key.Version, factory.Version())
+				require.NotNil(t, factory.ConfigType())
 			})
 		}
 	})

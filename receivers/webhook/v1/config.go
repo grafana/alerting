@@ -14,7 +14,10 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-const Version = schema.V1
+const (
+	Type    = schema.WebhookType
+	Version = schema.V1
+)
 const NoopURL = "grafana://noop"
 
 type CustomPayload struct {
@@ -189,22 +192,13 @@ func OmitRestrictedHeaders(headers map[string]string) (map[string]string, []stri
 	return safeHeaders, omitted
 }
 
-var Factory = receivers.IntegrationVersionFactory{
-	Version: Version,
-	Type:    schema.WebhookType,
-	ValidateConfig: func(message json.RawMessage, decryptFunc receivers.DecryptFunc) error {
-		_, err := NewConfig(message, decryptFunc)
-		return err
-	},
-	NewNotifier: func(message json.RawMessage, decryptFunc receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
-		cfg, err := NewConfig(message, decryptFunc)
-		if err != nil {
-			return nil, err
-		}
+var Factory = receivers.NewIntegrationVersionFactory(
+	Type, Version, NewConfig,
+	func(cfg Config, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
 		ch := New(cfg, m, opts.Template, opts.Sender, opts.Images, opts.Logger, opts.OrgID)
 		return ch, nil
 	},
-}
+)
 
 var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
