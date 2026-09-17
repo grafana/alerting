@@ -166,7 +166,7 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 		},
 		{
 			Label:        "Upload image",
-			Description:  "Upload an image with the notification. Enabled by default.",
+			Description:  "Upload an image with the notification.",
 			Element:      schema.ElementTypeCheckbox,
 			PropertyName: "uploadImage",
 		},
