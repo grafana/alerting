@@ -167,7 +167,7 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			Description:  "ID of the chat where to send the messages",
 			Element:      schema.ElementTypeInput,
 			InputType:    schema.InputTypeText,
-			PropertyName: "chat_id",
+			PropertyName: "chat",
 			Required:     true,
 		},
 		{

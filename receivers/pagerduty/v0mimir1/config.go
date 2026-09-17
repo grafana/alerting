@@ -223,7 +223,7 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 					Label:        "Source",
 					Element:      schema.ElementTypeInput,
 					InputType:    schema.InputTypeText,
-					PropertyName: "source",
+					PropertyName: "src",
 				},
 				{
 					Label:        "Alt",
