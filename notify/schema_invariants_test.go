@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	alertingHTTP "github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
@@ -58,8 +59,7 @@ func TestIntegrationSchemasMatchConfigStructs(t *testing.T) {
 				require.Equal(t, reflect.Struct, derefType(configType).Kind())
 				// These parsers use function-local wire structs; their output configs have no JSON tags.
 				if version.Version == schema.V1 && slices.Contains([]schema.IntegrationType{
-					schema.AlertManagerType, schema.OnCallType,
-					schema.OpsGenieType, schema.PushoverType, schema.WebhookType,
+					schema.AlertManagerType, schema.OpsGenieType, schema.PushoverType,
 				}, integration.Type) {
 					fixture, ok := notifytest.AllKnownConfigsForTesting[notifytest.IntegrationVersionKey{Type: integration.Type, Version: version.Version}]
 					require.True(t, ok, "integration has no full valid JSON fixture")
@@ -68,16 +68,30 @@ func TestIntegrationSchemasMatchConfigStructs(t *testing.T) {
 					}))
 					var config map[string]any
 					require.NoError(t, json.Unmarshal([]byte(fixture.Config), &config))
-					// Webhook advertises HTTP options parsed separately by notify.
-					if integration.Type == schema.WebhookType {
-						var httpConfig map[string]any
-						require.NoError(t, json.Unmarshal([]byte(notifytest.FullValidHTTPConfigForTesting), &httpConfig))
-						config["http_config"] = httpConfig["http_config"]
-					}
 					compareFieldsToJSON(t, "", version.Options, []map[string]any{config})
 					return
 				}
-				compareFieldsToStruct(t, "", version.Options, configType)
+				options := version.Options
+				if integration.Type == schema.WebhookType && version.Version == schema.V1 {
+					// notify parses http_config separately from the notifier's settings.
+					options = make([]schema.Field, 0, len(version.Options))
+					httpFields := 0
+					for _, field := range version.Options {
+						if field.PropertyName == "http_config" {
+							httpFields++
+							compareFieldsToStruct(t, "http_config", field.SubformOptions, reflect.TypeFor[alertingHTTP.HTTPClientConfig]())
+							// HTTP types are outside the struct walk's receivers package
+							// boundary. Retain recursive fixture coverage for their subforms.
+							var httpConfig map[string]any
+							require.NoError(t, json.Unmarshal([]byte(notifytest.FullValidHTTPConfigForTesting), &httpConfig))
+							compareFieldsToJSON(t, "", []schema.Field{field}, []map[string]any{httpConfig})
+							continue
+						}
+						options = append(options, field)
+					}
+					require.Equal(t, 1, httpFields)
+				}
+				compareFieldsToStruct(t, "", options, configType)
 			})
 		}
 	}
