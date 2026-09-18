@@ -8,19 +8,26 @@ import (
 )
 
 // DelimitedStrings encodes a slice of strings as a delimiter-separated string.
-// Commas, semicolons, and newlines separate values. Empty segments are
-// discarded, but whitespace within segments is preserved.
+// Commas, semicolons, and newlines separate values. Empty and whitespace-only
+// segments are discarded, but whitespace around nonempty values is preserved.
 // An empty string decodes to nil; a nonempty string containing only delimiters
-// decodes to a non-nil empty slice.
+// or whitespace decodes to a non-nil empty slice.
 type DelimitedStrings []string
 
 func parseDelimitedStrings(value string) DelimitedStrings {
 	if value == "" {
 		return nil
 	}
-	return strings.FieldsFunc(value, func(r rune) bool {
+	segments := strings.FieldsFunc(value, func(r rune) bool {
 		return r == ',' || r == ';' || r == '\n'
 	})
+	result := make(DelimitedStrings, 0, len(segments))
+	for _, segment := range segments {
+		if strings.TrimSpace(segment) != "" {
+			result = append(result, segment)
+		}
+	}
+	return result
 }
 
 func (a *DelimitedStrings) UnmarshalJSON(data []byte) error {
