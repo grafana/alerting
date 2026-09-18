@@ -5,6 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
+
+	"github.com/grafana/alerting/receivers"
 
 	"github.com/grafana/alerting/templates"
 )
@@ -30,6 +33,21 @@ func TestNewConfig(t *testing.T) {
 			name:              "Error if URL is empty",
 			settings:          `{ "addresses": "" }`,
 			expectedInitError: `could not find addresses in settings`,
+		},
+		{
+			name:              "Null addresses",
+			settings:          `{"addresses":null}`,
+			expectedInitError: `could not find addresses in settings`,
+		},
+		{
+			name:           "Delimiter-only addresses remain accepted",
+			settings:       `{"addresses":",;\n"}`,
+			expectedConfig: Config{Addresses: receivers.DelimitedStrings{}, Subject: templates.DefaultMessageTitleEmbed},
+		},
+		{
+			name:           "Whitespace is preserved",
+			settings:       `{"addresses":" a@example.com ;\tb@example.com\r\n "}`,
+			expectedConfig: Config{Addresses: receivers.DelimitedStrings{" a@example.com ", "\tb@example.com\r", " "}, Subject: templates.DefaultMessageTitleEmbed},
 		},
 		{
 			name:     "Minimal valid configuration",
@@ -92,7 +110,20 @@ func TestNewConfig(t *testing.T) {
 				require.ErrorContains(t, err, c.expectedInitError)
 				return
 			}
+			require.NoError(t, err)
 			require.Equal(t, c.expectedConfig, actual)
+
+			encoded, err := json.Marshal(actual)
+			require.NoError(t, err)
+			roundTrip, err := NewConfig(encoded, nil)
+			require.NoError(t, err)
+			require.Equal(t, actual, roundTrip)
+
+			encoded, err = yaml.Marshal(actual)
+			require.NoError(t, err)
+			var yamlConfig Config
+			require.NoError(t, yaml.Unmarshal(encoded, &yamlConfig))
+			require.Equal(t, actual, yamlConfig)
 		})
 	}
 }
