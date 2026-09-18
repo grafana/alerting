@@ -697,12 +697,12 @@ func TestSilenceCleanup(t *testing.T) {
 
 func TestStatusForTestReceivers(t *testing.T) {
 	t.Run("assert HTTP 400 Status Bad Request for no receivers", func(t *testing.T) {
-		_, status := newTestReceiversResult(types.Alert{}, []result{}, []models.ReceiverConfig{}, time.Now())
+		_, status := newTestReceiversResult(nil, []result{}, []models.ReceiverConfig{}, time.Now())
 		require.Equal(t, http.StatusBadRequest, status)
 	})
 
 	t.Run("assert HTTP 400 Bad Request when all invalid receivers", func(t *testing.T) {
-		_, status := newTestReceiversResult(types.Alert{}, []result{
+		_, status := newTestReceiversResult(nil, []result{
 			{
 				ReceiverName: "receiver 1",
 				Config:       &models.IntegrationConfig{Name: "integration 1"},
@@ -737,7 +737,7 @@ func TestStatusForTestReceivers(t *testing.T) {
 	})
 
 	t.Run("assert HTTP 408 Request Timeout when all receivers timed out", func(t *testing.T) {
-		_, status := newTestReceiversResult(types.Alert{}, []result{
+		_, status := newTestReceiversResult(nil, []result{
 			{
 				ReceiverName: "receiver 1",
 				Config:       &models.IntegrationConfig{Name: "integration 1"},
@@ -772,7 +772,7 @@ func TestStatusForTestReceivers(t *testing.T) {
 	})
 
 	t.Run("assert 207 Multi Status for different errors", func(t *testing.T) {
-		_, status := newTestReceiversResult(types.Alert{}, []result{
+		_, status := newTestReceiversResult(nil, []result{
 			{
 				ReceiverName: "receiver 1",
 				Config:       &models.IntegrationConfig{Name: "integration 1"},
@@ -807,7 +807,7 @@ func TestStatusForTestReceivers(t *testing.T) {
 	})
 
 	t.Run("assert 200 for no errors", func(t *testing.T) {
-		_, status := newTestReceiversResult(types.Alert{}, []result{
+		_, status := newTestReceiversResult(nil, []result{
 			{
 				ReceiverName: "receiver 1",
 				Config:       &models.IntegrationConfig{Name: "integration 1"},
