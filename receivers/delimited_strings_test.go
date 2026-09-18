@@ -19,7 +19,9 @@ func TestDelimitedStrings(t *testing.T) {
 		{"mixed delimiters", "one,two;three\nfour", DelimitedStrings{"one", "two", "three", "four"}},
 		{"empty segments", ",;one;;\ntwo,", DelimitedStrings{"one", "two"}},
 		{"delimiters only", ",;\n", DelimitedStrings{}},
-		{"whitespace", " one ;\ttwo\r\n ", DelimitedStrings{" one ", "\ttwo\r", " "}},
+		{"whitespace around values", " one ;\ttwo\r\n ", DelimitedStrings{" one ", "\ttwo\r"}},
+		{"whitespace only", " \t\r\n\u00a0\u2003", DelimitedStrings{}},
+		{"blank entries", ", ;one;\t,\r\n\u00a0;two;\u2003,", DelimitedStrings{"one", "two"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, codec := range []struct {
