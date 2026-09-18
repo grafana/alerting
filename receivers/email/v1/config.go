@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
@@ -30,6 +31,9 @@ func NewConfig(jsonData json.RawMessage, _ receivers.DecryptFunc) (Config, error
 	}
 	if settings.Addresses == nil {
 		return Config{}, errors.New("could not find addresses in settings")
+	}
+	for i, address := range settings.Addresses {
+		settings.Addresses[i] = strings.TrimSpace(address)
 	}
 	if settings.Subject == "" {
 		settings.Subject = templates.DefaultMessageTitleEmbed

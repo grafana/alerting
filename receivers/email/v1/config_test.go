@@ -45,9 +45,9 @@ func TestNewConfig(t *testing.T) {
 			expectedConfig: Config{Addresses: receivers.DelimitedStrings{}, Subject: templates.DefaultMessageTitleEmbed},
 		},
 		{
-			name:           "Whitespace is preserved",
-			settings:       `{"addresses":" a@example.com ;\tb@example.com\r\n "}`,
-			expectedConfig: Config{Addresses: receivers.DelimitedStrings{" a@example.com ", "\tb@example.com\r", " "}, Subject: templates.DefaultMessageTitleEmbed},
+			name:           "Whitespace-only entries are skipped and addresses are trimmed",
+			settings:       `{"addresses":" a@example.com ;\tb@example.com\r\n ;\u00a0c@example.com\u2003"}`,
+			expectedConfig: Config{Addresses: receivers.DelimitedStrings{"a@example.com", "b@example.com", "c@example.com"}, Subject: templates.DefaultMessageTitleEmbed},
 		},
 		{
 			name:     "Minimal valid configuration",
