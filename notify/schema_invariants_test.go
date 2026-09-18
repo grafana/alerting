@@ -59,7 +59,7 @@ func TestIntegrationSchemasMatchConfigStructs(t *testing.T) {
 				require.Equal(t, reflect.Struct, derefType(configType).Kind())
 				// These parsers use function-local wire structs; their output configs have no JSON tags.
 				if version.Version == schema.V1 && slices.Contains([]schema.IntegrationType{
-					schema.AlertManagerType, schema.OpsGenieType, schema.PushoverType,
+					schema.AlertManagerType, schema.PushoverType,
 				}, integration.Type) {
 					fixture, ok := notifytest.AllKnownConfigsForTesting[notifytest.IntegrationVersionKey{Type: integration.Type, Version: version.Version}]
 					require.True(t, ok, "integration has no full valid JSON fixture")
