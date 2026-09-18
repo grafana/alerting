@@ -282,7 +282,16 @@ func getSearchJql(conf Config, groupID string, firing bool) issueSearch {
 
 	if firing {
 		if conf.ReopenTransition == "" {
+			// Issues cannot be reopened: match open issues only, so a firing
+			// alert whose issue was already closed creates a new one.
 			jql.WriteString(`statusCategory != Done and `)
+		} else if reopenDuration := int64(time.Duration(conf.ReopenDuration).Minutes()); reopenDuration != 0 {
+			// Match open issues, or issues resolved within the reopen duration
+			// (to be reopened). Issues closed longer ago do not match, so a new
+			// issue is created instead. Without a reopen duration, any issue
+			// matches regardless of status or age: the most recent one is
+			// updated and reopened.
+			fmt.Fprintf(&jql, `(statusCategory != Done OR resolutiondate >= -%dm) and `, reopenDuration)
 		}
 	} else {
 		reopenDuration := int64(time.Duration(conf.ReopenDuration).Minutes())
