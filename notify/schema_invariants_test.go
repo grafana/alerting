@@ -3,7 +3,6 @@ package notify
 import (
 	"encoding/json"
 	"reflect"
-	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -26,9 +25,8 @@ import (
 //  4. Inline-embedded structs have their fields expanded into the parent schema, not nested.
 //  5. Subform / subform-array fields are compared against their corresponding nested struct type.
 //
-// Configs whose wire structs are local to NewConfig are checked against their full valid JSON
-// fixtures instead. This checks schema/fixture field names and secure value shapes, but cannot
-// discover fields missing from both the schema and fixture or infer Secret types from JSON.
+// Webhook's separately parsed HTTP client settings additionally use fixture-based
+// checks to cover nested types outside the receiver config package boundary.
 
 // secretType and secretURLType are the Go types that CLAUDE.md requires to be marked Secure in the
 // schema. receivers.NotifierConfig is a special case: its only field (send_resolved) is common to
@@ -57,20 +55,6 @@ func TestIntegrationSchemasMatchConfigStructs(t *testing.T) {
 				configType := factory.ConfigType()
 				require.NotNil(t, configType)
 				require.Equal(t, reflect.Struct, derefType(configType).Kind())
-				// These parsers use function-local wire structs; their output configs have no JSON tags.
-				if version.Version == schema.V1 && slices.Contains([]schema.IntegrationType{
-					schema.PushoverType,
-				}, integration.Type) {
-					fixture, ok := notifytest.AllKnownConfigsForTesting[notifytest.IntegrationVersionKey{Type: integration.Type, Version: version.Version}]
-					require.True(t, ok, "integration has no full valid JSON fixture")
-					require.NoError(t, factory.ValidateConfig(json.RawMessage(fixture.Config), func(_ string, fallback string) (string, bool) {
-						return fallback, false
-					}))
-					var config map[string]any
-					require.NoError(t, json.Unmarshal([]byte(fixture.Config), &config))
-					compareFieldsToJSON(t, "", version.Options, []map[string]any{config})
-					return
-				}
 				options := version.Options
 				if integration.Type == schema.WebhookType && version.Version == schema.V1 {
 					// notify parses http_config separately from the notifier's settings.

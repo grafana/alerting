@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
@@ -351,6 +352,18 @@ func TestNewConfig(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, c.expectedConfig, actual)
+			for _, codec := range []struct {
+				marshal   func(any) ([]byte, error)
+				unmarshal func([]byte, any) error
+			}{
+				{json.Marshal, json.Unmarshal}, {yaml.Marshal, yaml.Unmarshal},
+			} {
+				data, err := codec.marshal(actual)
+				require.NoError(t, err)
+				var roundTrip Config
+				require.NoError(t, codec.unmarshal(data, &roundTrip))
+				require.Equal(t, actual, roundTrip)
+			}
 		})
 	}
 }
