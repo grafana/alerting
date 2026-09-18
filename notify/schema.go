@@ -57,9 +57,10 @@ var (
 
 // map of all known types including aliases and schema factories
 var (
-	allSchemas     map[schema.IntegrationType]receivers.Manifest
-	aliasToType    map[schema.IntegrationType]schema.IntegrationType
-	initSchemaOnce sync.Once
+	allSchemas            map[schema.IntegrationType]receivers.Manifest
+	aliasToType           map[schema.IntegrationType]schema.IntegrationType
+	initSchemaOnce        sync.Once
+	factoriesByConfigType map[reflect.Type]receivers.VersionFactory
 )
 
 func initSchemas() {
@@ -92,12 +93,24 @@ func initSchemas() {
 
 	allSch := make(map[schema.IntegrationType]receivers.Manifest, len(all))
 	aliases := make(map[schema.IntegrationType]schema.IntegrationType)
+	factories := make(map[reflect.Type]receivers.VersionFactory)
 	for _, sch := range all {
 		if _, ok := allSch[sch.Type]; ok {
 			// This panic will happen only if a new schema type or alias with duplicate name are defined. Should never happen.
 			panic(fmt.Sprintf("duplicate schema type %s", sch.Type))
 		}
 		allSch[sch.Type] = sch
+		for _, version := range sch.Versions {
+			factory, ok := sch.GetFactoryForVersion(version.Version)
+			if !ok {
+				panic(fmt.Sprintf("missing factory for %s version %s", sch.Type, version.Version))
+			}
+			configType := factory.ConfigType()
+			if _, ok := factories[configType]; ok {
+				panic(fmt.Sprintf("duplicate factory config type %v", configType))
+			}
+			factories[configType] = factory
+		}
 		for _, t := range sch.GetAllTypes() {
 			if t == sch.Type {
 				continue
@@ -115,6 +128,7 @@ func initSchemas() {
 	}
 	allSchemas = allSch
 	aliasToType = aliases
+	factoriesByConfigType = factories
 }
 
 // GetSchemaForAllIntegrations returns all known schema sorted by the main type.
@@ -266,14 +280,31 @@ func IntegrationTypeFromMimirTypeReflect(t reflect.Type) (schema.IntegrationType
 	return "", errors.New("not a struct or slice")
 }
 
-func GetFactoryForIntegrationVersion(t schema.IntegrationType, v schema.Version) (receivers.IntegrationVersionFactory, bool) {
+// GetFactoryForIntegration returns the factory registered for the exact config type T.
+// Each config type must have a unique factory. Pointer types and distinct named types
+// are not interchangeable with their underlying config types.
+func GetFactoryForIntegration[T any]() (receivers.IntegrationVersionFactory[T], error) {
+	initSchemaOnce.Do(initSchemas)
+	configType := reflect.TypeFor[T]()
+	factory, ok := factoriesByConfigType[configType]
+	if !ok {
+		return receivers.IntegrationVersionFactory[T]{}, fmt.Errorf("no factory registered for config type %v", configType)
+	}
+	typed, ok := factory.(receivers.IntegrationVersionFactory[T])
+	if !ok {
+		return receivers.IntegrationVersionFactory[T]{}, fmt.Errorf("incompatible factory registered for config type %v", configType)
+	}
+	return typed, nil
+}
+
+func GetFactoryForIntegrationVersion(t schema.IntegrationType, v schema.Version) (receivers.VersionFactory, bool) {
 	initSchemaOnce.Do(initSchemas)
 	if canonical, ok := aliasToType[t]; ok {
 		t = canonical
 	}
 	sch, ok := allSchemas[t]
 	if !ok {
-		return receivers.IntegrationVersionFactory{}, false
+		return nil, false
 	}
 	return sch.GetFactoryForVersion(v)
 }

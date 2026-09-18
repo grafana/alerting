@@ -1,46 +1,18 @@
 package notify
 
 import (
+	"encoding/json"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers"
-	dingdingv1 "github.com/grafana/alerting/receivers/dingding/v1"
-	discordv0mimir1 "github.com/grafana/alerting/receivers/discord/v0mimir1"
-	discordv1 "github.com/grafana/alerting/receivers/discord/v1"
-	emailv0mimir1 "github.com/grafana/alerting/receivers/email/v0mimir1"
-	googlechatv1 "github.com/grafana/alerting/receivers/googlechat/v1"
-	jirav0mimir1 "github.com/grafana/alerting/receivers/jira/v0mimir1"
-	kafkav1 "github.com/grafana/alerting/receivers/kafka/v1"
-	linev1 "github.com/grafana/alerting/receivers/line/v1"
-	mqttv1 "github.com/grafana/alerting/receivers/mqtt/v1"
-	opsgeniev0mimir1 "github.com/grafana/alerting/receivers/opsgenie/v0mimir1"
-	pagerdutyv0mimir1 "github.com/grafana/alerting/receivers/pagerduty/v0mimir1"
-	pagerdutyv1 "github.com/grafana/alerting/receivers/pagerduty/v1"
-	pushoverv0mimir1 "github.com/grafana/alerting/receivers/pushover/v0mimir1"
 	"github.com/grafana/alerting/receivers/schema"
-	sensugov1 "github.com/grafana/alerting/receivers/sensugo/v1"
-	slackv0mimir1 "github.com/grafana/alerting/receivers/slack/v0mimir1"
-	slackv1 "github.com/grafana/alerting/receivers/slack/v1"
-	snsv0mimir1 "github.com/grafana/alerting/receivers/sns/v0mimir1"
-	snsv1 "github.com/grafana/alerting/receivers/sns/v1"
-	teamsv0mimir1 "github.com/grafana/alerting/receivers/teams/v0mimir1"
-	teamsv0mimir2 "github.com/grafana/alerting/receivers/teams/v0mimir2"
-	teamsv1 "github.com/grafana/alerting/receivers/teams/v1"
-	telegramv0mimir1 "github.com/grafana/alerting/receivers/telegram/v0mimir1"
-	telegramv1 "github.com/grafana/alerting/receivers/telegram/v1"
-	threemav1 "github.com/grafana/alerting/receivers/threema/v1"
-	victoropsv0mimir1 "github.com/grafana/alerting/receivers/victorops/v0mimir1"
-	victoropsv1 "github.com/grafana/alerting/receivers/victorops/v1"
-	webexv0mimir1 "github.com/grafana/alerting/receivers/webex/v0mimir1"
-	webexv1 "github.com/grafana/alerting/receivers/webex/v1"
-	webhookv0mimir1 "github.com/grafana/alerting/receivers/webhook/v0mimir1"
-	wechatv0mimir1 "github.com/grafana/alerting/receivers/wechat/v0mimir1"
-	wecomv1 "github.com/grafana/alerting/receivers/wecom/v1"
 )
 
 // This file mechanically enforces the schema<->config struct invariants documented in CLAUDE.md's
@@ -53,12 +25,9 @@ import (
 //  4. Inline-embedded structs have their fields expanded into the parent schema, not nested.
 //  5. Subform / subform-array fields are compared against their corresponding nested struct type.
 //
-// Not covered here: alertmanager/v1, email/v1, jira/v1, oncall/v1, opsgenie/v1, pushover/v1 and
-// webhook/v1. Their exported Config struct carries no JSON tags at all - NewConfig unmarshals into
-// an unexported, function-local "raw"/"rawSettings" struct that carries the real wire tags and then
-// copies the values across by hand. That local type isn't reachable via reflection from outside the
-// function, so these can't be mechanically checked without changing production code (out of scope
-// for this test). See the individual NewConfig functions for the actual wire format.
+// Configs whose wire structs are local to NewConfig are checked against their full valid JSON
+// fixtures instead. This checks schema/fixture field names and secure value shapes, but cannot
+// discover fields missing from both the schema and fixture or infer Secret types from JSON.
 
 // secretType and secretURLType are the Go types that CLAUDE.md requires to be marked Secure in the
 // schema. receivers.NotifierConfig is a special case: its only field (send_resolved) is common to
@@ -78,89 +47,93 @@ var (
 // receiver instead of once, and they aren't a "registered integration schema" in their own right.
 const receiversPkgPrefix = "github.com/grafana/alerting/receivers"
 
-// schemaCase pairs one version of an integration's schema with the Go Config struct that backs it.
-// The schema/factory registry (receivers.Manifest/IntegrationVersionFactory) only carries
-// json.RawMessage-based factory functions, not the concrete Config type, so there's no way to
-// derive this table from the registry - it has to be listed explicitly.
-type schemaCase struct {
-	integration schema.IntegrationType
-	version     schema.Version
-	fields      []schema.Field
-	configType  reflect.Type
-}
-
-func newSchemaCase(t *testing.T, integration schema.IntegrationType, version schema.Version, cfg any) schemaCase {
-	t.Helper()
-	v, ok := GetSchemaVersionForIntegration(integration, version)
-	require.True(t, ok, "%s: version %s not found in its IntegrationTypeSchema", integration, version)
-	return schemaCase{
-		integration: integration,
-		version:     version,
-		fields:      v.Options,
-		configType:  reflect.TypeOf(cfg),
-	}
-}
-
 func TestIntegrationSchemasMatchConfigStructs(t *testing.T) {
-	cases := []schemaCase{
-		newSchemaCase(t, "dingding", dingdingv1.Version, dingdingv1.Config{}),
-
-		newSchemaCase(t, "discord", discordv0mimir1.Version, discordv0mimir1.Config{}),
-		newSchemaCase(t, "discord", discordv1.Version, discordv1.Config{}),
-
-		newSchemaCase(t, "email", emailv0mimir1.Version, emailv0mimir1.Config{}),
-
-		newSchemaCase(t, "googlechat", googlechatv1.Version, googlechatv1.Config{}),
-
-		newSchemaCase(t, "jira", jirav0mimir1.Version, jirav0mimir1.Config{}),
-
-		newSchemaCase(t, "kafka", kafkav1.Version, kafkav1.Config{}),
-
-		newSchemaCase(t, "line", linev1.Version, linev1.Config{}),
-
-		newSchemaCase(t, "mqtt", mqttv1.Version, mqttv1.Config{}),
-
-		newSchemaCase(t, "opsgenie", opsgeniev0mimir1.Version, opsgeniev0mimir1.Config{}),
-
-		newSchemaCase(t, "pagerduty", pagerdutyv0mimir1.Version, pagerdutyv0mimir1.Config{}),
-		newSchemaCase(t, "pagerduty", pagerdutyv1.Version, pagerdutyv1.Config{}),
-
-		newSchemaCase(t, "pushover", pushoverv0mimir1.Version, pushoverv0mimir1.Config{}),
-
-		newSchemaCase(t, "sensugo", sensugov1.Version, sensugov1.Config{}),
-
-		newSchemaCase(t, "slack", slackv0mimir1.Version, slackv0mimir1.Config{}),
-		newSchemaCase(t, "slack", slackv1.Version, slackv1.Config{}),
-
-		newSchemaCase(t, "sns", snsv0mimir1.Version, snsv0mimir1.Config{}),
-		newSchemaCase(t, "sns", snsv1.Version, snsv1.Config{}),
-
-		newSchemaCase(t, "teams", teamsv0mimir1.Version, teamsv0mimir1.Config{}),
-		newSchemaCase(t, "teams", teamsv0mimir2.Version, teamsv0mimir2.Config{}),
-		newSchemaCase(t, "teams", teamsv1.Version, teamsv1.Config{}),
-
-		newSchemaCase(t, "telegram", telegramv0mimir1.Version, telegramv0mimir1.Config{}),
-		newSchemaCase(t, "telegram", telegramv1.Version, telegramv1.Config{}),
-
-		newSchemaCase(t, "threema", threemav1.Version, threemav1.Config{}),
-
-		newSchemaCase(t, "victorops", victoropsv0mimir1.Version, victoropsv0mimir1.Config{}),
-		newSchemaCase(t, "victorops", victoropsv1.Version, victoropsv1.Config{}),
-
-		newSchemaCase(t, "webex", webexv0mimir1.Version, webexv0mimir1.Config{}),
-		newSchemaCase(t, "webex", webexv1.Version, webexv1.Config{}),
-
-		newSchemaCase(t, "webhook", webhookv0mimir1.Version, webhookv0mimir1.Config{}),
-
-		newSchemaCase(t, "wechat", wechatv0mimir1.Version, wechatv0mimir1.Config{}),
-
-		newSchemaCase(t, "wecom", wecomv1.Version, wecomv1.Config{}),
+	for _, integration := range GetSchemaForAllIntegrations() {
+		for _, version := range integration.Versions {
+			t.Run(string(integration.Type)+"/"+string(version.Version), func(t *testing.T) {
+				factory, ok := GetFactoryForIntegrationVersion(integration.Type, version.Version)
+				require.True(t, ok, "schema version has no factory")
+				configType := factory.ConfigType()
+				require.NotNil(t, configType)
+				require.Equal(t, reflect.Struct, derefType(configType).Kind())
+				// These parsers use function-local wire structs; their output configs have no JSON tags.
+				if version.Version == schema.V1 && slices.Contains([]schema.IntegrationType{
+					schema.AlertManagerType, schema.EmailType, schema.JiraType, schema.OnCallType,
+					schema.OpsGenieType, schema.PushoverType, schema.WebhookType,
+				}, integration.Type) {
+					fixture, ok := notifytest.AllKnownConfigsForTesting[notifytest.IntegrationVersionKey{Type: integration.Type, Version: version.Version}]
+					require.True(t, ok, "integration has no full valid JSON fixture")
+					require.NoError(t, factory.ValidateConfig(json.RawMessage(fixture.Config), func(_ string, fallback string) (string, bool) {
+						return fallback, false
+					}))
+					var config map[string]any
+					require.NoError(t, json.Unmarshal([]byte(fixture.Config), &config))
+					// Webhook advertises HTTP options parsed separately by notify.
+					if integration.Type == schema.WebhookType {
+						var httpConfig map[string]any
+						require.NoError(t, json.Unmarshal([]byte(notifytest.FullValidHTTPConfigForTesting), &httpConfig))
+						config["http_config"] = httpConfig["http_config"]
+					}
+					compareFieldsToJSON(t, "", version.Options, []map[string]any{config})
+					return
+				}
+				compareFieldsToStruct(t, "", version.Options, configType)
+			})
+		}
 	}
+}
 
-	for _, c := range cases {
-		t.Run(string(c.integration)+"/"+string(c.version), func(t *testing.T) {
-			compareFieldsToStruct(t, "", c.fields, c.configType)
-		})
+// Array entries may populate different optional fields, so compare their combined keys.
+// Only subforms are traversed; keys of arbitrary maps (headers, vars, fields) are user-defined.
+func compareFieldsToJSON(t *testing.T, path string, fields []schema.Field, objects []map[string]any) {
+	t.Helper()
+	values := make(map[string][]any)
+	for _, object := range objects {
+		for key, value := range object {
+			values[key] = append(values[key], value)
+		}
+	}
+	for _, field := range fields {
+		fieldPath := joinPath(path, field.PropertyName)
+		entries, ok := values[field.PropertyName]
+		if !ok {
+			t.Errorf("%s: schema field is missing from full valid JSON fixtures", fieldPath)
+			continue
+		}
+		delete(values, field.PropertyName)
+		var nested []map[string]any
+		for _, value := range entries {
+			if field.Secure {
+				_, ok := value.(string)
+				require.True(t, ok, "%s: secure field must have a string value in the fixture", fieldPath)
+			}
+			if field.Element == schema.ElementTypeSubform {
+				object, ok := value.(map[string]any)
+				require.True(t, ok, "%s: subform fixture must be an object", fieldPath)
+				nested = append(nested, object)
+				continue
+			}
+			if field.Element == schema.ElementSubformArray {
+				array, ok := value.([]any)
+				require.True(t, ok, "%s: subform-array fixture must be an array", fieldPath)
+				for _, entry := range array {
+					object, ok := entry.(map[string]any)
+					require.True(t, ok, "%s: subform-array entries must be objects", fieldPath)
+					nested = append(nested, object)
+				}
+			}
+		}
+		if isRecursableElement(field.Element) {
+			compareFieldsToJSON(t, fieldPath, field.SubformOptions, nested)
+		}
+	}
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		t.Errorf("%s: JSON fixture field has no matching schema field", joinPath(path, key))
 	}
 }
 
