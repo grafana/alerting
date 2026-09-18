@@ -33,29 +33,19 @@ type MessageResponder struct {
 }
 
 type Config struct {
-	APIKey           string
-	APIUrl           string
-	Message          string
-	Description      string
-	AutoClose        bool
-	OverridePriority bool
-	SendTagsAs       string
-	Responders       []MessageResponder
+	APIKey      string `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
+	APIUrl      string `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`
+	Message     string `json:"message,omitempty" yaml:"message,omitempty"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+	// Always encode these fields: omitting false would restore the true default.
+	AutoClose        bool               `json:"autoClose" yaml:"autoClose"`
+	OverridePriority bool               `json:"overridePriority" yaml:"overridePriority"`
+	SendTagsAs       string             `json:"sendTagsAs,omitempty" yaml:"sendTagsAs,omitempty"`
+	Responders       []MessageResponder `json:"responders,omitempty" yaml:"responders,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
-	type rawSettings struct {
-		APIKey           string             `json:"apiKey,omitempty" yaml:"apiKey,omitempty"`
-		APIUrl           string             `json:"apiUrl,omitempty" yaml:"apiUrl,omitempty"`
-		Message          string             `json:"message,omitempty" yaml:"message,omitempty"`
-		Description      string             `json:"description,omitempty" yaml:"description,omitempty"`
-		AutoClose        *bool              `json:"autoClose,omitempty" yaml:"autoClose,omitempty"`
-		OverridePriority *bool              `json:"overridePriority,omitempty" yaml:"overridePriority,omitempty"`
-		SendTagsAs       string             `json:"sendTagsAs,omitempty" yaml:"sendTagsAs,omitempty"`
-		Responders       []MessageResponder `json:"responders,omitempty" yaml:"responders,omitempty"`
-	}
-
-	raw := rawSettings{}
+	var raw Config
 	err := json.Unmarshal(jsonData, &raw)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
@@ -79,15 +69,6 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		raw.SendTagsAs = SendTags
 	default:
 		return Config{}, fmt.Errorf("invalid value for sendTagsAs: %q", raw.SendTagsAs)
-	}
-
-	if raw.AutoClose == nil {
-		autoClose := true
-		raw.AutoClose = &autoClose
-	}
-	if raw.OverridePriority == nil {
-		overridePriority := true
-		raw.OverridePriority = &overridePriority
 	}
 
 	for idx, r := range raw.Responders {
@@ -117,16 +98,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		}
 	}
 
-	return Config{
-		APIKey:           raw.APIKey,
-		APIUrl:           raw.APIUrl,
-		Message:          raw.Message,
-		Description:      raw.Description,
-		AutoClose:        *raw.AutoClose,
-		OverridePriority: *raw.OverridePriority,
-		SendTagsAs:       raw.SendTagsAs,
-		Responders:       raw.Responders,
-	}, nil
+	return raw, nil
 }
 
 var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
