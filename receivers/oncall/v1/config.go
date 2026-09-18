@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
@@ -18,33 +17,23 @@ const (
 )
 
 type Config struct {
-	URL        string
-	HTTPMethod string
-	MaxAlerts  int
+	URL        string `json:"url,omitempty" yaml:"url,omitempty"`
+	HTTPMethod string `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
+	MaxAlerts  int    `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
 	// Authorization Header.
-	AuthorizationScheme      string
-	AuthorizationCredentials string
+	AuthorizationScheme      string `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
+	AuthorizationCredentials string `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
 	// HTTP Basic Authentication.
-	User     string
-	Password string
+	User     string `json:"username,omitempty" yaml:"username,omitempty"`
+	Password string `json:"password,omitempty" yaml:"password,omitempty"`
 
-	Title   string
-	Message string
+	Title   string `json:"title,omitempty" yaml:"title,omitempty"`
+	Message string `json:"message,omitempty" yaml:"message,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
-	rawSettings := struct {
-		URL                      string                   `json:"url,omitempty" yaml:"url,omitempty"`
-		HTTPMethod               string                   `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
-		MaxAlerts                receivers.OptionalNumber `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
-		AuthorizationScheme      string                   `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
-		AuthorizationCredentials string                   `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
-		User                     string                   `json:"username,omitempty" yaml:"username,omitempty"`
-		Password                 string                   `json:"password,omitempty" yaml:"password,omitempty"`
-		Title                    string                   `json:"title,omitempty" yaml:"title,omitempty"`
-		Message                  string                   `json:"message,omitempty" yaml:"message,omitempty"`
-	}{}
+	var rawSettings Config
 
 	err := json.Unmarshal(jsonData, &rawSettings)
 	if err != nil {
@@ -61,9 +50,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	}
 	settings.HTTPMethod = rawSettings.HTTPMethod
 
-	if rawSettings.MaxAlerts != "" {
-		settings.MaxAlerts, _ = strconv.Atoi(rawSettings.MaxAlerts.String())
-	}
+	settings.MaxAlerts = rawSettings.MaxAlerts
 
 	settings.User = decryptFn.Get("username", rawSettings.User)
 	settings.Password = decryptFn.Get("password", rawSettings.Password)

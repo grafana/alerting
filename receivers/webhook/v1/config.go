@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
 
 	http2 "github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/receivers"
@@ -31,43 +30,28 @@ type CustomPayload struct {
 }
 
 type Config struct {
-	URL        string
-	HTTPMethod string
-	MaxAlerts  int
+	URL        string `json:"url,omitempty" yaml:"url,omitempty"`
+	HTTPMethod string `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
+	MaxAlerts  int    `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
 	// Authorization Header.
-	AuthorizationScheme      string
-	AuthorizationCredentials string
+	AuthorizationScheme      string `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
+	AuthorizationCredentials string `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
 	// HTTP Basic Authentication.
-	User         string
-	Password     string
-	ExtraHeaders map[string]string
+	User         string            `json:"username,omitempty" yaml:"username,omitempty"`
+	Password     string            `json:"password,omitempty" yaml:"password,omitempty"`
+	ExtraHeaders map[string]string `json:"headers,omitempty" yaml:"headers,omitempty"`
 
-	Title      string
-	Message    string
-	TLSConfig  *receivers.TLSConfig
-	HMACConfig *receivers.HMACConfig
+	Title      string                `json:"title,omitempty" yaml:"title,omitempty"`
+	Message    string                `json:"message,omitempty" yaml:"message,omitempty"`
+	TLSConfig  *receivers.TLSConfig  `json:"tlsConfig,omitempty" yaml:"tlsConfig,omitempty"`
+	HMACConfig *receivers.HMACConfig `json:"hmacConfig,omitempty" yaml:"hmacConfig,omitempty"`
 
-	Payload CustomPayload
+	Payload CustomPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
-	rawSettings := struct {
-		URL                      string                   `json:"url,omitempty" yaml:"url,omitempty"`
-		HTTPMethod               string                   `json:"httpMethod,omitempty" yaml:"httpMethod,omitempty"`
-		MaxAlerts                receivers.OptionalNumber `json:"maxAlerts,omitempty" yaml:"maxAlerts,omitempty"`
-		AuthorizationScheme      string                   `json:"authorization_scheme,omitempty" yaml:"authorization_scheme,omitempty"`
-		AuthorizationCredentials string                   `json:"authorization_credentials,omitempty" yaml:"authorization_credentials,omitempty"`
-		User                     string                   `json:"username,omitempty" yaml:"username,omitempty"`
-		Password                 string                   `json:"password,omitempty" yaml:"password,omitempty"`
-		Title                    string                   `json:"title,omitempty" yaml:"title,omitempty"`
-		Message                  string                   `json:"message,omitempty" yaml:"message,omitempty"`
-		TLSConfig                *receivers.TLSConfig     `json:"tlsConfig,omitempty" yaml:"tlsConfig,omitempty"`
-		HMACConfig               *receivers.HMACConfig    `json:"hmacConfig,omitempty" yaml:"hmacConfig,omitempty"`
-		ExtraHeaders             map[string]string        `json:"headers,omitempty" yaml:"headers,omitempty"`
-
-		Payload *CustomPayload `json:"payload,omitempty" yaml:"payload,omitempty"`
-	}{}
+	var rawSettings Config
 
 	err := json.Unmarshal(jsonData, &rawSettings)
 	if err != nil {
@@ -84,9 +68,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	}
 	settings.HTTPMethod = rawSettings.HTTPMethod
 
-	if rawSettings.MaxAlerts != "" {
-		settings.MaxAlerts, _ = strconv.Atoi(rawSettings.MaxAlerts.String())
-	}
+	settings.MaxAlerts = rawSettings.MaxAlerts
 
 	settings.User = decryptFn.Get("username", rawSettings.User)
 	settings.Password = decryptFn.Get("password", rawSettings.Password)
@@ -99,9 +81,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		return settings, errors.New("both HTTP Basic Authentication and Authorization Header are set, only 1 is permitted")
 	}
 
-	if rawSettings.Payload != nil {
-		settings.Payload = *rawSettings.Payload
-	}
+	settings.Payload = rawSettings.Payload
 
 	settings.Title = rawSettings.Title
 	if settings.Title == "" {
