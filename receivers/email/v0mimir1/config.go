@@ -27,7 +27,10 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Version = schema.V0mimir1
+const (
+	Type    = schema.EmailType
+	Version = schema.V0mimir1
+)
 
 // DefaultEmailSubject defines the default Subject header of an Email.
 var DefaultEmailSubject = `{{ template "email.default.subject" . }}`
@@ -218,18 +221,9 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	},
 })
 
-var Factory = receivers.IntegrationVersionFactory{
-	Version: Version,
-	Type:    schema.EmailType,
-	ValidateConfig: func(raw json.RawMessage, decryptFn receivers.DecryptFunc) error {
-		_, err := NewConfig(raw, decryptFn)
-		return err
-	},
-	NewNotifier: func(raw json.RawMessage, decryptFn receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
-		cfg, err := NewConfig(raw, decryptFn)
-		if err != nil {
-			return nil, err
-		}
+var Factory = receivers.NewIntegrationVersionFactory(
+	Type, Version, NewConfig,
+	func(cfg Config, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
 		return New(&cfg, opts.Template.Template, opts.Logger), nil
 	},
-}
+)
