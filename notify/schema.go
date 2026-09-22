@@ -64,6 +64,13 @@ var (
 )
 
 func initSchemas() {
+	allSchemas, aliasToType, factoriesByConfigType = buildSchemaRegistry()
+}
+
+// buildSchemaRegistry validates the manifests of all known integrations and builds the
+// registry of schemas, aliases and factories used by initSchemas. Split out from
+// initSchemas so it can be invoked directly in tests, independent of initSchemaOnce.
+func buildSchemaRegistry() (map[schema.IntegrationType]receivers.Manifest, map[schema.IntegrationType]schema.IntegrationType, map[reflect.Type]receivers.VersionFactory) {
 	all := []receivers.Manifest{
 		alertmanager.Manifest,
 		dingding.Manifest,
@@ -126,9 +133,7 @@ func initSchemas() {
 			aliases[t] = sch.Type
 		}
 	}
-	allSchemas = allSch
-	aliasToType = aliases
-	factoriesByConfigType = factories
+	return allSch, aliases, factories
 }
 
 // GetSchemaForAllIntegrations returns all known schema sorted by the main type.
