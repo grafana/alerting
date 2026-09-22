@@ -16,36 +16,24 @@ const (
 )
 
 type Config struct {
-	UserKey          string
-	APIToken         string
-	AlertingPriority int64
-	OkPriority       int64
-	Retry            int64
-	Expire           int64
-	Device           string
-	AlertingSound    string
-	OkSound          string
-	Upload           bool
-	Title            string
-	Message          string
+	UserKey          string `json:"userKey,omitempty" yaml:"userKey,omitempty"`
+	APIToken         string `json:"apiToken,omitempty" yaml:"apiToken,omitempty"`
+	AlertingPriority int64  `json:"priority,omitempty" yaml:"priority,omitempty"`
+	OkPriority       int64  `json:"okPriority,omitempty" yaml:"okPriority,omitempty"`
+	Retry            int64  `json:"retry,omitempty" yaml:"retry,omitempty"`
+	Expire           int64  `json:"expire,omitempty" yaml:"expire,omitempty"`
+	Device           string `json:"device,omitempty" yaml:"device,omitempty"`
+	AlertingSound    string `json:"sound,omitempty" yaml:"sound,omitempty"`
+	OkSound          string `json:"okSound,omitempty" yaml:"okSound,omitempty"`
+	// Explicit false must survive encoding because missing/null defaults to true.
+	Upload  bool   `json:"uploadImage" yaml:"uploadImage"`
+	Title   string `json:"title,omitempty" yaml:"title,omitempty"`
+	Message string `json:"message,omitempty" yaml:"message,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	settings := Config{}
-	rawSettings := struct {
-		UserKey          string                   `json:"userKey,omitempty" yaml:"userKey,omitempty"`
-		APIToken         string                   `json:"apiToken,omitempty" yaml:"apiToken,omitempty"`
-		AlertingPriority receivers.OptionalNumber `json:"priority,omitempty" yaml:"priority,omitempty"`
-		OKPriority       receivers.OptionalNumber `json:"okPriority,omitempty" yaml:"okPriority,omitempty"`
-		Retry            receivers.OptionalNumber `json:"retry,omitempty" yaml:"retry,omitempty"`
-		Expire           receivers.OptionalNumber `json:"expire,omitempty" yaml:"expire,omitempty"`
-		Device           string                   `json:"device,omitempty" yaml:"device,omitempty"`
-		AlertingSound    string                   `json:"sound,omitempty" yaml:"sound,omitempty"`
-		OKSound          string                   `json:"okSound,omitempty" yaml:"okSound,omitempty"`
-		Upload           *bool                    `json:"uploadImage,omitempty" yaml:"uploadImage,omitempty"`
-		Title            string                   `json:"title,omitempty" yaml:"title,omitempty"`
-		Message          string                   `json:"message,omitempty" yaml:"message,omitempty"`
-	}{}
+	rawSettings := configWire{configPlain: &configPlain{}}
 
 	err := json.Unmarshal(jsonData, &rawSettings)
 	if err != nil {
@@ -60,26 +48,13 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	if settings.APIToken == "" {
 		return settings, errors.New("API token not found")
 	}
-	if rawSettings.AlertingPriority != "" {
-		settings.AlertingPriority, err = rawSettings.AlertingPriority.Int64()
-		if err != nil {
-			return settings, fmt.Errorf("failed to convert alerting priority to integer: %w", err)
-		}
+	if err := rawSettings.applyNumbers(&settings); err != nil {
+		return settings, err
 	}
-
-	if rawSettings.OKPriority != "" {
-		settings.OkPriority, err = rawSettings.OKPriority.Int64()
-		if err != nil {
-			return settings, fmt.Errorf("failed to convert OK priority to integer: %w", err)
-		}
-	}
-
-	settings.Retry, _ = rawSettings.Retry.Int64()
-	settings.Expire, _ = rawSettings.Expire.Int64()
 
 	settings.Device = rawSettings.Device
 	settings.AlertingSound = rawSettings.AlertingSound
-	settings.OkSound = rawSettings.OKSound
+	settings.OkSound = rawSettings.OkSound
 
 	if rawSettings.Upload == nil || *rawSettings.Upload {
 		settings.Upload = true
