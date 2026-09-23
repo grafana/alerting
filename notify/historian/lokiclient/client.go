@@ -57,6 +57,10 @@ type LokiConfig struct {
 	Encoder           encoder
 	MaxQueryLength    time.Duration
 	MaxQuerySize      int
+	// UsePOSTForQueries sends the parameters of a read request in a form-encoded body instead of
+	// the query string. Loki accepts POST on its read endpoints, and a body keeps the request line
+	// short enough for gateways that reject a long URI with 414. Defaults to false (GET).
+	UsePOSTForQueries bool
 	// MaxWriteBatchSize is the maximum number of bytes, as Loki accounts for them (log lines plus
 	// structured metadata, uncompressed), that a single push request may carry. Larger payloads are
 	// split into several requests sent in parallel, so a failure can leave a partial write: some
@@ -283,15 +287,30 @@ func (c *HTTPLokiClient) setAuthAndTenantHeaders(req *http.Request) {
 	}
 }
 
-// sendQuery sends a read request to Loki. The parameters go in a form-encoded POST body, which
-// Loki accepts on all of its read endpoints, so query length is not bounded by the request line.
-func (c *HTTPLokiClient) sendQuery(ctx context.Context, path string, values url.Values) ([]byte, error) {
+// newQueryRequest builds a read request for path, carrying values either in the query string or in
+// a form-encoded body depending on UsePOSTForQueries.
+func (c *HTTPLokiClient) newQueryRequest(ctx context.Context, path string, values url.Values) (*http.Request, error) {
 	uri := c.cfg.ReadPathURL.JoinPath(path)
+
+	if !c.cfg.UsePOSTForQueries {
+		uri.RawQuery = values.Encode()
+		return http.NewRequestWithContext(ctx, http.MethodGet, uri.String(), nil)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uri.String(), strings.NewReader(values.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return req, nil
+}
+
+// sendQuery sends a read request to Loki and returns the raw response body.
+func (c *HTTPLokiClient) sendQuery(ctx context.Context, path string, values url.Values) ([]byte, error) {
+	req, err := c.newQueryRequest(ctx, path, values)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	c.setAuthAndTenantHeaders(req)
 
 	res, err := c.client.Do(req)
