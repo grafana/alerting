@@ -69,7 +69,7 @@ func TestLokiHTTPClient(t *testing.T) {
 			_, err := client.RangeQuery(context.Background(), q, now-100, now, 1100)
 
 			require.NoError(t, err)
-			params := req.LastRequest.URL.Query()
+			params := reqForm(t, req.LastRequest)
 			require.True(t, params.Has("limit"), "query params did not contain 'limit': %#v", params)
 			require.Equal(t, fmt.Sprint(1100), params.Get("limit"))
 		})
@@ -89,7 +89,7 @@ func TestLokiHTTPClient(t *testing.T) {
 			_, err := client.RangeQuery(context.Background(), q, now-100, now, 0)
 
 			require.NoError(t, err)
-			params := req.LastRequest.URL.Query()
+			params := reqForm(t, req.LastRequest)
 			require.True(t, params.Has("limit"), "query params did not contain 'limit': %#v", params)
 			require.Equal(t, fmt.Sprint(defaultPageSize), params.Get("limit"))
 		})
@@ -109,7 +109,7 @@ func TestLokiHTTPClient(t *testing.T) {
 			_, err := client.RangeQuery(context.Background(), q, now-100, now, -100)
 
 			require.NoError(t, err)
-			params := req.LastRequest.URL.Query()
+			params := reqForm(t, req.LastRequest)
 			require.True(t, params.Has("limit"), "query params did not contain 'limit': %#v", params)
 			require.Equal(t, fmt.Sprint(defaultPageSize), params.Get("limit"))
 		})
@@ -129,9 +129,35 @@ func TestLokiHTTPClient(t *testing.T) {
 			_, err := client.RangeQuery(context.Background(), q, now-100, now, maximumPageSize+1000)
 
 			require.NoError(t, err)
-			params := req.LastRequest.URL.Query()
+			params := reqForm(t, req.LastRequest)
 			require.True(t, params.Has("limit"), "query params did not contain 'limit': %#v", params)
 			require.Equal(t, fmt.Sprint(maximumPageSize), params.Get("limit"))
+		})
+
+		t.Run("keeps a long query out of the request URI", func(t *testing.T) {
+			req := instrumenttest.NewFakeRequester().WithResponse(&http.Response{
+				Status:        "200 OK",
+				StatusCode:    200,
+				Body:          io.NopCloser(bytes.NewBufferString(`{}`)),
+				ContentLength: int64(0),
+				Header:        make(http.Header, 0),
+			})
+			client := createTestLokiClient(req)
+			now := time.Now().UTC().UnixNano()
+			// Bigger than the request line a stock nginx will accept.
+			folders := make([]string, 500)
+			for i := range folders {
+				folders[i] = fmt.Sprintf("folder-uid-%013d", i)
+			}
+			q := fmt.Sprintf(`{orgID="1",from="state-history",folderUID=~%q}`, strings.Join(folders, "|"))
+			require.Greater(t, len(q), 8192)
+
+			_, err := client.RangeQuery(context.Background(), q, now-100, now, defaultPageSize)
+
+			require.NoError(t, err)
+			require.Less(t, len(req.LastRequest.URL.RequestURI()), 1024)
+			params := reqForm(t, req.LastRequest)
+			require.Equal(t, q, params.Get("query"))
 		})
 	})
 }
@@ -219,7 +245,7 @@ func TestLokiHTTPClient_MetricsQuery(t *testing.T) {
 		_, err := client.MetricsQuery(context.Background(), `rate({from="state-history"}[5m])`, now, defaultPageSize)
 
 		require.NoError(t, err)
-		params := req.LastRequest.URL.Query()
+		params := reqForm(t, req.LastRequest)
 		require.True(t, params.Has("time"), "query params did not contain 'time': %#v", params)
 		require.Equal(t, fmt.Sprint(now), params.Get("time"))
 		require.False(t, params.Has("start"), "metrics query should not have 'start' param")
@@ -236,7 +262,7 @@ func TestLokiHTTPClient_MetricsQuery(t *testing.T) {
 		_, err := client.MetricsQuery(context.Background(), `rate({from="state-history"}[5m])`, now, 1100)
 
 		require.NoError(t, err)
-		params := req.LastRequest.URL.Query()
+		params := reqForm(t, req.LastRequest)
 		require.True(t, params.Has("limit"), "query params did not contain 'limit': %#v", params)
 		require.Equal(t, fmt.Sprint(1100), params.Get("limit"))
 	})
@@ -251,7 +277,7 @@ func TestLokiHTTPClient_MetricsQuery(t *testing.T) {
 		_, err := client.MetricsQuery(context.Background(), `rate({from="state-history"}[5m])`, now, 0)
 
 		require.NoError(t, err)
-		params := req.LastRequest.URL.Query()
+		params := reqForm(t, req.LastRequest)
 		require.Equal(t, fmt.Sprint(defaultPageSize), params.Get("limit"))
 	})
 
@@ -265,7 +291,7 @@ func TestLokiHTTPClient_MetricsQuery(t *testing.T) {
 		_, err := client.MetricsQuery(context.Background(), `rate({from="state-history"}[5m])`, now, maximumPageSize+1000)
 
 		require.NoError(t, err)
-		params := req.LastRequest.URL.Query()
+		params := reqForm(t, req.LastRequest)
 		require.Equal(t, fmt.Sprint(maximumPageSize), params.Get("limit"))
 	})
 
@@ -328,7 +354,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, start, now, defaultPageSize, 0)
 
 		require.NoError(t, err)
-		params := req.LastRequest.URL.Query()
+		params := reqForm(t, req.LastRequest)
 		require.True(t, params.Has("start"), "query params did not contain 'start': %#v", params)
 		require.True(t, params.Has("end"), "query params did not contain 'end': %#v", params)
 		require.Equal(t, fmt.Sprint(start), params.Get("start"))
@@ -346,7 +372,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, 1100, 0)
 
 		require.NoError(t, err)
-		params := req.LastRequest.URL.Query()
+		params := reqForm(t, req.LastRequest)
 		require.True(t, params.Has("limit"), "query params did not contain 'limit': %#v", params)
 		require.Equal(t, fmt.Sprint(1100), params.Get("limit"))
 	})
@@ -361,7 +387,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, 0, 0)
 
 		require.NoError(t, err)
-		params := req.LastRequest.URL.Query()
+		params := reqForm(t, req.LastRequest)
 		require.Equal(t, fmt.Sprint(defaultPageSize), params.Get("limit"))
 	})
 
@@ -375,7 +401,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, maximumPageSize+1000, 0)
 
 		require.NoError(t, err)
-		params := req.LastRequest.URL.Query()
+		params := reqForm(t, req.LastRequest)
 		require.Equal(t, fmt.Sprint(maximumPageSize), params.Get("limit"))
 	})
 
@@ -401,7 +427,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, defaultPageSize, step)
 
 		require.NoError(t, err)
-		params := req.LastRequest.URL.Query()
+		params := reqForm(t, req.LastRequest)
 		require.True(t, params.Has("step"), "query params did not contain 'step': %#v", params)
 		require.Equal(t, "30", params.Get("step"))
 	})
@@ -416,7 +442,7 @@ func TestLokiHTTPClient_MetricsRangeQuery(t *testing.T) {
 		_, err := client.MetricsRangeQuery(context.Background(), `rate({from="state-history"}[5m])`, now-100, now, defaultPageSize, 0)
 
 		require.NoError(t, err)
-		params := req.LastRequest.URL.Query()
+		params := reqForm(t, req.LastRequest)
 		require.False(t, params.Has("step"), "query params should not contain 'step' when zero: %#v", params)
 	})
 
@@ -568,6 +594,17 @@ func createTestLokiClientWithEncoder(req alertingInstrument.Requester, enc encod
 	bytesWritten := prometheus.NewCounter(prometheus.CounterOpts{})
 	writeDuration := instrument.NewHistogramCollector(prometheus.NewHistogramVec(prometheus.HistogramOpts{}, instrument.HistogramCollectorBuckets))
 	return NewLokiClient(cfg, req, bytesWritten, writeDuration, log.NewNopLogger(), noop.NewTracerProvider().Tracer("test"), lokiClientSpanName)
+}
+
+func reqForm(t *testing.T, req *http.Request) url.Values {
+	t.Helper()
+
+	require.Equal(t, http.MethodPost, req.Method)
+	require.Equal(t, "application/x-www-form-urlencoded", req.Header.Get("Content-Type"))
+	require.Empty(t, req.URL.RawQuery, "read query parameters must be in the body, not the request URI")
+	values, err := url.ParseQuery(reqBody(t, req))
+	require.NoError(t, err)
+	return values
 }
 
 func reqBody(t *testing.T, req *http.Request) string {
