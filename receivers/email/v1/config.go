@@ -11,54 +11,34 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-const Version = schema.V1
+const (
+	Type    = schema.EmailType
+	Version = schema.V1
+)
 
 type Config struct {
-	SingleEmail bool
-	Addresses   []string
-	Message     string
-	Subject     string
+	SingleEmail bool                       `json:"singleEmail,omitempty" yaml:"singleEmail,omitempty"`
+	Addresses   receivers.DelimitedStrings `json:"addresses" yaml:"addresses"`
+	Message     string                     `json:"message,omitempty" yaml:"message,omitempty"`
+	Subject     string                     `json:"subject,omitempty" yaml:"subject,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, _ receivers.DecryptFunc) (Config, error) {
-	type emailSettingsRaw struct {
-		SingleEmail bool   `json:"singleEmail,omitempty" yaml:"singleEmail,omitempty"`
-		Addresses   string `json:"addresses,omitempty" yaml:"addresses,omitempty"`
-		Message     string `json:"message,omitempty" yaml:"message,omitempty"`
-		Subject     string `json:"subject,omitempty" yaml:"subject,omitempty"`
-	}
-
-	var settings emailSettingsRaw
+	var settings Config
 	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
-	if settings.Addresses == "" {
+	if settings.Addresses == nil {
 		return Config{}, errors.New("could not find addresses in settings")
 	}
-	// split addresses with a few different ways
-	addresses := splitEmails(settings.Addresses)
-
+	for i, address := range settings.Addresses {
+		settings.Addresses[i] = strings.TrimSpace(address)
+	}
 	if settings.Subject == "" {
 		settings.Subject = templates.DefaultMessageTitleEmbed
 	}
-
-	return Config{
-		SingleEmail: settings.SingleEmail,
-		Message:     settings.Message,
-		Subject:     settings.Subject,
-		Addresses:   addresses,
-	}, nil
-}
-
-func splitEmails(emails string) []string {
-	return strings.FieldsFunc(emails, func(r rune) bool {
-		switch r {
-		case ',', ';', '\n':
-			return true
-		}
-		return false
-	})
+	return settings, nil
 }
 
 var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
@@ -96,18 +76,9 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	},
 })
 
-var Factory = receivers.IntegrationVersionFactory{
-	Version: Version,
-	Type:    schema.EmailType,
-	ValidateConfig: func(raw json.RawMessage, decryptFn receivers.DecryptFunc) error {
-		_, err := NewConfig(raw, decryptFn)
-		return err
-	},
-	NewNotifier: func(raw json.RawMessage, decryptFn receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
-		cfg, err := NewConfig(raw, decryptFn)
-		if err != nil {
-			return nil, err
-		}
+var Factory = receivers.NewIntegrationVersionFactory(
+	Type, Version, NewConfig,
+	func(cfg Config, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
 		return New(cfg, m, opts.Template, opts.EmailSender, opts.Images, opts.Logger), nil
 	},
-}
+)

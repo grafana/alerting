@@ -40,6 +40,20 @@ investing in a full integration — we're happy to help you decide.
 
 [webhook]: ./receivers/webhook
 
+### Why mirror upstream notifiers for Mimir?
+
+The webhook-first policy above applies to Grafana-native (`v1`) integrations.
+Mimir-compatible (`v0mimir1`/`v0mimir2`) integrations exist only to mirror upstream
+Prometheus Alertmanager notifiers, so a Mimir-style config that loads upstream
+also loads here. Hand-rolled implementations or changed semantics can silently
+accept configs upstream rejects, or reject configs upstream accepts.
+
+We accept `v0mimir*` integrations only as full semantic copies of the corresponding
+upstream notifier: copy the config fields, YAML/JSON tags, defaults, and validation,
+and keep the notifier implementation semantically intact. Document any deliberate
+deviations. If the notifier does not exist upstream, it belongs in `v1`, where
+the webhook-first policy applies.
+
 You are welcome to create draft PRs at any stage of readiness - this can be
 helpful to ask for assistance or to develop an idea. But before a piece of work
 is finished it should:

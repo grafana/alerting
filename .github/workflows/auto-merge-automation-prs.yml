@@ -34,19 +34,13 @@ jobs:
         with:
           github_app: alerting-team
 
-      - name: Approve and auto-merge
+      - name: Approve
         if: github.event.pull_request.draft == false
-        # Keep the "enable auto-merge" -> approve order.
-        # If auto-merge is already enabled, approving will trigger the merge and the job will fail trying to enable auto-merge.
         uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
         with:
           max_attempts: 3
           timeout_seconds: 30
           command: |
-            set -e
-            if [ "$(gh pr view "$PR_URL" --json autoMergeRequest --jq '.autoMergeRequest != null')" != "true" ]; then
-              gh pr merge --auto --squash "$PR_URL"
-            fi
             gh pr review --approve "$PR_URL" --body "PR approved by workflow \"${{ github.workflow }}\""
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
