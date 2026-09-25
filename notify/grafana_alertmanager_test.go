@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
-	"github.com/prometheus/alertmanager/config"
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/prometheus/alertmanager/provider/mem"
 	"github.com/prometheus/alertmanager/timeinterval"
@@ -589,11 +589,11 @@ func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
 	require.NoError(t, err)
 
 	r := []InhibitRule{{
-		SourceMatchers: config.Matchers{m1},
-		TargetMatchers: config.Matchers{m2},
+		SourceMatchers: amcommoncfg.Matchers{m1},
+		TargetMatchers: amcommoncfg.Matchers{m2},
 	}, {
-		SourceMatchers: config.Matchers{m3},
-		TargetMatchers: config.Matchers{m4},
+		SourceMatchers: amcommoncfg.Matchers{m3},
+		TargetMatchers: amcommoncfg.Matchers{m4},
 	}}
 	am.setInhibitionRulesMetrics(r)
 
@@ -961,7 +961,7 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 				"team": "platform",
 				"env":  "prod",
 			},
-			Matchers: config.Matchers{
+			Matchers: amcommoncfg.Matchers{
 				mustLabelMatcher(t, labels.MatchEqual, "service", "api"),
 				mustLabelMatcher(t, labels.MatchNotEqual, "severity", "none"),
 			},
@@ -980,7 +980,7 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 						"team":    "database",
 						"cluster": "prod-us-east-1",
 					},
-					Matchers: config.Matchers{
+					Matchers: amcommoncfg.Matchers{
 						mustLabelMatcher(t, labels.MatchEqual, "component", "postgres"),
 					},
 					MuteTimeIntervals: []string{"db_maintenance"},
@@ -994,7 +994,7 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 								"severity": "critical",
 								"region":   "us-east-1",
 							},
-							Matchers: config.Matchers{
+							Matchers: amcommoncfg.Matchers{
 								mustLabelMatcher(t, labels.MatchEqual, "tier", "backend"),
 							},
 						},
@@ -1008,13 +1008,13 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 					"severity": "critical",
 					"team":     "platform",
 				},
-				SourceMatchers: config.Matchers{
+				SourceMatchers: amcommoncfg.Matchers{
 					mustLabelMatcher(t, labels.MatchEqual, "environment", "prod"),
 				},
 				TargetMatch: map[string]string{
 					"severity": "warning",
 				},
-				TargetMatchers: config.Matchers{
+				TargetMatchers: amcommoncfg.Matchers{
 					mustLabelMatcher(t, labels.MatchEqual, "component", "api"),
 				},
 				Equal: []string{"alertname", "cluster", "namespace"},
