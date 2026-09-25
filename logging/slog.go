@@ -19,10 +19,52 @@ import (
 // fields the underlying go-kit logger already produces, so consumers that
 // decorate their logger with those fields (grafana-alertmanager,
 // grafana/grafana) don't get duplicates or a second, incorrectly-depthed
-// caller value. See CallerParity in the package doc comment for the caveat
-// this implies.
-func NewSlogLogger(logger log.Logger) *slog.Logger {
-	return slog.New(&handler{logger: logger})
+// caller value.
+//
+// Enabled(Debug) detection (see Option/WithDebugEnabled) depends on how each
+// consumer's logger is built:
+//
+//   - grafana-alertmanager: GrafanaAlertmanagerOpts.Logger is, unwrapped, the
+//     *levelFilter InitLogger returns, which implements DebugEnabled()
+//     directly -- calling NewSlogLogger(theOptsLogger) detects it via the
+//     type assertion below with no option needed. But go-kit's log.Logger is
+//     an opaque interface: wrapping it first with log.With(logger, "component",
+//     "x") (the pattern this package's own callers use to scope a sub-logger
+//     per fork component, mirroring Mimir's SlogFromGoKit call sites) returns
+//     a *log.context, a distinct concrete type that does not implement
+//     DebugEnabled() -- Go does not promote it through a non-embedded field.
+//     Detection is hidden by that wrapping. Callers that scope a logger this
+//     way must probe DebugEnabled() on the *original*, unwrapped logger
+//     themselves and pass the result via WithDebugEnabled.
+//   - grafana/grafana: its logger is filtered with go-kit's own stock
+//     level.NewFilter (pkg/infra/log/log.go), which implements no
+//     DebugEnabled()-shaped method at all. Detection never succeeds for this
+//     consumer, wrapped or not; Enabled(Debug) always reports true unless a
+//     caller supplies WithDebugEnabled explicitly.
+//
+// In both undetected cases, emitted log output is still correct: the
+// underlying go-kit logger's own level filter still drops disallowed levels
+// when Log is actually called. Only the Enabled() fast path -- letting a
+// caller skip building an expensive Debug record at all -- is unavailable.
+func NewSlogLogger(logger log.Logger, opts ...Option) *slog.Logger {
+	h := &handler{logger: logger}
+	for _, opt := range opts {
+		opt(h)
+	}
+	return slog.New(h)
+}
+
+// Option configures NewSlogLogger.
+type Option func(*handler)
+
+// WithDebugEnabled explicitly tells the adapter whether Debug-level records
+// are enabled, overriding the DebugEnabled() interface probe. Use this when
+// handing NewSlogLogger a logger that was itself built with log.With(...) (or
+// similar) on top of a logger that implements DebugEnabled() -- that
+// wrapping hides the method from Go's interface assertion, so probe it on
+// the pre-With logger and pass the result here.
+func WithDebugEnabled(enabled bool) Option {
+	return func(h *handler) { h.debugEnabled = &enabled }
 }
 
 // handler implements slog.Handler on top of a go-kit log.Logger.
@@ -32,16 +74,18 @@ type handler struct {
 	// WithAttrs calls, ready to append directly to a log.Logger.Log call.
 	preformatted []any
 	group        string
+	debugEnabled *bool
 }
 
 func (h *handler) Enabled(_ context.Context, lvl slog.Level) bool {
 	// go-kit's level.NewFilter drops disallowed levels when Log is called, so
 	// returning true here never produces incorrect output; it only costs a
-	// discarded Log call for levels a filter would have dropped anyway. Loggers
-	// that expose DebugEnabled (grafana-alertmanager's levelFilter) let us skip
-	// that call for the common debug case.
+	// discarded Log call for levels a filter would have dropped anyway.
 	if lvl >= slog.LevelInfo {
 		return true
+	}
+	if h.debugEnabled != nil {
+		return *h.debugEnabled
 	}
 	if d, ok := h.logger.(interface{ DebugEnabled() bool }); ok {
 		return d.DebugEnabled()
@@ -66,7 +110,7 @@ func (h *handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	for _, a := range attrs {
 		pairs = appendAttr(pairs, h.group, a)
 	}
-	return &handler{logger: h.logger, preformatted: pairs, group: h.group}
+	return &handler{logger: h.logger, preformatted: pairs, group: h.group, debugEnabled: h.debugEnabled}
 }
 
 func (h *handler) WithGroup(name string) slog.Handler {
@@ -77,7 +121,7 @@ func (h *handler) WithGroup(name string) slog.Handler {
 	if h.group != "" {
 		group = h.group + "." + group
 	}
-	return &handler{logger: h.logger, preformatted: h.preformatted, group: group}
+	return &handler{logger: h.logger, preformatted: h.preformatted, group: group, debugEnabled: h.debugEnabled}
 }
 
 // appendAttr flattens a into pairs, prefixing its key with groupPrefix
@@ -109,7 +153,13 @@ func appendAttr(pairs []any, groupPrefix string, a slog.Attr) []any {
 	if groupPrefix != "" {
 		key = groupPrefix + "." + key
 	}
-	return append(pairs, key, a.Value)
+	// a.Value.Any() unwraps to the underlying Go value (int, bool, error,
+	// time.Time, ...): appending the slog.Value itself would make go-kit's
+	// encoders format it via slog.Value.String() instead of the underlying
+	// type's own error/Stringer/encoding.TextMarshaler semantics -- e.g. an
+	// int 3 would print as the quoted string "3" rather than 3, and a
+	// time.Time attr would lose its RFC3339Nano encoding.
+	return append(pairs, key, a.Value.Any())
 }
 
 func goKitLevel(logger log.Logger, lvl slog.Level) log.Logger {
