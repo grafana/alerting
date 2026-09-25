@@ -404,13 +404,18 @@ func TestGoldenLines_BoundAttributeOrder_Logfmt(t *testing.T) {
 
 // TestGoldenLines_BoundMsgOverride_JSON is a permanent regression test for
 // the more consequential form of a field-order/duplicate-key bug: a bound
-// "msg" (e.g. from a scoped logger built with log.With(l, "msg", "..."))
-// combined with the event's own msg at call time. go-kit's JSON logger
-// dedupes by last-write-wins (TestGoldenLines_JSONDeduplicatesKeys), so the
-// event message must win over the bound one, in both the direct and the
-// adapter path -- if Handle() ever placed msg somewhere that changed this
-// precedence, JSON output would silently carry the wrong message with no
-// duplicate key to notice.
+// "msg" combined with the event's own msg at call time. Like
+// TestGoldenLines_BoundAttributeOrder_Logfmt, the bound "msg" must be bound
+// at the slog level -- via our own WithAttrs (logger.With("msg", ...)), not
+// on the underlying go-kit logger -- so it actually lands in h.preformatted
+// and exercises Handle()'s ordering of preformatted vs "msg"; binding it on
+// the go-kit logger instead would leave h.preformatted empty and pass even
+// if Handle() put "msg" first. go-kit's JSON logger dedupes by
+// last-write-wins (TestGoldenLines_JSONDeduplicatesKeys), so the event
+// message must win over the bound one in both the direct and the adapter
+// path -- if Handle() ever placed msg before h.preformatted, the bound
+// "msg" would win instead, and JSON's dedup would hide it as a duplicate
+// key (there's only ever one "msg" key in the output either way).
 func TestGoldenLines_BoundMsgOverride_JSON(t *testing.T) {
 	newJSONLogger := func(buf *bytes.Buffer) log.Logger {
 		return level.NewFilter(dslog.NewGoKitWithWriter(dslog.JSONFormat, buf), level.AllowAll())
@@ -421,8 +426,7 @@ func TestGoldenLines_BoundMsgOverride_JSON(t *testing.T) {
 	directBound := log.With(newJSONLogger(&directBuf), "msg", "bound-msg")
 	require.NoError(t, level.Info(directBound).Log("msg", "event-msg"))
 
-	adapterBound := log.With(newJSONLogger(&adapterBuf), "msg", "bound-msg")
-	NewSlogLogger(adapterBound).Info("event-msg")
+	NewSlogLogger(newJSONLogger(&adapterBuf)).With("msg", "bound-msg").Info("event-msg")
 
 	var direct, viaAdapter map[string]any
 	require.NoError(t, json.Unmarshal(directBuf.Bytes(), &direct))
