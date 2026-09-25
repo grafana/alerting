@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
+	"runtime"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -66,6 +70,80 @@ func setupAMTest(t *testing.T, withOpts ...withOptsFn) (*GrafanaAlertmanager, *p
 	require.NoError(t, err)
 	return am, reg
 }
+
+// nextLine returns the line number of the statement immediately following
+// the call to nextLine, so a test can assert against "the line I'm about to
+// execute" without a line number that silently goes stale on the next edit.
+func nextLine(t *testing.T) int {
+	t.Helper()
+	_, _, line, ok := runtime.Caller(1)
+	require.True(t, ok)
+	return line + 1
+}
+
+func TestGrafanaAlertmanager_forkLogger(t *testing.T) {
+	t.Run("LoggerWithoutCaller unset: no caller field, same as before this option existed", func(t *testing.T) {
+		am, _ := setupAMTest(t)
+		var buf bytes.Buffer
+		am.opts.Logger = log.NewLogfmtLogger(&buf)
+		am.logger = log.With(am.opts.Logger)
+
+		am.forkLogger().Info("hi")
+		require.NotContains(t, buf.String(), "caller=")
+
+		buf.Reset()
+		am.forkLoggerRaw().Info("hi")
+		require.NotContains(t, buf.String(), "caller=")
+	})
+
+	t.Run("LoggerWithoutCaller set: exactly one, correct caller", func(t *testing.T) {
+		am, _ := setupAMTest(t, func(opts *GrafanaAlertmanagerOpts) {
+			opts.LoggerWithoutCaller = log.NewNopLogger()
+		})
+		var buf bytes.Buffer
+		am.opts.LoggerWithoutCaller = log.NewLogfmtLogger(&buf)
+
+		wantForkLoggerLine := nextLine(t)
+		am.forkLogger().Info("hi")
+		require.Equal(t, 1, strings.Count(buf.String(), "caller="), "line: %s", buf.String())
+		require.Contains(t, buf.String(), fmt.Sprintf("caller=grafana_alertmanager_test.go:%d", wantForkLoggerLine))
+
+		buf.Reset()
+		wantForkLoggerRawLine := nextLine(t)
+		am.forkLoggerRaw().Info("hi")
+		require.Equal(t, 1, strings.Count(buf.String(), "caller="), "line: %s", buf.String())
+		require.Contains(t, buf.String(), fmt.Sprintf("caller=grafana_alertmanager_test.go:%d", wantForkLoggerRawLine))
+	})
+
+	t.Run("DebugEnabled is probed on the pre-scoping logger, through both LoggerWithoutCaller branches", func(t *testing.T) {
+		infoOnly := &fakeDebugEnabledLogger{Logger: log.NewNopLogger(), debug: false}
+
+		am, _ := setupAMTest(t, func(opts *GrafanaAlertmanagerOpts) {
+			opts.Logger = infoOnly
+		})
+		am.logger = log.With(am.opts.Logger)
+		require.False(t, am.forkLogger().Enabled(context.Background(), slog.LevelDebug),
+			"am.logger wraps am.opts.Logger with log.With before forkLogger even runs, hiding DebugEnabled() the same way -- forkLogger must probe am.opts.Logger directly, not am.logger")
+		require.False(t, am.forkLoggerRaw().Enabled(context.Background(), slog.LevelDebug))
+
+		am2, _ := setupAMTest(t, func(opts *GrafanaAlertmanagerOpts) {
+			opts.LoggerWithoutCaller = infoOnly
+		})
+		require.False(t, am2.forkLogger().Enabled(context.Background(), slog.LevelDebug),
+			"forkLogger's own log.With(LoggerWithoutCaller, \"component\", ...) scoping must not hide DebugEnabled either")
+		require.False(t, am2.forkLoggerRaw().Enabled(context.Background(), slog.LevelDebug))
+	})
+}
+
+// fakeDebugEnabledLogger is a minimal log.Logger that also implements
+// DebugEnabled(), for probing forkLogger/forkLoggerRaw's detection without
+// needing the full grafana-alertmanager levelFilter shape.
+type fakeDebugEnabledLogger struct {
+	log.Logger
+	debug bool
+}
+
+func (f *fakeDebugEnabledLogger) DebugEnabled() bool { return f.debug }
 
 func TestPutAlert(t *testing.T) {
 	am, _ := setupAMTest(t)
@@ -314,7 +392,7 @@ func TestPutAlert(t *testing.T) {
 		t.Run(c.title, func(t *testing.T) {
 			r := prometheus.NewRegistry()
 			am.marker = types.NewMarker(r)
-			am.alerts, err = mem.NewAlerts(context.Background(), am.marker, 15*time.Minute, nil, am.logger, r)
+			am.alerts, err = mem.NewAlerts(context.Background(), am.marker, 15*time.Minute, nil, am.forkLogger(), r)
 			require.NoError(t, err)
 
 			alerts := []*types.Alert{}

@@ -34,6 +34,7 @@ import (
 	"github.com/prometheus/alertmanager/types"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
+	"github.com/grafana/alerting/logging"
 )
 
 var tracer = otel.Tracer("github.com/prometheus/alertmanager/notify/webhook")
@@ -96,7 +97,7 @@ func (n *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, er
 	defer span.End()
 
 	alerts, numTruncated := truncateAlerts(n.conf.MaxAlerts, alerts)
-	data := notify.GetTemplateData(ctx, n.tmpl, alerts, n.logger)
+	data := notify.GetTemplateData(ctx, n.tmpl, alerts, logging.NewSlogLogger(n.logger))
 
 	groupKey, err := notify.ExtractGroupKey(ctx)
 	if err != nil {
