@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -30,6 +32,17 @@ type gaLevelFilter struct {
 }
 
 func (f *gaLevelFilter) DebugEnabled() bool { return f.debug }
+
+// Log forwards to the embedded Logger through an explicit method instead of
+// relying on interface promotion. grafana-alertmanager's real levelFilter
+// does the same (it overrides Log to intercept a private probe value) --
+// that override adds one real stack frame between any caller and the
+// decorated logger's own Log, which matters for the caller-parity tests:
+// without it, this fixture would be one frame shallower than production and
+// caller depths measured against it wouldn't be faithful.
+func (f *gaLevelFilter) Log(keyvals ...any) error {
+	return f.Logger.Log(keyvals...)
+}
 
 // newGrafanaAlertmanagerLogger mirrors grafana-alertmanager's InitLogger
 // (pkg/util/log/log.go), non-rate-limited branch, field for field: ts +
@@ -152,6 +165,61 @@ func logAdapter(logger log.Logger, lvl slog.Level, msg string, kvs ...any) {
 
 var allLevels = []slog.Level{slog.LevelDebug, slog.LevelInfo, slog.LevelWarn, slog.LevelError}
 
+// callerFormat matches go-kit's own basename:line caller shape.
+var callerFormat = regexp.MustCompile(`^\S+\.go:\d+$`)
+
+// assertTimeAndCallerShape checks presence, count and format of the
+// consumer-specific timestamp/caller fields raw decoded fields carry, for
+// the given fixture and path ("direct" or "adapter") -- exact timestamp
+// values are volatile (wall clock) and caller's exact value is the
+// documented parity gap (see TestCallerParity_GrafanaAlertmanagerStyle), so
+// this only checks that the expected field(s) are there exactly once, in the
+// right format, and that no fixture emits a caller it never bound.
+func assertTimeAndCallerShape(t *testing.T, fixtureName, path string, fields []kv) {
+	t.Helper()
+	switch fixtureName {
+	case "plain-logfmt":
+		_, hasTS := valueOf(t, fields, "ts")
+		_, hasT := valueOf(t, fields, "t")
+		_, hasCaller := valueOf(t, fields, "caller")
+		require.False(t, hasTS, "%s/%s: plain-logfmt binds no ts", fixtureName, path)
+		require.False(t, hasT, "%s/%s: plain-logfmt binds no t", fixtureName, path)
+		require.False(t, hasCaller, "%s/%s: plain-logfmt binds no caller", fixtureName, path)
+	case "grafana-alertmanager":
+		ts, ok := valueOf(t, fields, "ts")
+		require.True(t, ok, "%s/%s: grafana-alertmanager always binds ts", fixtureName, path)
+		require.Equal(t, 1, countKey(fields, "ts"), "%s/%s: exactly one ts", fixtureName, path)
+		_, err := time.Parse(time.RFC3339Nano, ts)
+		require.NoError(t, err, "%s/%s: ts %q must be RFC3339Nano (log.DefaultTimestampUTC)", fixtureName, path, ts)
+
+		caller, ok := valueOf(t, fields, "caller")
+		require.True(t, ok, "%s/%s: grafana-alertmanager always binds caller", fixtureName, path)
+		require.Equal(t, 1, countKey(fields, "caller"), "%s/%s: exactly one caller", fixtureName, path)
+		require.Regexp(t, callerFormat, caller, "%s/%s: caller %q must be basename:line", fixtureName, path, caller)
+	case "grafana-grafana":
+		tVal, ok := valueOf(t, fields, "t")
+		require.True(t, ok, "%s/%s: grafana-grafana always binds t", fixtureName, path)
+		require.Equal(t, 1, countKey(fields, "t"), "%s/%s: exactly one t", fixtureName, path)
+		_, err := time.Parse(time.RFC3339Nano, tVal)
+		require.NoError(t, err, "%s/%s: t %q must be RFC3339Nano", fixtureName, path, tVal)
+
+		_, hasCaller := valueOf(t, fields, "caller")
+		require.False(t, hasCaller, "%s/%s: grafana-grafana binds no caller (this test doesn't use WithCaller)", fixtureName, path)
+	default:
+		t.Fatalf("unknown fixture %q", fixtureName)
+	}
+}
+
+func countKey(fields []kv, key string) int {
+	n := 0
+	for _, f := range fields {
+		if f.key == key {
+			n++
+		}
+	}
+	return n
+}
+
 // ---- typed-value parity: every level, logfmt ----
 
 type plainStruct struct{ A, B int }
@@ -180,14 +248,18 @@ func TestGoldenLines_AllLevelsAndTypedValues_Logfmt(t *testing.T) {
 				logDirect(fx.build(&directBuf), lvl, "hello", attrs...)
 				logAdapter(fx.build(&adapterBuf), lvl, "hello", attrs...)
 
-				direct := decodeLogfmtOrdered(t, directBuf.String())
-				viaAdapter := decodeLogfmtOrdered(t, adapterBuf.String())
+				rawDirect := decodeLogfmtOrdered(t, directBuf.String())
+				rawAdapter := decodeLogfmtOrdered(t, adapterBuf.String())
+				assertTimeAndCallerShape(t, fx.name, "direct", rawDirect)
+				assertTimeAndCallerShape(t, fx.name, "adapter", rawAdapter)
 
-				// ts/t/caller are covered by dedicated tests (they're either
-				// volatile -- wall clock -- or, for caller, the documented
-				// parity gap); strip them before the field-by-field compare.
-				direct = without(direct, "ts", "t", "caller")
-				viaAdapter = without(viaAdapter, "ts", "t", "caller")
+				// ts/t are volatile (wall clock); caller's exact value is the
+				// documented parity gap, covered by the dedicated
+				// TestCallerParity_GrafanaAlertmanagerStyle. Presence and
+				// format of both are asserted above; strip them before the
+				// field-by-field compare of everything else.
+				direct := without(rawDirect, "ts", "t", "caller")
+				viaAdapter := without(rawAdapter, "ts", "t", "caller")
 
 				require.Equal(t, direct, viaAdapter, "direct line:  %s\nadapter line: %s", directBuf.String(), adapterBuf.String())
 			})
@@ -455,16 +527,37 @@ func TestGoldenLines_NoDuplicateTimeOrCallerKeys(t *testing.T) {
 // actual, observed values from a real run of this exact test, so a change
 // that happens to make them equal -- for the wrong reason -- fails loudly
 // instead of silently passing a weaker check.
+// nextLine returns the line number of the statement immediately following
+// the call to nextLine (runtime.Caller(1) is nextLine's own caller's frame),
+// so a test can assert against "the line I'm about to execute" without
+// hardcoding a line number that silently goes stale on the next edit.
+func nextLine(t *testing.T) int {
+	t.Helper()
+	_, _, line, ok := runtime.Caller(1)
+	require.True(t, ok)
+	return line + 1
+}
+
 func TestCallerParity_GrafanaAlertmanagerStyle(t *testing.T) {
 	var directBuf, adapterBuf bytes.Buffer
 	build := func(buf *bytes.Buffer) log.Logger {
-		l := dslog.NewGoKitWithWriter(dslog.LogfmtFormat, buf)
-		return log.With(l, "caller", spanlogger.Caller(6))
+		// The real fixture shape: gaLevelFilter's own Log() forwarding frame
+		// (matching grafana-alertmanager's real levelFilter override, not
+		// bare interface promotion -- see its doc comment), plus consumer
+		// context: grafana/alerting's am.logger scopes InitLogger's output
+		// with component/tenant via log.With before ever calling it
+		// (notify/grafana_alertmanager.go: `log.With(opts.Logger,
+		// "component", "alertmanager", opts.TenantKey, opts.TenantID)`).
+		base := newGrafanaAlertmanagerLogger(buf, dslog.LogfmtFormat, level.AllowAll(), true)
+		return log.With(base, "component", "alertmanager", "org", 1)
 	}
 	directLogger := build(&directBuf)
 	adapterLogger := NewSlogLogger(build(&adapterBuf))
 
+	directCallLine := nextLine(t)
 	level.Info(directLogger).Log("msg", "hi") //nolint:errcheck
+
+	adapterCallLine := nextLine(t)
 	adapterLogger.Info("hi")
 
 	directCaller, ok := valueOf(t, decodeLogfmtOrdered(t, directBuf.String()), "caller")
@@ -472,31 +565,27 @@ func TestCallerParity_GrafanaAlertmanagerStyle(t *testing.T) {
 	adapterCaller, ok := valueOf(t, decodeLogfmtOrdered(t, adapterBuf.String()), "caller")
 	require.True(t, ok)
 
-	t.Logf("direct call site caller:  %s", directCaller)
-	t.Logf("adapter call site caller: %s", adapterCaller)
+	t.Logf("direct call site caller:  %s (real call site: slog_test.go:%d)", directCaller, directCallLine)
+	t.Logf("adapter call site caller: %s (real call site: slog_test.go:%d)", adapterCaller, adapterCallLine)
 
-	// With spanlogger.Caller(6) -- grafana-alertmanager's real, production
-	// depth -- called directly from this test function's own body (no extra
-	// t.Run wrapper frame), the direct path runs off the end of the real call
-	// stack entirely (6 is tuned for a deeper production call chain than
-	// this flat test body has), while slog's extra Logger.Info ->
-	// Logger.log -> Handler.Handle -> our Handle -> logger.Log frames happen,
-	// in this exact call shape, to add up to just enough extra depth that
-	// the adapter path lands back on the real call site. That's a
-	// coincidence of this test's specific nesting, not a property of the
-	// adapter: a differently-nested caller (see slog-caller-report.md and
-	// the reviewer's own reproduction, which used one more layer of nesting
-	// and got direct=<the real line>, adapter=inside logging/slog.go
-	// instead) gets a different wrong answer. The invariant that holds
-	// everywhere is that one fixed N cannot be correct for both call shapes
-	// at once; which side is wrong, and how, is call-shape-dependent -- this
-	// test pins what THIS exact call shape produces so a change that makes
-	// the two paths equal (for the wrong reason) still fails loudly.
-	require.Equal(t, "<unknown>", directCaller, "direct path: spanlogger.Caller(6) should run off the stack in this flat call shape")
-	// 468 is the line of `adapterLogger.Info("hi")` above -- pinned deliberately
-	// (see comment above): if this line moves, update the constant with it.
-	require.Equal(t, "slog_test.go:468", adapterCaller,
-		"adapter path: spanlogger.Caller(6) happens to land back on the real call site in this call shape -- a coincidence of nesting depth, not a guarantee")
+	// Direct path: with the real fixture shape (levelFilter's Log() frame +
+	// consumer-context scoping, matching production), spanlogger.Caller(6)
+	// resolves to the actual call site -- this is what correct caller
+	// resolution looks like for a direct go-kit call.
+	require.Equal(t, fmt.Sprintf("slog_test.go:%d", directCallLine), directCaller,
+		"direct path should resolve to the real call site with the production-shaped fixture")
+
+	// Adapter path, same fixture, same N=6: slog's extra
+	// Logger.Info -> Logger.log -> Handler.Handle -> our Handle -> logger.Log
+	// frames shift the walk, landing inside our own adapter file instead of
+	// the real call site -- this IS the caller-parity gap, not a test
+	// artifact. Assert what's actually wrong about it (never the real call
+	// line) rather than pin a specific stdlib/adapter file:line, which is
+	// compiler- and Go-version-sensitive and not the point being tested.
+	require.NotEqual(t, fmt.Sprintf("slog_test.go:%d", adapterCallLine), adapterCaller,
+		"if this ever becomes equal, re-check: it would mean the frame-count mismatch this test exists to document no longer holds")
+	require.NotContains(t, adapterCaller, "slog_test.go",
+		"adapter path should not land back in the test file at all with this fixture shape: got %q", adapterCaller)
 }
 
 // ---- opt-in caller via WithCaller (option (b)+(d), commander decision 2026-09-25) ----
@@ -511,8 +600,8 @@ func TestOptInCaller_GrafanaAlertmanagerStyleMinusCaller(t *testing.T) {
 	logger := dslog.NewGoKitWithWriter(dslog.LogfmtFormat, &buf)
 	logger = log.With(logger, "ts", log.DefaultTimestampUTC) // no "caller" -- that's the point
 
-	NewSlogLogger(logger, WithCaller()).Info("hi") // <- this is the expected caller line
-	wantLine := 514
+	wantLine := nextLine(t)
+	NewSlogLogger(logger, WithCaller()).Info("hi")
 
 	line := buf.String()
 	require.Equal(t, 1, strings.Count(line, "caller="), "line: %s", line)

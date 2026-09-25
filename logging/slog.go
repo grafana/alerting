@@ -116,11 +116,16 @@ func (h *handler) Enabled(_ context.Context, lvl slog.Level) bool {
 
 func (h *handler) Handle(_ context.Context, record slog.Record) error {
 	pairs := make([]any, 0, 4+len(h.preformatted)+2*record.NumAttrs())
+	// h.preformatted (bound via WithAttrs, i.e. logger.With(...)) comes first,
+	// matching go-kit's own log.With: "With returns a new contextual logger
+	// with keyvals prepended to those passed to calls to Log" -- so a real
+	// go-kit call shaped as log.With(l, "k1", v1).Log("msg", m, "k2", v2)
+	// emits k1, then msg, then k2, not msg first.
+	pairs = append(pairs, h.preformatted...)
 	pairs = append(pairs, "msg", record.Message)
 	if h.addCaller && record.PC != 0 {
 		pairs = append(pairs, "caller", callerFromPC(record.PC))
 	}
-	pairs = append(pairs, h.preformatted...)
 	record.Attrs(func(a slog.Attr) bool {
 		pairs = appendAttr(pairs, h.group, a)
 		return true

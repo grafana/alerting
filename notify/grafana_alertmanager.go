@@ -1072,11 +1072,22 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 // hand into a fork constructor, honoring the optional LoggerWithoutCaller
 // opt-in on GrafanaAlertmanagerOpts (see its doc comment): when set, the
 // adapter adds an exact caller derived from the real call site; when unset,
-// this is exactly am.logger wrapped with no caller added, as before.
+// this is exactly am.logger wrapped with no caller added, as before. Either
+// way, DebugEnabled() is probed on the pre-scoping logger (opts.Logger or
+// opts.LoggerWithoutCaller) before log.With(...) hides it -- see
+// logging.NewSlogLogger's doc comment on why detection must happen before
+// that wrapping, not after.
 func (am *GrafanaAlertmanager) forkLogger() *slog.Logger {
 	if am.opts.LoggerWithoutCaller != nil {
 		scoped := log.With(am.opts.LoggerWithoutCaller, "component", "alertmanager", am.opts.TenantKey, am.opts.TenantID)
-		return logging.NewSlogLogger(scoped, logging.WithCaller())
+		opts := []logging.Option{logging.WithCaller()}
+		if d, ok := am.opts.LoggerWithoutCaller.(interface{ DebugEnabled() bool }); ok {
+			opts = append(opts, logging.WithDebugEnabled(d.DebugEnabled()))
+		}
+		return logging.NewSlogLogger(scoped, opts...)
+	}
+	if d, ok := am.opts.Logger.(interface{ DebugEnabled() bool }); ok {
+		return logging.NewSlogLogger(am.logger, logging.WithDebugEnabled(d.DebugEnabled()))
 	}
 	return logging.NewSlogLogger(am.logger)
 }
@@ -1086,7 +1097,14 @@ func (am *GrafanaAlertmanager) forkLogger() *slog.Logger {
 // flushlog Options.Logger).
 func (am *GrafanaAlertmanager) forkLoggerRaw() *slog.Logger {
 	if am.opts.LoggerWithoutCaller != nil {
-		return logging.NewSlogLogger(am.opts.LoggerWithoutCaller, logging.WithCaller())
+		opts := []logging.Option{logging.WithCaller()}
+		if d, ok := am.opts.LoggerWithoutCaller.(interface{ DebugEnabled() bool }); ok {
+			opts = append(opts, logging.WithDebugEnabled(d.DebugEnabled()))
+		}
+		return logging.NewSlogLogger(am.opts.LoggerWithoutCaller, opts...)
+	}
+	if d, ok := am.opts.Logger.(interface{ DebugEnabled() bool }); ok {
+		return logging.NewSlogLogger(am.opts.Logger, logging.WithDebugEnabled(d.DebugEnabled()))
 	}
 	return logging.NewSlogLogger(am.opts.Logger)
 }
