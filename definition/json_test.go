@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/prometheus/alertmanager/config"
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	"github.com/stretchr/testify/require"
 
 	"github.com/prometheus/alertmanager/timeinterval"
@@ -28,7 +29,7 @@ func TestMarshalJSONWithSecrets(t *testing.T) {
 
 	globalConfig := config.DefaultGlobalConfig()
 	globalConfig.SMTPAuthPassword = config.Secret("smtp-password")
-	globalConfig.SlackAPIURL = (*config.SecretURL)(&config.URL{URL: testURL})
+	globalConfig.SlackAPIURL = (*amcommoncfg.SecretURL)(&amcommoncfg.URL{URL: testURL})
 
 	cfg := PostableApiAlertingConfig{
 		Config: Config{
