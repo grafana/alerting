@@ -5,6 +5,8 @@ import (
 	"github.com/prometheus/alertmanager/api/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"github.com/grafana/alerting/logging"
 )
 
 const namespace = "grafana"
@@ -24,7 +26,7 @@ type GrafanaAlertmanagerMetrics struct {
 func NewGrafanaAlertmanagerMetrics(r prometheus.Registerer, l log.Logger) *GrafanaAlertmanagerMetrics {
 	return &GrafanaAlertmanagerMetrics{
 		Registerer: r,
-		Alerts:     metrics.NewAlerts(r, l),
+		Alerts:     metrics.NewAlerts(r, logging.NewSlogLogger(l)),
 		configuredReceivers: promauto.With(r).NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
