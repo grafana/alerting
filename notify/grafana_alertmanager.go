@@ -247,6 +247,13 @@ type GrafanaAlertmanagerOpts struct {
 	Logger  log.Logger
 	Metrics *GrafanaAlertmanagerMetrics
 
+	// LoggerWithoutCaller is an optional go-kit logger equivalent to Logger
+	// but without a "caller" field baked in. When set, it is used (instead of
+	// Logger) for the loggers handed into the fork, and the adapter adds its
+	// own exact caller derived from the real call site; when unset, fork
+	// loggers are built from Logger as before, with no caller added.
+	LoggerWithoutCaller log.Logger
+
 	NotificationHistorian nfstatus.NotificationHistorian
 
 	DispatchTimer DispatchTimer
@@ -1062,8 +1069,15 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 }
 
 // forkLogger returns the scoped ("component"="alertmanager") *slog.Logger to
-// hand into a fork constructor: am.logger wrapped with no caller added.
+// hand into a fork constructor, honoring the optional LoggerWithoutCaller
+// opt-in on GrafanaAlertmanagerOpts (see its doc comment): when set, the
+// adapter adds an exact caller derived from the real call site; when unset,
+// this is exactly am.logger wrapped with no caller added, as before.
 func (am *GrafanaAlertmanager) forkLogger() *slog.Logger {
+	if am.opts.LoggerWithoutCaller != nil {
+		scoped := log.With(am.opts.LoggerWithoutCaller, "component", "alertmanager", am.opts.TenantKey, am.opts.TenantID)
+		return logging.NewSlogLogger(scoped, logging.WithCaller())
+	}
 	return logging.NewSlogLogger(am.logger)
 }
 
@@ -1071,6 +1085,9 @@ func (am *GrafanaAlertmanager) forkLogger() *slog.Logger {
 // for the fork call sites that pass opts.Logger unscoped today (nflog and
 // flushlog Options.Logger).
 func (am *GrafanaAlertmanager) forkLoggerRaw() *slog.Logger {
+	if am.opts.LoggerWithoutCaller != nil {
+		return logging.NewSlogLogger(am.opts.LoggerWithoutCaller, logging.WithCaller())
+	}
 	return logging.NewSlogLogger(am.opts.Logger)
 }
 

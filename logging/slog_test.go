@@ -498,3 +498,50 @@ func TestCallerParity_GrafanaAlertmanagerStyle(t *testing.T) {
 	require.Equal(t, "slog_test.go:468", adapterCaller,
 		"adapter path: spanlogger.Caller(6) happens to land back on the real call site in this call shape -- a coincidence of nesting depth, not a guarantee")
 }
+
+// ---- opt-in caller via WithCaller (option (b)+(d), commander decision 2026-09-25) ----
+
+// TestOptInCaller_GrafanaAlertmanagerStyleMinusCaller: a grafana-alertmanager-
+// style logger (ts baked in, as usual) but WITHOUT its own caller field --
+// the shape the new optional GrafanaAlertmanagerOpts field is meant to carry
+// -- gets an exact, correct caller when WithCaller() is set: the real call
+// line, exactly once.
+func TestOptInCaller_GrafanaAlertmanagerStyleMinusCaller(t *testing.T) {
+	var buf bytes.Buffer
+	logger := dslog.NewGoKitWithWriter(dslog.LogfmtFormat, &buf)
+	logger = log.With(logger, "ts", log.DefaultTimestampUTC) // no "caller" -- that's the point
+
+	NewSlogLogger(logger, WithCaller()).Info("hi") // <- this is the expected caller line
+	wantLine := 514
+
+	line := buf.String()
+	require.Equal(t, 1, strings.Count(line, "caller="), "line: %s", line)
+	fields := decodeLogfmtOrdered(t, line)
+	got, ok := valueOf(t, fields, "caller")
+	require.True(t, ok)
+	require.Equal(t, fmt.Sprintf("slog_test.go:%d", wantLine), got)
+}
+
+// TestOptInCaller_GrafanaGrafanaStyleUnset: the option unset (grafana/grafana's
+// fallback -- no optional caller-less logger configured) must stay exactly
+// as it is today: no caller key at all, byte-identical to before this option
+// existed.
+func TestOptInCaller_GrafanaGrafanaStyleUnset(t *testing.T) {
+	var buf bytes.Buffer
+	NewSlogLogger(newGrafanaGrafanaLogger(&buf, level.AllowAll())).Info("hi")
+	require.NotContains(t, buf.String(), "caller=")
+}
+
+// TestOptInCaller_NeverDoubledWithExistingCaller documents (it is the
+// caller's responsibility, per WithCaller's doc comment, not something the
+// adapter can detect) what happens if WithCaller is combined with a logger
+// that already carries its own "caller" field: a visible duplicate in
+// logfmt. This is exactly why the optional GrafanaAlertmanagerOpts field is
+// documented as "a logger WITHOUT a caller field" -- WithCaller must never be
+// paired with the plain Logger field, which may carry one.
+func TestOptInCaller_NeverDoubledWithExistingCaller(t *testing.T) {
+	var buf bytes.Buffer
+	logger := log.With(dslog.NewGoKitWithWriter(dslog.LogfmtFormat, &buf), "caller", "pre-existing:1")
+	NewSlogLogger(logger, WithCaller()).Info("hi")
+	require.Equal(t, 2, strings.Count(buf.String(), "caller="), "misuse produces a visible duplicate, as documented: %s", buf.String())
+}

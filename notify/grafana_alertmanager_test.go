@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -65,6 +67,41 @@ func setupAMTest(t *testing.T, withOpts ...withOptsFn) (*GrafanaAlertmanager, *p
 	am, err := NewGrafanaAlertmanager(opts)
 	require.NoError(t, err)
 	return am, reg
+}
+
+func TestGrafanaAlertmanager_forkLogger(t *testing.T) {
+	t.Run("LoggerWithoutCaller unset: no caller field, same as before this option existed", func(t *testing.T) {
+		am, _ := setupAMTest(t)
+		var buf bytes.Buffer
+		am.opts.Logger = log.NewLogfmtLogger(&buf)
+		am.logger = log.With(am.opts.Logger)
+
+		am.forkLogger().Info("hi")
+		require.NotContains(t, buf.String(), "caller=")
+
+		buf.Reset()
+		am.forkLoggerRaw().Info("hi")
+		require.NotContains(t, buf.String(), "caller=")
+	})
+
+	t.Run("LoggerWithoutCaller set: exactly one, correct caller", func(t *testing.T) {
+		am, _ := setupAMTest(t, func(opts *GrafanaAlertmanagerOpts) {
+			opts.LoggerWithoutCaller = log.NewNopLogger()
+		})
+		var buf bytes.Buffer
+		am.opts.LoggerWithoutCaller = log.NewLogfmtLogger(&buf)
+
+		am.forkLogger().Info("hi") // <- expected caller line for forkLogger below
+		wantForkLoggerLine := 94
+		require.Equal(t, 1, strings.Count(buf.String(), "caller="), "line: %s", buf.String())
+		require.Contains(t, buf.String(), fmt.Sprintf("caller=grafana_alertmanager_test.go:%d", wantForkLoggerLine))
+
+		buf.Reset()
+		am.forkLoggerRaw().Info("hi") // <- expected caller line for forkLoggerRaw below
+		wantForkLoggerRawLine := 100
+		require.Equal(t, 1, strings.Count(buf.String(), "caller="), "line: %s", buf.String())
+		require.Contains(t, buf.String(), fmt.Sprintf("caller=grafana_alertmanager_test.go:%d", wantForkLoggerRawLine))
+	})
 }
 
 func TestPutAlert(t *testing.T) {

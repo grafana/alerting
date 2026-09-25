@@ -7,6 +7,9 @@ package logging
 import (
 	"context"
 	"log/slog"
+	"path/filepath"
+	"runtime"
+	"strconv"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -67,6 +70,23 @@ func WithDebugEnabled(enabled bool) Option {
 	return func(h *handler) { h.debugEnabled = &enabled }
 }
 
+// WithCaller makes the adapter add exactly one "caller" field to every
+// record, in the same basename:line format go-kit's own Caller Valuer uses,
+// derived from slog.Record.PC -- the call site slog itself captured at the
+// real Debug/Info/Warn/Error call, independent of how many extra frames the
+// adapter or slog add on top. Unlike a go-kit Valuer's fixed-skip stack walk
+// (see the package doc comment's caller-parity discussion), this is exact
+// regardless of call depth.
+//
+// Only pass this when logger does not, and will never, carry its own
+// "caller" field: the adapter has no way to detect or remove one already
+// baked into an opaque go-kit log.Logger, so combining the two would produce
+// a duplicate (logfmt) or silently-overwritten (JSON, which deduplicates
+// keys by keeping the last one written) "caller" value.
+func WithCaller() Option {
+	return func(h *handler) { h.addCaller = true }
+}
+
 // handler implements slog.Handler on top of a go-kit log.Logger.
 type handler struct {
 	logger log.Logger
@@ -75,6 +95,7 @@ type handler struct {
 	preformatted []any
 	group        string
 	debugEnabled *bool
+	addCaller    bool
 }
 
 func (h *handler) Enabled(_ context.Context, lvl slog.Level) bool {
@@ -94,8 +115,11 @@ func (h *handler) Enabled(_ context.Context, lvl slog.Level) bool {
 }
 
 func (h *handler) Handle(_ context.Context, record slog.Record) error {
-	pairs := make([]any, 0, 2+len(h.preformatted)+2*record.NumAttrs())
+	pairs := make([]any, 0, 4+len(h.preformatted)+2*record.NumAttrs())
 	pairs = append(pairs, "msg", record.Message)
+	if h.addCaller && record.PC != 0 {
+		pairs = append(pairs, "caller", callerFromPC(record.PC))
+	}
 	pairs = append(pairs, h.preformatted...)
 	record.Attrs(func(a slog.Attr) bool {
 		pairs = appendAttr(pairs, h.group, a)
@@ -110,7 +134,7 @@ func (h *handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	for _, a := range attrs {
 		pairs = appendAttr(pairs, h.group, a)
 	}
-	return &handler{logger: h.logger, preformatted: pairs, group: h.group, debugEnabled: h.debugEnabled}
+	return &handler{logger: h.logger, preformatted: pairs, group: h.group, debugEnabled: h.debugEnabled, addCaller: h.addCaller}
 }
 
 func (h *handler) WithGroup(name string) slog.Handler {
@@ -121,7 +145,13 @@ func (h *handler) WithGroup(name string) slog.Handler {
 	if h.group != "" {
 		group = h.group + "." + group
 	}
-	return &handler{logger: h.logger, preformatted: h.preformatted, group: group, debugEnabled: h.debugEnabled}
+	return &handler{logger: h.logger, preformatted: h.preformatted, group: group, debugEnabled: h.debugEnabled, addCaller: h.addCaller}
+}
+
+// callerFromPC formats pc as go-kit's own Caller Valuer does: basename:line.
+func callerFromPC(pc uintptr) string {
+	frame, _ := runtime.CallersFrames([]uintptr{pc}).Next()
+	return filepath.Base(frame.File) + ":" + strconv.Itoa(frame.Line)
 }
 
 // appendAttr flattens a into pairs, prefixing its key with groupPrefix
