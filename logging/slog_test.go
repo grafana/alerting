@@ -360,6 +360,78 @@ func TestGoldenLines_JSONDeduplicatesKeys(t *testing.T) {
 	require.Equal(t, 2, strings.Count(buf.String(), "caller="), "logfmt logger keeps every occurrence of a duplicate key")
 }
 
+// TestGoldenLines_BoundAttributeOrder_Logfmt is a permanent regression test
+// for the field-order bug found in review: Handle() must place
+// h.preformatted (bound via slog's own logger.With(...), i.e. WithAttrs)
+// before "msg", matching go-kit's own log.With semantics ("With returns a
+// new contextual logger with keyvals prepended to those passed to calls to
+// Log"). A realistic fork call site binds scope context at construction
+// (component/orgID) and per-call context via a further With
+// (aggrGroup/group_fingerprint, mirroring dispatch.go's aggrGroup flush log
+// line) before finally logging a message plus event-specific attrs
+// (alerts). This differs from TestGoldenLines_AllLevelsAndTypedValues_Logfmt
+// in using two separate binding layers -- one go-kit-level (component/
+// orgID, via the underlying logger itself) and one slog-level (aggrGroup/
+// group_fingerprint, via our own WithAttrs) -- because only the slog-level
+// one exercises the exact code path (h.preformatted's position in Handle())
+// the bug was in. Verified this actually catches the regression: reverting
+// Handle() to append "msg" before h.preformatted makes this test fail while
+// every other committed test still passes.
+func TestGoldenLines_BoundAttributeOrder_Logfmt(t *testing.T) {
+	for _, fx := range fixtures() {
+		t.Run(fx.name, func(t *testing.T) {
+			var directBuf, adapterBuf bytes.Buffer
+
+			directScoped := log.With(fx.build(&directBuf), "component", "alertmanager", "orgID", 1)
+			directBound := log.With(directScoped, "aggrGroup", "g1", "group_fingerprint", "fp1")
+			require.NoError(t, level.Info(directBound).Log("msg", "flushing", "alerts", 3))
+
+			adapterScoped := log.With(fx.build(&adapterBuf), "component", "alertmanager", "orgID", 1)
+			adapterLogger := NewSlogLogger(adapterScoped).With("aggrGroup", "g1", "group_fingerprint", "fp1")
+			adapterLogger.Info("flushing", "alerts", 3)
+
+			direct := without(decodeLogfmtOrdered(t, directBuf.String()), "ts", "t", "caller")
+			viaAdapter := without(decodeLogfmtOrdered(t, adapterBuf.String()), "ts", "t", "caller")
+
+			// require.Equal on a []kv slice checks order, not just set
+			// membership -- that's the point: a transposed msg/aggrGroup
+			// pair must fail this, not just a missing/extra field.
+			require.Equal(t, direct, viaAdapter,
+				"key order must match exactly (not just as a set)\ndirect:  %s\nadapter: %s", directBuf.String(), adapterBuf.String())
+		})
+	}
+}
+
+// TestGoldenLines_BoundMsgOverride_JSON is a permanent regression test for
+// the more consequential form of a field-order/duplicate-key bug: a bound
+// "msg" (e.g. from a scoped logger built with log.With(l, "msg", "..."))
+// combined with the event's own msg at call time. go-kit's JSON logger
+// dedupes by last-write-wins (TestGoldenLines_JSONDeduplicatesKeys), so the
+// event message must win over the bound one, in both the direct and the
+// adapter path -- if Handle() ever placed msg somewhere that changed this
+// precedence, JSON output would silently carry the wrong message with no
+// duplicate key to notice.
+func TestGoldenLines_BoundMsgOverride_JSON(t *testing.T) {
+	newJSONLogger := func(buf *bytes.Buffer) log.Logger {
+		return level.NewFilter(dslog.NewGoKitWithWriter(dslog.JSONFormat, buf), level.AllowAll())
+	}
+
+	var directBuf, adapterBuf bytes.Buffer
+
+	directBound := log.With(newJSONLogger(&directBuf), "msg", "bound-msg")
+	require.NoError(t, level.Info(directBound).Log("msg", "event-msg"))
+
+	adapterBound := log.With(newJSONLogger(&adapterBuf), "msg", "bound-msg")
+	NewSlogLogger(adapterBound).Info("event-msg")
+
+	var direct, viaAdapter map[string]any
+	require.NoError(t, json.Unmarshal(directBuf.Bytes(), &direct))
+	require.NoError(t, json.Unmarshal(adapterBuf.Bytes(), &viaAdapter))
+
+	require.Equal(t, "event-msg", direct["msg"], "reference behavior: go-kit's own last-write-wins JSON dedup")
+	require.Equal(t, "event-msg", viaAdapter["msg"], "the adapter must preserve this precedence: the event's own msg wins over a bound one")
+}
+
 // ---- debug filtering / Enabled() ----
 
 func TestEnabled_DetectionPerConsumer(t *testing.T) {
