@@ -25,74 +25,42 @@ var (
 )
 
 type Config struct {
-	URL *url.URL
+	URL *url.URL `json:"api_url,omitempty" yaml:"api_url,omitempty"`
 
-	Project     string
-	Summary     string
-	Description string
-	Labels      []string
-	Priority    string
-	IssueType   string
+	Project     string   `json:"project,omitempty" yaml:"project,omitempty"`
+	Summary     string   `json:"summary,omitempty" yaml:"summary,omitempty"`
+	Description string   `json:"description,omitempty" yaml:"description,omitempty"`
+	Labels      []string `json:"labels,omitempty" yaml:"labels,omitempty"`
+	Priority    string   `json:"priority,omitempty" yaml:"priority,omitempty"`
+	IssueType   string   `json:"issue_type,omitempty" yaml:"issue_type,omitempty"`
 
-	ReopenTransition  string
-	ResolveTransition string
-	WontFixResolution string
-	ReopenDuration    model.Duration
+	ReopenTransition  string         `json:"reopen_transition,omitempty" yaml:"reopen_transition,omitempty"`
+	ResolveTransition string         `json:"resolve_transition,omitempty" yaml:"resolve_transition,omitempty"`
+	WontFixResolution string         `json:"wont_fix_resolution,omitempty" yaml:"wont_fix_resolution,omitempty"`
+	ReopenDuration    model.Duration `json:"reopen_duration,omitempty" yaml:"reopen_duration,omitempty"`
 
-	DedupKeyFieldName string
-	Fields            map[string]any
+	// Store the group key identifier in a custom field instead of a label.
+	DedupKeyFieldName string         `json:"dedup_key_field,omitempty" yaml:"dedup_key_field,omitempty"`
+	Fields            map[string]any `json:"fields,omitempty" yaml:"fields,omitempty"`
 
-	User     string
-	Password string
-	Token    string
+	// Basic authentication uses a user (email) and password (API token).
+	// See https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/
+	User     string `json:"user,omitempty" yaml:"user,omitempty"`
+	Password string `json:"password,omitempty" yaml:"password,omitempty"`
+	// Personal access token: https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html
+	Token string `json:"api_token,omitempty" yaml:"api_token,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
-	type raw struct {
-		URL               string   `yaml:"api_url,omitempty" json:"api_url,omitempty"`
-		Project           string   `yaml:"project,omitempty" json:"project,omitempty"`
-		Summary           string   `yaml:"summary,omitempty" json:"summary,omitempty"`
-		Description       string   `yaml:"description,omitempty" json:"description,omitempty"`
-		Labels            []string `yaml:"labels,omitempty" json:"labels,omitempty"`
-		Priority          string   `yaml:"priority,omitempty" json:"priority,omitempty"`
-		IssueType         string   `yaml:"issue_type,omitempty" json:"issue_type,omitempty"`
-		ReopenTransition  string   `yaml:"reopen_transition,omitempty" json:"reopen_transition,omitempty"`
-		ResolveTransition string   `yaml:"resolve_transition,omitempty" json:"resolve_transition,omitempty"`
-		WontFixResolution string   `yaml:"wont_fix_resolution,omitempty" json:"wont_fix_resolution,omitempty"`
-		ReopenDuration    string   `yaml:"reopen_duration,omitempty" json:"reopen_duration,omitempty"`
-		// Allows to store group key identifier in a custom field instead of a label.
-		DedupKeyFieldName string         `yaml:"dedup_key_field,omitempty" json:"dedup_key_field,omitempty"`
-		Fields            map[string]any `yaml:"fields,omitempty" json:"fields,omitempty"`
-		// This is user (email) and password - api token from https://support.atlassian.com/atlassian-account/docs/manage-api-tokens-for-your-atlassian-account/
-		// See https://developer.atlassian.com/cloud/jira/platform/basic-auth-for-rest-apis/#basic-auth-for-rest-apis
-		User     string `yaml:"user,omitempty" json:"user,omitempty"`
-		Password string `yaml:"password,omitempty" json:"password,omitempty"`
-		// This is PAT token https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html
-		Token string `yaml:"api_token,omitempty" json:"api_token,omitempty"`
-	}
-
-	settings := raw{}
+	var settings Config
 	err := json.Unmarshal(jsonData, &settings)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
-	if settings.URL == "" {
+	if settings.URL == nil {
 		return Config{}, errors.New("could not find api_url property in settings")
 	}
-	u, err := url.Parse(settings.URL)
-	if err != nil {
-		return Config{}, fmt.Errorf("field api_url is not a valid URL: %w", err)
-	}
-
-	var d model.Duration
-	if settings.ReopenDuration != "" {
-		d, err = model.ParseDuration(settings.ReopenDuration)
-		if err != nil {
-			return Config{}, fmt.Errorf("field reopen_duration is not a valid duration: %w", err)
-		}
-	}
-
 	if settings.Project == "" {
 		return Config{}, fmt.Errorf("missing project in jira_config")
 	}
@@ -151,24 +119,8 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		}
 	}
 
-	return Config{
-		URL:               u,
-		Project:           settings.Project,
-		Summary:           settings.Summary,
-		Description:       settings.Description,
-		Labels:            settings.Labels,
-		Priority:          settings.Priority,
-		IssueType:         settings.IssueType,
-		ReopenTransition:  settings.ReopenTransition,
-		ResolveTransition: settings.ResolveTransition,
-		WontFixResolution: settings.WontFixResolution,
-		ReopenDuration:    d,
-		Fields:            fields,
-		User:              settings.User,
-		Password:          settings.Password,
-		Token:             settings.Token,
-		DedupKeyFieldName: settings.DedupKeyFieldName,
-	}, nil
+	settings.Fields = fields
+	return settings, nil
 }
 
 var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
