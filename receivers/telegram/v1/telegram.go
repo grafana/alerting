@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"mime/multipart"
+	"unicode/utf8"
 
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/alertmanager/notify"
@@ -24,6 +25,7 @@ var (
 
 // Telegram supports 4096 chars max - from https://limits.tginfo.me/en.
 const telegramMaxMessageLenRunes = 4096
+const telegramMaxCaptionLenRunes = 1024
 
 // Notifier is responsible for sending
 // alert notifications to Telegram.
@@ -52,6 +54,16 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 // Notify send an alert notification to Telegram.
 func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := tn.GetLogger(ctx)
+
+	if tn.settings.SendMessageAsCaption {
+		sent, err := tn.notifyWithCaption(ctx, l, as)
+		if err != nil {
+			_ = level.Warn(l).Log("msg", "failed to send Telegram image with caption, falling back to separate messages", "error", err)
+		} else if sent {
+			return true, nil
+		}
+	}
+
 	// Create the cmd for sendMessage
 	cmd, err := tn.newWebhookSyncCmd("sendMessage", func(w *multipart.Writer) error {
 		msg, err := tn.buildTelegramMessage(ctx, as, l)
@@ -79,18 +91,7 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 			return nil
 		}
 		cmd, err = tn.newWebhookSyncCmd("sendPhoto", func(w *multipart.Writer) error {
-			f, err := image.RawData(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to open image: %w", err)
-			}
-			fw, err := w.CreateFormFile("photo", f.Name)
-			if err != nil {
-				return fmt.Errorf("failed to create form file: %w", err)
-			}
-			if _, err := fw.Write(f.Content); err != nil {
-				return fmt.Errorf("failed to write to form file: %w", err)
-			}
-			return nil
+			return tn.writeTelegramImage(ctx, w, image)
 		})
 		if err != nil {
 			return fmt.Errorf("failed to create image: %w", err)
@@ -103,6 +104,75 @@ func (tn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	}, as...)
 
 	return true, nil
+}
+
+func (tn *Notifier) notifyWithCaption(ctx context.Context, l log.Logger, as []*types.Alert) (bool, error) {
+	msg, err := tn.buildTelegramMessage(ctx, as, l)
+	if err != nil {
+		return false, fmt.Errorf("failed to build message: %w", err)
+	}
+	if utf8.RuneCountInString(msg["text"]) > telegramMaxCaptionLenRunes {
+		return false, nil
+	}
+
+	storedImages := make([]images.Image, 0, 1)
+	uploadedImages := make(map[string]struct{})
+	_ = images.WithStoredImages(ctx, l, tn.images, func(_ int, image images.Image) error {
+		if _, ok := uploadedImages[image.ID]; ok && image.ID != "" {
+			return nil
+		}
+		uploadedImages[image.ID] = struct{}{}
+		storedImages = append(storedImages, image)
+		if len(storedImages) > 1 {
+			return images.ErrImagesDone
+		}
+		return nil
+	}, as...)
+	if len(storedImages) != 1 {
+		return false, nil
+	}
+
+	cmd, err := tn.newWebhookSyncCmd("sendPhoto", func(w *multipart.Writer) error {
+		if err := tn.writeTelegramImage(ctx, w, storedImages[0]); err != nil {
+			return err
+		}
+		if err := w.WriteField("caption", msg["text"]); err != nil {
+			return fmt.Errorf("failed to create caption field: %w", err)
+		}
+		if parseMode := msg["parse_mode"]; parseMode != "" {
+			if err := w.WriteField("parse_mode", parseMode); err != nil {
+				return fmt.Errorf("failed to create parse mode field: %w", err)
+			}
+		}
+		if protectContent := msg["protect_content"]; protectContent != "" {
+			if err := w.WriteField("protect_content", protectContent); err != nil {
+				return fmt.Errorf("failed to create protect content field: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return false, fmt.Errorf("failed to create telegram image with caption: %w", err)
+	}
+	if err := tn.ns.SendWebhook(ctx, l, cmd); err != nil {
+		return false, fmt.Errorf("failed to send telegram image with caption: %w", err)
+	}
+	return true, nil
+}
+
+func (tn *Notifier) writeTelegramImage(ctx context.Context, w *multipart.Writer, image images.Image) error {
+	f, err := image.RawData(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to open image: %w", err)
+	}
+	fw, err := w.CreateFormFile("photo", f.Name)
+	if err != nil {
+		return fmt.Errorf("failed to create form file: %w", err)
+	}
+	if _, err := fw.Write(f.Content); err != nil {
+		return fmt.Errorf("failed to write to form file: %w", err)
+	}
+	return nil
 }
 
 func (tn *Notifier) buildTelegramMessage(ctx context.Context, as []*types.Alert, l log.Logger) (map[string]string, error) {
