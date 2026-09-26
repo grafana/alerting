@@ -152,7 +152,7 @@ func TestBuildEmail(t *testing.T) {
 			checkBodyContent: true,
 		},
 		{
-			name: "UseBCC=true, SingleEmail=false - recipients in Bcc",
+			name: "UseBCC=true, SingleEmail=false - recipients in Bcc, To set to undisclosed-recipients",
 			cfg: EmailSenderConfig{
 				UseBCC:       true,
 				ContentTypes: []string{"text/plain"},
@@ -164,7 +164,7 @@ func TestBuildEmail(t *testing.T) {
 				SingleEmail: false,
 				Body:        map[string]string{"text/plain": "This is a test message"},
 			},
-			expectedTo:  nil,
+			expectedTo:  []string{"undisclosed-recipients:;"},
 			expectedBcc: []string{"to1@to.com", "to2@to.com"},
 		},
 		{
