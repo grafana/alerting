@@ -46,13 +46,22 @@ func PostableGrafanaReceiverToIntegrationConfig(r *definition.PostableGrafanaRec
 	if r.Version != "" {
 		version = schema.Version(r.Version)
 	}
-	iType, err := IntegrationTypeFromString(r.Type)
-	if err != nil {
-		return nil, err
-	}
-	_, ok := GetSchemaVersionForIntegration(iType, version)
-	if !ok {
-		return nil, fmt.Errorf("invalid version %s of integration %s", version, iType)
+	iType := schema.IntegrationType(r.Type)
+	if isRetiredIntegrationType(iType) {
+		if version != schema.V1 {
+			return nil, fmt.Errorf("invalid version %s of integration %s", version, iType)
+		}
+		iType = schema.LineType
+	} else {
+		var err error
+		iType, err = IntegrationTypeFromString(r.Type)
+		if err != nil {
+			return nil, err
+		}
+		_, ok := GetSchemaVersionForIntegration(iType, version)
+		if !ok {
+			return nil, fmt.Errorf("invalid version %s of integration %s", version, iType)
+		}
 	}
 	return &models.IntegrationConfig{
 		UID:                   r.UID,
