@@ -33,10 +33,28 @@ func TestNewConfig(t *testing.T) {
 			expectedInitError: `required field 'url' is not specified`,
 		},
 		{
-			name:     "Minimal valid configuration",
+			name:     "Minimal valid configuration with url in plain text",
 			settings: `{"url": "http://localhost" }`,
 			expectedConfig: Config{
 				URL:                      "http://localhost",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                0,
+				AuthorizationScheme:      "",
+				AuthorizationCredentials: "",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  templates.DefaultMessageEmbed,
+			},
+		},
+		{
+			name:     "Minimal valid configuration with url in secrets",
+			settings: `{"url": "" }`,
+			secretSettings: map[string][]byte{
+			    "url": []byte("http://localhost/url-secret"),
+            },
+			expectedConfig: Config{
+				URL:                      "http://localhost/url-secret",
 				HTTPMethod:               http.MethodPost,
 				MaxAlerts:                0,
 				AuthorizationScheme:      "",
@@ -103,7 +121,7 @@ func TestNewConfig(t *testing.T) {
 			settings:       FullValidConfigForTesting,
 			secretSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
-				URL:                      NoopURL,
+				URL:                      "http://localhost/url-secret",
 				HTTPMethod:               "PUT",
 				MaxAlerts:                2,
 				AuthorizationScheme:      "basic",
@@ -123,6 +141,24 @@ func TestNewConfig(t *testing.T) {
 					Header:          "X-Grafana-Alerting-Signature",
 					TimestampHeader: "X-Grafana-Alerting-Timestamp",
 				},
+			},
+		},
+        {
+			name:     "should override url from secrets",
+			settings: `{"url": "http://localhost"}`,
+			secretSettings: map[string][]byte{
+				"url": []byte("http://localhost/url-secret"),
+			},
+			expectedConfig: Config{
+				URL:                      "http://localhost/url-secret",
+				HTTPMethod:               http.MethodPost,
+				MaxAlerts:                0,
+				AuthorizationScheme:      "",
+				AuthorizationCredentials: "",
+				User:                     "",
+				Password:                 "",
+				Title:                    templates.DefaultMessageTitleEmbed,
+				Message:                  templates.DefaultMessageEmbed,
 			},
 		},
 		{
