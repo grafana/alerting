@@ -196,6 +196,14 @@ func TestGetSchemaForIntegration(t *testing.T) {
 	})
 }
 
+// TestBuildSchemaRegistryDoesNotPanic validates the real manifest list registered in
+// initSchemas. Adding a manifest/version that introduces a duplicate schema type, a
+// duplicate alias, a missing factory, or a duplicate factory config type will fail this
+// test by name instead of surfacing as a runtime panic.
+func TestBuildSchemaRegistryDoesNotPanic(t *testing.T) {
+	assert.NotPanics(t, func() { buildSchemaRegistry() })
+}
+
 func TestSchemaTypeUniqueness(t *testing.T) {
 	knownTypes := make(map[string]struct{})
 	for _, plugin := range GetSchemaForAllIntegrations() {
@@ -349,8 +357,10 @@ func TestGetFactoryForIntegrationVersion(t *testing.T) {
 	t.Run("should return factory for all known integration versions", func(t *testing.T) {
 		for key := range notifytest.AllKnownConfigsForTesting {
 			t.Run(fmt.Sprintf("%s-%s", key.Type, key.Version), func(t *testing.T) {
-				_, ok := GetFactoryForIntegrationVersion(key.Type, key.Version)
+				factory, ok := GetFactoryForIntegrationVersion(key.Type, key.Version)
 				require.True(t, ok)
+				assert.Equal(t, key.Version, factory.Version())
+				require.NotNil(t, factory.ConfigType())
 			})
 		}
 	})

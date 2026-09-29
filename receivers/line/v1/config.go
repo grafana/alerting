@@ -10,7 +10,10 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-const Version = schema.V1
+const (
+	Type    = schema.LineType
+	Version = schema.V1
+)
 
 type Config struct {
 	Token       string `json:"token,omitempty" yaml:"token,omitempty"`
@@ -70,18 +73,9 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	},
 })
 
-var Factory = receivers.IntegrationVersionFactory{
-	Version: Version,
-	Type:    schema.LineType,
-	ValidateConfig: func(raw json.RawMessage, decryptFn receivers.DecryptFunc) error {
-		_, err := NewConfig(raw, decryptFn)
-		return err
-	},
-	NewNotifier: func(raw json.RawMessage, decryptFn receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
-		cfg, err := NewConfig(raw, decryptFn)
-		if err != nil {
-			return nil, err
-		}
+var Factory = receivers.NewIntegrationVersionFactory(
+	Type, Version, NewConfig,
+	func(cfg Config, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
 		return New(cfg, m, opts.Template, opts.Sender, opts.Logger), nil
 	},
-}
+)

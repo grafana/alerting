@@ -16,6 +16,7 @@ import (
 // Details on how these versions differ can be found here:
 // https://docs.confluent.io/platform/current/kafka-rest/api.html
 const (
+	Type         = schema.KafkaType
 	Version      = schema.V1
 	apiVersionV2 = "v2"
 	apiVersionV3 = "v3"
@@ -154,18 +155,9 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	},
 })
 
-var Factory = receivers.IntegrationVersionFactory{
-	Version: Version,
-	Type:    schema.KafkaType,
-	ValidateConfig: func(raw json.RawMessage, decryptFn receivers.DecryptFunc) error {
-		_, err := NewConfig(raw, decryptFn)
-		return err
-	},
-	NewNotifier: func(raw json.RawMessage, decryptFn receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
-		cfg, err := NewConfig(raw, decryptFn)
-		if err != nil {
-			return nil, err
-		}
+var Factory = receivers.NewIntegrationVersionFactory(
+	Type, Version, NewConfig,
+	func(cfg Config, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
 		return New(cfg, m, opts.Template, opts.Sender, opts.Images, opts.Logger), nil
 	},
-}
+)

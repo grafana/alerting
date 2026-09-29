@@ -27,7 +27,10 @@ import (
 	"github.com/grafana/alerting/receivers/schema"
 )
 
-const Version = schema.V0mimir1
+const (
+	Type    = schema.WebhookType
+	Version = schema.V0mimir1
+)
 
 // DefaultConfig defines default values for Webhook configurations.
 var DefaultConfig = Config{
@@ -107,25 +110,16 @@ func (c *Config) validate() error {
 	return nil
 }
 
-var Factory = receivers.IntegrationVersionFactory{
-	Version: Version,
-	Type:    schema.WebhookType,
-	ValidateConfig: func(message json.RawMessage, decryptFunc receivers.DecryptFunc) error {
-		_, err := NewConfig(message, decryptFunc)
-		return err
-	},
-	NewNotifier: func(message json.RawMessage, decryptFunc receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
-		cfg, err := NewConfig(message, decryptFunc)
-		if err != nil {
-			return nil, err
-		}
+var Factory = receivers.NewIntegrationVersionFactory(
+	Type, Version, NewConfig,
+	func(cfg Config, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
 		ch, err := New(&cfg, opts.Template.Template, opts.Logger, opts.HttpOpts...)
 		if err != nil {
 			return nil, err
 		}
 		return ch, nil
 	},
-}
+)
 
 var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
