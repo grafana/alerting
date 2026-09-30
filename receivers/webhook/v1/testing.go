@@ -17,6 +17,8 @@ var FullValidConfigForTesting = fmt.Sprintf(`{
 	"password": "test-pass",
 	"title": "test-title",
 	"message": "test-message",
+ "headers": null,
+ "payload": {"template": "", "vars": null},
 	"tlsConfig": {
 		"insecureSkipVerify": false,
 		"clientCertificate": %q,

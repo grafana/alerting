@@ -18,7 +18,8 @@ const FullValidConfigForTesting = `{
 		"test-field": "test-value"
 	},
 	"user": "user",
-	"password": "password"
+	"password": "password",
+ "api_token": ""
 }`
 
 // FullValidSecretsForTesting is a string representation of JSON object that contains all fields that can be overridden from secrets

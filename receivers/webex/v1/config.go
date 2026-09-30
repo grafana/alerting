@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	Type          = schema.WebexType
 	Version       = schema.V1
 	DefaultAPIURL = "https://webexapis.com/v1/messages"
 )
@@ -52,22 +53,13 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	return settings, err
 }
 
-var Factory = receivers.IntegrationVersionFactory{
-	Version: Version,
-	Type:    schema.WebexType,
-	ValidateConfig: func(message json.RawMessage, decryptFunc receivers.DecryptFunc) error {
-		_, err := NewConfig(message, decryptFunc)
-		return err
-	},
-	NewNotifier: func(message json.RawMessage, decryptFunc receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
-		cfg, err := NewConfig(message, decryptFunc)
-		if err != nil {
-			return nil, err
-		}
+var Factory = receivers.NewIntegrationVersionFactory(
+	Type, Version, NewConfig,
+	func(cfg Config, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
 		ch := New(cfg, m, opts.Template, opts.Sender, opts.Images, opts.Logger, opts.OrgID)
 		return ch, nil
 	},
-}
+)
 
 var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
