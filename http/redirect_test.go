@@ -83,23 +83,31 @@ func TestSensitiveHeaderStrippingRoundTripper(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := buildRedirectChain(t, tt.chain)
 			req.Header.Set("Authorization", "Bearer secret-token")
+			req.Header.Set("Www-Authenticate", "Bearer realm=example")
 			req.Header.Set("Cookie", "session=secret-session")
+			req.Header.Set("Cookie2", "session2=secret-session2")
+			req.Header.Set("Proxy-Authorization", "Bearer secret-proxy-token")
+			req.Header.Set("Proxy-Authenticate", "Bearer realm=proxy")
 			req.Header.Set("X-Custom", "not-sensitive")
 
 			next := &recordingRoundTripper{}
-			resp, err := NewSensitiveHeaderStrippingRoundTripper(next).RoundTrip(req)
+			resp, err := newSensitiveHeaderStrippingRoundTripper(next).RoundTrip(req)
 			require.NoError(t, err)
 			require.NoError(t, resp.Body.Close())
 
 			require.NotNil(t, next.got, "expected the request to be forwarded")
 			if tt.expStripped {
-				require.Empty(t, next.got.Header.Get("Authorization"),
-					"expected the Authorization header to be stripped")
-				require.Empty(t, next.got.Header.Get("Cookie"),
-					"expected the Cookie header to be stripped")
+				for _, header := range sensitiveHeaders {
+					require.Empty(t, next.got.Header.Get(header),
+						"expected the %s header to be stripped", header)
+				}
 			} else {
 				require.Equal(t, "Bearer secret-token", next.got.Header.Get("Authorization"))
+				require.Equal(t, "Bearer realm=example", next.got.Header.Get("Www-Authenticate"))
 				require.Equal(t, "session=secret-session", next.got.Header.Get("Cookie"))
+				require.Equal(t, "session2=secret-session2", next.got.Header.Get("Cookie2"))
+				require.Equal(t, "Bearer secret-proxy-token", next.got.Header.Get("Proxy-Authorization"))
+				require.Equal(t, "Bearer realm=proxy", next.got.Header.Get("Proxy-Authenticate"))
 			}
 
 			require.Equal(t, "not-sensitive", next.got.Header.Get("X-Custom"),
@@ -123,7 +131,7 @@ func TestSensitiveHeaderStrippingRoundTripperPreservesBody(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer secret-token")
 
 	next := &recordingRoundTripper{}
-	resp, err := NewSensitiveHeaderStrippingRoundTripper(next).RoundTrip(req)
+	resp, err := newSensitiveHeaderStrippingRoundTripper(next).RoundTrip(req)
 	require.NoError(t, err)
 	require.NoError(t, resp.Body.Close())
 

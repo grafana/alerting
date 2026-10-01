@@ -147,10 +147,11 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 
 	client := NewTLSClient(webhook.TLSConfig, ns.cfg.dialer.DialContext)
 
-	// Wrapped first so that it runs last, after the round trippers below have added their
-	// credentials to the request. Those add credentials to every hop of a redirect chain, so
-	// without this they would be sent to whatever host the webhook redirects to.
-	client.Transport = NewSensitiveHeaderStrippingRoundTripper(client.Transport)
+	// Wrapped first so that it runs last, after round trippers below have added their
+	// credentials to the request. Ex. OAuth2 round tripper adds the header to every hop of a
+	// redirect chain, so without this the access token would be sent to whatever host the webhook
+	// redirects to.
+	client.Transport = newSensitiveHeaderStrippingRoundTripper(client.Transport)
 
 	if webhook.HMACConfig != nil {
 		level.Debug(l).Log("msg", "Adding HMAC roundtripper to client")

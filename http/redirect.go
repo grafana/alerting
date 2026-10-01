@@ -6,35 +6,37 @@ import (
 )
 
 // sensitiveHeaders are the headers that must not follow a request to another host. This is the same
-// set that net/http itself refuses to copy across a cross-host redirect, see
-// shouldCopyHeaderOnRedirect in net/http/client.go.
+// set that net/http itself refuses to copy across a cross-host redirect, see the header copier
+// built by Client.makeHeadersCopier in net/http/client.go.
 var sensitiveHeaders = []string{
 	"Authorization",
 	"Www-Authenticate",
 	"Cookie",
 	"Cookie2",
+	"Proxy-Authorization",
+	"Proxy-Authenticate",
 }
 
-// SensitiveHeaderStrippingRoundTripper removes sensitive headers from requests that http.Client
+// sensitiveHeaderStrippingRoundTripper removes sensitive headers from requests that http.Client
 // created by following a redirect to a different host.
 //
 // http.Client already refuses to copy those headers across a cross-host redirect, but it can only
-// do so for the headers that were set on the request before it was handed to the transport. Round
-// trippers that add credentials themselves - OAuth2RoundTripper and HMACRoundTripper - run after
-// that, and add them to every hop of a redirect chain, so without this the credentials are sent to
-// whatever host the request is redirected to.
+// do so for the headers that were set on the request before it was handed to the transport.
+// OAuth2RoundTripper adds its Authorization header itself, after that, and adds it to every hop of
+// a redirect chain, so without this the OAuth2 access token is sent to whatever host the request is
+// redirected to.
 //
 // Wrap the transport that talks to the network with this, before wrapping it with anything that
 // adds credentials, so that it runs last and sees the request as it is about to be sent.
-type SensitiveHeaderStrippingRoundTripper struct {
+type sensitiveHeaderStrippingRoundTripper struct {
 	next http.RoundTripper
 }
 
-func NewSensitiveHeaderStrippingRoundTripper(next http.RoundTripper) *SensitiveHeaderStrippingRoundTripper {
-	return &SensitiveHeaderStrippingRoundTripper{next: next}
+func newSensitiveHeaderStrippingRoundTripper(next http.RoundTripper) *sensitiveHeaderStrippingRoundTripper {
+	return &sensitiveHeaderStrippingRoundTripper{next: next}
 }
 
-func (rt *SensitiveHeaderStrippingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+func (rt *sensitiveHeaderStrippingRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	next := rt.next
 	if next == nil {
 		next = http.DefaultTransport
@@ -54,12 +56,14 @@ func (rt *SensitiveHeaderStrippingRoundTripper) RoundTrip(req *http.Request) (*h
 }
 
 // isCrossHostRedirect reports whether req was created by http.Client following a redirect that led
-// away from the host originally requested any any point in the chain.
+// away from the host originally requested at any point in the chain.
 //
-// It applies the same rule that net/http applies to sensitive headers (isDomainOrSubdomain, used by
-// shouldCopyHeaderOnRedirect in net/http/client.go): the redirect target must be the original host
-// or a subdomain of it. Note that only hostnames are compared, so a redirect to a different port on
-// the same host is not a cross-host redirect.
+// It applies the same domain/subdomain rule that net/http uses for sensitive headers
+// (isDomainOrSubdomain, used by shouldCopyHeaderOnRedirect in net/http/client.go).
+//
+// The redirect target must be the original host or a subdomain of it.
+// Note that only hostnames are compared, so a redirect to a different port on the same
+// host is not a cross-host redirect.
 //
 // Once sensitive headers have been stripped it keeps them stripped for the rest of the
 // chain, even if a later hop leads back to the original host.
@@ -88,8 +92,8 @@ func originalRequestHost(req *http.Request) string {
 // isDomainOrSubdomain reports whether sub is a subdomain (or exact
 // match) of the parent domain.
 //
-// Both domains must already be in canonical form.
-// Mirrors isDomainOrSubdomain from net/http/client.go.
+// Based on the domain/subdomain comparison in isDomainOrSubdomain
+// from net/http/client.go.
 func isDomainOrSubdomain(sub, parent string) bool {
 	if parent == "" {
 		return false
