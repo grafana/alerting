@@ -29,6 +29,10 @@ func Test_NewTLSClient(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewTLSClient(tt.cfg, nil)
 			require.Equal(t, tt.expCfg, c.Transport.(*http.Transport).TLSClientConfig)
+			transport := c.Transport.(*http.Transport)
+			require.Equal(t, 25, transport.MaxIdleConnsPerHost)
+			require.Equal(t, 25, transport.MaxConnsPerHost)
+			require.False(t, transport.DisableKeepAlives)
 		})
 	}
 }

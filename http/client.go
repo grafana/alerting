@@ -38,6 +38,7 @@ const defaultDialTimeout = 30 * time.Second
 
 type Client struct {
 	cfg               clientConfiguration
+	httpClient        *http.Client
 	oauth2TokenSource oauth2.TokenSource
 }
 
@@ -57,7 +58,8 @@ func NewClient(httpClientConfig *HTTPClientConfig, opts ...ClientOption) (*Clien
 	}
 
 	client := &Client{
-		cfg: cfg,
+		cfg:        cfg,
+		httpClient: NewTLSClient(nil, cfg.dialer.DialContext),
 	}
 
 	if httpClientConfig != nil && httpClientConfig.OAuth2 != nil {
@@ -145,18 +147,23 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 		request.Header.Set(k, v)
 	}
 
-	client := NewTLSClient(webhook.TLSConfig, ns.cfg.dialer.DialContext)
+	client := ns.httpClient
+	if webhook.TLSConfig != nil {
+		// A custom TLS configuration must not be shared with other integrations.
+		client = NewTLSClient(webhook.TLSConfig, ns.cfg.dialer.DialContext)
+	}
+	transport := client.Transport
 
 	// Wrapped first so that it runs last, after round trippers below have added their
 	// credentials to the request. Ex. OAuth2 round tripper adds the header to every hop of a
 	// redirect chain, so without this the access token would be sent to whatever host the webhook
 	// redirects to.
-	client.Transport = newSensitiveHeaderStrippingRoundTripper(client.Transport)
+	transport = newSensitiveHeaderStrippingRoundTripper(transport)
 
 	if webhook.HMACConfig != nil {
 		level.Debug(l).Log("msg", "Adding HMAC roundtripper to client")
-		client.Transport, err = NewHMACRoundTripper(
-			client.Transport,
+		transport, err = NewHMACRoundTripper(
+			transport,
 			clock.New(),
 			webhook.HMACConfig.Secret,
 			webhook.HMACConfig.Header,
@@ -170,8 +177,11 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 
 	if ns.oauth2TokenSource != nil {
 		level.Debug(l).Log("msg", "Adding OAuth2 roundtripper to client")
-		client.Transport = NewOAuth2RoundTripper(ns.oauth2TokenSource, client.Transport)
+		transport = NewOAuth2RoundTripper(ns.oauth2TokenSource, transport)
 	}
+	clientCopy := *client
+	clientCopy.Transport = transport
+	client = &clientCopy
 
 	resp, err := client.Do(request)
 	if err != nil {
