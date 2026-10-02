@@ -19,6 +19,7 @@ import (
 
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/alertmanager/config"
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/featurecontrol"
 	"github.com/prometheus/alertmanager/flushlog"
@@ -134,7 +135,7 @@ type MaintenanceOptions interface {
 var NewIntegration = nfstatus.NewIntegration
 
 type (
-	InhibitRule      = config.InhibitRule
+	InhibitRule      = amcommoncfg.InhibitRule
 	MuteTimeInterval = config.MuteTimeInterval
 	TimeInterval     = config.TimeInterval
 	Route            = definition.Route

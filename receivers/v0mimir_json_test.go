@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/prometheus/alertmanager/config"
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	commoncfg "github.com/prometheus/common/config"
 	"github.com/stretchr/testify/require"
 )
@@ -121,25 +122,25 @@ func TestSecretURLTypeMarshaling(t *testing.T) {
 	}{
 		{
 			name:           "non-empty URL",
-			secretURL:      config.SecretURL{URL: testURL},
+			secretURL:      amcommoncfg.SecretURL{URL: testURL},
 			expectStandard: maskedSecret,
 			expectPlain:    fmt.Sprintf(`"%s"`, u),
 		},
 		{
 			name:           "empty URL",
-			secretURL:      config.SecretURL{},
+			secretURL:      amcommoncfg.SecretURL{},
 			expectStandard: maskedSecret,
 			expectPlain:    `null`,
 		},
 		{
 			name:           "complex URL",
-			secretURL:      config.SecretURL{URL: complexURL},
+			secretURL:      amcommoncfg.SecretURL{URL: complexURL},
 			expectStandard: maskedSecret,
 			expectPlain:    fmt.Sprintf(`"%s"`, complexURL.String()),
 		},
 		{
 			name:           "nil URL pointer",
-			secretURL:      (*config.SecretURL)(nil),
+			secretURL:      (*amcommoncfg.SecretURL)(nil),
 			expectStandard: "null",
 			expectPlain:    "null",
 		},
@@ -178,10 +179,10 @@ func TestSecretOmitempty(t *testing.T) {
 		RURL       SecretURL  `json:"r_url,omitempty"`
 		RURLPtr    *SecretURL `json:"r_url_ptr,omitempty"`
 		// config types
-		CSecret    config.Secret     `json:"c_secret,omitempty"`
-		CSecretPtr *config.Secret    `json:"c_secret_ptr,omitempty"`
-		CURL       config.SecretURL  `json:"c_url,omitempty"`
-		CURLPtr    *config.SecretURL `json:"c_url_ptr,omitempty"`
+		CSecret    config.Secret          `json:"c_secret,omitempty"`
+		CSecretPtr *config.Secret         `json:"c_secret_ptr,omitempty"`
+		CURL       amcommoncfg.SecretURL  `json:"c_url,omitempty"`
+		CURLPtr    *amcommoncfg.SecretURL `json:"c_url_ptr,omitempty"`
 		// common config types
 		CCSecret    commoncfg.Secret  `json:"cc_secret,omitempty"`
 		CCSecretPtr *commoncfg.Secret `json:"cc_secret_ptr,omitempty"`
@@ -206,8 +207,8 @@ func TestSecretOmitempty(t *testing.T) {
 				RURLPtr:     &SecretURL{URL: &url.URL{Scheme: "https", Host: "r2.example.com"}},
 				CSecret:     config.Secret("cs1"),
 				CSecretPtr:  func() *config.Secret { s := config.Secret("cs2"); return &s }(),
-				CURL:        config.SecretURL{URL: &url.URL{Scheme: "https", Host: "c.example.com"}},
-				CURLPtr:     &config.SecretURL{URL: &url.URL{Scheme: "https", Host: "c2.example.com"}},
+				CURL:        amcommoncfg.SecretURL{URL: &url.URL{Scheme: "https", Host: "c.example.com"}},
+				CURLPtr:     &amcommoncfg.SecretURL{URL: &url.URL{Scheme: "https", Host: "c2.example.com"}},
 				CCSecret:    commoncfg.Secret("ccs1"),
 				CCSecretPtr: func() *commoncfg.Secret { s := commoncfg.Secret("ccs2"); return &s }(),
 			},
