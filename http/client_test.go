@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -187,6 +188,58 @@ func TestSendWebhookReusesConnections(t *testing.T) {
 	}
 
 	assert.EqualValues(t, 1, newConnections.Load(), "requests should reuse an idle connection")
+}
+
+func TestSendWebhookReusesConnectionsWithTLSConfig(t *testing.T) {
+	var newConnections atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			newConnections.Add(1)
+		}
+	}
+	server.StartTLS()
+	defer server.Close()
+
+	client, err := NewClient(nil)
+	require.NoError(t, err)
+	tlsConfig := &tls.Config{InsecureSkipVerify: true} // Test server uses a self-signed certificate.
+	for range 3 {
+		require.NoError(t, client.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{
+			URL:       server.URL,
+			TLSConfig: tlsConfig,
+		}))
+	}
+
+	assert.EqualValues(t, 1, newConnections.Load(), "requests with the same TLS config should reuse an idle connection")
+}
+
+func TestForkedSenderReusesConnections(t *testing.T) {
+	var newConnections atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			newConnections.Add(1)
+		}
+	}
+	server.Start()
+	defer server.Close()
+
+	client, err := NewClient(nil)
+	require.NoError(t, err)
+	sender := NewForkedSender(client)
+	for range 3 {
+		require.NoError(t, sender.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{
+			URL:        server.URL,
+			HTTPMethod: http.MethodGet,
+		}))
+	}
+
+	assert.EqualValues(t, 1, newConnections.Load(), "GET requests should reuse an idle connection")
 }
 
 func TestSendWebhookHMAC(t *testing.T) {

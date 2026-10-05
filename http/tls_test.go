@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -32,6 +33,7 @@ func Test_NewTLSClient(t *testing.T) {
 			transport := c.Transport.(*http.Transport)
 			require.Equal(t, 25, transport.MaxIdleConnsPerHost)
 			require.Equal(t, 25, transport.MaxConnsPerHost)
+			require.Equal(t, 90*time.Second, transport.IdleConnTimeout)
 			require.False(t, transport.DisableKeepAlives)
 		})
 	}

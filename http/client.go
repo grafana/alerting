@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/benbjohnson/clock"
@@ -40,6 +42,9 @@ type Client struct {
 	cfg               clientConfiguration
 	httpClient        *http.Client
 	oauth2TokenSource oauth2.TokenSource
+	tlsClientMu       sync.Mutex
+	tlsClientConfig   *tls.Config
+	tlsClient         *http.Client
 }
 
 func NewClient(httpClientConfig *HTTPClientConfig, opts ...ClientOption) (*Client, error) {
@@ -76,6 +81,28 @@ func NewClient(httpClientConfig *HTTPClientConfig, opts ...ClientOption) (*Clien
 	}
 
 	return client, nil
+}
+
+// clientForTLSConfig returns a client whose transport can be reused across
+// requests with the same TLS configuration. Custom TLS settings are scoped to
+// this Client, which is created per integration.
+func (c *Client) clientForTLSConfig(tlsConfig *tls.Config) *http.Client {
+	if tlsConfig == nil {
+		return c.httpClient
+	}
+
+	c.tlsClientMu.Lock()
+	defer c.tlsClientMu.Unlock()
+
+	if c.tlsClient != nil && c.tlsClientConfig == tlsConfig {
+		return c.tlsClient
+	}
+	if c.tlsClient != nil {
+		c.tlsClient.CloseIdleConnections()
+	}
+	c.tlsClientConfig = tlsConfig
+	c.tlsClient = NewTLSClient(tlsConfig, c.cfg.dialer.DialContext)
+	return c.tlsClient
 }
 
 type ClientOption func(*clientConfiguration)
@@ -147,11 +174,7 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 		request.Header.Set(k, v)
 	}
 
-	client := ns.httpClient
-	if webhook.TLSConfig != nil {
-		// A custom TLS configuration must not be shared with other integrations.
-		client = NewTLSClient(webhook.TLSConfig, ns.cfg.dialer.DialContext)
-	}
+	client := ns.clientForTLSConfig(webhook.TLSConfig)
 	transport := client.Transport
 
 	// Wrapped first so that it runs last, after round trippers below have added their

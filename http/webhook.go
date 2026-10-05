@@ -45,7 +45,7 @@ func (f ForkedSender) SendWebhook(ctx context.Context, l log.Logger, cmd *receiv
 		request.Header.Set(k, v)
 	}
 
-	resp, err := NewTLSClient(cmd.TLSConfig, f.cli.cfg.dialer.DialContext).Do(request)
+	resp, err := f.cli.clientForTLSConfig(cmd.TLSConfig).Do(request)
 	if err != nil {
 		return redactURL(err)
 	}

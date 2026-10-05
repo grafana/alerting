@@ -34,6 +34,7 @@ func NewTLSClient(tlsConfig *tls.Config, dialContextfunc func(context.Context, s
 			MaxIdleConns:        100,
 			MaxIdleConnsPerHost: 25,
 			MaxConnsPerHost:     25,
+			IdleConnTimeout:     90 * time.Second,
 		},
 	}
 }
