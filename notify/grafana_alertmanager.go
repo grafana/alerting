@@ -869,6 +869,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 
 	am.setReceiverMetrics(cfg.Receivers, len(activeReceivers))
 	am.setInhibitionRulesMetrics(cfg.InhibitRules)
+	am.setTemplateMetrics(cfg.Templates)
 
 	am.receivers = receivers
 
@@ -892,6 +893,21 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 
 func (am *GrafanaAlertmanager) setInhibitionRulesMetrics(r []InhibitRule) {
 	am.opts.Metrics.configuredInhibitionRules.WithLabelValues(am.tenantString()).Set(float64(len(r)))
+}
+
+func (am *GrafanaAlertmanager) setTemplateMetrics(cfgTemplates []templates.TemplateDefinition) {
+	// Start all known kinds at 0 so a kind that no longer has any templates
+	// gets its gauge reset instead of keeping a stale value from a previous config.
+	byKind := map[templates.Kind]int{
+		templates.GrafanaKind: 0,
+		templates.MimirKind:   0,
+	}
+	for _, t := range cfgTemplates {
+		byKind[t.Kind]++
+	}
+	for kind, count := range byKind {
+		am.opts.Metrics.configuredTemplates.WithLabelValues(am.tenantString(), kind.String()).Set(float64(count))
+	}
 }
 
 func (am *GrafanaAlertmanager) setReceiverMetrics(cfgReceivers []models.ReceiverConfig, countActiveReceivers int) {
