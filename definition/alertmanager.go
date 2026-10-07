@@ -11,6 +11,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/prometheus/alertmanager/config"
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/prometheus/common/model"
 )
@@ -19,9 +20,9 @@ type Provenance string
 
 // Config is the top-level configuration for Alertmanager's config files.
 type Config struct {
-	Global       *config.GlobalConfig `yaml:"global,omitempty" json:"global,omitempty"`
-	Route        *Route               `yaml:"route,omitempty" json:"route,omitempty"`
-	InhibitRules []config.InhibitRule `yaml:"inhibit_rules,omitempty" json:"inhibit_rules,omitempty"`
+	Global       *config.GlobalConfig      `yaml:"global,omitempty" json:"global,omitempty"`
+	Route        *Route                    `yaml:"route,omitempty" json:"route,omitempty"`
+	InhibitRules []amcommoncfg.InhibitRule `yaml:"inhibit_rules,omitempty" json:"inhibit_rules,omitempty"`
 	// MuteTimeIntervals is deprecated and will be removed before Alertmanager 1.0.
 	MuteTimeIntervals []config.MuteTimeInterval `yaml:"mute_time_intervals,omitempty" json:"mute_time_intervals,omitempty"`
 	TimeIntervals     []config.TimeInterval     `yaml:"time_intervals,omitempty" json:"time_intervals,omitempty"`
@@ -39,13 +40,13 @@ type Route struct {
 	// Deprecated. Remove before v1.0 release.
 	Match map[string]string `yaml:"match,omitempty" json:"match,omitempty"`
 	// Deprecated. Remove before v1.0 release.
-	MatchRE             config.MatchRegexps `yaml:"match_re,omitempty" json:"match_re,omitempty"`
-	Matchers            config.Matchers     `yaml:"matchers,omitempty" json:"matchers,omitempty"`
-	ObjectMatchers      ObjectMatchers      `yaml:"object_matchers,omitempty" json:"object_matchers,omitempty"`
-	MuteTimeIntervals   []string            `yaml:"mute_time_intervals,omitempty" json:"mute_time_intervals,omitempty"`
-	ActiveTimeIntervals []string            `yaml:"active_time_intervals,omitempty" json:"active_time_intervals,omitempty"`
-	Continue            bool                `yaml:"continue" json:"continue,omitempty"`
-	Routes              []*Route            `yaml:"routes,omitempty" json:"routes,omitempty"`
+	MatchRE             amcommoncfg.MatchRegexps `yaml:"match_re,omitempty" json:"match_re,omitempty"`
+	Matchers            amcommoncfg.Matchers     `yaml:"matchers,omitempty" json:"matchers,omitempty"`
+	ObjectMatchers      ObjectMatchers           `yaml:"object_matchers,omitempty" json:"object_matchers,omitempty"`
+	MuteTimeIntervals   []string                 `yaml:"mute_time_intervals,omitempty" json:"mute_time_intervals,omitempty"`
+	ActiveTimeIntervals []string                 `yaml:"active_time_intervals,omitempty" json:"active_time_intervals,omitempty"`
+	Continue            bool                     `yaml:"continue" json:"continue,omitempty"`
+	Routes              []*Route                 `yaml:"routes,omitempty" json:"routes,omitempty"`
 
 	GroupWait      *model.Duration `yaml:"group_wait,omitempty" json:"group_wait,omitempty"`
 	GroupInterval  *model.Duration `yaml:"group_interval,omitempty" json:"group_interval,omitempty"`
@@ -118,9 +119,9 @@ func AsGrafanaRoute(r *config.Route) *Route {
 	return gRoute
 }
 
-// AllMatchers returns concatenated Match, MatchRE, Matchers and ObjectMatchers in a format of config.Matchers.
-func (r *Route) AllMatchers() (config.Matchers, error) {
-	matchers := make(config.Matchers, 0, len(r.Matchers)+len(r.ObjectMatchers)+len(r.Match)+len(r.MatchRE))
+// AllMatchers returns concatenated Match, MatchRE, Matchers and ObjectMatchers in a format of amcommoncfg.Matchers.
+func (r *Route) AllMatchers() (amcommoncfg.Matchers, error) {
+	matchers := make(amcommoncfg.Matchers, 0, len(r.Matchers)+len(r.ObjectMatchers)+len(r.Match)+len(r.MatchRE))
 
 	for ln, lv := range r.Match {
 		matcher, err := labels.NewMatcher(labels.MatchEqual, ln, lv)
