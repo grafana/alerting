@@ -31,8 +31,10 @@ func NewTLSClient(tlsConfig *tls.Config, dialContextfunc func(context.Context, s
 			Proxy:               http.ProxyFromEnvironment,
 			DialContext:         dialContextfunc,
 			TLSHandshakeTimeout: receivers.TLSHandshakeTimeout,
-			// Disable keep alive since this is always used as a short lived client
-			DisableKeepAlives: true,
+			MaxIdleConns:        100,
+			MaxIdleConnsPerHost: 25,
+			MaxConnsPerHost:     25,
+			IdleConnTimeout:     90 * time.Second,
 		},
 	}
 }
