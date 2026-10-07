@@ -18,15 +18,20 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
+	snstypes "github.com/aws/aws-sdk-go-v2/service/sns/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/smithy-go"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	commoncfg "github.com/prometheus/common/config"
@@ -71,12 +76,8 @@ func (n *Notifier) Notify(ctx context.Context, alert ...*types.Alert) (bool, err
 		tmpl = notify.TmplText(n.tmpl, data, &err)
 	)
 
-	client, err := n.createSNSClient(tmpl)
+	client, err := n.createSNSClient(ctx, tmpl)
 	if err != nil {
-		var e awserr.RequestFailure
-		if errors.As(err, &e) {
-			return n.retrier.Check(e.StatusCode(), strings.NewReader(e.Message()))
-		}
 		return true, err
 	}
 
@@ -85,66 +86,82 @@ func (n *Notifier) Notify(ctx context.Context, alert ...*types.Alert) (bool, err
 		return true, err
 	}
 
-	publishOutput, err := client.Publish(publishInput)
+	publishOutput, err := client.Publish(ctx, publishInput)
 	if err != nil {
-		var e awserr.RequestFailure
+		var e *smithyhttp.ResponseError
 		if errors.As(err, &e) {
-			retryable, error := n.retrier.Check(e.StatusCode(), strings.NewReader(e.Message()))
+			message := e.Error()
+			var apiErr smithy.APIError
+			if errors.As(err, &apiErr) {
+				message = apiErr.ErrorMessage()
+			}
+			retryable, error := n.retrier.Check(e.HTTPStatusCode(), strings.NewReader(message))
 
-			reasonErr := notify.NewErrorWithReason(notify.GetFailureReasonFromStatusCode(e.StatusCode()), error)
+			reasonErr := notify.NewErrorWithReason(notify.GetFailureReasonFromStatusCode(e.HTTPStatusCode()), error)
 			return retryable, reasonErr
 		}
 		return true, err
 	}
 
-	level.Debug(n.logger).Log("msg", "SNS message successfully published", "message_id", publishOutput.MessageId, "sequence number", publishOutput.SequenceNumber)
+	level.Debug(n.logger).Log("msg", "SNS message successfully published", "message_id", aws.ToString(publishOutput.MessageId), "sequence number", aws.ToString(publishOutput.SequenceNumber))
 
 	return false, nil
 }
 
-func (n *Notifier) createSNSClient(tmpl func(string) string) (*sns.SNS, error) {
-	var creds *credentials.Credentials
-	// If there are provided sigV4 credentials we want to use those to create a session.
+func (n *Notifier) createSNSClient(ctx context.Context, tmpl func(string) string) (*sns.Client, error) {
+	var staticCreds aws.CredentialsProvider
+	// If there are provided sigV4 credentials we want to use those for the SNS client.
 	if n.conf.Sigv4.AccessKey != "" && n.conf.Sigv4.SecretKey != "" {
-		creds = credentials.NewStaticCredentials(n.conf.Sigv4.AccessKey, string(n.conf.Sigv4.SecretKey), "")
+		staticCreds = credentials.NewStaticCredentialsProvider(n.conf.Sigv4.AccessKey, string(n.conf.Sigv4.SecretKey), "")
 	}
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Config: aws.Config{
-			Region:   aws.String(n.conf.Sigv4.Region),
-			Endpoint: aws.String(tmpl(n.conf.APIUrl)),
-		},
-		Profile: n.conf.Sigv4.Profile,
-	})
+	opts := []func(*awsconfig.LoadOptions) error{awsconfig.WithRegion(n.conf.Sigv4.Region)}
+	if n.conf.Sigv4.Profile != "" {
+		opts = append(opts, awsconfig.WithSharedConfigProfile(n.conf.Sigv4.Profile))
+	}
+	// The HTTP client is set on the SNS client only (as in aws-sdk-go v1), so
+	// LoadDefaultConfig can still apply AWS_CA_BUNDLE to the default client used by STS.
+	cfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
-
-	if n.conf.Sigv4.RoleARN != "" {
-		var stsSess *session.Session
-		if n.conf.APIUrl == "" {
-			stsSess = sess
-		} else {
-			// If we have set the API URL we need to create a new session to get the STS Credentials.
-			stsSess, err = session.NewSessionWithOptions(session.Options{
-				Config: aws.Config{
-					Region:      aws.String(n.conf.Sigv4.Region),
-					Credentials: creds,
-				},
-				Profile: n.conf.Sigv4.Profile,
-			})
-			if err != nil {
-				return nil, err
-			}
-		}
-		creds = stscreds.NewCredentials(stsSess, n.conf.Sigv4.RoleARN)
-	}
-	// Use our generated session with credentials to create the SNS Client.
-	client := sns.New(sess, &aws.Config{Credentials: creds, HTTPClient: n.client})
 	// We will always need a region to be set by either the local config or the environment.
-	if aws.StringValue(sess.Config.Region) == "" {
+	if cfg.Region == "" {
 		return nil, fmt.Errorf("region not configured in sns.sigv4.region or in default credentials chain")
 	}
-	return client, nil
+
+	creds := staticCreds
+	if n.conf.Sigv4.RoleARN != "" {
+		// Matches the aws-sdk-go v1 implementation: the STS client only uses the
+		// static credentials when the API URL is set, otherwise the default chain.
+		stsCfg := cfg.Copy()
+		if n.conf.APIUrl != "" && staticCreds != nil {
+			stsCfg.Credentials = aws.NewCredentialsCache(staticCreds)
+		}
+		roleSessionName := strconv.FormatInt(time.Now().UTC().UnixNano(), 10)
+		creds = aws.NewCredentialsCache(stscreds.NewAssumeRoleProvider(sts.NewFromConfig(stsCfg), n.conf.Sigv4.RoleARN, func(o *stscreds.AssumeRoleOptions) {
+			o.RoleSessionName = roleSessionName
+		}))
+	}
+
+	apiURL := tmpl(n.conf.APIUrl)
+	return sns.NewFromConfig(cfg, func(o *sns.Options) {
+		o.HTTPClient = n.client
+		if creds != nil {
+			o.Credentials = creds
+		}
+		if apiURL != "" {
+			o.BaseEndpoint = aws.String(withDefaultScheme(apiURL))
+		}
+	}), nil
+}
+
+// withDefaultScheme prefixes endpoints without a scheme with https://, as
+// aws-sdk-go v1 did. aws-sdk-go-v2 requires BaseEndpoint to be a full URL.
+func withDefaultScheme(endpoint string) string {
+	if strings.Contains(endpoint, "://") {
+		return endpoint
+	}
+	return "https://" + endpoint
 }
 
 func (n *Notifier) createPublishInput(ctx context.Context, tmpl func(string) string) (*sns.PublishInput, error) {
@@ -154,7 +171,7 @@ func (n *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 	messageSizeLimit := 256 * 1024
 	if n.conf.TopicARN != "" {
 		topicARN := tmpl(n.conf.TopicARN)
-		publishInput.SetTopicArn(topicARN)
+		publishInput.TopicArn = aws.String(topicARN)
 		// If we are using a topic ARN, it could be a FIFO topic specified by the topic's suffix ".fifo".
 		if strings.HasSuffix(topicARN, ".fifo") {
 			// Deduplication key and Message Group ID are only added if it's a FIFO SNS Topic.
@@ -162,17 +179,17 @@ func (n *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 			if err != nil {
 				return nil, err
 			}
-			publishInput.SetMessageDeduplicationId(key.Hash())
-			publishInput.SetMessageGroupId(key.Hash())
+			publishInput.MessageDeduplicationId = aws.String(key.Hash())
+			publishInput.MessageGroupId = aws.String(key.Hash())
 		}
 	}
 	if n.conf.PhoneNumber != "" {
-		publishInput.SetPhoneNumber(tmpl(n.conf.PhoneNumber))
+		publishInput.PhoneNumber = aws.String(tmpl(n.conf.PhoneNumber))
 		// If we have an SMS message, we need to truncate to 1600 characters/runes.
 		messageSizeLimit = 1600
 	}
 	if n.conf.TargetARN != "" {
-		publishInput.SetTargetArn(tmpl(n.conf.TargetARN))
+		publishInput.TargetArn = aws.String(tmpl(n.conf.TargetARN))
 	}
 
 	messageToSend, isTrunc, err := validateAndTruncateMessage(tmpl(n.conf.Message), messageSizeLimit)
@@ -181,14 +198,14 @@ func (n *Notifier) createPublishInput(ctx context.Context, tmpl func(string) str
 	}
 	if isTrunc {
 		// If we truncated the message we need to add a message attribute showing that it was truncated.
-		messageAttributes["truncated"] = &sns.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String("true")}
+		messageAttributes["truncated"] = snstypes.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String("true")}
 	}
 
-	publishInput.SetMessage(messageToSend)
-	publishInput.SetMessageAttributes(messageAttributes)
+	publishInput.Message = aws.String(messageToSend)
+	publishInput.MessageAttributes = messageAttributes
 
 	if n.conf.Subject != "" {
-		publishInput.SetSubject(tmpl(n.conf.Subject))
+		publishInput.Subject = aws.String(tmpl(n.conf.Subject))
 	}
 
 	return publishInput, nil
@@ -207,11 +224,11 @@ func validateAndTruncateMessage(message string, maxMessageSizeInBytes int) (stri
 	return string(truncated), true, nil
 }
 
-func (n *Notifier) createMessageAttributes(tmpl func(string) string) map[string]*sns.MessageAttributeValue {
+func (n *Notifier) createMessageAttributes(tmpl func(string) string) map[string]snstypes.MessageAttributeValue {
 	// Convert the given attributes map into the AWS Message Attributes Format.
-	attributes := make(map[string]*sns.MessageAttributeValue, len(n.conf.Attributes))
+	attributes := make(map[string]snstypes.MessageAttributeValue, len(n.conf.Attributes))
 	for k, v := range n.conf.Attributes {
-		attributes[tmpl(k)] = &sns.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String(tmpl(v))}
+		attributes[tmpl(k)] = snstypes.MessageAttributeValue{DataType: aws.String("String"), StringValue: aws.String(tmpl(v))}
 	}
 	return attributes
 }

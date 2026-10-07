@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/aws/aws-sdk-go/service/sns"
+	"github.com/aws/aws-sdk-go-v2/service/sns"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
@@ -25,7 +25,7 @@ type mockSNSClient struct {
 	publishInput *sns.PublishInput
 }
 
-func (m *mockSNSClient) Publish(input *sns.PublishInput) (*sns.PublishOutput, error) {
+func (m *mockSNSClient) Publish(_ context.Context, input *sns.PublishInput, _ ...func(*sns.Options)) (*sns.PublishOutput, error) {
 	m.publishInput = input
 	return &sns.PublishOutput{}, nil
 }
@@ -193,7 +193,7 @@ func TestNotify_ExtraData(t *testing.T) {
 		Base:     receivers.NewBase(receivers.Metadata{}, log.NewNopLogger()),
 		tmpl:     tmpl,
 		settings: settings,
-		newSNSClient: func(_ func(string) string) (snsClient, error) {
+		newSNSClient: func(_ context.Context) (snsClient, error) {
 			return mockClient, nil
 		},
 	}
