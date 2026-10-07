@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"sort"
 	"testing"
@@ -66,6 +67,42 @@ func setupAMTest(t *testing.T, withOpts ...withOptsFn) (*GrafanaAlertmanager, *p
 	require.NoError(t, err)
 	return am, reg
 }
+
+func TestGrafanaAlertmanager_forkLogger(t *testing.T) {
+	am, _ := setupAMTest(t)
+	var buf bytes.Buffer
+	am.opts.Logger = log.NewLogfmtLogger(&buf)
+	am.logger = log.With(am.opts.Logger)
+
+	am.forkLogger().Info("hi")
+	require.NotContains(t, buf.String(), "caller=")
+
+	buf.Reset()
+	am.forkLoggerRaw().Info("hi")
+	require.NotContains(t, buf.String(), "caller=")
+}
+
+func TestGrafanaAlertmanager_forkLoggerDebugEnabled(t *testing.T) {
+	infoOnly := &fakeDebugEnabledLogger{Logger: log.NewNopLogger(), debug: false}
+
+	am, _ := setupAMTest(t, func(opts *GrafanaAlertmanagerOpts) {
+		opts.Logger = infoOnly
+	})
+	am.logger = log.With(am.opts.Logger)
+	require.False(t, am.forkLogger().Enabled(context.Background(), slog.LevelDebug),
+		"forkLogger must probe opts.Logger before am.logger hides DebugEnabled()")
+	require.False(t, am.forkLoggerRaw().Enabled(context.Background(), slog.LevelDebug))
+}
+
+// fakeDebugEnabledLogger is a minimal log.Logger that also implements
+// DebugEnabled(), for probing forkLogger/forkLoggerRaw's detection without
+// needing the full grafana-alertmanager levelFilter shape.
+type fakeDebugEnabledLogger struct {
+	log.Logger
+	debug bool
+}
+
+func (f *fakeDebugEnabledLogger) DebugEnabled() bool { return f.debug }
 
 func TestPutAlert(t *testing.T) {
 	am, _ := setupAMTest(t)
@@ -314,7 +351,7 @@ func TestPutAlert(t *testing.T) {
 		t.Run(c.title, func(t *testing.T) {
 			r := prometheus.NewRegistry()
 			am.marker = types.NewMarker(r)
-			am.alerts, err = mem.NewAlerts(context.Background(), am.marker, 15*time.Minute, nil, am.logger, r)
+			am.alerts, err = mem.NewAlerts(context.Background(), am.marker, 15*time.Minute, nil, am.forkLogger(), r)
 			require.NoError(t, err)
 
 			alerts := []*types.Alert{}
