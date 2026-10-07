@@ -40,6 +40,7 @@ import (
 	"github.com/prometheus/alertmanager/types"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
+	"github.com/grafana/alerting/logging"
 )
 
 // Email implements a Notifier for email notifications.
@@ -213,7 +214,7 @@ func (n *Email) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 
 	var (
 		tmplErr error
-		data    = notify.GetTemplateData(ctx, n.tmpl, as, n.logger)
+		data    = notify.GetTemplateData(ctx, n.tmpl, as, logging.NewSlogLogger(n.logger))
 		tmpl    = notify.TmplText(n.tmpl, data, &tmplErr)
 	)
 	from := tmpl(n.conf.From)
