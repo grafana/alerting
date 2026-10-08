@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
-	"github.com/prometheus/alertmanager/config"
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/prometheus/alertmanager/provider/mem"
 	"github.com/prometheus/alertmanager/timeinterval"
@@ -160,12 +160,12 @@ func TestPutAlert(t *testing.T) {
 				}
 			},
 		}, {
-			title: "Removing empty labels and annotations",
+			title: "Removing empty-name and empty-value labels and annotations",
 			postableAlerts: amv2.PostableAlerts{
 				{
-					Annotations: amv2.LabelSet{"msg": "Alert4 annotation", "empty": ""},
+					Annotations: amv2.LabelSet{"msg": "Alert4 annotation", "empty": "", "": "empty name"},
 					Alert: amv2.Alert{
-						Labels:       amv2.LabelSet{"alertname": "Alert4", "emptylabel": ""},
+						Labels:       amv2.LabelSet{"alertname": "Alert4", "emptylabel": "", "": "empty name"},
 						GeneratorURL: "http://localhost/url1",
 					},
 					StartsAt: strfmt.DateTime{},
@@ -589,11 +589,11 @@ func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
 	require.NoError(t, err)
 
 	r := []InhibitRule{{
-		SourceMatchers: config.Matchers{m1},
-		TargetMatchers: config.Matchers{m2},
+		SourceMatchers: amcommoncfg.Matchers{m1},
+		TargetMatchers: amcommoncfg.Matchers{m2},
 	}, {
-		SourceMatchers: config.Matchers{m3},
-		TargetMatchers: config.Matchers{m4},
+		SourceMatchers: amcommoncfg.Matchers{m3},
+		TargetMatchers: amcommoncfg.Matchers{m4},
 	}}
 	am.setInhibitionRulesMetrics(r)
 
@@ -602,6 +602,37 @@ func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
         	            	# TYPE grafana_alerting_alertmanager_inhibition_rules gauge
         	            	grafana_alerting_alertmanager_inhibition_rules{org="1"} 2
 `), "grafana_alerting_alertmanager_inhibition_rules"))
+}
+
+func TestGrafanaAlertmanager_setTemplateMetrics(t *testing.T) {
+	am, reg := setupAMTest(t)
+
+	cfgTemplates := []templates.TemplateDefinition{
+		{Name: "grafana-1", Kind: templates.GrafanaKind},
+		{Name: "grafana-2", Kind: templates.GrafanaKind},
+		{Name: "mimir-1", Kind: templates.MimirKind},
+	}
+	am.setTemplateMetrics(cfgTemplates)
+
+	require.NoError(t, testutil.GatherAndCompare(reg, bytes.NewBufferString(`
+        	            	# HELP grafana_alerting_alertmanager_templates Number of configured templates by kind.
+        	            	# TYPE grafana_alerting_alertmanager_templates gauge
+        	            	grafana_alerting_alertmanager_templates{kind="Grafana",org="1"} 2
+        	            	grafana_alerting_alertmanager_templates{kind="Mimir",org="1"} 1
+`), "grafana_alerting_alertmanager_templates"))
+
+	// Applying a config that no longer has Mimir templates must reset that
+	// kind's gauge to 0 instead of leaving the stale previous value.
+	am.setTemplateMetrics([]templates.TemplateDefinition{
+		{Name: "grafana-1", Kind: templates.GrafanaKind},
+	})
+
+	require.NoError(t, testutil.GatherAndCompare(reg, bytes.NewBufferString(`
+        	            	# HELP grafana_alerting_alertmanager_templates Number of configured templates by kind.
+        	            	# TYPE grafana_alerting_alertmanager_templates gauge
+        	            	grafana_alerting_alertmanager_templates{kind="Grafana",org="1"} 1
+        	            	grafana_alerting_alertmanager_templates{kind="Mimir",org="1"} 0
+`), "grafana_alerting_alertmanager_templates"))
 }
 
 func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
@@ -961,7 +992,7 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 				"team": "platform",
 				"env":  "prod",
 			},
-			Matchers: config.Matchers{
+			Matchers: amcommoncfg.Matchers{
 				mustLabelMatcher(t, labels.MatchEqual, "service", "api"),
 				mustLabelMatcher(t, labels.MatchNotEqual, "severity", "none"),
 			},
@@ -980,7 +1011,7 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 						"team":    "database",
 						"cluster": "prod-us-east-1",
 					},
-					Matchers: config.Matchers{
+					Matchers: amcommoncfg.Matchers{
 						mustLabelMatcher(t, labels.MatchEqual, "component", "postgres"),
 					},
 					MuteTimeIntervals: []string{"db_maintenance"},
@@ -994,7 +1025,7 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 								"severity": "critical",
 								"region":   "us-east-1",
 							},
-							Matchers: config.Matchers{
+							Matchers: amcommoncfg.Matchers{
 								mustLabelMatcher(t, labels.MatchEqual, "tier", "backend"),
 							},
 						},
@@ -1008,13 +1039,13 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 					"severity": "critical",
 					"team":     "platform",
 				},
-				SourceMatchers: config.Matchers{
+				SourceMatchers: amcommoncfg.Matchers{
 					mustLabelMatcher(t, labels.MatchEqual, "environment", "prod"),
 				},
 				TargetMatch: map[string]string{
 					"severity": "warning",
 				},
-				TargetMatchers: config.Matchers{
+				TargetMatchers: amcommoncfg.Matchers{
 					mustLabelMatcher(t, labels.MatchEqual, "component", "api"),
 				},
 				Equal: []string{"alertname", "cluster", "namespace"},

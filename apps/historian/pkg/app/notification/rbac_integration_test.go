@@ -93,7 +93,7 @@ func TestIntegration_NotificationRBAC(t *testing.T) {
 			loki:         reader,
 			logger:       &logging.NoOpLogger{},
 			rbacEnabled:  true,
-			folderAccess: fakeFolderAccessReader{folders: folders},
+			folderAccess: &fakeFolderAccessReader{folders: folders},
 		}
 	}
 

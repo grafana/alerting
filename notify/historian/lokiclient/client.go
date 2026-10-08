@@ -4,24 +4,36 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	alertingInstrument "github.com/grafana/alerting/http/instrument"
+	"github.com/grafana/dskit/backoff"
 	"github.com/grafana/dskit/instrument"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const defaultPageSize = 1000
 const maximumPageSize = 5000
+
+const defaultMaxWriteConcurrency = 4
+
+var defaultWriteBackoff = backoff.Config{
+	MinBackoff: 100 * time.Millisecond,
+	MaxBackoff: 1 * time.Second,
+	MaxRetries: 3,
+}
 
 func NewRequester() alertingInstrument.Requester {
 	return &http.Client{}
@@ -45,6 +57,21 @@ type LokiConfig struct {
 	Encoder           encoder
 	MaxQueryLength    time.Duration
 	MaxQuerySize      int
+	// UsePOSTForQueries sends the parameters of a read request in a form-encoded body instead of
+	// the query string. Loki accepts POST on its read endpoints, and a body keeps the request line
+	// short enough for gateways that reject a long URI with 414. Defaults to false (GET).
+	UsePOSTForQueries bool
+	// MaxWriteBatchSize is the maximum number of bytes, as Loki accounts for them (log lines plus
+	// structured metadata, uncompressed), that a single push request may carry. Larger payloads are
+	// split into several requests sent in parallel, so a failure can leave a partial write: some
+	// batches accepted, others not. 0 (the default) disables splitting.
+	MaxWriteBatchSize int
+	// MaxWriteConcurrency is the number of push requests of a split payload that may be in
+	// flight at once. Defaults to defaultMaxWriteConcurrency.
+	MaxWriteConcurrency int
+	// WriteBackoff controls the retries of a push request that Loki rate-limited or failed to
+	// serve. The zero value defaults to defaultWriteBackoff.
+	WriteBackoff backoff.Config
 }
 
 type HTTPLokiClient struct {
@@ -70,6 +97,12 @@ const (
 )
 
 func NewLokiClient(cfg LokiConfig, req alertingInstrument.Requester, bytesWritten prometheus.Counter, writeDuration *instrument.HistogramCollector, logger log.Logger, tracer trace.Tracer, spanName string) *HTTPLokiClient {
+	if cfg.MaxWriteConcurrency <= 0 {
+		cfg.MaxWriteConcurrency = defaultMaxWriteConcurrency
+	}
+	if cfg.WriteBackoff == (backoff.Config{}) {
+		cfg.WriteBackoff = defaultWriteBackoff
+	}
 	tc := alertingInstrument.NewTimedClient(req, writeDuration)
 	trc := alertingInstrument.NewTracedClient(tc, tracer, spanName)
 	return &HTTPLokiClient{
@@ -164,11 +197,60 @@ func (r *Sample) UnmarshalJSON(b []byte) error {
 }
 
 func (c *HTTPLokiClient) Push(ctx context.Context, s []Stream) error {
-	enc, err := c.encoder.encode(s)
-	if err != nil {
-		return err
+	if c.cfg.MaxWriteBatchSize <= 0 {
+		enc, err := c.encoder.encode(s)
+		if err != nil {
+			return err
+		}
+		return c.pushWithRetries(ctx, enc)
 	}
 
+	batches := splitIntoBatches(s, c.cfg.MaxWriteBatchSize)
+	if len(batches) > 1 {
+		level.Info(c.logger).Log("msg", "Splitting Loki push into multiple requests",
+			"requests", len(batches), "maxBatchSize", c.cfg.MaxWriteBatchSize)
+	}
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(c.cfg.MaxWriteConcurrency)
+	for _, batch := range batches {
+		g.Go(func() error {
+			if err := gctx.Err(); err != nil {
+				return err
+			}
+			enc, err := c.encoder.encode(batch)
+			if err != nil {
+				return err
+			}
+			return c.pushWithRetries(gctx, enc)
+		})
+	}
+	return g.Wait()
+}
+
+// pushWithRetries sends an already-encoded payload, backing off and retrying while Loki rate-limits
+// or fails to serve it.
+func (c *HTTPLokiClient) pushWithRetries(ctx context.Context, enc []byte) error {
+	b := backoff.New(ctx, c.cfg.WriteBackoff)
+	for {
+		err := c.sendPush(ctx, enc)
+		if err == nil {
+			// Counted on the attempt that landed the payload, so retries of it do not inflate the counter.
+			c.bytesWritten.Add(float64(len(enc)))
+			return nil
+		}
+		// Done on a rejection that will not improve, and once the retry budget or the context is spent
+		// (b.Ongoing() reports both). Deciding before b.Wait() keeps the last attempt from sleeping for
+		// nothing.
+		if !isRetryablePushError(err) || !b.Ongoing() {
+			return err
+		}
+		level.Warn(c.logger).Log("msg", "Failed to push to Loki, retrying", "err", err, "attempt", b.NumRetries()+1)
+		b.Wait()
+	}
+}
+
+func (c *HTTPLokiClient) sendPush(ctx context.Context, enc []byte) error {
 	uri := c.cfg.WritePathURL.JoinPath("/loki/api/v1/push")
 	req, err := http.NewRequest(http.MethodPost, uri.String(), bytes.NewBuffer(enc))
 	if err != nil {
@@ -180,7 +262,6 @@ func (c *HTTPLokiClient) Push(ctx context.Context, s []Stream) error {
 		req.Header.Add(k, v)
 	}
 
-	c.bytesWritten.Add(float64(len(enc)))
 	req = req.WithContext(ctx)
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -206,6 +287,45 @@ func (c *HTTPLokiClient) setAuthAndTenantHeaders(req *http.Request) {
 	}
 }
 
+// newQueryRequest builds a read request for path, carrying values either in the query string or in
+// a form-encoded body depending on UsePOSTForQueries.
+func (c *HTTPLokiClient) newQueryRequest(ctx context.Context, path string, values url.Values) (*http.Request, error) {
+	uri := c.cfg.ReadPathURL.JoinPath(path)
+
+	if !c.cfg.UsePOSTForQueries {
+		uri.RawQuery = values.Encode()
+		return http.NewRequestWithContext(ctx, http.MethodGet, uri.String(), nil)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uri.String(), strings.NewReader(values.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return req, nil
+}
+
+// sendQuery sends a read request to Loki and returns the raw response body.
+func (c *HTTPLokiClient) sendQuery(ctx context.Context, path string, values url.Values) ([]byte, error) {
+	req, err := c.newQueryRequest(ctx, path, values)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+	c.setAuthAndTenantHeaders(req)
+
+	res, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error executing request: %w", err)
+	}
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			level.Warn(c.logger).Log("msg", "Failed to close response body", "err", err)
+		}
+	}()
+
+	return c.handleLokiResponse(c.logger, res)
+}
+
 func (c *HTTPLokiClient) RangeQuery(ctx context.Context, logQL string, start, end, limit int64) (QueryRes, error) {
 	// Run the pre-flight checks for the query.
 	if start > end {
@@ -219,36 +339,14 @@ func (c *HTTPLokiClient) RangeQuery(ctx context.Context, logQL string, start, en
 		limit = maximumPageSize
 	}
 
-	queryURL := c.cfg.ReadPathURL.JoinPath("/loki/api/v1/query_range")
-
 	values := url.Values{}
 	values.Set("query", logQL)
 	values.Set("start", fmt.Sprintf("%d", start))
 	values.Set("end", fmt.Sprintf("%d", end))
 	values.Set("limit", fmt.Sprintf("%d", limit))
 
-	queryURL.RawQuery = values.Encode()
 	level.Debug(c.logger).Log("msg", "Sending query request", "query", logQL, "start", start, "end", end, "limit", limit)
-	req, err := http.NewRequest(http.MethodGet,
-		queryURL.String(), nil)
-	if err != nil {
-		return QueryRes{}, fmt.Errorf("error creating request: %w", err)
-	}
-
-	req = req.WithContext(ctx)
-	c.setAuthAndTenantHeaders(req)
-
-	res, err := c.client.Do(req)
-	if err != nil {
-		return QueryRes{}, fmt.Errorf("error executing request: %w", err)
-	}
-	defer func() {
-		if err := res.Body.Close(); err != nil {
-			level.Warn(c.logger).Log("msg", "Failed to close response body", "err", err)
-		}
-	}()
-
-	data, err := c.handleLokiResponse(c.logger, res)
+	data, err := c.sendQuery(ctx, "/loki/api/v1/query_range", values)
 	if err != nil {
 		return QueryRes{}, err
 	}
@@ -271,34 +369,13 @@ func (c *HTTPLokiClient) MetricsQuery(ctx context.Context, logQL string, ts int6
 		limit = maximumPageSize
 	}
 
-	queryURL := c.cfg.ReadPathURL.JoinPath("/loki/api/v1/query")
-
 	values := url.Values{}
 	values.Set("query", logQL)
 	values.Set("time", fmt.Sprintf("%d", ts))
 	values.Set("limit", fmt.Sprintf("%d", limit))
 
-	queryURL.RawQuery = values.Encode()
 	level.Debug(c.logger).Log("msg", "Sending metrics query request", "query", logQL, "time", ts, "limit", limit)
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return MetricsQueryRes{}, fmt.Errorf("error creating request: %w", err)
-	}
-
-	req = req.WithContext(ctx)
-	c.setAuthAndTenantHeaders(req)
-
-	res, err := c.client.Do(req)
-	if err != nil {
-		return MetricsQueryRes{}, fmt.Errorf("error executing request: %w", err)
-	}
-	defer func() {
-		if err := res.Body.Close(); err != nil {
-			level.Warn(c.logger).Log("msg", "Failed to close response body", "err", err)
-		}
-	}()
-
-	data, err := c.handleLokiResponse(c.logger, res)
+	data, err := c.sendQuery(ctx, "/loki/api/v1/query", values)
 	if err != nil {
 		return MetricsQueryRes{}, err
 	}
@@ -325,8 +402,6 @@ func (c *HTTPLokiClient) MetricsRangeQuery(ctx context.Context, logQL string, st
 		limit = maximumPageSize
 	}
 
-	queryURL := c.cfg.ReadPathURL.JoinPath("/loki/api/v1/query_range")
-
 	values := url.Values{}
 	values.Set("query", logQL)
 	values.Set("start", fmt.Sprintf("%d", start))
@@ -336,27 +411,8 @@ func (c *HTTPLokiClient) MetricsRangeQuery(ctx context.Context, logQL string, st
 		values.Set("step", fmt.Sprintf("%d", step))
 	}
 
-	queryURL.RawQuery = values.Encode()
 	level.Debug(c.logger).Log("msg", "Sending metrics range query request", "query", logQL, "start", start, "end", end, "limit", limit, "step", step)
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return MetricsRangeQueryRes{}, fmt.Errorf("error creating request: %w", err)
-	}
-
-	req = req.WithContext(ctx)
-	c.setAuthAndTenantHeaders(req)
-
-	res, err := c.client.Do(req)
-	if err != nil {
-		return MetricsRangeQueryRes{}, fmt.Errorf("error executing request: %w", err)
-	}
-	defer func() {
-		if err := res.Body.Close(); err != nil {
-			level.Warn(c.logger).Log("msg", "Failed to close response body", "err", err)
-		}
-	}()
-
-	data, err := c.handleLokiResponse(c.logger, res)
+	data, err := c.sendQuery(ctx, "/loki/api/v1/query_range", values)
 	if err != nil {
 		return MetricsRangeQueryRes{}, err
 	}
@@ -447,10 +503,30 @@ func (c *HTTPLokiClient) handleLokiResponse(logger log.Logger, res *http.Respons
 		} else {
 			level.Error(logger).Log("msg", "Error response from Loki with an empty body", "status", res.StatusCode)
 		}
-		return nil, fmt.Errorf("received a non-200 response from loki, status: %d, body: %q", res.StatusCode, string(data))
+		return nil, statusError{statusCode: res.StatusCode, body: string(data)}
 	}
 
 	return data, nil
+}
+
+// statusError is a non-2xx response from Loki.
+type statusError struct {
+	statusCode int
+	body       string
+}
+
+func (e statusError) Error() string {
+	return fmt.Sprintf("received a non-200 response from loki, status: %d, body: %q", e.statusCode, e.body)
+}
+
+// isRetryablePushError reports whether Loki may accept the same push later: it rate-limited the
+// request or failed to serve it. Any other rejection is the payload's fault and will not improve.
+func isRetryablePushError(err error) bool {
+	var statusErr statusError
+	if !errors.As(err, &statusErr) {
+		return false
+	}
+	return statusErr.statusCode == http.StatusTooManyRequests || statusErr.statusCode >= http.StatusInternalServerError
 }
 
 // ClampRange ensures that the time range is within the configured maximum query length.

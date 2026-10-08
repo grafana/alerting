@@ -44,6 +44,18 @@ func Main(args []string) error {
 	// flags); without it, RBAC-protected queries would fail closed, so fail fast
 	// at startup instead if it can't be built.
 	if cfg.App.Notification.RBACEnabled {
+		// The standalone operator's custom-route server does not authenticate
+		// requests, so notification RBAC reconstructs the caller identity from the
+		// tokens forwarded on each request, verifying them against this JWKS
+		// endpoint. Without it every RBAC-protected query fails closed at request
+		// time, so fail fast at startup instead. (Behind the aggregated API server
+		// the identity is already in the request context and the verifier is never
+		// consulted, but requiring it keeps a standalone deployment from silently
+		// denying every query.)
+		if cfg.App.Notification.SigningKeysURL == "" {
+			return fmt.Errorf("alerting.historian.notification.rbac.signing-keys-url is required when notification RBAC is enabled")
+		}
+
 		accessClient, err := newAccessClient(cfg.Authz)
 		if err != nil {
 			return fmt.Errorf("failed to build authz access client for notification RBAC: %w", err)

@@ -18,6 +18,7 @@ type GrafanaAlertmanagerMetrics struct {
 	configuredReceivers       *prometheus.GaugeVec
 	configuredIntegrations    *prometheus.GaugeVec
 	configuredInhibitionRules *prometheus.GaugeVec
+	configuredTemplates       *prometheus.GaugeVec
 }
 
 // NewGrafanaAlertmanagerMetrics creates a set of metrics for the Alertmanager.
@@ -43,5 +44,11 @@ func NewGrafanaAlertmanagerMetrics(r prometheus.Registerer, l log.Logger) *Grafa
 			Name:      "alertmanager_inhibition_rules",
 			Help:      "Number of configured inhibition rules.",
 		}, []string{"org"}),
+		configuredTemplates: promauto.With(r).NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "alertmanager_templates",
+			Help:      "Number of configured templates by kind.",
+		}, []string{"org", "kind"}),
 	}
 }

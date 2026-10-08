@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"slices"
 
-	"github.com/grafana/alerting/definition"
+	"github.com/grafana/alerting/definition/compat"
 	"github.com/grafana/alerting/http/v0mimir/v0mimirtest"
 	discordV0 "github.com/grafana/alerting/receivers/discord/v0mimir1"
 	emailV0 "github.com/grafana/alerting/receivers/email/v0mimir1"
@@ -58,8 +58,8 @@ func GetMimirIntegrationForType(iType reflect.Type, opts ...v0mimirtest.MimirInt
 
 // GetMimirReceiverWithIntegrations creates a Receiver with selected integrations configured from given types and options.
 // It returns a Receiver for testing purposes or an error if the configuration process encounters an issue.
-func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...v0mimirtest.MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
-	receiver := definition.Receiver{Name: "receiver"}
+func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...v0mimirtest.MimirIntegrationHTTPConfigOption) (compat.Receiver, error) {
+	receiver := compat.Receiver{Name: "receiver"}
 	receiverVal := reflect.ValueOf(&receiver).Elem()
 	receiverType := receiverVal.Type()
 	for i := 0; i < receiverType.NumField(); i++ {
@@ -83,10 +83,10 @@ func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...v0mimirtest
 		}
 		rawConfig, err := GetRawConfigForMimirIntegration(underlyingType, opts...)
 		if err != nil {
-			return definition.Receiver{}, fmt.Errorf("failed to get config for type [%s]: %v", underlyingType.String(), err)
+			return compat.Receiver{}, fmt.Errorf("failed to get config for type [%s]: %v", underlyingType.String(), err)
 		}
 		if err := json.Unmarshal([]byte(rawConfig), elemPtr); err != nil {
-			return definition.Receiver{}, fmt.Errorf("failed to parse config for type %s: %v", elemType.String(), err)
+			return compat.Receiver{}, fmt.Errorf("failed to parse config for type %s: %v", elemType.String(), err)
 		}
 		sliceVal = reflect.Append(sliceVal, reflect.ValueOf(elemPtr).Elem())
 		receiverVal.FieldByName(integrationField.Name).Set(sliceVal)
@@ -96,7 +96,7 @@ func GetMimirReceiverWithIntegrations(iTypes []reflect.Type, opts ...v0mimirtest
 
 // GetMimirReceiverWithAllIntegrations creates a Receiver with all integrations configured from given types and options.
 // It returns a Receiver for testing purposes or an error if the configuration process encounters an issue.
-func GetMimirReceiverWithAllIntegrations(opts ...v0mimirtest.MimirIntegrationHTTPConfigOption) (definition.Receiver, error) {
+func GetMimirReceiverWithAllIntegrations(opts ...v0mimirtest.MimirIntegrationHTTPConfigOption) (compat.Receiver, error) {
 	return GetMimirReceiverWithIntegrations(slices.Collect(maps.Keys(AllValidMimirConfigs)), opts...)
 }
 
@@ -127,7 +127,7 @@ func GetRawConfigForMimirIntegration(iType reflect.Type, opts ...v0mimirtest.Mim
 
 // FullValidMimirReceiver builds a Receiver with all integration types populated
 // using GetFullValidConfig from each integration package.
-func FullValidMimirReceiver() definition.Receiver {
+func FullValidMimirReceiver() compat.Receiver {
 	discord := discordV0.GetFullValidConfig()
 	email := emailV0.GetFullValidConfig()
 	jira := jiraV0.GetFullValidConfig()
@@ -144,7 +144,7 @@ func FullValidMimirReceiver() definition.Receiver {
 	webhook := webhookV0.GetFullValidConfig()
 	wechat := wechatV0.GetFullValidConfig()
 
-	return definition.Receiver{
+	return compat.Receiver{
 		Name:             "test-receiver",
 		DiscordConfigs:   []*discordV0.Config{&discord},
 		EmailConfigs:     []*emailV0.Config{&email},

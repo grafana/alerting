@@ -19,6 +19,7 @@ import (
 
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/alertmanager/config"
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	"github.com/prometheus/alertmanager/dispatch"
 	"github.com/prometheus/alertmanager/featurecontrol"
 	"github.com/prometheus/alertmanager/flushlog"
@@ -134,7 +135,7 @@ type MaintenanceOptions interface {
 var NewIntegration = nfstatus.NewIntegration
 
 type (
-	InhibitRule      = config.InhibitRule
+	InhibitRule      = amcommoncfg.InhibitRule
 	MuteTimeInterval = config.MuteTimeInterval
 	TimeInterval     = config.TimeInterval
 	Route            = definition.Route
@@ -869,6 +870,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 
 	am.setReceiverMetrics(cfg.Receivers, len(activeReceivers))
 	am.setInhibitionRulesMetrics(cfg.InhibitRules)
+	am.setTemplateMetrics(cfg.Templates)
 
 	am.receivers = receivers
 
@@ -892,6 +894,21 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 
 func (am *GrafanaAlertmanager) setInhibitionRulesMetrics(r []InhibitRule) {
 	am.opts.Metrics.configuredInhibitionRules.WithLabelValues(am.tenantString()).Set(float64(len(r)))
+}
+
+func (am *GrafanaAlertmanager) setTemplateMetrics(cfgTemplates []templates.TemplateDefinition) {
+	// Start all known kinds at 0 so a kind that no longer has any templates
+	// gets its gauge reset instead of keeping a stale value from a previous config.
+	byKind := map[templates.Kind]int{
+		templates.GrafanaKind: 0,
+		templates.MimirKind:   0,
+	}
+	for _, t := range cfgTemplates {
+		byKind[t.Kind]++
+	}
+	for kind, count := range byKind {
+		am.opts.Metrics.configuredTemplates.WithLabelValues(am.tenantString(), kind.String()).Set(float64(count))
+	}
 }
 
 func (am *GrafanaAlertmanager) setReceiverMetrics(cfgReceivers []models.ReceiverConfig, countActiveReceivers int) {
@@ -963,7 +980,7 @@ func PostableAlertsToAlertmanagerAlerts(postableAlerts amv2.PostableAlerts, now 
 		}
 
 		for k, v := range a.Labels {
-			if len(v) == 0 || k == models.NamespaceUIDLabel { // Skip empty and namespace UID labels.
+			if len(k) == 0 || len(v) == 0 || k == models.NamespaceUIDLabel { // Skip empty-name, empty-value, and namespace UID labels.
 				continue
 			}
 
@@ -971,7 +988,7 @@ func PostableAlertsToAlertmanagerAlerts(postableAlerts amv2.PostableAlerts, now 
 		}
 
 		for k, v := range a.Annotations {
-			if len(v) == 0 { // Skip empty annotation.
+			if len(k) == 0 || len(v) == 0 { // Skip empty-name and empty-value annotations.
 				continue
 			}
 			alert.Annotations[model.LabelName(k)] = model.LabelValue(v)
