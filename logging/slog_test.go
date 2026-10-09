@@ -664,13 +664,7 @@ func TestCallerParity_GrafanaAlertmanagerStyle(t *testing.T) {
 		"adapter path should not land back in the test file at all with this fixture shape: got %q", adapterCaller)
 }
 
-// ---- opt-in caller via WithCaller (option (b)+(d), commander decision 2026-09-25) ----
-
-// TestOptInCaller_GrafanaAlertmanagerStyleMinusCaller: a grafana-alertmanager-
-// style logger (ts baked in, as usual) but WITHOUT its own caller field --
-// the shape the new optional GrafanaAlertmanagerOpts field is meant to carry
-// -- gets an exact, correct caller when WithCaller() is set: the real call
-// line, exactly once.
+// WithCaller adds the real call site's caller field to a logger without one.
 func TestOptInCaller_GrafanaAlertmanagerStyleMinusCaller(t *testing.T) {
 	var buf bytes.Buffer
 	logger := dslog.NewGoKitWithWriter(dslog.LogfmtFormat, &buf)
@@ -687,23 +681,8 @@ func TestOptInCaller_GrafanaAlertmanagerStyleMinusCaller(t *testing.T) {
 	require.Equal(t, fmt.Sprintf("slog_test.go:%d", wantLine), got)
 }
 
-// TestOptInCaller_GrafanaGrafanaStyleUnset: the option unset (grafana/grafana's
-// fallback -- no optional caller-less logger configured) must stay exactly
-// as it is today: no caller key at all, byte-identical to before this option
-// existed.
-func TestOptInCaller_GrafanaGrafanaStyleUnset(t *testing.T) {
-	var buf bytes.Buffer
-	NewSlogLogger(newGrafanaGrafanaLogger(&buf, level.AllowAll())).Info("hi")
-	require.NotContains(t, buf.String(), "caller=")
-}
-
-// TestOptInCaller_NeverDoubledWithExistingCaller documents (it is the
-// caller's responsibility, per WithCaller's doc comment, not something the
-// adapter can detect) what happens if WithCaller is combined with a logger
-// that already carries its own "caller" field: a visible duplicate in
-// logfmt. This is exactly why the optional GrafanaAlertmanagerOpts field is
-// documented as "a logger WITHOUT a caller field" -- WithCaller must never be
-// paired with the plain Logger field, which may carry one.
+// WithCaller cannot detect an existing caller field in the wrapped logger.
+// The caller must not enable it for a logger that already includes that field.
 func TestOptInCaller_NeverDoubledWithExistingCaller(t *testing.T) {
 	var buf bytes.Buffer
 	logger := log.With(dslog.NewGoKitWithWriter(dslog.LogfmtFormat, &buf), "caller", "pre-existing:1")

@@ -247,13 +247,6 @@ type GrafanaAlertmanagerOpts struct {
 	Logger  log.Logger
 	Metrics *GrafanaAlertmanagerMetrics
 
-	// LoggerWithoutCaller is an optional go-kit logger equivalent to Logger
-	// but without a "caller" field baked in. When set, it is used (instead of
-	// Logger) for the loggers handed into the fork, and the adapter adds its
-	// own exact caller derived from the real call site; when unset, fork
-	// loggers are built from Logger as before, with no caller added.
-	LoggerWithoutCaller log.Logger
-
 	NotificationHistorian nfstatus.NotificationHistorian
 
 	DispatchTimer DispatchTimer
@@ -1084,24 +1077,10 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 	return d + am.waitFunc()
 }
 
-// forkLogger returns the scoped ("component"="alertmanager") *slog.Logger to
-// hand into a fork constructor, honoring the optional LoggerWithoutCaller
-// opt-in on GrafanaAlertmanagerOpts (see its doc comment): when set, the
-// adapter adds an exact caller derived from the real call site; when unset,
-// this is exactly am.logger wrapped with no caller added, as before. Either
-// way, DebugEnabled() is probed on the pre-scoping logger (opts.Logger or
-// opts.LoggerWithoutCaller) before log.With(...) hides it -- see
-// logging.NewSlogLogger's doc comment on why detection must happen before
-// that wrapping, not after.
+// forkLogger returns the scoped ("component"="alertmanager") *slog.Logger
+// for fork constructors. Probe DebugEnabled() on opts.Logger before the
+// log.With wrapping in am.logger hides it.
 func (am *GrafanaAlertmanager) forkLogger() *slog.Logger {
-	if am.opts.LoggerWithoutCaller != nil {
-		scoped := log.With(am.opts.LoggerWithoutCaller, "component", "alertmanager", am.opts.TenantKey, am.opts.TenantID)
-		opts := []logging.Option{logging.WithCaller()}
-		if d, ok := am.opts.LoggerWithoutCaller.(interface{ DebugEnabled() bool }); ok {
-			opts = append(opts, logging.WithDebugEnabled(d.DebugEnabled()))
-		}
-		return logging.NewSlogLogger(scoped, opts...)
-	}
 	if d, ok := am.opts.Logger.(interface{ DebugEnabled() bool }); ok {
 		return logging.NewSlogLogger(am.logger, logging.WithDebugEnabled(d.DebugEnabled()))
 	}
@@ -1112,13 +1091,6 @@ func (am *GrafanaAlertmanager) forkLogger() *slog.Logger {
 // for the fork call sites that pass opts.Logger unscoped today (nflog and
 // flushlog Options.Logger).
 func (am *GrafanaAlertmanager) forkLoggerRaw() *slog.Logger {
-	if am.opts.LoggerWithoutCaller != nil {
-		opts := []logging.Option{logging.WithCaller()}
-		if d, ok := am.opts.LoggerWithoutCaller.(interface{ DebugEnabled() bool }); ok {
-			opts = append(opts, logging.WithDebugEnabled(d.DebugEnabled()))
-		}
-		return logging.NewSlogLogger(am.opts.LoggerWithoutCaller, opts...)
-	}
 	if d, ok := am.opts.Logger.(interface{ DebugEnabled() bool }); ok {
 		return logging.NewSlogLogger(am.opts.Logger, logging.WithDebugEnabled(d.DebugEnabled()))
 	}
