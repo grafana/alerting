@@ -2,7 +2,7 @@
 
 ## Alerting
 
-- 
+- [FEATURE] Add an opt-in Telegram setting to send a single screenshot and short message as a photo with caption.
 
 ## Scope Glossary
 
@@ -43,4 +43,3 @@ Scopes must have an order to ensure consistency and ease of search, this helps u
 3. `[BUGFIX]`
 4. `[ENHANCEMENT]`
 5. `[ADMIN]`
-
