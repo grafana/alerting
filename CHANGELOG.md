@@ -2,7 +2,7 @@
 
 ## Alerting
 
-- 
+- [FEATURE] Telegram: allow configuring a custom Bot API base URL for local or proxied Telegram API servers.
 
 ## Scope Glossary
 
@@ -43,4 +43,3 @@ Scopes must have an order to ensure consistency and ease of search, this helps u
 3. `[BUGFIX]`
 4. `[ENHANCEMENT]`
 5. `[ADMIN]`
-

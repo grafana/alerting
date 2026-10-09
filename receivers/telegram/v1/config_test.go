@@ -121,6 +121,7 @@ func TestNewConfig(t *testing.T) {
 			name:     "Extracts all fields",
 			settings: FullValidConfigForTesting,
 			expectedConfig: Config{
+				APIURL:                "http://localhost:8081/telegram",
 				BotToken:              "test-token",
 				ChatID:                "12345678",
 				Message:               "test-message",
@@ -136,6 +137,7 @@ func TestNewConfig(t *testing.T) {
 			settings:       FullValidConfigForTesting,
 			secureSettings: receiversTesting.ReadSecretsJSONForTesting(FullValidSecretsForTesting),
 			expectedConfig: Config{
+				APIURL:                "http://localhost:8081/telegram",
 				BotToken:              "test-secret-token",
 				ChatID:                "12345678",
 				Message:               "test-message",
