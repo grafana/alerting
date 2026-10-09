@@ -682,6 +682,37 @@ func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
 `), "grafana_alerting_alertmanager_inhibition_rules"))
 }
 
+func TestGrafanaAlertmanager_setTemplateMetrics(t *testing.T) {
+	am, reg := setupAMTest(t)
+
+	cfgTemplates := []templates.TemplateDefinition{
+		{Name: "grafana-1", Kind: templates.GrafanaKind},
+		{Name: "grafana-2", Kind: templates.GrafanaKind},
+		{Name: "mimir-1", Kind: templates.MimirKind},
+	}
+	am.setTemplateMetrics(cfgTemplates)
+
+	require.NoError(t, testutil.GatherAndCompare(reg, bytes.NewBufferString(`
+        	            	# HELP grafana_alerting_alertmanager_templates Number of configured templates by kind.
+        	            	# TYPE grafana_alerting_alertmanager_templates gauge
+        	            	grafana_alerting_alertmanager_templates{kind="Grafana",org="1"} 2
+        	            	grafana_alerting_alertmanager_templates{kind="Mimir",org="1"} 1
+`), "grafana_alerting_alertmanager_templates"))
+
+	// Applying a config that no longer has Mimir templates must reset that
+	// kind's gauge to 0 instead of leaving the stale previous value.
+	am.setTemplateMetrics([]templates.TemplateDefinition{
+		{Name: "grafana-1", Kind: templates.GrafanaKind},
+	})
+
+	require.NoError(t, testutil.GatherAndCompare(reg, bytes.NewBufferString(`
+        	            	# HELP grafana_alerting_alertmanager_templates Number of configured templates by kind.
+        	            	# TYPE grafana_alerting_alertmanager_templates gauge
+        	            	grafana_alerting_alertmanager_templates{kind="Grafana",org="1"} 1
+        	            	grafana_alerting_alertmanager_templates{kind="Mimir",org="1"} 0
+`), "grafana_alerting_alertmanager_templates"))
+}
+
 func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
 	am, reg := setupAMTest(t)
 
