@@ -56,7 +56,7 @@ func New(conf *Config, t *template.Template, l log.Logger, httpOpts ...commoncfg
 	}
 
 	// instrument for tracing
-	client.Transport = tracing.Transport(client.Transport, "webhook")
+	client.Transport = tracing.Transport(client.Transport)
 
 	return &Notifier{
 		conf:   conf,

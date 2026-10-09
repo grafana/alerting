@@ -783,7 +783,7 @@ func TestJiraPriority(t *testing.T) {
 			tmpl.ExternalURL = u
 
 			var (
-				data = tmpl.Data("jira", model.LabelSet{}, tc.alerts...)
+				data = tmpl.Data("jira", model.LabelSet{}, nil, notify.ReasonFirstNotification.String(), tc.alerts...)
 
 				tmplTextErr  error
 				tmplText     = notify.TmplText(tmpl, data, &tmplTextErr)
