@@ -14,6 +14,8 @@
 package v0mimir1
 
 import (
+	"github.com/grafana/alerting/receivers"
+
 	"bytes"
 	"context"
 	"encoding/json"
@@ -34,7 +36,6 @@ import (
 	"github.com/prometheus/alertmanager/types"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/logging"
 )
 
 const (
@@ -98,9 +99,10 @@ func convertToMarshalMap(v any) (any, error) {
 
 // Notifier implements a Notifier for JIRA notifications.
 type Notifier struct {
-	conf    *Config
-	tmpl    *template.Template
-	logger  log.Logger
+	conf   *Config
+	tmpl   *template.Template
+	logger log.Logger
+	receivers.ForkLogger
 	client  *http.Client
 	retrier *notify.Retrier
 }
@@ -135,7 +137,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		alerts = types.Alerts(as...)
 
 		tmplTextErr  error
-		data         = notify.GetTemplateData(ctx, n.tmpl, as, logging.NewSlogLogger(logger))
+		data         = notify.GetTemplateData(ctx, n.tmpl, as, n.GetSlogLogger(n.logger).With("group_key", key.String()))
 		tmplText     = notify.TmplText(n.tmpl, data, &tmplTextErr)
 		tmplTextFunc = func(tmpl string) (string, error) {
 			return tmplText(tmpl), tmplTextErr

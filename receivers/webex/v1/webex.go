@@ -48,7 +48,7 @@ type webexMessage struct {
 func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := wn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, wn.tmpl, as, l, &tmplErr, wn.GetSlogLogger(ctx))
 
 	// Augment extended Alert data with any extra data if provided.
 	receivers.ApplyExtraData(ctx, data.Alerts)

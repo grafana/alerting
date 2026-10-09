@@ -14,6 +14,8 @@
 package v0mimir1
 
 import (
+	"github.com/grafana/alerting/receivers"
+
 	"context"
 	"errors"
 	"fmt"
@@ -31,18 +33,19 @@ import (
 	"github.com/go-kit/log/level"
 	commoncfg "github.com/prometheus/common/config"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/logging"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 )
 
 // Notifier implements a Notifier for SNS notifications.
 type Notifier struct {
-	conf    *Config
-	tmpl    *template.Template
-	logger  log.Logger
+	conf   *Config
+	tmpl   *template.Template
+	logger log.Logger
+	receivers.ForkLogger
 	client  *http.Client
 	retrier *notify.Retrier
 }
@@ -67,7 +70,7 @@ func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 func (n *Notifier) Notify(ctx context.Context, alert ...*types.Alert) (bool, error) {
 	var (
 		err  error
-		data = notify.GetTemplateData(ctx, n.tmpl, alert, logging.NewSlogLogger(n.logger))
+		data = notify.GetTemplateData(ctx, n.tmpl, alert, n.GetSlogLogger(n.logger))
 		tmpl = notify.TmplText(n.tmpl, data, &err)
 	)
 

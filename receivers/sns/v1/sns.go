@@ -56,7 +56,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, logg
 func (s *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := s.GetLogger(ctx)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, s.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, s.tmpl, as, l, &tmplErr, s.GetSlogLogger(ctx))
 
 	receivers.ApplyExtraData(ctx, data.Alerts)
 

@@ -38,9 +38,10 @@ func Create(
 	tlsTransportConfig *cluster.TLSTransportConfig,
 	allowInsecureAdvertise bool,
 	label string,
+	logOptions ...logging.Option,
 ) (*cluster.Peer, error) {
 	return cluster.Create(
-		logging.NewSlogLogger(l),
+		logging.NewSlogLogger(l, logOptions...),
 		reg,
 		bindAddr,
 		advertiseAddr,

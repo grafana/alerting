@@ -24,10 +24,10 @@ type GrafanaAlertmanagerMetrics struct {
 }
 
 // NewGrafanaAlertmanagerMetrics creates a set of metrics for the Alertmanager.
-func NewGrafanaAlertmanagerMetrics(r prometheus.Registerer, l log.Logger) *GrafanaAlertmanagerMetrics {
+func NewGrafanaAlertmanagerMetrics(r prometheus.Registerer, l log.Logger, logOptions ...logging.Option) *GrafanaAlertmanagerMetrics {
 	return &GrafanaAlertmanagerMetrics{
 		Registerer: r,
-		Alerts:     metrics.NewAlerts(r, logging.NewSlogLogger(l)),
+		Alerts:     metrics.NewAlerts(r, logging.NewSlogLogger(l, logOptions...)),
 		configuredReceivers: promauto.With(r).NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,

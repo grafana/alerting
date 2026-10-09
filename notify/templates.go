@@ -100,7 +100,7 @@ func (am *GrafanaAlertmanager) TestTemplate(ctx context.Context, c TestTemplates
 	templateFactory := am.templates
 	am.reloadConfigMtx.RUnlock()
 
-	return TestTemplate(ctx, c, templateFactory, log.With(am.logger, "operation", "TestTemplate"))
+	return TestTemplate(ctx, c, templateFactory, log.With(am.logger, "operation", "TestTemplate"), am.forkLogger().With("operation", "TestTemplate"))
 }
 
 func (am *GrafanaAlertmanager) GetTemplate(kind templates.Kind) (*templates.Template, error) {

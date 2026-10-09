@@ -76,7 +76,7 @@ func (tn *Notifier) SendResolved() bool {
 
 func (tn *Notifier) buildMessage(ctx context.Context, l log.Logger, as ...*types.Alert) string {
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, tn.tmpl, as, l, &tmplErr, tn.GetSlogLogger(ctx))
 
 	receivers.ApplyExtraData(ctx, data.Alerts)
 

@@ -78,7 +78,7 @@ func (kn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := kn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, kn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, kn.tmpl, as, l, &tmplErr, kn.GetSlogLogger(ctx))
 
 	receivers.ApplyExtraData(ctx, data.Alerts)
 
@@ -118,7 +118,7 @@ func (kn *Notifier) notifyWithAPIV2(ctx context.Context, as ...*types.Alert) (bo
 func (kn *Notifier) notifyWithAPIV3(ctx context.Context, as ...*types.Alert) (bool, error) {
 	l := kn.GetLogger(ctx)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, kn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, kn.tmpl, as, l, &tmplErr, kn.GetSlogLogger(ctx))
 
 	receivers.ApplyExtraData(ctx, data.Alerts)
 

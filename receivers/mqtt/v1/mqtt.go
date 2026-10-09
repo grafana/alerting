@@ -123,7 +123,7 @@ func (n *Notifier) buildMessage(ctx context.Context, l log.Logger, as ...*types.
 	}
 
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, n.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, n.tmpl, as, l, &tmplErr, n.GetSlogLogger(ctx))
 
 	// Augment extended Alert data with any extra data if provided.
 	receivers.ApplyExtraData(ctx, data.Alerts)

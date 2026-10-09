@@ -14,6 +14,8 @@
 package v0mimir1
 
 import (
+	"github.com/grafana/alerting/receivers"
+
 	"context"
 	"fmt"
 	"net/http"
@@ -23,11 +25,11 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 	"gopkg.in/telebot.v3"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/logging"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 )
 
 // Telegram supports 4096 chars max - from https://limits.tginfo.me/en.
@@ -35,9 +37,10 @@ const maxMessageLenRunes = 4096
 
 // Notifier implements a Notifier for telegram notifications.
 type Notifier struct {
-	conf    *Config
-	tmpl    *template.Template
-	logger  log.Logger
+	conf   *Config
+	tmpl   *template.Template
+	logger log.Logger
+	receivers.ForkLogger
 	client  *telebot.Bot
 	retrier *notify.Retrier
 }
@@ -68,7 +71,7 @@ func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 func (n *Notifier) Notify(ctx context.Context, alert ...*types.Alert) (bool, error) {
 	var (
 		err  error
-		data = notify.GetTemplateData(ctx, n.tmpl, alert, logging.NewSlogLogger(n.logger))
+		data = notify.GetTemplateData(ctx, n.tmpl, alert, n.GetSlogLogger(n.logger))
 		tmpl = notify.TmplText(n.tmpl, data, &err)
 	)
 

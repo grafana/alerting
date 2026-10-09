@@ -14,6 +14,8 @@
 package v0mimir1
 
 import (
+	"github.com/grafana/alerting/receivers"
+
 	"bytes"
 	"context"
 	"encoding/json"
@@ -31,7 +33,6 @@ import (
 	"github.com/prometheus/alertmanager/types"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/logging"
 )
 
 // https://api.slack.com/reference/messaging/attachments#legacy_fields - 1024, no units given, assuming runes or characters.
@@ -39,9 +40,10 @@ const maxTitleLenRunes = 1024
 
 // Notifier implements a Notifier for Slack notifications.
 type Notifier struct {
-	conf    *Config
-	tmpl    *template.Template
-	logger  log.Logger
+	conf   *Config
+	tmpl   *template.Template
+	logger log.Logger
+	receivers.ForkLogger
 	client  *http.Client
 	retrier *notify.Retrier
 
@@ -98,7 +100,7 @@ func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var err error
 	var (
-		data     = notify.GetTemplateData(ctx, n.tmpl, as, logging.NewSlogLogger(n.logger))
+		data     = notify.GetTemplateData(ctx, n.tmpl, as, n.GetSlogLogger(n.logger))
 		tmplText = notify.TmplText(n.tmpl, data, &err)
 	)
 	var markdownIn []string

@@ -14,6 +14,8 @@
 package v0mimir1
 
 import (
+	"github.com/grafana/alerting/receivers"
+
 	"bytes"
 	"context"
 	"encoding/json"
@@ -29,11 +31,11 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/logging"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 )
 
 const (
@@ -46,9 +48,10 @@ const (
 
 // Notifier implements a Notifier for PagerDuty notifications.
 type Notifier struct {
-	conf    *Config
-	tmpl    *template.Template
-	logger  log.Logger
+	conf   *Config
+	tmpl   *template.Template
+	logger log.Logger
+	receivers.ForkLogger
 	apiV1   string // for tests.
 	client  *http.Client
 	retrier *notify.Retrier
@@ -300,7 +303,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	var (
 		alerts    = types.Alerts(as...)
-		data      = notify.GetTemplateData(ctx, n.tmpl, as, logging.NewSlogLogger(n.logger))
+		data      = notify.GetTemplateData(ctx, n.tmpl, as, n.GetSlogLogger(n.logger))
 		eventType = pagerDutyEventTrigger
 	)
 	if alerts.Status() == model.AlertResolved {

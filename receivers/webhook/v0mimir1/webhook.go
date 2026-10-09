@@ -14,6 +14,8 @@
 package v0mimir1
 
 import (
+	"github.com/grafana/alerting/receivers"
+
 	"bytes"
 	"context"
 	"encoding/json"
@@ -34,16 +36,16 @@ import (
 	"github.com/prometheus/alertmanager/types"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/logging"
 )
 
 var tracer = otel.Tracer("github.com/prometheus/alertmanager/notify/webhook")
 
 // Notifier implements a Notifier for generic webhooks.
 type Notifier struct {
-	conf    *Config
-	tmpl    *template.Template
-	logger  log.Logger
+	conf   *Config
+	tmpl   *template.Template
+	logger log.Logger
+	receivers.ForkLogger
 	client  *http.Client
 	retrier *notify.Retrier
 }
@@ -97,7 +99,7 @@ func (n *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, er
 	defer span.End()
 
 	alerts, numTruncated := truncateAlerts(n.conf.MaxAlerts, alerts)
-	data := notify.GetTemplateData(ctx, n.tmpl, alerts, logging.NewSlogLogger(n.logger))
+	data := notify.GetTemplateData(ctx, n.tmpl, alerts, n.GetSlogLogger(n.logger))
 
 	groupKey, err := notify.ExtractGroupKey(ctx)
 	if err != nil {

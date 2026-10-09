@@ -50,7 +50,7 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	level.Debug(l).Log("msg", "sending notification")
 
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, gcn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, gcn.tmpl, as, l, &tmplErr, gcn.GetSlogLogger(ctx))
 
 	var widgets []widget
 

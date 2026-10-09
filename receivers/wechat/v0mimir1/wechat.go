@@ -14,6 +14,8 @@
 package v0mimir1
 
 import (
+	"github.com/grafana/alerting/receivers"
+
 	"bytes"
 	"context"
 	"encoding/json"
@@ -28,11 +30,11 @@ import (
 	"github.com/go-kit/log/level"
 	commoncfg "github.com/prometheus/common/config"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/logging"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
+
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 )
 
 // Notifier implements a Notifier for wechat notifications.
@@ -40,6 +42,7 @@ type Notifier struct {
 	conf   *Config
 	tmpl   *template.Template
 	logger log.Logger
+	receivers.ForkLogger
 	client *http.Client
 
 	accessToken   string
@@ -91,7 +94,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	}
 
 	level.Debug(n.logger).Log("incident", key)
-	data := notify.GetTemplateData(ctx, n.tmpl, as, logging.NewSlogLogger(n.logger))
+	data := notify.GetTemplateData(ctx, n.tmpl, as, n.GetSlogLogger(n.logger))
 
 	tmpl := notify.TmplText(n.tmpl, data, &err)
 	if err != nil {
