@@ -3,6 +3,7 @@ package receivers
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"reflect"
 
 	"github.com/go-kit/log"
@@ -17,9 +18,11 @@ import (
 
 // NotifierOpts bundles runtime dependencies for constructing any notifier.
 type NotifierOpts struct {
-	Template       *templates.Template
-	Images         images.Provider
-	Logger         log.Logger
+	Template *templates.Template
+	Images   images.Provider
+	Logger   log.Logger
+	// SlogLogger is the optional caller-free counterpart used for fork calls.
+	SlogLogger     *slog.Logger
 	EmailSender    EmailSender
 	Sender         WebhookSender
 	OrgID          int64
@@ -90,7 +93,16 @@ func (f IntegrationVersionFactory[T]) NewNotifier(raw json.RawMessage, decrypt D
 	if err != nil {
 		return nil, err
 	}
-	return f.buildNotifier(cfg, meta, opts)
+	notifier, err := f.buildNotifier(cfg, meta, opts)
+	if err != nil {
+		return notifier, err
+	}
+	if opts.SlogLogger != nil {
+		if target, ok := notifier.(interface{ SetSlogLogger(*slog.Logger) }); ok {
+			target.SetSlogLogger(opts.SlogLogger)
+		}
+	}
+	return notifier, nil
 }
 
 type Manifest struct {

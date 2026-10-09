@@ -3,6 +3,7 @@ package receivers
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/notify"
@@ -12,6 +13,7 @@ import (
 
 // Base is the base implementation of a notifier. It contains the common fields across all notifier types.
 type Base struct {
+	ForkLogger
 	Index                 int
 	Name                  string
 	Type                  schema.IntegrationType
@@ -28,6 +30,15 @@ func (n *Base) GetDisableResolveMessage() bool {
 func (n *Base) GetLogger(ctx context.Context) log.Logger {
 	gkey, _ := notify.GroupKey(ctx)
 	return log.With(n.logger, "receiver", n.Name, "integration", fmt.Sprintf("%s[%d]", n.Type, n.Index), "version", n.Version, "aggrGroup", gkey)
+}
+
+// GetSlogLogger adds the same receiver context as GetLogger to the optional fork logger.
+func (n *Base) GetSlogLogger(ctx context.Context) *slog.Logger {
+	if n.slogLogger == nil {
+		return nil
+	}
+	gkey, _ := notify.GroupKey(ctx)
+	return n.slogLogger.With("receiver", n.Name, "integration", fmt.Sprintf("%s[%d]", n.Type, n.Index), "version", n.Version, "aggrGroup", gkey)
 }
 
 // Metadata contains the metadata of the notifier.

@@ -14,6 +14,8 @@
 package v0mimir1
 
 import (
+	"github.com/grafana/alerting/receivers"
+
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -40,14 +42,14 @@ import (
 	"github.com/prometheus/alertmanager/types"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/logging"
 )
 
 // Email implements a Notifier for email notifications.
 type Email struct {
-	conf     *Config
-	tmpl     *template.Template
-	logger   log.Logger
+	conf   *Config
+	tmpl   *template.Template
+	logger log.Logger
+	receivers.ForkLogger
 	hostname string
 }
 
@@ -214,7 +216,7 @@ func (n *Email) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 
 	var (
 		tmplErr error
-		data    = notify.GetTemplateData(ctx, n.tmpl, as, logging.NewSlogLogger(n.logger))
+		data    = notify.GetTemplateData(ctx, n.tmpl, as, n.GetSlogLogger(n.logger))
 		tmpl    = notify.TmplText(n.tmpl, data, &tmplErr)
 	)
 	from := tmpl(n.conf.From)

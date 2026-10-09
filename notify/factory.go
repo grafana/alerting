@@ -3,6 +3,7 @@ package notify
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -36,6 +37,7 @@ func BuildReceiversIntegrations(
 	version string,
 	logger log.Logger,
 	notificationHistorian nfstatus.NotificationHistorian,
+	forkLoggers ...*slog.Logger,
 ) (map[string][]*Integration, error) {
 	nameToReceiver := make(map[string]models.ReceiverConfig, len(receivers))
 	for _, receiver := range receivers {
@@ -51,7 +53,7 @@ func BuildReceiversIntegrations(
 
 	integrationsMap := make(map[string][]*Integration, len(receivers))
 	for name, apiReceiver := range nameToReceiver {
-		integrations, err := BuildReceiverIntegrationsWithManifests(tenantID, apiReceiver, templ, images, decryptFn, decodeFn, emailSender, httpClientOptions, notifierFunc, version, logger, notificationHistorian)
+		integrations, err := BuildReceiverIntegrationsWithManifests(tenantID, apiReceiver, templ, images, decryptFn, decodeFn, emailSender, httpClientOptions, notifierFunc, version, logger, notificationHistorian, forkLoggers...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build receiver %s: %w", name, err)
 		}
@@ -76,6 +78,7 @@ func BuildReceiverIntegrationsWithManifests(
 	version string,
 	logger log.Logger,
 	notificationHistorian nfstatus.NotificationHistorian,
+	forkLoggers ...*slog.Logger,
 ) ([]*Integration, error) {
 	var integrations []*Integration
 	if len(receiver.Integrations) > 0 {
@@ -86,6 +89,9 @@ func BuildReceiverIntegrationsWithManifests(
 			OrgID:          tenantID,
 			GrafanaVersion: version,
 			HttpOpts:       http.ToHTTPClientOption(httpClientOptions...),
+		}
+		if len(forkLoggers) > 0 {
+			opts.SlogLogger = forkLoggers[0]
 		}
 		// Track per-type indices so that integrations of the same type get consecutive indices (0, 1, 2…).
 		// This preserves notification log management ordering (see createReceiverStage).

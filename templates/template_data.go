@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	tmplhtml "html/template"
+	"log/slog"
 	"net/url"
 	"path"
 	"strconv"
@@ -374,8 +375,12 @@ func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 	return extended
 }
 
-func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
-	promTmplData := notify.GetTemplateData(ctx, tmpl.Template, alerts, logging.NewSlogLogger(l))
+func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l log.Logger, tmplErr *error, forkLoggers ...*slog.Logger) (func(string) string, *ExtendedData) {
+	var forkLogger *slog.Logger
+	if len(forkLoggers) > 0 {
+		forkLogger = forkLoggers[0]
+	}
+	promTmplData := notify.GetTemplateData(ctx, tmpl.Template, alerts, logging.GetSlogLogger(l, forkLogger))
 	data := ExtendData(promTmplData, l)
 	data.AppVersion = tmpl.AppVersion
 

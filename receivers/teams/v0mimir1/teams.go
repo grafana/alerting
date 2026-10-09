@@ -31,7 +31,6 @@ import (
 	"github.com/grafana/alerting/receivers"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
-	"github.com/grafana/alerting/logging"
 )
 
 const (
@@ -44,9 +43,10 @@ const (
 )
 
 type Notifier struct {
-	conf         *Config
-	tmpl         *template.Template
-	logger       log.Logger
+	conf   *Config
+	tmpl   *template.Template
+	logger log.Logger
+	receivers.ForkLogger
 	client       *http.Client
 	retrier      *notify.Retrier
 	webhookURL   *receivers.SecretURL
@@ -83,7 +83,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 	level.Debug(n.logger).Log("incident", key)
 
-	data := notify.GetTemplateData(ctx, n.tmpl, as, logging.NewSlogLogger(n.logger))
+	data := notify.GetTemplateData(ctx, n.tmpl, as, n.GetSlogLogger(n.logger))
 	tmpl := notify.TmplText(n.tmpl, data, &err)
 	if err != nil {
 		return false, err

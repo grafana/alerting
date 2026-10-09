@@ -101,7 +101,11 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 
 func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logger, groupID string, as ...*types.Alert) issue {
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, n.tmpl, as, logger, &tmplErr)
+	forkLogger := n.GetSlogLogger(ctx)
+	if forkLogger != nil {
+		forkLogger = forkLogger.With("group_key", groupID)
+	}
+	tmpl, data := templates.TmplText(ctx, n.tmpl, as, logger, &tmplErr, forkLogger)
 
 	receivers.ApplyExtraData(ctx, data.Alerts)
 

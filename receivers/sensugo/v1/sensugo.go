@@ -48,7 +48,7 @@ func (sn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	level.Debug(l).Log("msg", "sending Sensu Go result")
 
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, sn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, sn.tmpl, as, l, &tmplErr, sn.GetSlogLogger(ctx))
 
 	receivers.ApplyExtraData(ctx, data.Alerts)
 

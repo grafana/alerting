@@ -228,7 +228,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 				return nil
 			}
 			var tmplErr error
-			tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
+			tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr, sn.GetSlogLogger(ctx))
 			imageFooter := sn.footer(tmpl, l, &tmplErr)
 			imageMessage := &slackMessage{
 				Channel:   channelID,
@@ -282,7 +282,7 @@ func commonAlertGeneratorURL(_ context.Context, alerts templates.ExtendedAlerts)
 
 func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Alert, l log.Logger) (*slackMessage, *templates.ExtendedData, error) {
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr, sn.GetSlogLogger(ctx))
 
 	// Augment extended Alert data with any extra data if provided.
 	receivers.ApplyExtraData(ctx, data.Alerts)

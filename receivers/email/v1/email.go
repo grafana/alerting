@@ -39,7 +39,7 @@ func New(cfg Config, meta receivers.Metadata, template *templates.Template, send
 func (en *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, error) {
 	l := en.GetLogger(ctx)
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, en.tmpl, alerts, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, en.tmpl, alerts, l, &tmplErr, en.GetSlogLogger(ctx))
 
 	subject := tmpl(en.settings.Subject)
 	alertPageURL := en.tmpl.ExternalURL.String()

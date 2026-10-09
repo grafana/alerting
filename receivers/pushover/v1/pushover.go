@@ -102,7 +102,7 @@ func (pn *Notifier) genPushoverBody(ctx context.Context, l log.Logger, as ...*ty
 	}
 
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, pn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, pn.tmpl, as, l, &tmplErr, pn.GetSlogLogger(ctx))
 
 	receivers.ApplyExtraData(ctx, data.Alerts)
 

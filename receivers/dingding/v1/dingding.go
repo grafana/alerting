@@ -40,7 +40,7 @@ func (dd *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	dingDingURL := buildDingDingURL(dd.tmpl.ExternalURL, l)
 
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, dd.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, dd.tmpl, as, l, &tmplErr, dd.GetSlogLogger(ctx))
 
 	receivers.ApplyExtraData(ctx, data.Alerts)
 

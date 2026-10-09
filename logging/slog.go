@@ -17,8 +17,8 @@ import (
 
 // NewSlogLogger adapts a go-kit log.Logger to a *slog.Logger.
 //
-// Unlike github.com/tjhop/slog-gokit's GoKitHandler, this adapter injects
-// neither a "time" nor a "caller" field of its own: it forwards exactly the
+// By default, unlike github.com/tjhop/slog-gokit's GoKitHandler, this adapter
+// injects neither a "time" nor a "caller" field of its own: it forwards exactly the
 // fields the underlying go-kit logger already produces, so consumers that
 // decorate their logger with those fields (grafana-alertmanager,
 // grafana/grafana) don't get duplicates or a second, incorrectly-depthed
@@ -49,8 +49,11 @@ import (
 // underlying go-kit logger's own level filter still drops disallowed levels
 // when Log is actually called. Only the Enabled() fast path -- letting a
 // caller skip building an expensive Debug record at all -- is unavailable.
+//
+// For consumers with fixed-depth caller valuers, WithCallerlessLogger supplies
+// a separate fork logger without changing the normal go-kit logging path.
 func NewSlogLogger(logger log.Logger, opts ...Option) *slog.Logger {
-	h := &handler{logger: logger}
+	h := &handler{logger: logger, debugLogger: logger}
 	for _, opt := range opts {
 		opt(h)
 	}
@@ -89,7 +92,8 @@ func WithCaller() Option {
 
 // handler implements slog.Handler on top of a go-kit log.Logger.
 type handler struct {
-	logger log.Logger
+	logger      log.Logger
+	debugLogger log.Logger
 	// preformatted holds already-flattened key/value pairs from prior
 	// WithAttrs calls, ready to append directly to a log.Logger.Log call.
 	preformatted []any
@@ -108,7 +112,7 @@ func (h *handler) Enabled(_ context.Context, lvl slog.Level) bool {
 	if h.debugEnabled != nil {
 		return *h.debugEnabled
 	}
-	if d, ok := h.logger.(interface{ DebugEnabled() bool }); ok {
+	if d, ok := h.debugLogger.(interface{ DebugEnabled() bool }); ok {
 		return d.DebugEnabled()
 	}
 	return true
@@ -139,7 +143,7 @@ func (h *handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	for _, a := range attrs {
 		pairs = appendAttr(pairs, h.group, a)
 	}
-	return &handler{logger: h.logger, preformatted: pairs, group: h.group, debugEnabled: h.debugEnabled, addCaller: h.addCaller}
+	return &handler{logger: h.logger, debugLogger: h.debugLogger, preformatted: pairs, group: h.group, debugEnabled: h.debugEnabled, addCaller: h.addCaller}
 }
 
 func (h *handler) WithGroup(name string) slog.Handler {
@@ -150,7 +154,7 @@ func (h *handler) WithGroup(name string) slog.Handler {
 	if h.group != "" {
 		group = h.group + "." + group
 	}
-	return &handler{logger: h.logger, preformatted: h.preformatted, group: group, debugEnabled: h.debugEnabled, addCaller: h.addCaller}
+	return &handler{logger: h.logger, debugLogger: h.debugLogger, preformatted: h.preformatted, group: group, debugEnabled: h.debugEnabled, addCaller: h.addCaller}
 }
 
 // callerFromPC formats pc as go-kit's own Caller Valuer does: basename:line.

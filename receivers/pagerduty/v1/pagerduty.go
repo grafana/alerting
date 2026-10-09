@@ -121,7 +121,7 @@ func (pn *Notifier) buildPagerdutyMessage(ctx context.Context, alerts model.Aler
 	}
 
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, pn.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, pn.tmpl, as, l, &tmplErr, pn.GetSlogLogger(ctx))
 
 	// Augment extended Alert data with any extra data if provided.
 	receivers.ApplyExtraData(ctx, data.Alerts)

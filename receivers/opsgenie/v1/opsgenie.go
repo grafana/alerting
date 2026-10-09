@@ -117,7 +117,7 @@ func (on *Notifier) buildOpsgenieMessage(ctx context.Context, alerts model.Alert
 	ruleURL := receivers.JoinURLPath(on.tmpl.ExternalURL.String(), "/alerting/list", l)
 
 	var tmplErr error
-	tmpl, data := templates.TmplText(ctx, on.tmpl, as, l, &tmplErr)
+	tmpl, data := templates.TmplText(ctx, on.tmpl, as, l, &tmplErr, on.GetSlogLogger(ctx))
 
 	// Augment extended Alert data with any extra data if provided.
 	receivers.ApplyExtraData(ctx, data.Alerts)

@@ -2,7 +2,7 @@
 
 ## Alerting
 
-- 
+- [BUGFIX] Allow caller-free companion loggers for Alertmanager fork calls, preserving the exact slog call site without changing normal go-kit caller fields.
 
 ## Scope Glossary
 

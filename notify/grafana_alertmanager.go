@@ -243,9 +243,11 @@ type GrafanaAlertmanagerOpts struct {
 	TenantKey string
 	TenantID  int64
 
-	Peer    ClusterPeer
-	Logger  log.Logger
-	Metrics *GrafanaAlertmanagerMetrics
+	Peer   ClusterPeer
+	Logger log.Logger
+	// CallerlessLogger mirrors Logger without a fixed-depth caller valuer.
+	CallerlessLogger log.Logger
+	Metrics          *GrafanaAlertmanagerMetrics
 
 	NotificationHistorian nfstatus.NotificationHistorian
 
@@ -688,7 +690,7 @@ func TestReceivers(
 	return res, status, nil
 }
 
-func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFactory *templates.Factory, logger log.Logger) (*TestTemplatesResults, error) {
+func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFactory *templates.Factory, logger log.Logger, forkLoggers ...*slog.Logger) (*TestTemplatesResults, error) {
 	tc := templates.TemplateDefinition{
 		Name:     c.Name,
 		Template: c.Template,
@@ -734,7 +736,11 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 	ctx = notify.WithReceiverName(ctx, DefaultReceiverName)
 	ctx = notify.WithGroupLabels(ctx, labels)
 
-	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template, alerts, logging.NewSlogLogger(logger))
+	var forkLogger *slog.Logger
+	if len(forkLoggers) > 0 {
+		forkLogger = forkLoggers[0]
+	}
+	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template, alerts, logging.GetSlogLogger(logger, forkLogger))
 	data := templates.ExtendData(promTmplData, logger)
 	data.AppVersion = newTmpl.AppVersion
 
@@ -824,6 +830,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		am.opts.Version,
 		am.logger,
 		am.opts.NotificationHistorian,
+		am.receiverForkLogger(),
 	)
 	if err != nil {
 		return err
@@ -1082,9 +1089,9 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 // log.With wrapping in am.logger hides it.
 func (am *GrafanaAlertmanager) forkLogger() *slog.Logger {
 	if d, ok := am.opts.Logger.(interface{ DebugEnabled() bool }); ok {
-		return logging.NewSlogLogger(am.logger, logging.WithDebugEnabled(d.DebugEnabled()))
+		return logging.NewSlogLogger(am.logger, append(am.forkLogOptions(true), logging.WithDebugEnabled(d.DebugEnabled()))...)
 	}
-	return logging.NewSlogLogger(am.logger)
+	return logging.NewSlogLogger(am.logger, am.forkLogOptions(true)...)
 }
 
 // forkLoggerRaw is forkLogger without am.logger's "component"/tenant scoping,
@@ -1092,9 +1099,9 @@ func (am *GrafanaAlertmanager) forkLogger() *slog.Logger {
 // flushlog Options.Logger).
 func (am *GrafanaAlertmanager) forkLoggerRaw() *slog.Logger {
 	if d, ok := am.opts.Logger.(interface{ DebugEnabled() bool }); ok {
-		return logging.NewSlogLogger(am.opts.Logger, logging.WithDebugEnabled(d.DebugEnabled()))
+		return logging.NewSlogLogger(am.opts.Logger, append(am.forkLogOptions(false), logging.WithDebugEnabled(d.DebugEnabled()))...)
 	}
-	return logging.NewSlogLogger(am.opts.Logger)
+	return logging.NewSlogLogger(am.opts.Logger, am.forkLogOptions(false)...)
 }
 
 func (am *GrafanaAlertmanager) tenantString() string {
@@ -1115,5 +1122,25 @@ func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver models.Receive
 		am.opts.Version,
 		am.logger,
 		am.opts.NotificationHistorian,
+		am.receiverForkLogger(),
 	)
+}
+
+func (am *GrafanaAlertmanager) forkLogOptions(scoped bool) []logging.Option {
+	logger := am.opts.CallerlessLogger
+	if logger == nil {
+		return nil
+	}
+	if scoped {
+		logger = log.With(logger, "component", "alertmanager", am.opts.TenantKey, am.opts.TenantID)
+	}
+	return []logging.Option{logging.WithCallerlessLogger(logger)}
+}
+
+// receiverForkLogger leaves receiver logging unchanged unless a companion was configured.
+func (am *GrafanaAlertmanager) receiverForkLogger() *slog.Logger {
+	if am.opts.CallerlessLogger == nil {
+		return nil
+	}
+	return am.forkLogger()
 }
