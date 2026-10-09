@@ -16,7 +16,7 @@ import (
 	"github.com/prometheus/alertmanager/notify/telegram"
 	"github.com/prometheus/alertmanager/notify/webhook"
 	commonconfig "github.com/prometheus/common/config"
-	"github.com/prometheus/common/sigv4"
+	"github.com/prometheus/sigv4"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
