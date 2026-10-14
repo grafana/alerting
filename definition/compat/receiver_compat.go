@@ -16,7 +16,6 @@ import (
 	"github.com/prometheus/alertmanager/notify/telegram"
 	"github.com/prometheus/alertmanager/notify/webhook"
 	commonconfig "github.com/prometheus/common/config"
-	"github.com/prometheus/common/sigv4"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
@@ -590,24 +589,25 @@ func DefinitionReceiverToUpstreamReceiver(r Receiver) config.Receiver {
 	}
 
 	for _, c := range r.SNSConfigs {
-		upstream.SNSConfigs = append(upstream.SNSConfigs, &config.SNSConfig{
+		sns := &config.SNSConfig{
 			NotifierConfig: amcommoncfg.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
 			APIUrl:         c.APIUrl,
-			Sigv4: sigv4.SigV4Config{
-				Region:    c.Sigv4.Region,
-				AccessKey: c.Sigv4.AccessKey,
-				SecretKey: commonconfig.Secret(c.Sigv4.SecretKey),
-				Profile:   c.Sigv4.Profile,
-				RoleARN:   c.Sigv4.RoleARN,
-			},
-			TopicARN:    c.TopicARN,
-			PhoneNumber: c.PhoneNumber,
-			TargetARN:   c.TargetARN,
-			Subject:     c.Subject,
-			Message:     c.Message,
-			Attributes:  c.Attributes,
-		})
+			TopicARN:       c.TopicARN,
+			PhoneNumber:    c.PhoneNumber,
+			TargetARN:      c.TargetARN,
+			Subject:        c.Subject,
+			Message:        c.Message,
+			Attributes:     c.Attributes,
+		}
+		// Fields are set one by one so this does not name the SigV4Config type, which the
+		// fork moved from prometheus/common/sigv4 to prometheus/sigv4.
+		sns.Sigv4.Region = c.Sigv4.Region
+		sns.Sigv4.AccessKey = c.Sigv4.AccessKey
+		sns.Sigv4.SecretKey = commonconfig.Secret(c.Sigv4.SecretKey)
+		sns.Sigv4.Profile = c.Sigv4.Profile
+		sns.Sigv4.RoleARN = c.Sigv4.RoleARN
+		upstream.SNSConfigs = append(upstream.SNSConfigs, sns)
 	}
 
 	for _, c := range r.TelegramConfigs {

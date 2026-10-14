@@ -25,7 +25,6 @@ require (
 	github.com/prometheus/alertmanager v0.28.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/common v0.68.0
-	github.com/prometheus/common/sigv4 v0.1.0
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel v1.45.0
 	go.opentelemetry.io/otel/trace v1.45.0
@@ -101,6 +100,7 @@ require (
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
+	github.com/prometheus/common/sigv4 v0.1.0 // indirect
 	github.com/prometheus/exporter-toolkit v0.13.2 // indirect
 	github.com/prometheus/procfs v0.16.1 // indirect
 	github.com/rs/cors v1.11.0 // indirect
