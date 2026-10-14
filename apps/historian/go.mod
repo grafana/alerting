@@ -172,4 +172,4 @@ require (
 )
 
 // Use our fork of the upstream Alertmanager.
-replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.25.1-0.20260929181320-b34047c225ee
+replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.25.1-0.20261009142442-7daeb08a4623
