@@ -16,6 +16,8 @@ import (
 	"github.com/prometheus/alertmanager/featurecontrol"
 	"github.com/prometheus/alertmanager/matchers/compat"
 	"github.com/prometheus/alertmanager/pkg/labels"
+
+	"github.com/grafana/alerting/logging"
 )
 
 func Test_ApiReceiver_Marshaling(t *testing.T) {
@@ -1147,14 +1149,14 @@ func TestInhibitRule_UTF8_In_Equals_Unmarshal_JSON(t *testing.T) {
 	require.EqualError(t, json.Unmarshal([]byte(s), &c), "invalid label name \"corge🙂\" in equal list")
 
 	// Change the mode to UTF-8 mode.
-	ff, err := featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureUTF8StrictMode)
+	ff, err := featurecontrol.NewFlags(logging.NewSlogLogger(log.NewNopLogger()), featurecontrol.FeatureUTF8StrictMode)
 	require.NoError(t, err)
-	compat.InitFromFlags(log.NewNopLogger(), ff)
+	compat.InitFromFlags(logging.NewSlogLogger(log.NewNopLogger()), ff)
 
 	// Restore the mode to classic at the end of the test.
-	ff, err = featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureClassicMode)
+	ff, err = featurecontrol.NewFlags(logging.NewSlogLogger(log.NewNopLogger()), featurecontrol.FeatureClassicMode)
 	require.NoError(t, err)
-	defer compat.InitFromFlags(log.NewNopLogger(), ff)
+	defer compat.InitFromFlags(logging.NewSlogLogger(log.NewNopLogger()), ff)
 
 	require.NoError(t, json.Unmarshal([]byte(s), &c))
 	require.Len(t, c.InhibitRules, 1)
@@ -1245,14 +1247,14 @@ func TestInhibitRule_UTF8_In_Equals_Unmarshal_YAML(t *testing.T) {
 	require.EqualError(t, yaml.Unmarshal([]byte(s), &c), "invalid label name \"corge🙂\" in equal list")
 
 	// Change the mode to UTF-8 mode.
-	ff, err := featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureUTF8StrictMode)
+	ff, err := featurecontrol.NewFlags(logging.NewSlogLogger(log.NewNopLogger()), featurecontrol.FeatureUTF8StrictMode)
 	require.NoError(t, err)
-	compat.InitFromFlags(log.NewNopLogger(), ff)
+	compat.InitFromFlags(logging.NewSlogLogger(log.NewNopLogger()), ff)
 
 	// Restore the mode to classic at the end of the test.
-	ff, err = featurecontrol.NewFlags(log.NewNopLogger(), featurecontrol.FeatureClassicMode)
+	ff, err = featurecontrol.NewFlags(logging.NewSlogLogger(log.NewNopLogger()), featurecontrol.FeatureClassicMode)
 	require.NoError(t, err)
-	defer compat.InitFromFlags(log.NewNopLogger(), ff)
+	defer compat.InitFromFlags(logging.NewSlogLogger(log.NewNopLogger()), ff)
 
 	require.NoError(t, yaml.Unmarshal([]byte(s), &c))
 	require.Len(t, c.InhibitRules, 1)
