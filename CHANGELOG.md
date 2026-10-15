@@ -2,7 +2,7 @@
 
 ## Alerting
 
-- 
+- [ENHANCEMENT] Reuse HTTP connections for webhook notifications and cap per-host connections at 25.
 
 ## Scope Glossary
 
@@ -43,4 +43,3 @@ Scopes must have an order to ensure consistency and ease of search, this helps u
 3. `[BUGFIX]`
 4. `[ENHANCEMENT]`
 5. `[ADMIN]`
-
