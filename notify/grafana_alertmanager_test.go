@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"sort"
 	"testing"
@@ -14,7 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
-	"github.com/prometheus/alertmanager/config"
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/prometheus/alertmanager/provider/mem"
 	"github.com/prometheus/alertmanager/timeinterval"
@@ -66,6 +67,42 @@ func setupAMTest(t *testing.T, withOpts ...withOptsFn) (*GrafanaAlertmanager, *p
 	require.NoError(t, err)
 	return am, reg
 }
+
+func TestGrafanaAlertmanager_forkLogger(t *testing.T) {
+	am, _ := setupAMTest(t)
+	var buf bytes.Buffer
+	am.opts.Logger = log.NewLogfmtLogger(&buf)
+	am.logger = log.With(am.opts.Logger)
+
+	am.forkLogger().Info("hi")
+	require.NotContains(t, buf.String(), "caller=")
+
+	buf.Reset()
+	am.forkLoggerRaw().Info("hi")
+	require.NotContains(t, buf.String(), "caller=")
+}
+
+func TestGrafanaAlertmanager_forkLoggerDebugEnabled(t *testing.T) {
+	infoOnly := &fakeDebugEnabledLogger{Logger: log.NewNopLogger(), debug: false}
+
+	am, _ := setupAMTest(t, func(opts *GrafanaAlertmanagerOpts) {
+		opts.Logger = infoOnly
+	})
+	am.logger = log.With(am.opts.Logger)
+	require.False(t, am.forkLogger().Enabled(context.Background(), slog.LevelDebug),
+		"forkLogger must probe opts.Logger before am.logger hides DebugEnabled()")
+	require.False(t, am.forkLoggerRaw().Enabled(context.Background(), slog.LevelDebug))
+}
+
+// fakeDebugEnabledLogger is a minimal log.Logger that also implements
+// DebugEnabled(), for probing forkLogger/forkLoggerRaw's detection without
+// needing the full grafana-alertmanager levelFilter shape.
+type fakeDebugEnabledLogger struct {
+	log.Logger
+	debug bool
+}
+
+func (f *fakeDebugEnabledLogger) DebugEnabled() bool { return f.debug }
 
 func TestPutAlert(t *testing.T) {
 	am, _ := setupAMTest(t)
@@ -314,7 +351,7 @@ func TestPutAlert(t *testing.T) {
 		t.Run(c.title, func(t *testing.T) {
 			r := prometheus.NewRegistry()
 			am.marker = types.NewMarker(r)
-			am.alerts, err = mem.NewAlerts(context.Background(), am.marker, 15*time.Minute, nil, am.logger, r)
+			am.alerts, err = mem.NewAlerts(context.Background(), am.marker, 15*time.Minute, nil, am.forkLogger(), r)
 			require.NoError(t, err)
 
 			alerts := []*types.Alert{}
@@ -589,11 +626,11 @@ func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
 	require.NoError(t, err)
 
 	r := []InhibitRule{{
-		SourceMatchers: config.Matchers{m1},
-		TargetMatchers: config.Matchers{m2},
+		SourceMatchers: amcommoncfg.Matchers{m1},
+		TargetMatchers: amcommoncfg.Matchers{m2},
 	}, {
-		SourceMatchers: config.Matchers{m3},
-		TargetMatchers: config.Matchers{m4},
+		SourceMatchers: amcommoncfg.Matchers{m3},
+		TargetMatchers: amcommoncfg.Matchers{m4},
 	}}
 	am.setInhibitionRulesMetrics(r)
 
@@ -602,6 +639,37 @@ func TestGrafanaAlertmanager_setInhibitionRulesMetrics(t *testing.T) {
         	            	# TYPE grafana_alerting_alertmanager_inhibition_rules gauge
         	            	grafana_alerting_alertmanager_inhibition_rules{org="1"} 2
 `), "grafana_alerting_alertmanager_inhibition_rules"))
+}
+
+func TestGrafanaAlertmanager_setTemplateMetrics(t *testing.T) {
+	am, reg := setupAMTest(t)
+
+	cfgTemplates := []templates.TemplateDefinition{
+		{Name: "grafana-1", Kind: templates.GrafanaKind},
+		{Name: "grafana-2", Kind: templates.GrafanaKind},
+		{Name: "mimir-1", Kind: templates.MimirKind},
+	}
+	am.setTemplateMetrics(cfgTemplates)
+
+	require.NoError(t, testutil.GatherAndCompare(reg, bytes.NewBufferString(`
+        	            	# HELP grafana_alerting_alertmanager_templates Number of configured templates by kind.
+        	            	# TYPE grafana_alerting_alertmanager_templates gauge
+        	            	grafana_alerting_alertmanager_templates{kind="Grafana",org="1"} 2
+        	            	grafana_alerting_alertmanager_templates{kind="Mimir",org="1"} 1
+`), "grafana_alerting_alertmanager_templates"))
+
+	// Applying a config that no longer has Mimir templates must reset that
+	// kind's gauge to 0 instead of leaving the stale previous value.
+	am.setTemplateMetrics([]templates.TemplateDefinition{
+		{Name: "grafana-1", Kind: templates.GrafanaKind},
+	})
+
+	require.NoError(t, testutil.GatherAndCompare(reg, bytes.NewBufferString(`
+        	            	# HELP grafana_alerting_alertmanager_templates Number of configured templates by kind.
+        	            	# TYPE grafana_alerting_alertmanager_templates gauge
+        	            	grafana_alerting_alertmanager_templates{kind="Grafana",org="1"} 1
+        	            	grafana_alerting_alertmanager_templates{kind="Mimir",org="1"} 0
+`), "grafana_alerting_alertmanager_templates"))
 }
 
 func TestGrafanaAlertmanager_setReceiverMetrics(t *testing.T) {
@@ -961,7 +1029,7 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 				"team": "platform",
 				"env":  "prod",
 			},
-			Matchers: config.Matchers{
+			Matchers: amcommoncfg.Matchers{
 				mustLabelMatcher(t, labels.MatchEqual, "service", "api"),
 				mustLabelMatcher(t, labels.MatchNotEqual, "severity", "none"),
 			},
@@ -980,7 +1048,7 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 						"team":    "database",
 						"cluster": "prod-us-east-1",
 					},
-					Matchers: config.Matchers{
+					Matchers: amcommoncfg.Matchers{
 						mustLabelMatcher(t, labels.MatchEqual, "component", "postgres"),
 					},
 					MuteTimeIntervals: []string{"db_maintenance"},
@@ -994,7 +1062,7 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 								"severity": "critical",
 								"region":   "us-east-1",
 							},
-							Matchers: config.Matchers{
+							Matchers: amcommoncfg.Matchers{
 								mustLabelMatcher(t, labels.MatchEqual, "tier", "backend"),
 							},
 						},
@@ -1008,13 +1076,13 @@ func richNotificationsConfiguration(t *testing.T, rootReceiver string) Notificat
 					"severity": "critical",
 					"team":     "platform",
 				},
-				SourceMatchers: config.Matchers{
+				SourceMatchers: amcommoncfg.Matchers{
 					mustLabelMatcher(t, labels.MatchEqual, "environment", "prod"),
 				},
 				TargetMatch: map[string]string{
 					"severity": "warning",
 				},
-				TargetMatchers: config.Matchers{
+				TargetMatchers: amcommoncfg.Matchers{
 					mustLabelMatcher(t, labels.MatchEqual, "component", "api"),
 				},
 				Equal: []string{"alertname", "cluster", "namespace"},

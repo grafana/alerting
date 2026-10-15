@@ -34,6 +34,7 @@ import (
 	"github.com/prometheus/alertmanager/types"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
+	"github.com/grafana/alerting/logging"
 )
 
 const (
@@ -134,7 +135,7 @@ func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 		alerts = types.Alerts(as...)
 
 		tmplTextErr  error
-		data         = notify.GetTemplateData(ctx, n.tmpl, as, logger)
+		data         = notify.GetTemplateData(ctx, n.tmpl, as, logging.NewSlogLogger(logger))
 		tmplText     = notify.TmplText(n.tmpl, data, &tmplTextErr)
 		tmplTextFunc = func(tmpl string) (string, error) {
 			return tmplText(tmpl), tmplTextErr
