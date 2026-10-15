@@ -54,7 +54,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			DecodeSecretsFromBase64,
 			emailService,
 			nil,
-			func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
+			func(_ schema.IntegrationType, n nfstatus.Notifier) nfstatus.Notifier {
 				return n
 			},
 			version,
@@ -92,7 +92,7 @@ func TestBuildReceiversIntegrations(t *testing.T) {
 			DecodeSecretsFromBase64,
 			emailService,
 			nil,
-			func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
+			func(_ schema.IntegrationType, n nfstatus.Notifier) nfstatus.Notifier {
 				return n
 			},
 			version,
@@ -117,7 +117,7 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 	require.NoError(t, err)
 	emailService := receivers.MockNotificationService()
 
-	noopWrapper := func(_ string, n nfstatus.Notifier) nfstatus.Notifier { return n }
+	noopWrapper := func(_ schema.IntegrationType, n nfstatus.Notifier) nfstatus.Notifier { return n }
 
 	build := func(t *testing.T, receiver models.ReceiverConfig, wrapper WrapNotifierFunc) ([]*Integration, error) {
 		t.Helper()
@@ -130,18 +130,22 @@ func TestBuildReceiverIntegrationsWithManifests(t *testing.T) {
 
 	t.Run("should build all known integrations across all versions", func(t *testing.T) {
 		recCfg := models.ReceiverConfig{Name: "test-receiver"}
+		expectedTypes := make([]schema.IntegrationType, 0, len(notifytest.AllKnownConfigsForTesting))
 		for _, c := range notifytest.AllKnownConfigsForTesting {
-			recCfg.Integrations = append(recCfg.Integrations, c.GetRawNotifierConfig(""))
+			// Use a name that differs from the type, so the test fails if the wrapper receives the name.
+			cfg := c.GetRawNotifierConfig("test-integration")
+			recCfg.Integrations = append(recCfg.Integrations, cfg)
+			expectedTypes = append(expectedTypes, cfg.Type)
 		}
 
-		wrapped := 0
-		integrations, err := build(t, recCfg, func(_ string, n nfstatus.Notifier) nfstatus.Notifier {
-			wrapped++
+		var wrappedTypes []schema.IntegrationType
+		integrations, err := build(t, recCfg, func(integrationType schema.IntegrationType, n nfstatus.Notifier) nfstatus.Notifier {
+			wrappedTypes = append(wrappedTypes, integrationType)
 			return n
 		})
 		require.NoError(t, err)
 		require.Len(t, integrations, len(notifytest.AllKnownConfigsForTesting))
-		require.Equal(t, len(notifytest.AllKnownConfigsForTesting), wrapped, "wrap function should be called once per integration")
+		require.Equal(t, expectedTypes, wrappedTypes, "wrap function should be called once per integration with its type")
 	})
 
 	t.Run("should return error for unknown integration type", func(t *testing.T) {
