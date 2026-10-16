@@ -2,7 +2,7 @@
 
 ## Alerting
 
-- 
+- [BUGFIX] Expose HTTP header values and secrets in the v0 Mimir integration schema so they can be configured and encrypted correctly. (#505)
 
 ## Scope Glossary
 

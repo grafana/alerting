@@ -49,9 +49,18 @@ func DecryptHTTPConfig(prefix string, cfg *HTTPClientConfig, decrypt receivers.D
 		cfg.OAuth2.TLSConfig.Key = commoncfg.Secret(secret)
 	}
 	for name, header := range cfg.HTTPHeaders {
-		secrets, err := decryptSecretList(decrypt, p(prefix, "http_headers", name))
+		secretPath := p(prefix, "http_headers", name, "secrets")
+		secrets, err := decryptSecretList(decrypt, secretPath)
 		if err != nil {
 			return nil, err
+		}
+		if secrets == nil {
+			// Older clients stored the whole secret list at the header path before
+			// the schema exposed `secrets` as a nested secure field.
+			secrets, err = decryptSecretList(decrypt, p(prefix, "http_headers", name))
+			if err != nil {
+				return nil, err
+			}
 		}
 		if secrets != nil {
 			header.Secrets = secrets
