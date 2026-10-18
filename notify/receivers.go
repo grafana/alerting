@@ -29,7 +29,10 @@ var (
 )
 
 type TestReceiversResult struct {
-	Alert     types.Alert          `json:"alert"`
+	// Alert is the first/group-representative alert for backward compatibility.
+	Alert types.Alert `json:"alert"`
+	// Alerts contains all alerts used for the test notification.
+	Alerts    []types.Alert        `json:"alerts,omitempty"`
 	Receivers []TestReceiverResult `json:"receivers"`
 	NotifedAt time.Time            `json:"notifiedAt"`
 }
@@ -47,8 +50,13 @@ type TestIntegrationConfigResult struct {
 }
 
 type TestReceiversConfigBodyParams struct {
-	Alert     *models.TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
-	Receivers []models.ReceiverConfig                `yaml:"receivers,omitempty" json:"receivers,omitempty"`
+	// Alert is a single test alert for backward compatibility.
+	// Ignored when Alerts is non-empty.
+	Alert *models.TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
+	// Alerts is a list of test alerts. When empty, Alert is used if set;
+	// otherwise a single default firing alert is used.
+	Alerts    []models.TestReceiversConfigAlertParams `yaml:"alerts,omitempty" json:"alerts,omitempty"`
+	Receivers []models.ReceiverConfig                 `yaml:"receivers,omitempty" json:"receivers,omitempty"`
 }
 
 type IntegrationTimeoutError struct {
@@ -82,8 +90,8 @@ func newTestAlert(c *models.TestReceiversConfigAlertParams, startsAt, updatedAt 
 
 	alert := types.Alert{
 		Alert: model.Alert{
-			Labels:      defaultLabels,
-			Annotations: defaultAnnotations,
+			Labels:      defaultLabels.Clone(),
+			Annotations: defaultAnnotations.Clone(),
 			StartsAt:    startsAt,
 		},
 		UpdatedAt: updatedAt,
@@ -102,7 +110,47 @@ func newTestAlert(c *models.TestReceiversConfigAlertParams, startsAt, updatedAt 
 			alert.Labels[k] = v
 		}
 	}
+	// Resolved alerts need EndsAt in the past (or equal to now). Firing alerts
+	// leave EndsAt zero so Alert.Resolved() remains false.
+	if c.Status == model.AlertResolved {
+		alert.EndsAt = startsAt
+	}
 	return alert
+}
+
+// newTestAlerts builds the list of alerts used for a receiver test.
+// When params is empty, a single default firing alert is returned.
+func newTestAlerts(params []models.TestReceiversConfigAlertParams, startsAt, updatedAt time.Time) []*types.Alert {
+	if len(params) == 0 {
+		a := newTestAlert(nil, startsAt, updatedAt)
+		return []*types.Alert{&a}
+	}
+	alerts := make([]*types.Alert, 0, len(params))
+	for i := range params {
+		a := newTestAlert(&params[i], startsAt, updatedAt)
+		alerts = append(alerts, &a)
+	}
+	return alerts
+}
+
+// resolveTestAlertParams returns the alert params to use for a test.
+// Alerts takes precedence over the singular Alert field.
+func resolveTestAlertParams(c TestReceiversConfigBodyParams) []models.TestReceiversConfigAlertParams {
+	if len(c.Alerts) > 0 {
+		return c.Alerts
+	}
+	if c.Alert != nil {
+		return []models.TestReceiversConfigAlertParams{*c.Alert}
+	}
+	return nil
+}
+
+func testAlertsAsValues(alerts []*types.Alert) []types.Alert {
+	out := make([]types.Alert, len(alerts))
+	for i, a := range alerts {
+		out[i] = *a
+	}
+	return out
 }
 
 func ProcessIntegrationError(config *models.IntegrationConfig, err error) error {
