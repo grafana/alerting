@@ -250,6 +250,11 @@ type GrafanaAlertmanagerOpts struct {
 	NotificationHistorian nfstatus.NotificationHistorian
 
 	DispatchTimer DispatchTimer
+
+	// ShutdownDrainTimeout is how long StopAndWait will wait for in-flight
+	// notification pipeline sends to complete before forcefully canceling them.
+	// Defaults to 10 seconds if zero.
+	ShutdownDrainTimeout time.Duration
 }
 
 func (c *GrafanaAlertmanagerOpts) Validate() error {
@@ -294,6 +299,9 @@ func (c *GrafanaAlertmanagerOpts) Validate() error {
 		return errors.New("metrics must be present")
 	}
 
+	if c.ShutdownDrainTimeout == 0 {
+		c.ShutdownDrainTimeout = 10 * time.Second
+	}
 	return nil
 }
 
@@ -452,12 +460,35 @@ func (am *GrafanaAlertmanager) ready() bool {
 }
 
 func (am *GrafanaAlertmanager) StopAndWait() {
+	// Phase 1: stop the dispatcher from accepting new notification groups.
+	// This also stops the inhibitor since it's managed by the dispatcher.
 	if am.dispatcher != nil {
 		am.dispatcher.Stop()
 	}
 
 	if am.inhibitor != nil {
 		am.inhibitor.Stop()
+	}
+
+	// Phase 2: wait up to ShutdownDrainTimeout for in-flight notification
+	// pipeline sends (e.g. RetryStage HTTP webhook calls) to complete before
+	// canceling them. Without this drain window, any outbound send in progress
+	// at shutdown receives a "context canceled" error and is not retried until
+	// repeat_interval (default 4 h) elapses.
+	drainCtx, drainCancel := context.WithTimeout(context.Background(), am.opts.ShutdownDrainTimeout)
+	defer drainCancel()
+
+	drained := make(chan struct{})
+	go func() {
+		am.wg.Wait()
+		close(drained)
+	}()
+
+	select {
+	case <-drained:
+		// all in-flight sends finished cleanly
+	case <-drainCtx.Done():
+		level.Warn(am.logger).Log("msg", "graceful shutdown drain timeout exceeded; some in-flight notifications may not have been delivered", "timeout", am.opts.ShutdownDrainTimeout)
 	}
 
 	am.alerts.Close()
