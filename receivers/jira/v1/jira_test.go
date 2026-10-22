@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/alerting/receivers"
+	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	"github.com/grafana/alerting/templates"
 )
 
@@ -404,10 +405,72 @@ func TestPrepareIssueRequestBody(t *testing.T) {
 	          "fields": {
 	            "customfield_count": "Alert count: 1",
 	            "customfield_nested": {
-	              "id": "{{ .CommonAnnotations.project }}",
+	              "id": "PROJ",
 	              "name": "nested field"
 	            },
 	            "customfield_status": "ACTIVE",
+	            "description": "Test Description",
+	            "issuetype": {
+	              "name": "Bug"
+	            },
+	            "labels": [
+	              "ALERT{test_group}"
+	            ],
+	            "project": {
+	              "key": "PROJ"
+	            },
+	            "summary": "Test Summary"
+	          }
+	        }`,
+		},
+		{
+			name: "Custom fields with templates inside objects and arrays",
+			conf: Config{
+				URL:         v2,
+				Project:     "PROJ",
+				IssueType:   "Bug",
+				Summary:     "Test Summary",
+				Description: "Test Description",
+				Fields: map[string]any{
+					"customfield_10001": map[string]any{
+						"value": "{{ .CommonLabels.severity }}",
+						"child": map[string]any{"value": "{{ .CommonAnnotations.ann1 }}"},
+					},
+					"customfield_10008": []any{
+						map[string]any{"key": "{{ .CommonLabels.alertname }}"},
+						map[string]any{"key": "static"},
+					},
+					"customfield_10009": []any{"{{ .CommonLabels.severity }}", 42.07, true, nil},
+					"customfield_10010": []any{map[string]any{"key": "{{ invalid template syntax"}},
+				},
+			},
+			expPayload: `{
+	          "fields": {
+	            "customfield_10001": {
+	              "value": "critical",
+	              "child": {
+	                "value": "annv1"
+	              }
+	            },
+	            "customfield_10008": [
+	              {
+	                "key": "alert1"
+	              },
+	              {
+	                "key": "static"
+	              }
+	            ],
+	            "customfield_10009": [
+	              "critical",
+	              42.07,
+	              true,
+	              null
+	            ],
+	            "customfield_10010": [
+	              {
+	                "key": ""
+	              }
+	            ],
 	            "description": "Test Description",
 	            "issuetype": {
 	              "name": "Bug"
@@ -436,6 +499,60 @@ func TestPrepareIssueRequestBody(t *testing.T) {
 			require.JSONEq(t, tt.expPayload, string(d))
 		})
 	}
+}
+
+// Reproduces https://github.com/grafana/alerting/issues/669: NewConfig parses JSON-looking
+// string values before notification time, so a template inside an array or object value
+// reached Jira unrendered.
+func TestPrepareIssueRequestBodyRendersTemplatesInParsedFields(t *testing.T) {
+	settings := `{
+		"api_url": "http://localhost/rest/api/2",
+		"project": "PROJ",
+		"issue_type": "Bug",
+		"summary": "Test Summary",
+		"description": "Test Description",
+		"fields": {
+			"customfield_19509": "[{\"key\": \"{{ .CommonLabels.team }}\"}]",
+			"customfield_10001": "{\"value\": \"{{ .CommonLabels.severity }}\"}",
+			"customfield_10002": "{{ .CommonLabels.severity }}"
+		}
+	}`
+	conf, err := NewConfig(json.RawMessage(settings), receiversTesting.DecryptForTesting(map[string][]byte{"api_token": []byte("token")}))
+	require.NoError(t, err)
+
+	alerts := []*types.Alert{
+		{
+			Alert: model.Alert{
+				Labels: model.LabelSet{"alertname": "alert1", "severity": "critical", "team": "PTCI-1234"},
+			},
+		},
+	}
+	n := New(conf, receivers.Metadata{}, templates.ForTests(t), nil, log.NewNopLogger())
+
+	issue := n.prepareIssueRequestBody(context.Background(), log.NewNopLogger(), "test_group", alerts...)
+
+	d, err := json.Marshal(issue)
+	require.NoError(t, err)
+	require.JSONEq(t, `{
+	  "fields": {
+	    "customfield_19509": [{"key": "PTCI-1234"}],
+	    "customfield_10001": {"value": "critical"},
+	    "customfield_10002": "critical",
+	    "description": "Test Description",
+	    "issuetype": {"name": "Bug"},
+	    "labels": ["ALERT{test_group}"],
+	    "priority": {"name": "High"},
+	    "project": {"key": "PROJ"},
+	    "summary": "Test Summary"
+	  }
+	}`, string(d))
+
+	// The configuration is shared across notifications and must keep its templates.
+	require.Equal(t, map[string]any{
+		"customfield_19509": []any{map[string]any{"key": "{{ .CommonLabels.team }}"}},
+		"customfield_10001": map[string]any{"value": "{{ .CommonLabels.severity }}"},
+		"customfield_10002": "{{ .CommonLabels.severity }}",
+	}, conf.Fields)
 }
 
 func TestGetSearchJql(t *testing.T) {
