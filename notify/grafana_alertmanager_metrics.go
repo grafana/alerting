@@ -5,6 +5,8 @@ import (
 	"github.com/prometheus/alertmanager/api/metrics"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"github.com/grafana/alerting/logging"
 )
 
 const namespace = "grafana"
@@ -18,13 +20,14 @@ type GrafanaAlertmanagerMetrics struct {
 	configuredReceivers       *prometheus.GaugeVec
 	configuredIntegrations    *prometheus.GaugeVec
 	configuredInhibitionRules *prometheus.GaugeVec
+	configuredTemplates       *prometheus.GaugeVec
 }
 
 // NewGrafanaAlertmanagerMetrics creates a set of metrics for the Alertmanager.
 func NewGrafanaAlertmanagerMetrics(r prometheus.Registerer, l log.Logger) *GrafanaAlertmanagerMetrics {
 	return &GrafanaAlertmanagerMetrics{
 		Registerer: r,
-		Alerts:     metrics.NewAlerts(r, l),
+		Alerts:     metrics.NewAlerts(r, logging.NewSlogLogger(l)),
 		configuredReceivers: promauto.With(r).NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: namespace,
 			Subsystem: subsystem,
@@ -43,5 +46,11 @@ func NewGrafanaAlertmanagerMetrics(r prometheus.Registerer, l log.Logger) *Grafa
 			Name:      "alertmanager_inhibition_rules",
 			Help:      "Number of configured inhibition rules.",
 		}, []string{"org"}),
+		configuredTemplates: promauto.With(r).NewGaugeVec(prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: subsystem,
+			Name:      "alertmanager_templates",
+			Help:      "Number of configured templates by kind.",
+		}, []string{"org", "kind"}),
 	}
 }

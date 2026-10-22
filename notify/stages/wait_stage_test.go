@@ -2,10 +2,10 @@ package stages
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -63,7 +63,7 @@ func TestWaitStageExec(t *testing.T) {
 				defer cancel()
 			}
 
-			logger := log.NewNopLogger()
+			logger := slog.New(slog.DiscardHandler)
 			ws := &WaitStage{
 				peer:    tc.peer,
 				timeout: tc.timeout,

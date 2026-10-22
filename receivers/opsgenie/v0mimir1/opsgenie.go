@@ -27,6 +27,7 @@ import (
 	"github.com/prometheus/common/model"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
+	"github.com/grafana/alerting/logging"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
@@ -134,7 +135,7 @@ func (n *Notifier) createRequests(ctx context.Context, as ...*types.Alert) ([]*h
 	if err != nil {
 		return nil, false, err
 	}
-	data := notify.GetTemplateData(ctx, n.tmpl, as, n.logger)
+	data := notify.GetTemplateData(ctx, n.tmpl, as, logging.NewSlogLogger(n.logger))
 
 	level.Debug(n.logger).Log("alert", key)
 
