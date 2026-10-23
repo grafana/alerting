@@ -132,6 +132,31 @@ func TestPostableGrafanaReceiverToGrafanaIntegrationConfig(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, schema.SlackType, actual.Type)
 	})
+
+	t.Run("keeps persisted retired LINE integrations loadable", func(t *testing.T) {
+		r := &definition.PostableGrafanaReceiver{
+			UID:      "legacy-line-uid",
+			Name:     "legacy-line",
+			Type:     "line",
+			Version:  string(schema.V1),
+			Settings: definition.RawMessage(`{"token":"retired"}`),
+		}
+
+		actual, err := PostableGrafanaReceiverToIntegrationConfig(r)
+		require.NoError(t, err)
+		require.Equal(t, schema.LineType, actual.Type)
+		require.Equal(t, schema.V1, actual.Version)
+	})
+
+	t.Run("rejects unsupported versions of retired LINE integrations", func(t *testing.T) {
+		r := &definition.PostableGrafanaReceiver{
+			Type:    "LINE",
+			Version: "v2",
+		}
+
+		_, err := PostableGrafanaReceiverToIntegrationConfig(r)
+		require.ErrorContains(t, err, "invalid version v2 of integration LINE")
+	})
 }
 
 func TestPostableApiAlertingConfigToApiReceivers(t *testing.T) {
