@@ -9,8 +9,11 @@ import (
 	"io"
 	"net"
 	"net/mail"
+	"net/smtp"
+	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/grafana/alerting/templates/email"
 
@@ -37,6 +40,8 @@ type EmailSenderConfig struct {
 	// If both UseBCC and SingleEmail are true, UseBCC is ignored
 	// and recipients are placed in the TO field.
 	UseBCC bool
+	// DialContext, if set, is used to open the connection to the SMTP server.
+	DialContext func(ctx context.Context, network, address string) (net.Conn, error)
 }
 
 type defaultEmailSender struct {
@@ -182,7 +187,136 @@ func (s *defaultEmailSender) dial() (gomail.SendCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return dialer.Dial()
+	if s.cfg.DialContext == nil {
+		return dialer.Dial()
+	}
+	return s.dialWithContext(dialer)
+}
+
+// dialWithContext mirrors gomail.Dialer.Dial but opens the connection with cfg.DialContext.
+func (s *defaultEmailSender) dialWithContext(d *gomail.Dialer) (_ gomail.SendCloser, err error) {
+	ctx, cancel := context.WithTimeout(context.Background(), d.Timeout)
+	defer cancel()
+	conn, err := s.cfg.DialContext(ctx, "tcp", net.JoinHostPort(d.Host, strconv.Itoa(d.Port)))
+	if err != nil {
+		return nil, err
+	}
+	if err := conn.SetDeadline(time.Now().Add(d.Timeout)); err != nil {
+		conn.Close()
+		return nil, err
+	}
+	if d.SSL {
+		conn = tls.Client(conn, d.TLSConfig)
+	}
+	c, err := smtp.NewClient(conn, d.Host)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			c.Close()
+		}
+	}()
+
+	if d.LocalName != "" {
+		if err := c.Hello(d.LocalName); err != nil {
+			return nil, err
+		}
+	}
+
+	if !d.SSL && d.StartTLSPolicy != gomail.NoStartTLS {
+		ok, _ := c.Extension("STARTTLS")
+		if !ok && d.StartTLSPolicy == gomail.MandatoryStartTLS {
+			return nil, gomail.StartTLSUnsupportedError{Policy: d.StartTLSPolicy}
+		}
+		if ok {
+			if err := c.StartTLS(d.TLSConfig); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if d.Username != "" {
+		if ok, auths := c.Extension("AUTH"); ok {
+			var auth smtp.Auth
+			switch {
+			case strings.Contains(auths, "CRAM-MD5"):
+				auth = smtp.CRAMMD5Auth(d.Username, d.Password)
+			case strings.Contains(auths, "LOGIN") && !strings.Contains(auths, "PLAIN"):
+				auth = &loginAuth{username: d.Username, password: d.Password, host: d.Host}
+			default:
+				auth = smtp.PlainAuth("", d.Username, d.Password, d.Host)
+			}
+			if err := c.Auth(auth); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return &smtpSender{Client: c, conn: conn, timeout: d.Timeout}, nil
+}
+
+// smtpSender is a gomail.SendCloser over a connection opened by dialWithContext.
+type smtpSender struct {
+	*smtp.Client
+	conn    net.Conn
+	timeout time.Duration
+}
+
+func (c *smtpSender) Send(from string, to []string, msg io.WriterTo) error {
+	if err := c.conn.SetDeadline(time.Now().Add(c.timeout)); err != nil {
+		return err
+	}
+	if err := c.Mail(from); err != nil {
+		return err
+	}
+	for _, addr := range to {
+		if err := c.Rcpt(addr); err != nil {
+			return err
+		}
+	}
+	w, err := c.Data()
+	if err != nil {
+		return err
+	}
+	if _, err := msg.WriteTo(w); err != nil {
+		w.Close()
+		return err
+	}
+	return w.Close()
+}
+
+func (c *smtpSender) Close() error {
+	return c.Quit()
+}
+
+// loginAuth is an smtp.Auth that implements the LOGIN mechanism.
+type loginAuth struct {
+	username, password, host string
+}
+
+func (a *loginAuth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	if !server.TLS && !slices.Contains(server.Auth, "LOGIN") {
+		return "", nil, errors.New("unencrypted connection")
+	}
+	if server.Name != a.host {
+		return "", nil, errors.New("wrong host name")
+	}
+	return "LOGIN", nil, nil
+}
+
+func (a *loginAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if !more {
+		return nil, nil
+	}
+	switch string(fromServer) {
+	case "Username:":
+		return []byte(a.username), nil
+	case "Password:":
+		return []byte(a.password), nil
+	default:
+		return nil, fmt.Errorf("unexpected server challenge: %s", fromServer)
+	}
 }
 
 func (s *defaultEmailSender) createDialer() (*gomail.Dialer, error) {

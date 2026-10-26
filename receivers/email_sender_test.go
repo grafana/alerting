@@ -2,8 +2,12 @@ package receivers
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"io"
+	"net"
+	"net/textproto"
 	"strings"
 	"testing"
 
@@ -316,6 +320,77 @@ func TestSend(t *testing.T) {
 
 			require.ElementsMatch(t, tc.expectedSent, ms.sentTo)
 		})
+	}
+}
+
+func TestSendDialContext(t *testing.T) {
+	t.Run("custom DialContext is used to connect", func(t *testing.T) {
+		l, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = l.Close() })
+		rcpts := make(chan string, 2)
+		go serveSMTP(l, rcpts)
+
+		var dialed string
+		s := NewEmailSender(EmailSenderConfig{
+			Host:           "smtp.example.com:25",
+			StartTLSPolicy: "NoStartTLS",
+			DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+				dialed = address
+				return (&net.Dialer{}).DialContext(ctx, network, l.Addr().String())
+			},
+		}).(*defaultEmailSender)
+
+		sent, err := s.Send(makeMsg(false, "a@b.com", "c@d.com"))
+		require.NoError(t, err)
+		require.Equal(t, 2, sent)
+		require.Equal(t, "smtp.example.com:25", dialed)
+		require.Len(t, rcpts, 2)
+	})
+
+	t.Run("DialContext error fails the send", func(t *testing.T) {
+		dialErr := errors.New("blocked address")
+		s := NewEmailSender(EmailSenderConfig{
+			Host: "smtp.example.com:25",
+			DialContext: func(context.Context, string, string) (net.Conn, error) {
+				return nil, dialErr
+			},
+		}).(*defaultEmailSender)
+
+		sent, err := s.Send(makeMsg(true, "a@b.com"))
+		require.ErrorIs(t, err, dialErr)
+		require.Zero(t, sent)
+	})
+}
+
+// serveSMTP accepts one connection and sends each RCPT TO line to rcpts.
+func serveSMTP(l net.Listener, rcpts chan<- string) {
+	conn, err := l.Accept()
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+	tp := textproto.NewConn(conn)
+	_ = tp.PrintfLine("220 localhost ESMTP")
+	for {
+		line, err := tp.ReadLine()
+		if err != nil {
+			return
+		}
+		switch {
+		case strings.HasPrefix(line, "RCPT TO:"):
+			rcpts <- line
+			_ = tp.PrintfLine("250 OK")
+		case line == "DATA":
+			_ = tp.PrintfLine("354 go ahead")
+			_, _ = tp.ReadDotBytes()
+			_ = tp.PrintfLine("250 OK")
+		case line == "QUIT":
+			_ = tp.PrintfLine("221 bye")
+			return
+		default:
+			_ = tp.PrintfLine("250 OK")
+		}
 	}
 }
 
