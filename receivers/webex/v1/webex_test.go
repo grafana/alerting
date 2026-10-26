@@ -103,6 +103,25 @@ func TestNotify(t *testing.T) {
 			expMsg:      fmt.Sprintf(`{"roomId":"someid","markdown":"%s…"}`, strings.Repeat("1", 4093)),
 			expMsgError: nil,
 		},
+		{
+			name: "Truncate long multi-byte message",
+			settings: Config{
+				Message: "{{ .CommonLabels.alertname }}",
+				RoomID:  "someid",
+				APIURL:  DefaultAPIURL,
+				Token:   "abcdefgh0123456789",
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels: model.LabelSet{"alertname": model.LabelValue(strings.Repeat("警", 1400))},
+					},
+				},
+			},
+			expHeaders:  map[string]string{"Authorization": "Bearer abcdefgh0123456789"},
+			expMsg:      fmt.Sprintf(`{"roomId":"someid","markdown":"%s…"}`, strings.Repeat("警", 1364)),
+			expMsgError: nil,
+		},
 	}
 
 	for _, c := range cases {

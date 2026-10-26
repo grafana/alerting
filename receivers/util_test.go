@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -179,4 +180,34 @@ func TestSenderDisablesKeepAlives(t *testing.T) {
 	assert.Eventually(t, func() bool {
 		return atomic.LoadInt32(&counter.active) == 0
 	}, time.Second, 10*time.Millisecond, "connections were kept alive when they should have been closed")
+}
+
+func TestTruncateInBytes(t *testing.T) {
+	tests := []struct {
+		name          string
+		in            string
+		n             int
+		expected      string
+		wantTruncated bool
+	}{
+		{name: "shorter than limit", in: "abc", n: 5, expected: "abc"},
+		{name: "ascii over limit", in: "abcdefgh", n: 5, expected: "ab…", wantTruncated: true},
+		{name: "does not split a multi-byte character", in: "a⌘cdef", n: 5, expected: "a…", wantTruncated: true},
+		{
+			// More bytes than n, but fewer runes than n-3.
+			name:          "multi-byte text with fewer runes than the limit",
+			in:            strings.Repeat("警", 1400),
+			n:             4096,
+			expected:      strings.Repeat("警", 1364) + "…",
+			wantTruncated: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, truncated := TruncateInBytes(tc.in, tc.n)
+			require.Equal(t, tc.expected, actual)
+			require.Equal(t, tc.wantTruncated, truncated)
+			require.LessOrEqual(t, len(actual), tc.n)
+		})
+	}
 }
