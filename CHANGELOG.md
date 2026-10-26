@@ -2,7 +2,7 @@
 
 ## Alerting
 
-- 
+- [BUGFIX] WeCom: report notification API errors returned with HTTP 2xx instead of treating them as successful deliveries.
 
 ## Scope Glossary
 
