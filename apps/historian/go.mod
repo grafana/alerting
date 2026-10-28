@@ -3,7 +3,7 @@ module github.com/grafana/alerting/apps/historian
 go 1.26.4
 
 require (
-	github.com/go-jose/go-jose/v4 v4.1.4
+	github.com/go-jose/go-jose/v4 v4.1.6
 	github.com/go-kit/log v0.2.1
 	github.com/grafana/alerting v0.0.0-20260616104851-587c401ed754
 	github.com/grafana/authlib v0.0.0-20260603144019-18cfcbc9496a
