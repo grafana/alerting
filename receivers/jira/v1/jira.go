@@ -139,17 +139,10 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logge
 		Fields:  nil, // Will be processed below
 	}
 
-	// Process custom fields through templating
 	if n.conf.Fields != nil {
-		processedFields := make(map[string]any)
+		processedFields := make(map[string]any, len(n.conf.Fields))
 		for key, value := range n.conf.Fields {
-			if strValue, ok := value.(string); ok {
-				// Apply templating to string values
-				processedFields[key] = renderOrDefault(fmt.Sprintf("fields.%s", key), strValue, strValue)
-			} else {
-				// Keep non-string values as-is
-				processedFields[key] = value
-			}
+			processedFields[key] = renderFieldValue(fmt.Sprintf("fields.%s", key), value, renderOrDefault)
 		}
 		fields.Fields = processedFields
 	}
@@ -191,6 +184,31 @@ func (n *Notifier) prepareIssueRequestBody(ctx context.Context, logger log.Logge
 	}
 
 	return issue{Fields: fields}
+}
+
+// renderFieldValue renders templates in every string reachable from a custom field value.
+// NewConfig parses JSON-looking string values into maps and slices, so templates in fields that
+// Jira expects as objects or arrays (select lists, assets, users) live inside nested structures.
+// The input is never modified because the configuration is shared across notifications.
+func renderFieldValue(fieldName string, value any, render func(fieldName, template, fallback string) string) any {
+	switch v := value.(type) {
+	case string:
+		return render(fieldName, v, v)
+	case map[string]any:
+		rendered := make(map[string]any, len(v))
+		for key, item := range v {
+			rendered[key] = renderFieldValue(fieldName+"."+key, item, render)
+		}
+		return rendered
+	case []any:
+		rendered := make([]any, len(v))
+		for i, item := range v {
+			rendered[i] = renderFieldValue(fmt.Sprintf("%s[%d]", fieldName, i), item, render)
+		}
+		return rendered
+	default:
+		return v
+	}
 }
 
 func (n *Notifier) prepareDescription(desc string, logger log.Logger) any {
