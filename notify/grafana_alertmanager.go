@@ -40,6 +40,7 @@ import (
 
 	"github.com/grafana/alerting/cluster"
 	"github.com/grafana/alerting/definition"
+	alertinghttp "github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/notify/nfstatus"
@@ -249,10 +250,17 @@ type GrafanaAlertmanagerOpts struct {
 
 	NotificationHistorian nfstatus.NotificationHistorian
 
+	// HTTPTransportConfig controls connection pooling and response draining for HTTP clients created by alerting/http.
+	// Connection limits and response drain limits apply to each client instance, typically one per integration.
+	HTTPTransportConfig alertinghttp.TransportConfig
+
 	DispatchTimer DispatchTimer
 }
 
 func (c *GrafanaAlertmanagerOpts) Validate() error {
+	if err := c.HTTPTransportConfig.Validate(); err != nil {
+		return err
+	}
 	if c.Silences == nil {
 		return errors.New("silence maintenance options must be present")
 	}
@@ -819,7 +827,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		am.opts.Decrypter,
 		DecodeSecretsFromBase64,
 		am.opts.EmailSender,
-		nil,
+		[]alertinghttp.ClientOption{alertinghttp.WithTransportConfig(am.opts.HTTPTransportConfig)},
 		NoWrap,
 		am.opts.Version,
 		am.logger,
@@ -1110,7 +1118,7 @@ func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver models.Receive
 		am.opts.Decrypter,
 		DecodeSecretsFromBase64,
 		am.opts.EmailSender,
-		nil,
+		[]alertinghttp.ClientOption{alertinghttp.WithTransportConfig(am.opts.HTTPTransportConfig)},
 		NoWrap,
 		am.opts.Version,
 		am.logger,

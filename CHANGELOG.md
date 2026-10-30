@@ -2,7 +2,7 @@
 
 ## Alerting
 
-- 
+- [ENHANCEMENT] Reuse webhook HTTP connections with configurable per-client connection-pool limits and response-drain size (25 connections per host and 64 KiB by default).
 
 ## Scope Glossary
 
@@ -43,4 +43,3 @@ Scopes must have an order to ensure consistency and ease of search, this helps u
 3. `[BUGFIX]`
 4. `[ENHANCEMENT]`
 5. `[ADMIN]`
-

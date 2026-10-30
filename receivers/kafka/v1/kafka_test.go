@@ -4,7 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"sync/atomic"
 	"testing"
 
 	"github.com/go-kit/log"
@@ -13,6 +17,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
+	alertinghttp "github.com/grafana/alerting/http"
 	images2 "github.com/grafana/alerting/images"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
@@ -409,6 +414,43 @@ func TestNotify(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNotifyReusesHTTPConnections(t *testing.T) {
+	var newConnections atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			newConnections.Add(1)
+		}
+	}
+	server.Start()
+	defer server.Close()
+
+	tmpl := templates.ForTests(t)
+	externalURL, err := url.Parse("http://localhost")
+	require.NoError(t, err)
+	tmpl.ExternalURL = externalURL
+	images := images2.NewFakeProvider(2)
+	sender, err := alertinghttp.NewClient(nil)
+	require.NoError(t, err)
+	notifier := New(Config{
+		Endpoint:   server.URL,
+		Topic:      "topic",
+		APIVersion: apiVersionV2,
+	}, receivers.Metadata{}, tmpl, sender, images, log.NewNopLogger())
+
+	alert := &types.Alert{Alert: model.Alert{Labels: model.LabelSet{"alertname": "test"}}}
+	ctx := notify.WithGroupKey(context.Background(), "alertname")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": "test"})
+	for range 3 {
+		_, err = notifier.Notify(ctx, alert)
+		require.NoError(t, err)
+	}
+
+	require.EqualValues(t, 1, newConnections.Load(), "Kafka notifications should reuse an idle HTTP connection")
 }
 
 func TestNotify_ExtraData(t *testing.T) {

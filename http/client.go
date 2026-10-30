@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/benbjohnson/clock"
@@ -31,6 +33,7 @@ type clientConfiguration struct {
 	userAgent    string
 	dialer       net.Dialer // We use Dialer here instead of DialContext as our mqtt client doesn't support DialContext.
 	customDialer bool
+	transport    TransportConfig
 }
 
 // defaultDialTimeout is the default timeout for the dialer, 30 seconds to match http.DefaultTransport.
@@ -38,7 +41,11 @@ const defaultDialTimeout = 30 * time.Second
 
 type Client struct {
 	cfg               clientConfiguration
+	httpClient        *http.Client
 	oauth2TokenSource oauth2.TokenSource
+	tlsClientMu       sync.Mutex
+	tlsClientConfig   *tls.Config
+	tlsClient         *http.Client
 }
 
 func NewClient(httpClientConfig *HTTPClientConfig, opts ...ClientOption) (*Client, error) {
@@ -55,9 +62,13 @@ func NewClient(httpClientConfig *HTTPClientConfig, opts ...ClientOption) (*Clien
 		// Mostly defensive to ensure that timeout semantics don't change when given a custom dialer without a timeout.
 		cfg.dialer.Timeout = defaultDialTimeout
 	}
+	if err := cfg.transport.Validate(); err != nil {
+		return nil, err
+	}
 
 	client := &Client{
-		cfg: cfg,
+		cfg:        cfg,
+		httpClient: NewTLSClient(nil, cfg.dialer.DialContext, cfg.transport),
 	}
 
 	if httpClientConfig != nil && httpClientConfig.OAuth2 != nil {
@@ -76,11 +87,40 @@ func NewClient(httpClientConfig *HTTPClientConfig, opts ...ClientOption) (*Clien
 	return client, nil
 }
 
+// clientForTLSConfig returns a client whose transport can be reused across
+// requests with the same TLS configuration. Custom TLS settings are scoped to
+// this Client, which is created per integration.
+func (c *Client) clientForTLSConfig(tlsConfig *tls.Config) *http.Client {
+	if tlsConfig == nil {
+		return c.httpClient
+	}
+
+	c.tlsClientMu.Lock()
+	defer c.tlsClientMu.Unlock()
+
+	if c.tlsClient != nil && c.tlsClientConfig == tlsConfig {
+		return c.tlsClient
+	}
+	if c.tlsClient != nil {
+		c.tlsClient.CloseIdleConnections()
+	}
+	c.tlsClientConfig = tlsConfig
+	c.tlsClient = NewTLSClient(tlsConfig, c.cfg.dialer.DialContext, c.cfg.transport)
+	return c.tlsClient
+}
+
 type ClientOption func(*clientConfiguration)
 
 func WithUserAgent(userAgent string) ClientOption {
 	return func(c *clientConfiguration) {
 		c.userAgent = userAgent
+	}
+}
+
+// WithTransportConfig configures connection pool limits for notifier HTTP clients.
+func WithTransportConfig(config TransportConfig) ClientOption {
+	return func(c *clientConfiguration) {
+		c.transport = config
 	}
 }
 
@@ -145,18 +185,19 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 		request.Header.Set(k, v)
 	}
 
-	client := NewTLSClient(webhook.TLSConfig, ns.cfg.dialer.DialContext)
+	client := ns.clientForTLSConfig(webhook.TLSConfig)
+	transport := client.Transport
 
 	// Wrapped first so that it runs last, after round trippers below have added their
 	// credentials to the request. Ex. OAuth2 round tripper adds the header to every hop of a
 	// redirect chain, so without this the access token would be sent to whatever host the webhook
 	// redirects to.
-	client.Transport = newSensitiveHeaderStrippingRoundTripper(client.Transport)
+	transport = newSensitiveHeaderStrippingRoundTripper(transport)
 
 	if webhook.HMACConfig != nil {
 		level.Debug(l).Log("msg", "Adding HMAC roundtripper to client")
-		client.Transport, err = NewHMACRoundTripper(
-			client.Transport,
+		transport, err = NewHMACRoundTripper(
+			transport,
 			clock.New(),
 			webhook.HMACConfig.Secret,
 			webhook.HMACConfig.Header,
@@ -170,17 +211,18 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 
 	if ns.oauth2TokenSource != nil {
 		level.Debug(l).Log("msg", "Adding OAuth2 roundtripper to client")
-		client.Transport = NewOAuth2RoundTripper(ns.oauth2TokenSource, client.Transport)
+		transport = NewOAuth2RoundTripper(ns.oauth2TokenSource, transport)
 	}
+	clientCopy := *client
+	clientCopy.Transport = transport
+	client = &clientCopy
 
 	resp, err := client.Do(request)
 	if err != nil {
 		return redactURL(err)
 	}
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			level.Warn(l).Log("msg", "Failed to close response body", "err", err)
-		}
+		drainAndCloseResponseBody(resp.Body, ns.cfg.transport.withDefaults().MaxResponseDrainBytes, l)
 	}()
 
 	if resp.StatusCode/100 == 2 {
@@ -205,6 +247,17 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 	}
 	level.Debug(l).Log("msg", "Webhook failed", "url", url.Redacted(), "status_code", resp.Status, "body", string(body))
 	return fmt.Errorf("webhook response status %v: %s", resp.Status, string(body))
+}
+
+func drainAndCloseResponseBody(body io.ReadCloser, maxBytes int64, l log.Logger) {
+	// Reading to EOF lets net/http reuse the connection; cap the discarded bytes so a large or endless
+	// response from an external service cannot keep notification delivery busy indefinitely.
+	if _, err := io.CopyN(io.Discard, body, maxBytes); err != nil && !errors.Is(err, io.EOF) {
+		level.Warn(l).Log("msg", "Failed to drain response body", "err", err)
+	}
+	if err := body.Close(); err != nil {
+		level.Warn(l).Log("msg", "Failed to close response body", "err", err)
+	}
 }
 
 func redactURL(err error) error {

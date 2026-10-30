@@ -5,9 +5,12 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,6 +20,7 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
+	alertinghttp "github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/models"
 
 	"github.com/go-kit/log"
@@ -25,6 +29,39 @@ import (
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
+
+func TestNotifyReusesConnectionsWithTLSConfig(t *testing.T) {
+	var newConnections atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			newConnections.Add(1)
+		}
+	}
+	server.StartTLS()
+	defer server.Close()
+
+	sender, err := alertinghttp.NewClient(nil)
+	require.NoError(t, err)
+	notifier := New(Config{
+		URL:       server.URL,
+		TLSConfig: &receivers.TLSConfig{InsecureSkipVerify: true},
+	}, receivers.Metadata{}, templates.ForTests(t), sender, &images.UnavailableProvider{}, log.NewNopLogger(), 1)
+
+	ctx := notify.WithGroupKey(context.Background(), "alertname")
+	ctx = notify.WithGroupLabels(ctx, model.LabelSet{"alertname": "test"})
+	ctx = notify.WithReceiverName(ctx, "test")
+	alert := &types.Alert{Alert: model.Alert{Labels: model.LabelSet{"alertname": "test"}}}
+	for range 3 {
+		ok, err := notifier.Notify(ctx, alert)
+		require.NoError(t, err)
+		require.True(t, ok)
+	}
+
+	require.EqualValues(t, 1, newConnections.Load(), "notifications with the same TLS settings should reuse an idle connection")
+}
 
 //go:embed fixtures/ca.pem
 var caCert string

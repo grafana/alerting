@@ -2,14 +2,18 @@ package http
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"strings"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -26,6 +30,36 @@ func TestClient(t *testing.T) {
 		client, err := NewClient(nil)
 		require.NoError(t, err)
 		require.NotNil(t, client)
+		require.EqualValues(t, defaultMaxResponseDrain, client.cfg.transport.withDefaults().MaxResponseDrainBytes)
+	})
+
+	t.Run("WithTransportConfig", func(t *testing.T) {
+		config := TransportConfig{
+			MaxIdleConns:          8,
+			MaxIdleConnsPerHost:   3,
+			MaxConnsPerHost:       5,
+			IdleConnTimeout:       12 * time.Second,
+			MaxResponseDrainBytes: 24,
+		}
+		client, err := NewClient(nil, WithTransportConfig(config))
+		require.NoError(t, err)
+		transport := client.httpClient.Transport.(*http.Transport)
+		require.Equal(t, 8, transport.MaxIdleConns)
+		require.Equal(t, 3, transport.MaxIdleConnsPerHost)
+		require.Equal(t, 5, transport.MaxConnsPerHost)
+		require.Equal(t, 12*time.Second, transport.IdleConnTimeout)
+		require.Equal(t, int64(24), client.cfg.transport.withDefaults().MaxResponseDrainBytes)
+
+		tlsTransport := client.clientForTLSConfig(&tls.Config{ServerName: "example.test"}).Transport.(*http.Transport)
+		require.Equal(t, 8, tlsTransport.MaxIdleConns)
+		require.Equal(t, 3, tlsTransport.MaxIdleConnsPerHost)
+		require.Equal(t, 5, tlsTransport.MaxConnsPerHost)
+		require.Equal(t, 12*time.Second, tlsTransport.IdleConnTimeout)
+	})
+
+	t.Run("With invalid transport config", func(t *testing.T) {
+		_, err := NewClient(nil, WithTransportConfig(TransportConfig{MaxResponseDrainBytes: -1}))
+		require.Error(t, err)
 	})
 
 	t.Run("WithUserAgent", func(t *testing.T) {
@@ -162,6 +196,182 @@ func TestSendWebhook(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "400 Bad Request")
 	require.ErrorContains(t, err, "Invalid routing key")
+}
+
+func TestSendWebhookReusesConnections(t *testing.T) {
+	var newConnections atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			newConnections.Add(1)
+		}
+	}
+	server.Start()
+	defer server.Close()
+
+	client, err := NewClient(nil)
+	require.NoError(t, err)
+	for range 3 {
+		require.NoError(t, client.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{
+			URL: server.URL,
+		}))
+	}
+
+	assert.EqualValues(t, 1, newConnections.Load(), "requests should reuse an idle connection")
+}
+
+func TestSendWebhookResponseDrainLimit(t *testing.T) {
+	const (
+		drainLimit   = int64(32)
+		responseSize = 1 << 20
+		requestCount = 2
+	)
+
+	for _, tc := range []struct {
+		name              string
+		responseSize      int
+		expectedConnCount int32
+	}{
+		{name: "response within limit is drained and connection reused", responseSize: int(drainLimit) - 1, expectedConnCount: 1},
+		{name: "response over limit discards connection", responseSize: responseSize, expectedConnCount: requestCount},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var newConnections atomic.Int32
+			var requests atomic.Int32
+			body := make([]byte, tc.responseSize)
+			for i := range body {
+				body[i] = 'x'
+			}
+			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				requests.Add(1)
+				w.Header().Set("Content-Length", fmt.Sprint(len(body)))
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write(body)
+			}))
+			server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+				if state == http.StateNew {
+					newConnections.Add(1)
+				}
+			}
+			server.Start()
+			defer server.Close()
+
+			client, err := NewClient(nil, WithTransportConfig(TransportConfig{MaxResponseDrainBytes: drainLimit}))
+			require.NoError(t, err)
+			for range requestCount {
+				require.NoError(t, client.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{
+					URL: server.URL,
+				}))
+			}
+			require.EqualValues(t, requestCount, requests.Load())
+			assert.Equal(t, tc.expectedConnCount, newConnections.Load())
+		})
+	}
+}
+
+type trackingResponseBody struct {
+	remaining []byte
+	readErr   error
+	closeErr  error
+	read      int
+	closed    bool
+}
+
+func (b *trackingResponseBody) Read(p []byte) (int, error) {
+	if len(b.remaining) == 0 {
+		if b.readErr != nil {
+			return 0, b.readErr
+		}
+		return 0, io.EOF
+	}
+	n := copy(p, b.remaining)
+	b.remaining = b.remaining[n:]
+	b.read += n
+	return n, nil
+}
+
+func (b *trackingResponseBody) Close() error {
+	b.closed = true
+	return b.closeErr
+}
+
+func TestDrainAndCloseResponseBody(t *testing.T) {
+	t.Run("drains to EOF below the cap", func(t *testing.T) {
+		body := &trackingResponseBody{remaining: []byte("small")}
+		drainAndCloseResponseBody(body, 10, log.NewNopLogger())
+		require.Equal(t, len("small"), body.read)
+		require.True(t, body.closed)
+	})
+
+	t.Run("stops at the cap", func(t *testing.T) {
+		body := &trackingResponseBody{remaining: []byte(strings.Repeat("x", 10))}
+		drainAndCloseResponseBody(body, 4, log.NewNopLogger())
+		require.Equal(t, 4, body.read)
+		require.True(t, body.closed)
+	})
+
+	t.Run("logs read and close errors", func(t *testing.T) {
+		body := &trackingResponseBody{
+			readErr:  errors.New("read failed"),
+			closeErr: errors.New("close failed"),
+		}
+		drainAndCloseResponseBody(body, 4, log.NewNopLogger())
+		require.True(t, body.closed)
+	})
+}
+
+func TestSendWebhookReusesConnectionsWithTLSConfig(t *testing.T) {
+	var newConnections atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			newConnections.Add(1)
+		}
+	}
+	server.StartTLS()
+	defer server.Close()
+
+	client, err := NewClient(nil)
+	require.NoError(t, err)
+	tlsConfig := &tls.Config{InsecureSkipVerify: true} // Test server uses a self-signed certificate.
+	for range 3 {
+		require.NoError(t, client.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{
+			URL:       server.URL,
+			TLSConfig: tlsConfig,
+		}))
+	}
+
+	assert.EqualValues(t, 1, newConnections.Load(), "requests with the same TLS config should reuse an idle connection")
+}
+
+func TestForkedSenderReusesConnections(t *testing.T) {
+	var newConnections atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	server.Config.ConnState = func(_ net.Conn, state http.ConnState) {
+		if state == http.StateNew {
+			newConnections.Add(1)
+		}
+	}
+	server.Start()
+	defer server.Close()
+
+	client, err := NewClient(nil)
+	require.NoError(t, err)
+	sender := NewForkedSender(client)
+	for range 3 {
+		require.NoError(t, sender.SendWebhook(context.Background(), log.NewNopLogger(), &receivers.SendWebhookSettings{
+			URL:        server.URL,
+			HTTPMethod: http.MethodGet,
+		}))
+	}
+
+	assert.EqualValues(t, 1, newConnections.Load(), "GET requests should reuse an idle connection")
 }
 
 func TestSendWebhookHMAC(t *testing.T) {
@@ -534,7 +744,7 @@ func TestSendWebhookOAuth2(t *testing.T) {
 }
 
 func TestToHTTPClientOption(t *testing.T) {
-	// this test guards against adding new fields to the configuration structure without updating the conversion function
+	// This test guards against adding fields without considering their support in the upstream conversion.
 	t.Run("empty converts to empty", func(t *testing.T) {
 		require.Empty(t, ToHTTPClientOption())
 		require.Empty(t, ToHTTPClientOption(nil))
@@ -550,8 +760,9 @@ func TestToHTTPClientOption(t *testing.T) {
 
 	// Verify number of fields using reflection
 	tp := reflect.TypeOf(clientConfiguration{})
-	// You need to increase the number of fields covered in this test, if you add a new field to the configuration struct.
-	require.Equalf(t, 3, tp.NumField(), "Not all fields are converted to HTTPClientOption, which means that the configuration will not be supported in upstream integrations")
+	// transport is intentionally local to clients created by this package. The Prometheus HTTPClientOption API
+	// does not expose the pool limits, so it cannot be propagated to upstream integrations.
+	require.Equalf(t, 4, tp.NumField(), "Review support for every client configuration field in upstream integrations")
 }
 
 func TestRedactError(t *testing.T) {
