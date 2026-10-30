@@ -2,7 +2,7 @@
 
 ## Alerting
 
-- [ENHANCEMENT] Reuse webhook HTTP connections with configurable per-client connection-pool limits and response-drain size (25 connections per host and 64 KiB by default).
+- [ENHANCEMENT] Drain unread webhook response data without buffering it, enabling connection reuse for typical small responses while capping work on unusually large ones. Connection-pool limits and the drain cap are configurable per client (25 connections per host and 64 KiB by default).
 
 ## Scope Glossary
 
