@@ -612,7 +612,7 @@ func TestSendWebhookOAuth2(t *testing.T) {
 }
 
 func TestToHTTPClientOption(t *testing.T) {
-	// this test guards against adding new fields to the configuration structure without updating the conversion function
+	// This test guards against adding fields without considering their support in the upstream conversion.
 	t.Run("empty converts to empty", func(t *testing.T) {
 		require.Empty(t, ToHTTPClientOption())
 		require.Empty(t, ToHTTPClientOption(nil))
@@ -628,8 +628,9 @@ func TestToHTTPClientOption(t *testing.T) {
 
 	// Verify number of fields using reflection
 	tp := reflect.TypeOf(clientConfiguration{})
-	// You need to increase the number of fields covered in this test, if you add a new field to the configuration struct.
-	require.Equalf(t, 3, tp.NumField(), "Not all fields are converted to HTTPClientOption, which means that the configuration will not be supported in upstream integrations")
+	// transport is intentionally local to clients created by this package. The Prometheus HTTPClientOption API
+	// does not expose the pool limits, so it cannot be propagated to upstream integrations.
+	require.Equalf(t, 4, tp.NumField(), "Review support for every client configuration field in upstream integrations")
 }
 
 func TestRedactError(t *testing.T) {

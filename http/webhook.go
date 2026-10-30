@@ -50,17 +50,15 @@ func (f ForkedSender) SendWebhook(ctx context.Context, l log.Logger, cmd *receiv
 		return redactURL(err)
 	}
 	defer func() {
-		_ = resp.Body.Close()
+		drainAndCloseResponseBody(resp.Body, f.cli.cfg.transport.withDefaults().MaxResponseDrainBytes, l)
 	}()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-
 	if cmd.Validation != nil {
-		err := cmd.Validation(body, resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
+			return err
+		}
+		if err = cmd.Validation(body, resp.StatusCode); err != nil {
 			return fmt.Errorf("webhook failed validation: %w", err)
 		}
 	}

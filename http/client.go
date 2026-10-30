@@ -33,6 +33,7 @@ type clientConfiguration struct {
 	userAgent    string
 	dialer       net.Dialer // We use Dialer here instead of DialContext as our mqtt client doesn't support DialContext.
 	customDialer bool
+	transport    TransportConfig
 }
 
 // defaultDialTimeout is the default timeout for the dialer, 30 seconds to match http.DefaultTransport.
@@ -61,10 +62,13 @@ func NewClient(httpClientConfig *HTTPClientConfig, opts ...ClientOption) (*Clien
 		// Mostly defensive to ensure that timeout semantics don't change when given a custom dialer without a timeout.
 		cfg.dialer.Timeout = defaultDialTimeout
 	}
+	if err := cfg.transport.Validate(); err != nil {
+		return nil, err
+	}
 
 	client := &Client{
 		cfg:        cfg,
-		httpClient: NewTLSClient(nil, cfg.dialer.DialContext),
+		httpClient: NewTLSClient(nil, cfg.dialer.DialContext, cfg.transport),
 	}
 
 	if httpClientConfig != nil && httpClientConfig.OAuth2 != nil {
@@ -101,7 +105,7 @@ func (c *Client) clientForTLSConfig(tlsConfig *tls.Config) *http.Client {
 		c.tlsClient.CloseIdleConnections()
 	}
 	c.tlsClientConfig = tlsConfig
-	c.tlsClient = NewTLSClient(tlsConfig, c.cfg.dialer.DialContext)
+	c.tlsClient = NewTLSClient(tlsConfig, c.cfg.dialer.DialContext, c.cfg.transport)
 	return c.tlsClient
 }
 
@@ -110,6 +114,13 @@ type ClientOption func(*clientConfiguration)
 func WithUserAgent(userAgent string) ClientOption {
 	return func(c *clientConfiguration) {
 		c.userAgent = userAgent
+	}
+}
+
+// WithTransportConfig configures connection pool limits for notifier HTTP clients.
+func WithTransportConfig(config TransportConfig) ClientOption {
+	return func(c *clientConfiguration) {
+		c.transport = config
 	}
 }
 
@@ -211,9 +222,7 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 		return redactURL(err)
 	}
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			level.Warn(l).Log("msg", "Failed to close response body", "err", err)
-		}
+		drainAndCloseResponseBody(resp.Body, ns.cfg.transport.withDefaults().MaxResponseDrainBytes, l)
 	}()
 
 	if resp.StatusCode/100 == 2 {
@@ -238,6 +247,17 @@ func (ns *Client) SendWebhook(ctx context.Context, l log.Logger, webhook *receiv
 	}
 	level.Debug(l).Log("msg", "Webhook failed", "url", url.Redacted(), "status_code", resp.Status, "body", string(body))
 	return fmt.Errorf("webhook response status %v: %s", resp.Status, string(body))
+}
+
+func drainAndCloseResponseBody(body io.ReadCloser, maxBytes int64, l log.Logger) {
+	// Reading to EOF lets net/http reuse the connection; cap the discarded bytes so a large or endless
+	// response from an external service cannot keep notification delivery busy indefinitely.
+	if _, err := io.CopyN(io.Discard, body, maxBytes); err != nil && !errors.Is(err, io.EOF) {
+		level.Warn(l).Log("msg", "Failed to drain response body", "err", err)
+	}
+	if err := body.Close(); err != nil {
+		level.Warn(l).Log("msg", "Failed to close response body", "err", err)
+	}
 }
 
 func redactURL(err error) error {
