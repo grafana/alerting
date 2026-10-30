@@ -2,7 +2,7 @@
 
 ## Alerting
 
-- [ENHANCEMENT] Reuse HTTP connections for webhook notifications and cap per-host connections at 25.
+- [ENHANCEMENT] Reuse webhook HTTP connections with configurable per-client connection-pool limits and response-drain size (25 connections per host and 64 KiB by default).
 
 ## Scope Glossary
 
