@@ -29,7 +29,6 @@ import (
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/notify/notifytest"
 	"github.com/grafana/alerting/receivers"
-	line "github.com/grafana/alerting/receivers/line/v1"
 	pushover "github.com/grafana/alerting/receivers/pushover/v1"
 	"github.com/grafana/alerting/receivers/schema"
 	telegram "github.com/grafana/alerting/receivers/telegram/v1"
@@ -259,16 +258,13 @@ func TestHTTPConfig(t *testing.T) {
 				defer testServer.Close()
 
 				// Deal with notifiers that have hardcoded API URLs.
-				origLine := line.APIURL
 				origPushover := pushover.APIURL
 				origTelegram := telegram.APIURL
 				origThreema := threema.APIURL
-				line.APIURL = testServer.URL
 				pushover.APIURL = testServer.URL
 				telegram.APIURL = testServer.URL + "/bot%s/%s"
 				threema.APIURL = testServer.URL
 				defer func() {
-					line.APIURL = origLine
 					pushover.APIURL = origPushover
 					telegram.APIURL = origTelegram
 					threema.APIURL = origThreema
@@ -441,6 +437,21 @@ func TestValidateAPIReceiver(t *testing.T) {
 		err := ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt)
 		require.ErrorContains(t, err, "invalid integration config at index 0")
 		require.ErrorContains(t, err, "invalid integration type or version")
+	})
+
+	t.Run("accepts a persisted retired LINE integration", func(t *testing.T) {
+		raw := &models.IntegrationConfig{
+			Name:     "legacy-line",
+			Type:     schema.LineType,
+			Version:  schema.V1,
+			Settings: json.RawMessage(`{"token":"retired"}`),
+		}
+		api := models.ReceiverConfig{
+			Name:         "test-receiver",
+			Integrations: []*models.IntegrationConfig{raw},
+		}
+
+		require.NoError(t, ValidateAPIReceiver(ctx, api, DecodeSecretsFromBase64, decrypt))
 	})
 
 	t.Run("returns error for unknown integration version", func(t *testing.T) {
