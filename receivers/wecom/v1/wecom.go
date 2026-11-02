@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -86,8 +87,9 @@ func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	}
 
 	cmd := &receivers.SendWebhookSettings{
-		URL:  url,
-		Body: string(body),
+		URL:        url,
+		Body:       string(body),
+		Validation: validateResponse,
 	}
 
 	if err = w.ns.SendWebhook(ctx, l, cmd); err != nil {
@@ -96,6 +98,26 @@ func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	}
 
 	return true, nil
+}
+
+func validateResponse(body []byte, statusCode int) error {
+	if statusCode/100 != 2 {
+		return nil
+	}
+	var response struct {
+		ErrCode *int   `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+	}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("failed to decode WeCom response: %w", err)
+	}
+	if response.ErrCode == nil {
+		return errors.New("invalid WeCom response: missing errcode")
+	}
+	if *response.ErrCode != 0 {
+		return fmt.Errorf("WeCom returned error %d: %s", *response.ErrCode, response.ErrMsg)
+	}
+	return nil
 }
 
 // GetAccessToken returns the access token for apiapp

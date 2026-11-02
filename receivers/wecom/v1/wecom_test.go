@@ -19,6 +19,7 @@ import (
 
 	"github.com/go-kit/log"
 
+	alertinghttp "github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
 )
@@ -410,6 +411,64 @@ func TestNotify_ApiApp(t *testing.T) {
 			require.NoError(t, err)
 
 			require.JSONEq(t, string(expBody), webhookSender.Webhook.Body)
+		})
+	}
+}
+
+func TestNotify_ResponseValidation(t *testing.T) {
+	cases := []struct {
+		name       string
+		statusCode int
+		body       string
+		expError   string
+	}{
+		{name: "success", statusCode: http.StatusOK, body: `{"errcode":0,"errmsg":"ok"}`},
+		{name: "message too long", statusCode: http.StatusOK, body: `{"errcode":40058,"errmsg":"markdown.content exceed max length 4096"}`, expError: "40058: markdown.content exceed max length 4096"},
+		{name: "rate limited", statusCode: http.StatusOK, body: `{"errcode":45009,"errmsg":"api freq out of limit"}`, expError: "45009: api freq out of limit"},
+		{name: "invalid JSON", statusCode: http.StatusOK, body: `{`, expError: "failed to decode WeCom response"},
+		{name: "empty response", statusCode: http.StatusOK, expError: "failed to decode WeCom response"},
+		{name: "missing errcode", statusCode: http.StatusOK, body: `{}`, expError: "missing errcode"},
+		{name: "null errcode", statusCode: http.StatusOK, body: `{"errcode":null}`, expError: "missing errcode"},
+		{name: "HTTP error", statusCode: http.StatusBadGateway, body: "bad gateway", expError: "502"},
+	}
+
+	for _, channel := range []string{DefaultChannelType, "apiapp"} {
+		t.Run(channel, func(t *testing.T) {
+			for _, c := range cases {
+				t.Run(c.name, func(t *testing.T) {
+					server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+						w.WriteHeader(c.statusCode)
+						_, err := w.Write([]byte(c.body))
+						assert.NoError(t, err)
+					}))
+					defer server.Close()
+
+					sender, err := alertinghttp.NewClient(nil)
+					require.NoError(t, err)
+					n := New(Config{
+						Channel:     channel,
+						URL:         server.URL,
+						EndpointURL: server.URL,
+						MsgType:     DefaultsgType,
+						Title:       "Test alert",
+						Message:     "Test notification",
+					}, receivers.Metadata{}, templates.ForTests(t), sender, log.NewNopLogger())
+					n.tok = &accessToken{AccessToken: "test-token"}
+					n.tokExpireAt = time.Now().Add(time.Minute)
+
+					ctx := notify.WithGroupKey(context.Background(), "alertname")
+					ok, err := n.Notify(ctx, &types.Alert{Alert: model.Alert{
+						Labels: model.LabelSet{"alertname": "test"},
+					}})
+					if c.expError != "" {
+						require.ErrorContains(t, err, c.expError)
+						require.False(t, ok)
+						return
+					}
+					require.NoError(t, err)
+					require.True(t, ok)
+				})
+			}
 		})
 	}
 }
