@@ -44,6 +44,7 @@ func TestNewConfig(t *testing.T) {
 				URL:             "http://localhost",
 				HideOpenButton:  false,
 				HideVersionInfo: false,
+				EnableThreading: false,
 			},
 		},
 		{
@@ -58,6 +59,7 @@ func TestNewConfig(t *testing.T) {
 				URL:             "http://localhost",
 				HideOpenButton:  false,
 				HideVersionInfo: false,
+				EnableThreading: false,
 			},
 		},
 		{
@@ -83,6 +85,7 @@ func TestNewConfig(t *testing.T) {
 				URL:             "http://localhost",
 				HideOpenButton:  false,
 				HideVersionInfo: false,
+				EnableThreading: false,
 			},
 		},
 		{
@@ -95,6 +98,7 @@ func TestNewConfig(t *testing.T) {
 				URL:             "http://localhost/url-secret",
 				HideOpenButton:  true,
 				HideVersionInfo: true,
+				EnableThreading: true,
 			},
 		},
 	}
