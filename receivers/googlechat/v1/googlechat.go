@@ -102,7 +102,6 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 	title := tmpl(gcn.settings.Title)
 	// Nest the required structs.
 	res := &outerStruct{
-		PreviewText:  title,
 		FallbackText: title,
 		Cards: []card{
 			{
@@ -200,7 +199,6 @@ func (gcn *Notifier) buildScreenshotCard(ctx context.Context, alerts []*types.Al
 // Structs used to build a custom Google Hangouts Chat message card.
 // https://developers.google.com/chat/api/guides/message-formats/cards
 type outerStruct struct {
-	PreviewText  string `json:"previewText"`
 	FallbackText string `json:"fallbackText"`
 	Cards        []card `json:"cards"`
 }
