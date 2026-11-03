@@ -2,6 +2,7 @@ package instrument
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -58,7 +59,21 @@ func (c TimedClient) operationName(r *http.Request) string {
 	return operation
 }
 
+const (
+	// StatusCodeError is the status_code label value recorded when the request fails
+	// without an HTTP response (timeouts, connection refused, DNS, TLS, ...).
+	StatusCodeError = "error"
+	// StatusCodeCanceled is the status_code label value recorded when the request's
+	// context was canceled (e.g. the caller went away). It is not a failure of the remote.
+	StatusCodeCanceled = "canceled"
+)
+
 // TimeRequest performs an HTTP client request and records the duration in a histogram.
+//
+// The status_code label is the numeric HTTP status code when a response is received.
+// Otherwise it is "canceled" if the error is context.Canceled, and "error" for any other
+// error (including context.DeadlineExceeded, which is a real timeout).
+// Previously canceled requests were also recorded as "error".
 func TimeRequest(ctx context.Context, operation string, coll instrument.Collector, client Requester, request *http.Request) (*http.Response, error) {
 	var response *http.Response
 	doRequest := func(_ context.Context) error {
@@ -70,7 +85,10 @@ func TimeRequest(ctx context.Context, operation string, coll instrument.Collecto
 		if err == nil {
 			return strconv.Itoa(response.StatusCode)
 		}
-		return "error"
+		if errors.Is(err, context.Canceled) {
+			return StatusCodeCanceled
+		}
+		return StatusCodeError
 	}
 	err := instrument.CollectedRequest(ctx, fmt.Sprintf("%s %s", request.Method, operation),
 		coll, toStatusCode, doRequest)
