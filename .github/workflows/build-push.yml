@@ -55,7 +55,7 @@ jobs:
           # image-tag derives the tag from git metadata, so we need full history.
           fetch-depth: 0
       - name: Log in to GAR
-        uses: grafana/shared-workflows/actions/login-to-gar@00646b30431b955ec3c00982b23b1eeb7b66445b # login-to-gar/v1.0.0
+        uses: grafana/shared-workflows/actions/login-to-gar@afad5c7621e788905e6417f05b492972685ab1eb # login-to-gar/v1.0.4
         id: login-to-gar
         with:
           registry: "us-docker.pkg.dev"
