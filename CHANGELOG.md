@@ -3,6 +3,8 @@
 ## Alerting
 
 - [BUGFIX] Expose HTTP header values and secrets in the v0 Mimir integration schema so they can be configured and encrypted correctly. (#505)
+- [ENHANCEMENT] `TimedClient` records requests failed due to context cancellation with `status_code="canceled"` instead of `"error"`. Other request errors, including deadline exceeded, remain `"error"`.
+- [ENHANCEMENT] Reuse webhook HTTP connections with configurable per-client connection-pool limits and response-drain size (25 connections per host and 64 KiB by default).
 
 ## Scope Glossary
 
@@ -43,4 +45,3 @@ Scopes must have an order to ensure consistency and ease of search, this helps u
 3. `[BUGFIX]`
 4. `[ENHANCEMENT]`
 5. `[ADMIN]`
-
