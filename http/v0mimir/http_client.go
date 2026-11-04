@@ -379,8 +379,24 @@ func V0HttpConfigOption() schema.Field {
 			{
 				Label:        "HTTP Headers",
 				Description:  "Headers to inject in the requests.",
-				Element:      schema.ElementTypeKeyValueMap,
+				Element:      schema.ElementTypeKeyValueObjectMap,
 				PropertyName: "http_headers",
+				SubformOptions: []schema.Field{
+					{
+						Label:        "Values",
+						Description:  "Non-sensitive values for this header.",
+						Element:      schema.ElementStringArray,
+						PropertyName: "values",
+					},
+					{
+						Label:        "Secrets",
+						Description:  "Sensitive values for this header.",
+						Element:      schema.ElementStringArray,
+						InputType:    schema.InputTypePassword,
+						PropertyName: "secrets",
+						Secure:       true,
+					},
+				},
 			},
 		}, append(
 			V0ProxyConfigOptions(),

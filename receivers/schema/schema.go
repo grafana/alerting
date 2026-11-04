@@ -185,7 +185,13 @@ func getSecretFields(parentPath IntegrationFieldPath, options []Field) []Integra
 			continue
 		}
 		if len(field.SubformOptions) > 0 {
-			secureFields = append(secureFields, getSecretFields(append(parentPath, field.PropertyName), field.SubformOptions)...)
+			fieldPath := parentPath.With(field.PropertyName)
+			if field.Element == ElementTypeKeyValueObjectMap {
+				// The map key is chosen by the user, so use a wildcard to describe
+				// secure fields in every map value.
+				fieldPath = fieldPath.With("*")
+			}
+			secureFields = append(secureFields, getSecretFields(fieldPath, field.SubformOptions)...)
 		}
 	}
 	return secureFields
@@ -220,6 +226,9 @@ const (
 	ElementTypeTextArea = "textarea"
 	// ElementTypeKeyValueMap will render inputs to add arbitrary key-value pairs
 	ElementTypeKeyValueMap = "key_value_map"
+	// ElementTypeKeyValueObjectMap will render a map whose values are objects
+	// described by SubformOptions.
+	ElementTypeKeyValueObjectMap = "key_value_object_map"
 	// ElementSubformArray will render a sub-form with schema defined in SubformOptions
 	ElementTypeSubform = "subform"
 	// ElementSubformArray will render a multiple sub-forms with schema defined in SubformOptions
@@ -256,8 +265,13 @@ func NewIntegrationFieldPath(segments ...string) IntegrationFieldPath {
 	return segments
 }
 
+// ParseIntegrationPath splits a dotted path and unescapes dots and percent signs within segments.
 func ParseIntegrationPath(path string) IntegrationFieldPath {
-	return strings.Split(path, ".")
+	segments := strings.Split(path, ".")
+	for i, segment := range segments {
+		segments[i] = unescapeIntegrationFieldPathSegment(segment)
+	}
+	return segments
 }
 
 func (f IntegrationFieldPath) Head() string {
@@ -275,8 +289,26 @@ func (f IntegrationFieldPath) IsLeaf() bool {
 	return len(f) == 1
 }
 
+// String joins path segments with dots, escaping dots and percent signs within segments.
 func (f IntegrationFieldPath) String() string {
-	return strings.Join(f, ".")
+	segments := make([]string, len(f))
+	for i, segment := range f {
+		segments[i] = escapeIntegrationFieldPathSegment(segment)
+	}
+	return strings.Join(segments, ".")
+}
+
+var (
+	integrationFieldPathEscaper   = strings.NewReplacer("%", "%25", ".", "%2E")
+	integrationFieldPathUnescaper = strings.NewReplacer("%2E", ".", "%25", "%")
+)
+
+func escapeIntegrationFieldPathSegment(segment string) string {
+	return integrationFieldPathEscaper.Replace(segment)
+}
+
+func unescapeIntegrationFieldPathSegment(segment string) string {
+	return integrationFieldPathUnescaper.Replace(segment)
 }
 
 func (f IntegrationFieldPath) With(segment string) IntegrationFieldPath {
@@ -288,6 +320,17 @@ func (f IntegrationFieldPath) With(segment string) IntegrationFieldPath {
 }
 
 func getFieldRecursive(field Field, path IntegrationFieldPath) (Field, bool) {
+	if field.Element == ElementTypeKeyValueObjectMap {
+		// Consume the user-defined map key before looking up a field in the
+		// object schema for each map value.
+		if len(path) == 0 {
+			return Field{}, false
+		}
+		path = path.Tail()
+		if len(path) == 0 {
+			return Field{}, false
+		}
+	}
 	for _, integrationField := range field.SubformOptions {
 		if strings.EqualFold(integrationField.PropertyName, path.Head()) {
 			if path.IsLeaf() {

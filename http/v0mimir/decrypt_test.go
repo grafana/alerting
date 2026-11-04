@@ -146,7 +146,7 @@ func TestDecryptHTTPConfig(t *testing.T) {
 				},
 			},
 			secrets: map[string][]byte{
-				"http_config.http_headers.X-Custom": []byte(`["s1","s2"]`),
+				"http_config.http_headers.X-Custom.secrets": []byte(`["s1","s2"]`),
 			},
 			expectedCfg: &HTTPClientConfig{
 				HTTPHeaders: Headers{
@@ -165,9 +165,47 @@ func TestDecryptHTTPConfig(t *testing.T) {
 				},
 			},
 			secrets: map[string][]byte{
-				"http_config.http_headers.X-Bad": []byte(`not-json`),
+				"http_config.http_headers.X-Bad.secrets": []byte(`not-json`),
 			},
-			expectedErr: "invalid http_config.http_headers.X-Bad",
+			expectedErr: "invalid http_config.http_headers.X-Bad.secrets",
+		},
+		{
+			name: "HTTP headers secrets from legacy path",
+			cfg: &HTTPClientConfig{
+				HTTPHeaders: Headers{
+					"X-Custom": Header{Values: []string{"val"}},
+				},
+			},
+			secrets: map[string][]byte{
+				"http_config.http_headers.X-Custom": []byte(`["legacy-secret"]`),
+			},
+			expectedCfg: &HTTPClientConfig{
+				HTTPHeaders: Headers{
+					"X-Custom": Header{
+						Values:  []string{"val"},
+						Secrets: []commoncfg.Secret{"legacy-secret"},
+					},
+				},
+			},
+		},
+		{
+			name: "HTTP header names with dots in secure paths",
+			cfg: &HTTPClientConfig{
+				HTTPHeaders: Headers{
+					"X-Request.Trace": Header{Values: []string{"trace-id"}},
+				},
+			},
+			secrets: map[string][]byte{
+				"http_config.http_headers.X-Request%2ETrace.secrets": []byte(`["header-secret"]`),
+			},
+			expectedCfg: &HTTPClientConfig{
+				HTTPHeaders: Headers{
+					"X-Request.Trace": Header{
+						Values:  []string{"trace-id"},
+						Secrets: []commoncfg.Secret{"header-secret"},
+					},
+				},
+			},
 		},
 		{
 			name: "Proxy connect header secrets",

@@ -43,7 +43,12 @@ import (
 )
 
 func TestGetSecretKeysForContactPointType(t *testing.T) {
-	httpConfigSecrets := []string{"http_config.authorization.credentials", "http_config.basic_auth.password", "http_config.oauth2.client_secret"}
+	httpConfigSecrets := []string{
+		"http_config.authorization.credentials",
+		"http_config.basic_auth.password",
+		"http_config.http_headers.*.secrets",
+		"http_config.oauth2.client_secret",
+	}
 	testCases := []struct {
 		receiverType         schema.IntegrationType
 		version              schema.Version
@@ -303,6 +308,12 @@ func TestV0IntegrationsSecrets(t *testing.T) {
 			expectedSecretPaths := version.GetSecretFieldsPaths()
 			expectedSecrets := make([]string, 0, len(expectedSecretPaths))
 			for _, path := range expectedSecretPaths {
+				// The v0 Mimir test fixtures contain no marker values for secrets in
+				// user-defined maps. Their wildcard schema paths are asserted by
+				// TestGetSecretKeysForContactPointType and the schema/decryption tests.
+				if containsPathWildcard(path) {
+					continue
+				}
 				expectedSecrets = append(expectedSecrets, path.String())
 			}
 			var secrets []string
@@ -411,6 +422,15 @@ func getSecrets(m map[string]any, parent string) []string {
 		}
 	}
 	return result
+}
+
+func containsPathWildcard(path schema.IntegrationFieldPath) bool {
+	for _, segment := range path {
+		if segment == "*" {
+			return true
+		}
+	}
+	return false
 }
 
 func changeCase(integrationType schema.IntegrationType) schema.IntegrationType {

@@ -24,6 +24,8 @@ import (
 	commoncfg "github.com/prometheus/common/config"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
+
+	"github.com/grafana/alerting/receivers/schema"
 )
 
 func mustParseURL(s string) commoncfg.URL {
@@ -32,6 +34,30 @@ func mustParseURL(s string) commoncfg.URL {
 		panic(err)
 	}
 	return commoncfg.URL{URL: u}
+}
+
+func TestV0HTTPHeadersSchema(t *testing.T) {
+	httpConfig := V0HttpConfigOption()
+	var headers *schema.Field
+	for i := range httpConfig.SubformOptions {
+		option := &httpConfig.SubformOptions[i]
+		if option.PropertyName == "http_headers" {
+			headers = option
+			break
+		}
+	}
+	require.NotNil(t, headers)
+	require.Equal(t, schema.ElementType(schema.ElementTypeKeyValueObjectMap), headers.Element)
+	require.Len(t, headers.SubformOptions, 2)
+
+	values, secrets := headers.SubformOptions[0], headers.SubformOptions[1]
+	require.Equal(t, "values", values.PropertyName)
+	require.Equal(t, schema.ElementType(schema.ElementStringArray), values.Element)
+	require.False(t, values.Secure)
+	require.Equal(t, "secrets", secrets.PropertyName)
+	require.Equal(t, schema.ElementType(schema.ElementStringArray), secrets.Element)
+	require.Equal(t, schema.InputType(schema.InputTypePassword), secrets.InputType)
+	require.True(t, secrets.Secure)
 }
 
 func TestTLSConfigValidate(t *testing.T) {
