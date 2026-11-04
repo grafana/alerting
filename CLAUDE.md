@@ -52,3 +52,4 @@ Grafana integration config has two inputs: settings and secure settings. Secure 
 - Factory pattern in `notify/factory.go` builds receiver integrations by version
 - Notification history persisted to Loki via `notify/historian/`
 - Uses Grafana fork of Alertmanager: `github.com/grafana/prometheus-alertmanager`
+- Security issues should be reported via [Grafana's security issue reporting page](https://grafana.com/legal/report-a-security-issue/) and not directly in this repository.
