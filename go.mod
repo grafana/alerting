@@ -10,7 +10,7 @@ require (
 	github.com/benbjohnson/clock v1.3.5
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/go-kit/log v0.2.1
-	github.com/go-logfmt/logfmt v0.5.1
+	github.com/go-logfmt/logfmt v0.6.1
 	github.com/go-openapi/strfmt v0.27.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.4
