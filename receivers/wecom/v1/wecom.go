@@ -68,7 +68,7 @@ func (w *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error)
 	url := w.settings.URL
 	if w.settings.Channel != DefaultChannelType {
 		bodyMsg["agentid"] = w.settings.AgentID
-		bodyMsg["touser"] = w.settings.ToUser
+		bodyMsg["mentioned_list"] = w.settings.ToUser
 		token, err := w.GetAccessToken(ctx)
 		if err != nil {
 			return false, err
