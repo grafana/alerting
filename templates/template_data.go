@@ -23,6 +23,7 @@ import (
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
 
+	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/templates/gomplate"
 	"github.com/grafana/alerting/utils"
@@ -374,7 +375,7 @@ func ExtendData(data *Data, logger log.Logger) *ExtendedData {
 }
 
 func TmplText(ctx context.Context, tmpl *Template, alerts []*types.Alert, l log.Logger, tmplErr *error) (func(string) string, *ExtendedData) {
-	promTmplData := notify.GetTemplateData(ctx, tmpl.Template, alerts, l)
+	promTmplData := notify.GetTemplateData(ctx, tmpl.Template, alerts, logging.NewSlogLogger(l))
 	data := ExtendData(promTmplData, l)
 	data.AppVersion = tmpl.AppVersion
 

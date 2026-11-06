@@ -48,6 +48,8 @@ Prometheus Alertmanager notifiers, so a Mimir-style config that loads upstream
 also loads here. Hand-rolled implementations or changed semantics can silently
 accept configs upstream rejects, or reject configs upstream accepts.
 
+This policy applies to changes. For the Mimir versions that are compatible now, see [Mimir compatibility](./README.md#mimir-compatibility).
+
 We accept `v0mimir*` integrations only as full semantic copies of the corresponding
 upstream notifier: copy the config fields, YAML/JSON tags, defaults, and validation,
 and keep the notifier implementation semantically intact. Document any deliberate

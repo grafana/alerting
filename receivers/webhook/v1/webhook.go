@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/alertmanager/notify"
@@ -22,11 +23,14 @@ import (
 // alert notifications as webhooks.
 type Notifier struct {
 	*receivers.Base
-	ns       receivers.WebhookSender
-	images   images.Provider
-	tmpl     *templates.Template
-	orgID    int64
-	settings Config
+	ns        receivers.WebhookSender
+	images    images.Provider
+	tmpl      *templates.Template
+	orgID     int64
+	settings  Config
+	tlsOnce   sync.Once
+	tlsConfig *tls.Config
+	tlsErr    error
 }
 
 // New is the constructor for
@@ -143,11 +147,13 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		headers["Authorization"] = fmt.Sprintf("%s %s", wn.settings.AuthorizationScheme, wn.settings.AuthorizationCredentials)
 	}
 
-	var tlsConfig *tls.Config
-	if wn.settings.TLSConfig != nil {
-		if tlsConfig, err = wn.settings.TLSConfig.ToCryptoTLSConfig(); err != nil {
-			return false, err
+	wn.tlsOnce.Do(func() {
+		if wn.settings.TLSConfig != nil {
+			wn.tlsConfig, wn.tlsErr = wn.settings.TLSConfig.ToCryptoTLSConfig()
 		}
+	})
+	if wn.tlsErr != nil {
+		return false, wn.tlsErr
 	}
 
 	if parsedURL == NoopURL {
@@ -162,7 +168,7 @@ func (wn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 		Body:       body,
 		HTTPMethod: wn.settings.HTTPMethod,
 		HTTPHeader: headers,
-		TLSConfig:  tlsConfig,
+		TLSConfig:  wn.tlsConfig,
 		HMACConfig: wn.settings.HMACConfig,
 	}
 

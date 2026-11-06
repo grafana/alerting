@@ -16,9 +16,11 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-type WrapNotifierFunc func(integrationName string, notifier nfstatus.Notifier) nfstatus.Notifier
+// WrapNotifierFunc wraps the notifier of each integration built by the factory.
+// It receives the integration type (e.g. "email"), not the name of the integration or its receiver.
+type WrapNotifierFunc func(integrationType schema.IntegrationType, notifier nfstatus.Notifier) nfstatus.Notifier
 
-var NoWrap WrapNotifierFunc = func(_ string, notifier nfstatus.Notifier) nfstatus.Notifier { return notifier }
+var NoWrap WrapNotifierFunc = func(_ schema.IntegrationType, notifier nfstatus.Notifier) nfstatus.Notifier { return notifier }
 
 // BuildReceiversIntegrations builds integrations for the provided API receivers and returns them mapped by receiver name.
 // It ensures uniqueness of receivers by the name, overwriting duplicates and logs warnings.
@@ -156,7 +158,7 @@ func BuildReceiverIntegrationsWithManifests(
 			if err != nil {
 				return nil, fmt.Errorf("failed to build notifier for %q (UID: %q): %w", cfg.Name, cfg.UID, err)
 			}
-			wrapped := wrapNotifierFunc(cfg.Name, nfstatus.NewNotifierAdapter(n))
+			wrapped := wrapNotifierFunc(cfg.Type, nfstatus.NewNotifierAdapter(n))
 			integrations = append(integrations, NewIntegration(wrapped, n, string(cfg.Type), idx, cfg.Name, notificationHistorian, logger))
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strings"
@@ -39,7 +40,9 @@ import (
 
 	"github.com/grafana/alerting/cluster"
 	"github.com/grafana/alerting/definition"
+	alertinghttp "github.com/grafana/alerting/http"
 	"github.com/grafana/alerting/images"
+	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/notify/nfstatus"
 	"github.com/grafana/alerting/notify/stages"
 	"github.com/grafana/alerting/receivers"
@@ -63,7 +66,7 @@ func init() {
 	// This initializes the compat package in fallback mode. It parses first using the UTF-8 parser
 	// and then fallsback to the classic parser on error. UTF-8 is permitted in label names.
 	// This should be removed when the compat package is removed from Alertmanager.
-	compat.InitFromFlags(log.NewNopLogger(), featurecontrol.NoopFlags{})
+	compat.InitFromFlags(logging.NewSlogLogger(log.NewNopLogger()), featurecontrol.NoopFlags{})
 }
 
 type ClusterPeer interface {
@@ -247,10 +250,17 @@ type GrafanaAlertmanagerOpts struct {
 
 	NotificationHistorian nfstatus.NotificationHistorian
 
+	// HTTPTransportConfig controls connection pooling and response draining for HTTP clients created by alerting/http.
+	// Connection limits and response drain limits apply to each client instance, typically one per integration.
+	HTTPTransportConfig alertinghttp.TransportConfig
+
 	DispatchTimer DispatchTimer
 }
 
 func (c *GrafanaAlertmanagerOpts) Validate() error {
+	if err := c.HTTPTransportConfig.Validate(); err != nil {
+		return err
+	}
 	if c.Silences == nil {
 		return errors.New("silence maintenance options must be present")
 	}
@@ -330,7 +340,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 	am.notificationLog, err = nflog.New(nflog.Options{
 		SnapshotReader: strings.NewReader(opts.Nflog.InitialState()),
 		Retention:      opts.Nflog.Retention(),
-		Logger:         opts.Logger,
+		Logger:         am.forkLoggerRaw(),
 		Metrics:        opts.Metrics.Registerer,
 	})
 	if err != nil {
@@ -374,7 +384,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 		am.flushLog, err = flushlog.New(flushlog.Options{
 			SnapshotReader: strings.NewReader(opts.FlushLog.InitialState()),
 			Retention:      opts.FlushLog.Retention(),
-			Logger:         opts.Logger,
+			Logger:         am.forkLoggerRaw(),
 			Metrics:        opts.Metrics.Registerer,
 		})
 		if err != nil {
@@ -398,7 +408,7 @@ func NewGrafanaAlertmanager(opts GrafanaAlertmanagerOpts) (*GrafanaAlertmanager,
 	}
 
 	// Initialize in-memory alerts
-	am.alerts, err = mem.NewAlerts(context.Background(), am.marker, memoryAlertsGCInterval, opts.AlertStoreCallback, am.logger, opts.Metrics.Registerer)
+	am.alerts, err = mem.NewAlerts(context.Background(), am.marker, memoryAlertsGCInterval, opts.AlertStoreCallback, am.forkLogger(), opts.Metrics.Registerer)
 	if err != nil {
 		return nil, fmt.Errorf("unable to initialize the alert provider component of alerting: %w", err)
 	}
@@ -732,7 +742,7 @@ func TestTemplate(ctx context.Context, c TestTemplatesConfigBodyParams, tmplsFac
 	ctx = notify.WithReceiverName(ctx, DefaultReceiverName)
 	ctx = notify.WithGroupLabels(ctx, labels)
 
-	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template, alerts, logger)
+	promTmplData := notify.GetTemplateData(ctx, newTmpl.Template, alerts, logging.NewSlogLogger(logger))
 	data := templates.ExtendData(promTmplData, logger)
 	data.AppVersion = newTmpl.AppVersion
 
@@ -817,7 +827,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		am.opts.Decrypter,
 		DecodeSecretsFromBase64,
 		am.opts.EmailSender,
-		nil,
+		[]alertinghttp.ClientOption{alertinghttp.WithTransportConfig(am.opts.HTTPTransportConfig)},
 		NoWrap,
 		am.opts.Version,
 		am.logger,
@@ -837,9 +847,9 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		am.dispatcher.Stop()
 	}
 
-	am.inhibitor = inhibit.NewInhibitor(am.alerts, cfg.InhibitRules, am.marker, am.logger)
+	am.inhibitor = inhibit.NewInhibitor(am.alerts, cfg.InhibitRules, am.marker, am.forkLogger())
 	am.timeIntervals = am.buildTimeIntervals(cfg.TimeIntervals)
-	am.silencer = silence.NewSilencer(am.silences, am.marker, am.logger)
+	am.silencer = silence.NewSilencer(am.silences, am.marker, am.forkLogger())
 
 	meshStage := notify.NewGossipSettleStage(am.opts.Peer)
 	inhibitionStage := notify.NewMuteStage(am.inhibitor, am.stageMetrics)
@@ -855,7 +865,7 @@ func (am *GrafanaAlertmanager) ApplyConfig(cfg NotificationsConfiguration) (err 
 		dispatchTimer = dispatch.NewSyncTimerFactory(am.flushLog, am.opts.Peer.Position)
 	}
 
-	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.Limits.Dispatcher, am.logger, am.dispatcherMetrics, dispatchTimer)
+	am.dispatcher = dispatch.NewDispatcher(am.alerts, am.route, routingStage, am.marker, am.timeoutFunc, cfg.Limits.Dispatcher, am.forkLogger(), am.dispatcherMetrics, dispatchTimer)
 
 	// TODO: This has not been upstreamed yet. Should be aligned when https://github.com/prometheus/alertmanager/pull/3016 is merged.
 	receivers := make([]*nfstatus.Receiver, 0, len(integrationsMap))
@@ -1075,6 +1085,26 @@ func (am *GrafanaAlertmanager) timeoutFunc(d time.Duration) time.Duration {
 	return d + am.waitFunc()
 }
 
+// forkLogger returns the scoped ("component"="alertmanager") *slog.Logger
+// for fork constructors. Probe DebugEnabled() on opts.Logger before the
+// log.With wrapping in am.logger hides it.
+func (am *GrafanaAlertmanager) forkLogger() *slog.Logger {
+	if d, ok := am.opts.Logger.(interface{ DebugEnabled() bool }); ok {
+		return logging.NewSlogLogger(am.logger, logging.WithDebugEnabled(d.DebugEnabled()))
+	}
+	return logging.NewSlogLogger(am.logger)
+}
+
+// forkLoggerRaw is forkLogger without am.logger's "component"/tenant scoping,
+// for the fork call sites that pass opts.Logger unscoped today (nflog and
+// flushlog Options.Logger).
+func (am *GrafanaAlertmanager) forkLoggerRaw() *slog.Logger {
+	if d, ok := am.opts.Logger.(interface{ DebugEnabled() bool }); ok {
+		return logging.NewSlogLogger(am.opts.Logger, logging.WithDebugEnabled(d.DebugEnabled()))
+	}
+	return logging.NewSlogLogger(am.opts.Logger)
+}
+
 func (am *GrafanaAlertmanager) tenantString() string {
 	return fmt.Sprintf("%d", am.opts.TenantID)
 }
@@ -1088,7 +1118,7 @@ func (am *GrafanaAlertmanager) buildReceiverIntegrations(receiver models.Receive
 		am.opts.Decrypter,
 		DecodeSecretsFromBase64,
 		am.opts.EmailSender,
-		nil,
+		[]alertinghttp.ClientOption{alertinghttp.WithTransportConfig(am.opts.HTTPTransportConfig)},
 		NoWrap,
 		am.opts.Version,
 		am.logger,

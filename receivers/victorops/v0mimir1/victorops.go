@@ -26,6 +26,7 @@ import (
 	"github.com/prometheus/common/model"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
+	"github.com/grafana/alerting/logging"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
@@ -71,7 +72,7 @@ func (n *Notifier) SendResolved() bool { return n.conf.SendResolved() }
 func (n *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error) {
 	var err error
 	var (
-		data   = notify.GetTemplateData(ctx, n.tmpl, as, n.logger)
+		data   = notify.GetTemplateData(ctx, n.tmpl, as, logging.NewSlogLogger(n.logger))
 		tmpl   = notify.TmplText(n.tmpl, data, &err)
 		apiURL = n.conf.APIURL.Copy()
 	)
@@ -116,7 +117,7 @@ func (n *Notifier) createVictorOpsPayload(ctx context.Context, as ...*types.Aler
 
 	var (
 		alerts = types.Alerts(as...)
-		data   = notify.GetTemplateData(ctx, n.tmpl, as, n.logger)
+		data   = notify.GetTemplateData(ctx, n.tmpl, as, logging.NewSlogLogger(n.logger))
 		tmpl   = notify.TmplText(n.tmpl, data, &err)
 
 		messageType  = tmpl(n.conf.MessageType)
