@@ -38,6 +38,25 @@ func TestNewConfigAPIURL(t *testing.T) {
 
 		require.ErrorContains(t, err, "invalid Telegram API URL")
 	})
+
+	for name, apiURL := range map[string]string{
+		"query":       "https://telegram.local?proxy=true",
+		"empty query": "https://telegram.local?",
+		"fragment":    "https://telegram.local#proxy",
+	} {
+		t.Run("rejects an API URL with "+name, func(t *testing.T) {
+			settings, err := json.Marshal(map[string]string{
+				"bottoken": "test-token",
+				"chatid":   "12345678",
+				"api_url":  apiURL,
+			})
+			require.NoError(t, err)
+
+			_, err = NewConfig(settings, receiversTesting.DecryptForTesting(nil))
+
+			require.ErrorContains(t, err, "invalid Telegram API URL")
+		})
+	}
 }
 
 func TestNewWebhookSyncCmdAPIURL(t *testing.T) {

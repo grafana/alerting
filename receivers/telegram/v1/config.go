@@ -73,7 +73,7 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 
 	if settings.APIURL != "" {
 		u, err := url.Parse(settings.APIURL)
-		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.RawQuery != "" || u.Fragment != "" {
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.ForceQuery || u.RawQuery != "" || u.Fragment != "" {
 			return settings, fmt.Errorf("invalid Telegram API URL %q", settings.APIURL)
 		}
 		settings.APIURL = strings.TrimRight(u.String(), "/")
