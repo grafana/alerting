@@ -6,6 +6,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/modern-go/reflect2"
 	amcfg "github.com/prometheus/alertmanager/config"
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	commoncfg "github.com/prometheus/common/config"
 )
 
@@ -45,8 +46,8 @@ func (encoder *secretURLEncoder) IsEmpty(ptr unsafe.Pointer) bool {
 }
 
 func getAmcfgURLString(ptr unsafe.Pointer) *string {
-	v := (*amcfg.SecretURL)(ptr)
-	u := amcfg.URL(*v)
+	v := (*amcommoncfg.SecretURL)(ptr)
+	u := amcommoncfg.URL(*v)
 	if u.URL == nil {
 		return nil
 	}
@@ -73,17 +74,17 @@ func newPlainSecretsAPI() jsoniter.API {
 
 	extension := jsoniter.EncoderExtension{
 		// Value types
-		reflect2.TypeOfPtr((*amcfg.Secret)(nil)).Elem():     secretEnc,
-		reflect2.TypeOfPtr((*commoncfg.Secret)(nil)).Elem(): secretEnc,
-		reflect2.TypeOfPtr((*Secret)(nil)).Elem():           secretEnc,
-		reflect2.TypeOfPtr((*amcfg.SecretURL)(nil)).Elem():  amcfgSecretURLEnc,
-		reflect2.TypeOfPtr((*SecretURL)(nil)).Elem():        receiversSecretURLEnc,
+		reflect2.TypeOfPtr((*amcfg.Secret)(nil)).Elem():          secretEnc,
+		reflect2.TypeOfPtr((*commoncfg.Secret)(nil)).Elem():      secretEnc,
+		reflect2.TypeOfPtr((*Secret)(nil)).Elem():                secretEnc,
+		reflect2.TypeOfPtr((*amcommoncfg.SecretURL)(nil)).Elem(): amcfgSecretURLEnc,
+		reflect2.TypeOfPtr((*SecretURL)(nil)).Elem():             receiversSecretURLEnc,
 		// Pointer types
-		reflect2.TypeOfPtr((*amcfg.Secret)(nil)):     &jsoniter.OptionalEncoder{ValueEncoder: secretEnc},
-		reflect2.TypeOfPtr((*commoncfg.Secret)(nil)): &jsoniter.OptionalEncoder{ValueEncoder: secretEnc},
-		reflect2.TypeOfPtr((*Secret)(nil)):           &jsoniter.OptionalEncoder{ValueEncoder: secretEnc},
-		reflect2.TypeOfPtr((*amcfg.SecretURL)(nil)):  &jsoniter.OptionalEncoder{ValueEncoder: amcfgSecretURLEnc},
-		reflect2.TypeOfPtr((*SecretURL)(nil)):        &jsoniter.OptionalEncoder{ValueEncoder: receiversSecretURLEnc},
+		reflect2.TypeOfPtr((*amcfg.Secret)(nil)):          &jsoniter.OptionalEncoder{ValueEncoder: secretEnc},
+		reflect2.TypeOfPtr((*commoncfg.Secret)(nil)):      &jsoniter.OptionalEncoder{ValueEncoder: secretEnc},
+		reflect2.TypeOfPtr((*Secret)(nil)):                &jsoniter.OptionalEncoder{ValueEncoder: secretEnc},
+		reflect2.TypeOfPtr((*amcommoncfg.SecretURL)(nil)): &jsoniter.OptionalEncoder{ValueEncoder: amcfgSecretURLEnc},
+		reflect2.TypeOfPtr((*SecretURL)(nil)):             &jsoniter.OptionalEncoder{ValueEncoder: receiversSecretURLEnc},
 	}
 
 	api.RegisterExtension(extension)

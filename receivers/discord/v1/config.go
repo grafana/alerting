@@ -10,7 +10,10 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-const Version = schema.V1
+const (
+	Type    = schema.DiscordType
+	Version = schema.V1
+)
 
 type Config struct {
 	Title               string `json:"title,omitempty" yaml:"title,omitempty"`
@@ -91,18 +94,9 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	},
 })
 
-var Factory = receivers.IntegrationVersionFactory{
-	Version: Version,
-	Type:    schema.DiscordType,
-	ValidateConfig: func(message json.RawMessage, decryptFunc receivers.DecryptFunc) error {
-		_, err := NewConfig(message, decryptFunc)
-		return err
-	},
-	NewNotifier: func(message json.RawMessage, decryptFunc receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
-		cfg, err := NewConfig(message, decryptFunc)
-		if err != nil {
-			return nil, err
-		}
+var Factory = receivers.NewIntegrationVersionFactory(
+	Type, Version, NewConfig,
+	func(cfg Config, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
 		return New(cfg, m, opts.Template, opts.Sender, opts.Images, opts.Logger, opts.GrafanaVersion), nil
 	},
-}
+)

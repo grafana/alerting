@@ -11,7 +11,10 @@ import (
 	"github.com/grafana/alerting/templates"
 )
 
-const Version = schema.V1
+const (
+	Type    = schema.TeamsType
+	Version = schema.V1
+)
 
 type Config struct {
 	URL          string `json:"url,omitempty" yaml:"url,omitempty"`
@@ -38,22 +41,13 @@ func NewConfig(jsonData json.RawMessage, _ receivers.DecryptFunc) (Config, error
 	return settings, nil
 }
 
-var Factory = receivers.IntegrationVersionFactory{
-	Version: Version,
-	Type:    schema.TeamsType,
-	ValidateConfig: func(message json.RawMessage, decryptFunc receivers.DecryptFunc) error {
-		_, err := NewConfig(message, decryptFunc)
-		return err
-	},
-	NewNotifier: func(message json.RawMessage, decryptFunc receivers.DecryptFunc, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
-		cfg, err := NewConfig(message, decryptFunc)
-		if err != nil {
-			return nil, err
-		}
+var Factory = receivers.NewIntegrationVersionFactory(
+	Type, Version, NewConfig,
+	func(cfg Config, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
 		ch := New(cfg, m, opts.Template, opts.Sender, opts.Images, opts.Logger)
 		return ch, nil
 	},
-}
+)
 
 var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,

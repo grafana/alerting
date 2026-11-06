@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/go-kit/log"
+	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/template"
 	"github.com/prometheus/alertmanager/types"
 	"github.com/prometheus/common/model"
@@ -179,7 +180,7 @@ func templateDataForTests(t *testing.T, tmpl *Template) *template.Data {
 
 	eurl, _ := url.Parse("http://localhost:9090")
 	tmpl.ExternalURL = eurl // This is done externally, by the system using the templates.
-	return tmpl.Data("receiver", model.LabelSet{}, &types.Alert{
+	return tmpl.Data("receiver", model.LabelSet{}, nil, notify.ReasonFirstNotification.String(), &types.Alert{
 		Alert: model.Alert{
 			GeneratorURL: "http://localhost:9090",
 		},

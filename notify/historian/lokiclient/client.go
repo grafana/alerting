@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-kit/log"
@@ -56,6 +57,10 @@ type LokiConfig struct {
 	Encoder           encoder
 	MaxQueryLength    time.Duration
 	MaxQuerySize      int
+	// UsePOSTForQueries sends the parameters of a read request in a form-encoded body instead of
+	// the query string. Loki accepts POST on its read endpoints, and a body keeps the request line
+	// short enough for gateways that reject a long URI with 414. Defaults to false (GET).
+	UsePOSTForQueries bool
 	// MaxWriteBatchSize is the maximum number of bytes, as Loki accounts for them (log lines plus
 	// structured metadata, uncompressed), that a single push request may carry. Larger payloads are
 	// split into several requests sent in parallel, so a failure can leave a partial write: some
@@ -282,6 +287,45 @@ func (c *HTTPLokiClient) setAuthAndTenantHeaders(req *http.Request) {
 	}
 }
 
+// newQueryRequest builds a read request for path, carrying values either in the query string or in
+// a form-encoded body depending on UsePOSTForQueries.
+func (c *HTTPLokiClient) newQueryRequest(ctx context.Context, path string, values url.Values) (*http.Request, error) {
+	uri := c.cfg.ReadPathURL.JoinPath(path)
+
+	if !c.cfg.UsePOSTForQueries {
+		uri.RawQuery = values.Encode()
+		return http.NewRequestWithContext(ctx, http.MethodGet, uri.String(), nil)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, uri.String(), strings.NewReader(values.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return req, nil
+}
+
+// sendQuery sends a read request to Loki and returns the raw response body.
+func (c *HTTPLokiClient) sendQuery(ctx context.Context, path string, values url.Values) ([]byte, error) {
+	req, err := c.newQueryRequest(ctx, path, values)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %w", err)
+	}
+	c.setAuthAndTenantHeaders(req)
+
+	res, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error executing request: %w", err)
+	}
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			level.Warn(c.logger).Log("msg", "Failed to close response body", "err", err)
+		}
+	}()
+
+	return c.handleLokiResponse(c.logger, res)
+}
+
 func (c *HTTPLokiClient) RangeQuery(ctx context.Context, logQL string, start, end, limit int64) (QueryRes, error) {
 	// Run the pre-flight checks for the query.
 	if start > end {
@@ -295,36 +339,14 @@ func (c *HTTPLokiClient) RangeQuery(ctx context.Context, logQL string, start, en
 		limit = maximumPageSize
 	}
 
-	queryURL := c.cfg.ReadPathURL.JoinPath("/loki/api/v1/query_range")
-
 	values := url.Values{}
 	values.Set("query", logQL)
 	values.Set("start", fmt.Sprintf("%d", start))
 	values.Set("end", fmt.Sprintf("%d", end))
 	values.Set("limit", fmt.Sprintf("%d", limit))
 
-	queryURL.RawQuery = values.Encode()
 	level.Debug(c.logger).Log("msg", "Sending query request", "query", logQL, "start", start, "end", end, "limit", limit)
-	req, err := http.NewRequest(http.MethodGet,
-		queryURL.String(), nil)
-	if err != nil {
-		return QueryRes{}, fmt.Errorf("error creating request: %w", err)
-	}
-
-	req = req.WithContext(ctx)
-	c.setAuthAndTenantHeaders(req)
-
-	res, err := c.client.Do(req)
-	if err != nil {
-		return QueryRes{}, fmt.Errorf("error executing request: %w", err)
-	}
-	defer func() {
-		if err := res.Body.Close(); err != nil {
-			level.Warn(c.logger).Log("msg", "Failed to close response body", "err", err)
-		}
-	}()
-
-	data, err := c.handleLokiResponse(c.logger, res)
+	data, err := c.sendQuery(ctx, "/loki/api/v1/query_range", values)
 	if err != nil {
 		return QueryRes{}, err
 	}
@@ -347,34 +369,13 @@ func (c *HTTPLokiClient) MetricsQuery(ctx context.Context, logQL string, ts int6
 		limit = maximumPageSize
 	}
 
-	queryURL := c.cfg.ReadPathURL.JoinPath("/loki/api/v1/query")
-
 	values := url.Values{}
 	values.Set("query", logQL)
 	values.Set("time", fmt.Sprintf("%d", ts))
 	values.Set("limit", fmt.Sprintf("%d", limit))
 
-	queryURL.RawQuery = values.Encode()
 	level.Debug(c.logger).Log("msg", "Sending metrics query request", "query", logQL, "time", ts, "limit", limit)
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return MetricsQueryRes{}, fmt.Errorf("error creating request: %w", err)
-	}
-
-	req = req.WithContext(ctx)
-	c.setAuthAndTenantHeaders(req)
-
-	res, err := c.client.Do(req)
-	if err != nil {
-		return MetricsQueryRes{}, fmt.Errorf("error executing request: %w", err)
-	}
-	defer func() {
-		if err := res.Body.Close(); err != nil {
-			level.Warn(c.logger).Log("msg", "Failed to close response body", "err", err)
-		}
-	}()
-
-	data, err := c.handleLokiResponse(c.logger, res)
+	data, err := c.sendQuery(ctx, "/loki/api/v1/query", values)
 	if err != nil {
 		return MetricsQueryRes{}, err
 	}
@@ -401,8 +402,6 @@ func (c *HTTPLokiClient) MetricsRangeQuery(ctx context.Context, logQL string, st
 		limit = maximumPageSize
 	}
 
-	queryURL := c.cfg.ReadPathURL.JoinPath("/loki/api/v1/query_range")
-
 	values := url.Values{}
 	values.Set("query", logQL)
 	values.Set("start", fmt.Sprintf("%d", start))
@@ -412,27 +411,8 @@ func (c *HTTPLokiClient) MetricsRangeQuery(ctx context.Context, logQL string, st
 		values.Set("step", fmt.Sprintf("%d", step))
 	}
 
-	queryURL.RawQuery = values.Encode()
 	level.Debug(c.logger).Log("msg", "Sending metrics range query request", "query", logQL, "start", start, "end", end, "limit", limit, "step", step)
-	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
-	if err != nil {
-		return MetricsRangeQueryRes{}, fmt.Errorf("error creating request: %w", err)
-	}
-
-	req = req.WithContext(ctx)
-	c.setAuthAndTenantHeaders(req)
-
-	res, err := c.client.Do(req)
-	if err != nil {
-		return MetricsRangeQueryRes{}, fmt.Errorf("error executing request: %w", err)
-	}
-	defer func() {
-		if err := res.Body.Close(); err != nil {
-			level.Warn(c.logger).Log("msg", "Failed to close response body", "err", err)
-		}
-	}()
-
-	data, err := c.handleLokiResponse(c.logger, res)
+	data, err := c.sendQuery(ctx, "/loki/api/v1/query_range", values)
 	if err != nil {
 		return MetricsRangeQueryRes{}, err
 	}

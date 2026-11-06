@@ -8,8 +8,9 @@ import (
 
 	"golang.org/x/net/http/httpproxy"
 
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
+
 	"github.com/grafana/alerting/receivers"
-	"github.com/prometheus/alertmanager/config"
 )
 
 var (
@@ -52,7 +53,7 @@ func ValidateHTTPClientConfig(cfg *HTTPClientConfig) error {
 }
 
 // Simple wrapper to allow marshalling and unmarshalling of URL in YAML and JSON formats with validation.
-type URL = config.URL
+type URL = amcommoncfg.URL
 
 type ProxyConfig struct {
 	// ProxyURL is the HTTP proxy server to use to connect to the targets.

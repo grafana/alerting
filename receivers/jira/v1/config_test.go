@@ -8,6 +8,7 @@ import (
 
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 )
@@ -244,6 +245,18 @@ func TestNewConfig(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, c.expectedConfig, actual)
+
+			encoded, err := json.Marshal(actual)
+			require.NoError(t, err)
+			var roundTrip Config
+			require.NoError(t, json.Unmarshal(encoded, &roundTrip))
+			require.Equal(t, actual, roundTrip)
+
+			encoded, err = yaml.Marshal(actual)
+			require.NoError(t, err)
+			roundTrip = Config{}
+			require.NoError(t, yaml.Unmarshal(encoded, &roundTrip))
+			require.Equal(t, actual, roundTrip)
 		})
 	}
 }

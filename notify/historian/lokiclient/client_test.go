@@ -133,6 +133,61 @@ func TestLokiHTTPClient(t *testing.T) {
 			require.True(t, params.Has("limit"), "query params did not contain 'limit': %#v", params)
 			require.Equal(t, fmt.Sprint(maximumPageSize), params.Get("limit"))
 		})
+
+		t.Run("sends the query in the request URI by default", func(t *testing.T) {
+			req := okRequester()
+			client := createTestLokiClient(req)
+			now := time.Now().UTC().UnixNano()
+			q := `{from="state-history"}`
+
+			_, err := client.RangeQuery(context.Background(), q, now-100, now, defaultPageSize)
+
+			require.NoError(t, err)
+			require.Equal(t, http.MethodGet, req.LastRequest.Method)
+			require.Equal(t, q, req.LastRequest.URL.Query().Get("query"))
+			require.Nil(t, req.LastRequest.Body)
+		})
+
+		t.Run("keeps a long query out of the request URI when configured to POST", func(t *testing.T) {
+			req := okRequester()
+			client := createTestLokiClientWithConfig(req, func(cfg *LokiConfig) {
+				cfg.UsePOSTForQueries = true
+			})
+			now := time.Now().UTC().UnixNano()
+			// Bigger than the request line a stock nginx will accept.
+			folders := make([]string, 500)
+			for i := range folders {
+				folders[i] = fmt.Sprintf("folder-uid-%013d", i)
+			}
+			q := fmt.Sprintf(`{orgID="1",from="state-history",folderUID=~%q}`, strings.Join(folders, "|"))
+			require.Greater(t, len(q), 8192)
+
+			_, err := client.RangeQuery(context.Background(), q, now-100, now, defaultPageSize)
+
+			require.NoError(t, err)
+			require.Less(t, len(req.LastRequest.URL.RequestURI()), 1024)
+			params := reqForm(t, req.LastRequest)
+			require.Equal(t, q, params.Get("query"))
+		})
+
+		t.Run("passes the same parameters either way", func(t *testing.T) {
+			now := time.Now().UTC().UnixNano()
+			q := `{from="state-history"}`
+
+			getReq := okRequester()
+			_, err := createTestLokiClient(getReq).RangeQuery(context.Background(), q, now-100, now, 250)
+			require.NoError(t, err)
+
+			postReq := okRequester()
+			postClient := createTestLokiClientWithConfig(postReq, func(cfg *LokiConfig) {
+				cfg.UsePOSTForQueries = true
+			})
+			_, err = postClient.RangeQuery(context.Background(), q, now-100, now, 250)
+			require.NoError(t, err)
+
+			require.Equal(t, getReq.LastRequest.URL.Path, postReq.LastRequest.URL.Path)
+			require.Equal(t, getReq.LastRequest.URL.Query(), reqForm(t, postReq.LastRequest))
+		})
 	})
 }
 
@@ -557,6 +612,30 @@ func createTestLokiClient(req alertingInstrument.Requester) *HTTPLokiClient {
 	return createTestLokiClientWithEncoder(req, JSONEncoder{})
 }
 
+func createTestLokiClientWithConfig(req alertingInstrument.Requester, mut func(*LokiConfig)) *HTTPLokiClient {
+	url, _ := url.Parse("http://some.url")
+	cfg := LokiConfig{
+		WritePathURL: url,
+		ReadPathURL:  url,
+		Encoder:      JSONEncoder{},
+	}
+	mut(&cfg)
+
+	bytesWritten := prometheus.NewCounter(prometheus.CounterOpts{})
+	writeDuration := instrument.NewHistogramCollector(prometheus.NewHistogramVec(prometheus.HistogramOpts{}, instrument.HistogramCollectorBuckets))
+	return NewLokiClient(cfg, req, bytesWritten, writeDuration, log.NewNopLogger(), noop.NewTracerProvider().Tracer("test"), lokiClientSpanName)
+}
+
+func okRequester() *instrumenttest.FakeRequester {
+	return instrumenttest.NewFakeRequester().WithResponse(&http.Response{
+		Status:        "200 OK",
+		StatusCode:    200,
+		Body:          io.NopCloser(bytes.NewBufferString(`{}`)),
+		ContentLength: int64(0),
+		Header:        make(http.Header, 0),
+	})
+}
+
 func createTestLokiClientWithEncoder(req alertingInstrument.Requester, enc encoder) *HTTPLokiClient {
 	url, _ := url.Parse("http://some.url")
 	cfg := LokiConfig{
@@ -568,6 +647,17 @@ func createTestLokiClientWithEncoder(req alertingInstrument.Requester, enc encod
 	bytesWritten := prometheus.NewCounter(prometheus.CounterOpts{})
 	writeDuration := instrument.NewHistogramCollector(prometheus.NewHistogramVec(prometheus.HistogramOpts{}, instrument.HistogramCollectorBuckets))
 	return NewLokiClient(cfg, req, bytesWritten, writeDuration, log.NewNopLogger(), noop.NewTracerProvider().Tracer("test"), lokiClientSpanName)
+}
+
+func reqForm(t *testing.T, req *http.Request) url.Values {
+	t.Helper()
+
+	require.Equal(t, http.MethodPost, req.Method)
+	require.Equal(t, "application/x-www-form-urlencoded", req.Header.Get("Content-Type"))
+	require.Empty(t, req.URL.RawQuery, "read query parameters must be in the body, not the request URI")
+	values, err := url.ParseQuery(reqBody(t, req))
+	require.NoError(t, err)
+	return values
 }
 
 func reqBody(t *testing.T, req *http.Request) string {
