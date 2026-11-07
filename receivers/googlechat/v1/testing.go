@@ -6,7 +6,8 @@ const FullValidConfigForTesting = `{
 	"title": "test-title", 
 	"message": "test-message",
 	"hide_open_button": true,
-	"hide_version_info": true
+	"hide_version_info": true,
+	"enable_threading": true
 }`
 
 // FullValidSecretsForTesting is a string representation of JSON object that contains all fields that can be overridden from secrets.
