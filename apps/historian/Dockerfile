@@ -7,7 +7,7 @@
 #
 # (run from the repository root; `make build-docker-image-historian-operator`,
 # or the `build-docker-images` aggregate, does this for you.)
-FROM golang:1.26.10-alpine@sha256:87c65a688975c0b1d4585d204874c45ca78354670e3a5f11368c5a492303d696 AS builder
+FROM golang:1.26.11-alpine@sha256:ae52b5bc6ed045a9ed26ab03dc19327a802a9cc9aa8b27ed57f5c6b60579b0bb AS builder
 
 # make is used to build via the Makefile's `build` target.
 RUN apk add --no-cache make
@@ -35,7 +35,7 @@ COPY . .
 WORKDIR /build/apps/historian
 RUN make build
 
-FROM alpine:3.23@sha256:f3d55900449227ae9e237ede521e7b665d53a253b42065ba90b9db9275e198ad AS runtime
+FROM alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 AS runtime
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /build/apps/historian/historian-operator /usr/bin/historian-operator
 
