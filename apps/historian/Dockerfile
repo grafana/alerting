@@ -35,7 +35,7 @@ COPY . .
 WORKDIR /build/apps/historian
 RUN make build
 
-FROM alpine:3.23@sha256:469c9ea410b9215eaee7976ba6c0639039b444be8e5d638f7abbada189971eb2 AS runtime
+FROM alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS runtime
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /build/apps/historian/historian-operator /usr/bin/historian-operator
 
