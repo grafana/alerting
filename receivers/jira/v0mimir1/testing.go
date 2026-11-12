@@ -10,10 +10,11 @@ import (
 
 const FullValidConfigForTesting = `{
 	"api_url": "http://localhost",
+	"api_type": "cloud",
 	"project": "PROJ",
 	"issue_type": "Bug",
-	"summary": "test summary",
-	"description": "test description",
+	"summary": {"template": "test summary", "enable_update": false},
+	"description": {"template": "test description"},
 	"priority": "High",
 	"labels": ["alertmanager"],
 	"custom_fields": {
@@ -27,10 +28,11 @@ const FullValidConfigForTesting = `{
 func GetFullValidConfig() Config {
 	cfg := DefaultConfig
 	cfg.APIURL = receivers.MustParseURL("http://jira.example.com")
+	cfg.APIType = "cloud"
 	cfg.Project = "TEST"
 	cfg.IssueType = "Bug"
-	cfg.Summary = "Custom Summary"
-	cfg.Description = "Custom Description"
+	cfg.Summary = JiraFieldConfig{Template: "Custom Summary", EnableUpdate: new(false)}
+	cfg.Description = JiraFieldConfig{Template: "Custom Description"}
 	cfg.Labels = []string{"alert", "critical"}
 	cfg.Priority = "P1"
 	cfg.ReopenTransition = "Reopen"
