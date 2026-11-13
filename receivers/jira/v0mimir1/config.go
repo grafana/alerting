@@ -15,6 +15,7 @@
 package v0mimir1
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"github.com/prometheus/common/model"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
+	"github.com/grafana/alerting/logging"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/receivers/schema"
 )
@@ -36,9 +38,54 @@ var DefaultConfig = Config{
 	NotifierConfig: receivers.NotifierConfig{
 		VSendResolved: true,
 	},
-	Summary:     `{{ template "jira.default.summary" . }}`,
-	Description: `{{ template "jira.default.description" . }}`,
-	Priority:    `{{ template "jira.default.priority" . }}`,
+	APIType: "auto",
+	Summary: JiraFieldConfig{
+		Template: `{{ template "jira.default.summary" . }}`,
+	},
+	Description: JiraFieldConfig{
+		Template: `{{ template "jira.default.description" . }}`,
+	},
+	Priority: `{{ template "jira.default.priority" . }}`,
+}
+
+// JiraFieldConfig configures a templated Jira issue field and whether existing issues update it.
+type JiraFieldConfig struct {
+	Template     string `yaml:"template,omitempty" json:"template,omitempty"`
+	EnableUpdate *bool  `yaml:"enable_update,omitempty" json:"enable_update,omitempty"`
+}
+
+// EnableUpdateValue reports whether the field should be updated on existing issues.
+func (f *JiraFieldConfig) EnableUpdateValue() bool {
+	if f.EnableUpdate == nil {
+		return true
+	}
+	return *f.EnableUpdate
+}
+
+// UnmarshalYAML accepts both the legacy string form and the object form.
+func (f *JiraFieldConfig) UnmarshalYAML(unmarshal func(any) error) error {
+	var s string
+	if err := unmarshal(&s); err == nil {
+		f.Template = s
+		return nil
+	}
+	type plain JiraFieldConfig
+	return unmarshal((*plain)(f))
+}
+
+// UnmarshalJSON accepts both the legacy string form and the object form.
+func (f *JiraFieldConfig) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		*f = JiraFieldConfig{}
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		f.Template = s
+		return nil
+	}
+	type plain JiraFieldConfig
+	return json.Unmarshal(data, (*plain)(f))
 }
 
 // Config configures notifications via JIRA.
@@ -46,14 +93,15 @@ type Config struct {
 	receivers.NotifierConfig `yaml:",inline" json:",inline"`
 	HTTPConfig               *httpcfg.HTTPClientConfig `yaml:"http_config,omitempty" json:"http_config,omitempty"`
 
-	APIURL *receivers.URL `yaml:"api_url,omitempty" json:"api_url,omitempty"`
+	APIURL  *receivers.URL `yaml:"api_url,omitempty" json:"api_url,omitempty"`
+	APIType string         `yaml:"api_type,omitempty" json:"api_type,omitempty"`
 
-	Project     string   `yaml:"project,omitempty" json:"project,omitempty"`
-	Summary     string   `yaml:"summary,omitempty" json:"summary,omitempty"`
-	Description string   `yaml:"description,omitempty" json:"description,omitempty"`
-	Labels      []string `yaml:"labels,omitempty" json:"labels,omitempty"`
-	Priority    string   `yaml:"priority,omitempty" json:"priority,omitempty"`
-	IssueType   string   `yaml:"issue_type,omitempty" json:"issue_type,omitempty"`
+	Project     string          `yaml:"project,omitempty" json:"project,omitempty"`
+	Summary     JiraFieldConfig `yaml:"summary,omitempty" json:"summary,omitempty"`
+	Description JiraFieldConfig `yaml:"description,omitempty" json:"description,omitempty"`
+	Labels      []string        `yaml:"labels,omitempty" json:"labels,omitempty"`
+	Priority    string          `yaml:"priority,omitempty" json:"priority,omitempty"`
+	IssueType   string          `yaml:"issue_type,omitempty" json:"issue_type,omitempty"`
 
 	ReopenTransition  string         `yaml:"reopen_transition,omitempty" json:"reopen_transition,omitempty"`
 	ResolveTransition string         `yaml:"resolve_transition,omitempty" json:"resolve_transition,omitempty"`
@@ -64,7 +112,7 @@ type Config struct {
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
-func (c *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
+func (c *Config) UnmarshalYAML(unmarshal func(any) error) error {
 	type Plain Config
 	type withFallback struct {
 		Plain            `yaml:",inline" json:",inline"`
@@ -121,6 +169,9 @@ func (c *Config) validate() error {
 	if c.IssueType == "" {
 		return errors.New("missing issue_type in jira_config")
 	}
+	if c.APIType != "auto" && c.APIType != "cloud" && c.APIType != "datacenter" {
+		return errors.New("unknown api_type on jira_config, must be auto, cloud or datacenter")
+	}
 
 	return nil
 }
@@ -136,6 +187,17 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			InputType:    schema.InputTypeText,
 			PropertyName: "api_url",
 			Required:     true,
+		},
+		{
+			Label:        "API type",
+			Description:  "The Jira API type",
+			Element:      schema.ElementTypeSelect,
+			PropertyName: "api_type",
+			SelectOptions: []schema.SelectOption{
+				{Value: "auto", Label: "Auto"},
+				{Value: "cloud", Label: "Cloud"},
+				{Value: "datacenter", Label: "Data Center"},
+			},
 		},
 		{
 			Label:        "Project Key",
@@ -156,17 +218,45 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 		{
 			Label:        "Summary",
 			Description:  "Issue summary template",
-			Placeholder:  DefaultConfig.Summary,
-			Element:      schema.ElementTypeInput,
-			InputType:    schema.InputTypeText,
+			Element:      schema.ElementTypeSubform,
 			PropertyName: "summary",
+			SubformOptions: []schema.Field{
+				{
+					Label:        "Template",
+					Description:  "Issue summary template",
+					Placeholder:  DefaultConfig.Summary.Template,
+					Element:      schema.ElementTypeInput,
+					InputType:    schema.InputTypeText,
+					PropertyName: "template",
+				},
+				{
+					Label:        "Enable update",
+					Description:  "Update this field when an existing issue is found",
+					Element:      schema.ElementTypeCheckbox,
+					PropertyName: "enable_update",
+				},
+			},
 		},
 		{
 			Label:        "Description",
 			Description:  "Issue description template",
-			Placeholder:  DefaultConfig.Description,
-			Element:      schema.ElementTypeTextArea,
+			Element:      schema.ElementTypeSubform,
 			PropertyName: "description",
+			SubformOptions: []schema.Field{
+				{
+					Label:        "Template",
+					Description:  "Issue description template",
+					Placeholder:  DefaultConfig.Description.Template,
+					Element:      schema.ElementTypeTextArea,
+					PropertyName: "template",
+				},
+				{
+					Label:        "Enable update",
+					Description:  "Update this field when an existing issue is found",
+					Element:      schema.ElementTypeCheckbox,
+					PropertyName: "enable_update",
+				},
+			},
 		},
 		{
 			Label:        "Labels",
@@ -224,6 +314,6 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 var Factory = receivers.NewIntegrationVersionFactory(
 	Type, Version, NewConfig,
 	func(cfg Config, m receivers.Metadata, opts receivers.NotifierOpts) (receivers.NotificationChannel, error) {
-		return New(&cfg, opts.Template.Template, opts.Logger, opts.HttpOpts...)
+		return New(&cfg, opts.Template.Template, logging.NewSlogLogger(opts.Logger), opts.HttpOpts...)
 	},
 )
