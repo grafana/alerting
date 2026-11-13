@@ -181,6 +181,6 @@ replace gopkg.in/ldap.v3 v3.1.3 => github.com/go-ldap/ldap/v3 v3.1.3
 // the same snapshot. Remove once upstream dependencies (dskit -> gogo/status) are updated.
 replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20251124214823-79d6a2a48846
 
-replace google.golang.org/genproto/googleapis/rpc => google.golang.org/genproto/googleapis/rpc v0.0.0-20251124214823-79d6a2a48846
+replace google.golang.org/genproto/googleapis/rpc => google.golang.org/genproto/googleapis/rpc v0.0.0-20261110000943-09e21b237f2c
 
 replace google.golang.org/genproto/googleapis/api => google.golang.org/genproto/googleapis/api v0.0.0-20251124214823-79d6a2a48846
