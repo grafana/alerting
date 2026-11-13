@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"strings"
-  "unicode/utf8"
+	"unicode/utf8"
 
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
