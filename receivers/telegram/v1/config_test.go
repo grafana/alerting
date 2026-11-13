@@ -130,6 +130,7 @@ func TestNewConfig(t *testing.T) {
 				DisableWebPagePreview: true,
 				ProtectContent:        true,
 				DisableNotifications:  true,
+				SendMessageAsCaption:  true,
 			},
 		},
 		{
@@ -146,6 +147,7 @@ func TestNewConfig(t *testing.T) {
 				DisableWebPagePreview: true,
 				ProtectContent:        true,
 				DisableNotifications:  true,
+				SendMessageAsCaption:  true,
 			},
 		},
 		{
