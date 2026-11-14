@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/prometheus/alertmanager/dispatch"
@@ -201,6 +202,15 @@ func ValidateIntegrationConfig(ctx context.Context, cfg *models.IntegrationConfi
 	if cfg.Version == "" {
 		return fmt.Errorf("version should not be an empty string")
 	}
+	if isRetiredIntegrationType(cfg.Type) {
+		if cfg.Version != schema.V1 {
+			return fmt.Errorf("invalid integration type or version: %s %s", cfg.Type, cfg.Version)
+		}
+		// Retired integrations remain loadable so an existing contact point
+		// cannot prevent Grafana from starting after an upgrade. They are
+		// omitted from the public schema and skipped by the runtime factory.
+		return nil
+	}
 
 	secureSettings, err := decode(cfg.SecureSettings)
 	if err != nil {
@@ -219,6 +229,10 @@ func ValidateIntegrationConfig(ctx context.Context, cfg *models.IntegrationConfi
 		return fmt.Errorf("invalid integration type or version: %s %s", cfg.Type, cfg.Version)
 	}
 	return factory.ValidateConfig(cfg.Settings, decryptFn)
+}
+
+func isRetiredIntegrationType(integrationType schema.IntegrationType) bool {
+	return strings.EqualFold(string(integrationType), string(schema.LineType))
 }
 
 // GetActiveReceiversMap returns all receivers that are in use by a route.
