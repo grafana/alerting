@@ -24,7 +24,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/alertmanager v0.28.2
 	github.com/prometheus/client_golang v1.23.2
-	github.com/prometheus/common v0.68.0
+	github.com/prometheus/common v0.73.1
 	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
@@ -108,10 +108,11 @@ require (
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/oklog/ulid/v2 v2.1.1 // indirect
 	github.com/opentracing/opentracing-go v1.2.0 // indirect
-	github.com/prometheus/client_model v0.6.2 // indirect
+	github.com/pandatix/go-abnf v0.5.3 // indirect
+	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common/sigv4 v0.1.0 // indirect
 	github.com/prometheus/exporter-toolkit v0.13.2 // indirect
-	github.com/prometheus/procfs v0.16.1 // indirect
+	github.com/prometheus/procfs v0.21.0 // indirect
 	github.com/rs/cors v1.11.0 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/shopspring/decimal v1.2.0 // indirect
