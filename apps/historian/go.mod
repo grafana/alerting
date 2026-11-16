@@ -12,7 +12,7 @@ require (
 	github.com/grafana/grafana-app-sdk v0.56.2
 	github.com/grafana/grafana-app-sdk/logging v0.56.2
 	github.com/prometheus/client_golang v1.23.2
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/stretchr/testify v1.12.1
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
