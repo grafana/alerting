@@ -76,7 +76,6 @@ func (f *JiraFieldConfig) UnmarshalYAML(unmarshal func(any) error) error {
 // UnmarshalJSON accepts both the legacy string form and the object form.
 func (f *JiraFieldConfig) UnmarshalJSON(data []byte) error {
 	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
-		*f = JiraFieldConfig{}
 		return nil
 	}
 	var s string

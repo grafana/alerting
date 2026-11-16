@@ -6,7 +6,7 @@ Local adaptations are limited to repository boundaries:
 
 - `Config` uses Grafana receiver types and the local `http/v0mimir.HTTPClientConfig`.
 - `NewConfig` supports Grafana JSON settings, secret decryption, and validation. `JiraFieldConfig` adds JSON decoding because stored scalar `summary` and `description` values must remain readable. Every re-save writes the object form, including when `enable_update` is unset. Versions of this module before this change cannot decode the object form; consider this before rolling back any consumer.
-- `summary` or `description` set to `null` is zeroed by JSON and yaml.v2. yaml.v3 keeps the default.
+- `summary` or `description` set to `null` keeps the default in JSON, is zeroed by yaml.v2 as upstream, and keeps the default in yaml.v3.
 - The factory converts the go-kit logger with `logging.NewSlogLogger`; the notifier itself uses `*slog.Logger`.
 - HTTP client creation preserves the local nil-default, conversion, and validation behavior before calling `notify.NewClientWithTracing`.
 - `SendResolved` remains part of the local notification channel interface.

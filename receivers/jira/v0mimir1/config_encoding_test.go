@@ -23,7 +23,7 @@ func TestJiraFieldConfigJSONDecoding(t *testing.T) {
 		{"object true", `"summary":{"template":"x","enable_update":true}`, JiraFieldConfig{Template: "x", EnableUpdate: new(true)}},
 		{"object omitted update", `"summary":{"template":"x"}`, JiraFieldConfig{Template: "x"}},
 		{"object null update", `"summary":{"template":"x","enable_update":null}`, JiraFieldConfig{Template: "x"}},
-		{"null matches YAML zero value", `"summary":null`, JiraFieldConfig{}},
+		{"null retains default", `"summary":null`, DefaultConfig.Summary},
 		{"omitted retains default", ``, DefaultConfig.Summary},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
