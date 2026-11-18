@@ -11,8 +11,16 @@ import (
 
 	"github.com/go-kit/log"
 
+	"github.com/grafana/alerting/models"
 	"github.com/grafana/alerting/receivers"
 	"github.com/grafana/alerting/templates"
+)
+
+const (
+	// alertRulesListPath is the path to the page listing all alert rules.
+	alertRulesListPath = "/alerting/list"
+	// alertRuleViewPathTemplate is the path to the page showing a single Grafana-managed alert rule.
+	alertRuleViewPathTemplate = "/alerting/grafana/%s/view"
 )
 
 // Notifier is responsible for sending alert notifications to ding ding.
@@ -37,7 +45,7 @@ func (dd *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, error
 	l := dd.GetLogger(ctx)
 	level.Info(l).Log("msg", "sending dingding")
 
-	dingDingURL := buildDingDingURL(dd.tmpl.ExternalURL, l)
+	dingDingURL := buildDingDingURL(dd.tmpl.ExternalURL, alertRuleUID(as, l), l)
 
 	var tmplErr error
 	tmpl, data := templates.TmplText(ctx, dd.tmpl, as, l, &tmplErr)
@@ -77,10 +85,38 @@ func (dd *Notifier) SendResolved() bool {
 	return !dd.GetDisableResolveMessage()
 }
 
-func buildDingDingURL(externalURL *url.URL, l log.Logger) string {
+// alertRuleUID returns the UID of the alert rule that produced the given alerts. A single notification can group
+// alerts coming from different rules, or alerts that are not tied to a Grafana rule at all, in which case an empty
+// string is returned so that the caller can fall back to a link that is guaranteed to be valid.
+func alertRuleUID(alerts []*types.Alert, l log.Logger) string {
+	var uid string
+	for _, alert := range alerts {
+		if alert == nil {
+			continue
+		}
+		current := string(alert.Labels[models.RuleUIDLabel])
+		switch {
+		case current == "":
+			return ""
+		case uid == "":
+			uid = current
+		case uid != current:
+			level.Debug(l).Log("msg", "alerts in notification belong to multiple alert rules", "expected_rule_uid", uid, "rule_uid", current)
+			return ""
+		}
+	}
+	return uid
+}
+
+func buildDingDingURL(externalURL *url.URL, ruleUID string, l log.Logger) string {
+	target := alertRulesListPath
+	if ruleUID != "" {
+		target = fmt.Sprintf(alertRuleViewPathTemplate, ruleUID)
+	}
+
 	q := url.Values{
 		"pc_slide": {"false"},
-		"url":      {receivers.JoinURLPath(externalURL.String(), "/alerting/list", l)},
+		"url":      {receivers.JoinURLPath(externalURL.String(), target, l)},
 	}
 
 	// Use special link to auto open the message url outside Dingding

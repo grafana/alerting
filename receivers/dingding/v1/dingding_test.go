@@ -171,6 +171,96 @@ func TestNotify(t *testing.T) {
 				"msgtype": "link",
 			},
 			expMsgError: nil,
+		}, {
+			name: "Links to the alert rule when all alerts share the same rule UID",
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: defaultDingdingMsgType,
+				Title:       "Deep link",
+				Message:     "customMessage",
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1", "__alert_rule_uid__": "dfu86fd84uyv4a"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+					},
+				}, {
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val2", "__alert_rule_uid__": "dfu86fd84uyv4a"},
+						Annotations: model.LabelSet{"ann1": "annv2"},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"msgtype": "link",
+				"link": map[string]interface{}{
+					"messageUrl": "dingtalk://dingtalkclient/page/link?pc_slide=false&url=http%3A%2F%2Flocalhost%2Falerting%2Fgrafana%2Fdfu86fd84uyv4a%2Fview",
+					"text":       "customMessage",
+					"title":      "Deep link",
+				},
+			},
+			expMsgError: nil,
+		}, {
+			name: "Falls back to the list of rules when alerts come from different rules",
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: defaultDingdingMsgType,
+				Title:       "Ambiguous rules",
+				Message:     "customMessage",
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "__alert_rule_uid__": "dfu86fd84uyv4a"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+					},
+				}, {
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert2", "__alert_rule_uid__": "another-rule-uid"},
+						Annotations: model.LabelSet{"ann1": "annv2"},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"msgtype": "link",
+				"link": map[string]interface{}{
+					"messageUrl": "dingtalk://dingtalkclient/page/link?pc_slide=false&url=http%3A%2F%2Flocalhost%2Falerting%2Flist",
+					"text":       "customMessage",
+					"title":      "Ambiguous rules",
+				},
+			},
+			expMsgError: nil,
+		}, {
+			name: "Falls back to the list of rules when some alert has no rule UID",
+			settings: Config{
+				URL:         "http://localhost",
+				MessageType: defaultDingdingMsgType,
+				Title:       "Partially linked",
+				Message:     "customMessage",
+			},
+			alerts: []*types.Alert{
+				{
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert1", "__alert_rule_uid__": "dfu86fd84uyv4a"},
+						Annotations: model.LabelSet{"ann1": "annv1"},
+					},
+				}, {
+					Alert: model.Alert{
+						Labels:      model.LabelSet{"alertname": "alert2"},
+						Annotations: model.LabelSet{"ann1": "annv2"},
+					},
+				},
+			},
+			expMsg: map[string]interface{}{
+				"msgtype": "link",
+				"link": map[string]interface{}{
+					"messageUrl": "dingtalk://dingtalkclient/page/link?pc_slide=false&url=http%3A%2F%2Flocalhost%2Falerting%2Flist",
+					"text":       "customMessage",
+					"title":      "Partially linked",
+				},
+			},
+			expMsgError: nil,
 		},
 	}
 
