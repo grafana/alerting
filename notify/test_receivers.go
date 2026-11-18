@@ -42,7 +42,8 @@ func TestIntegration(ctx context.Context,
 		return models.IntegrationStatus{}, err
 	}
 	now := time.Now()
-	err = TestNotifier(ctx, nf[0], newTestAlert(&testAlert, now, now), now)
+	alert := newTestAlert(&testAlert, now, now)
+	err = TestNotifier(ctx, nf[0], []*types.Alert{&alert}, now)
 	result := models.IntegrationStatus{
 		LastNotifyAttempt:         strfmt.DateTime(now),
 		LastNotifyAttemptDuration: model.Duration(time.Since(now)).String(),
@@ -55,12 +56,16 @@ func TestIntegration(ctx context.Context,
 	return result, nil
 }
 
-func TestNotifier(ctx context.Context, notifier *nfstatus.Integration, testAlert types.Alert, now time.Time) error {
+// TestNotifier sends a test notification with one or more alerts.
+func TestNotifier(ctx context.Context, notifier *nfstatus.Integration, alerts []*types.Alert, now time.Time) error {
+	if len(alerts) == 0 {
+		return fmt.Errorf("no alerts to notify")
+	}
 	ctx = context.WithValue(ctx, nfstatus.TestNotificationKey, true)
-	ctx = notify.WithGroupKey(ctx, fmt.Sprintf("%s-%s-%d", notifier.Name(), testAlert.Labels.Fingerprint(), now.Unix()))
-	ctx = notify.WithGroupLabels(ctx, testAlert.Labels)
+	ctx = notify.WithGroupKey(ctx, fmt.Sprintf("%s-%s-%d", notifier.Name(), alerts[0].Labels.Fingerprint(), now.Unix()))
+	ctx = notify.WithGroupLabels(ctx, alerts[0].Labels)
 	ctx = notify.WithReceiverName(ctx, notifier.Name())
-	if _, err := notifier.Notify(ctx, &testAlert); err != nil {
+	if _, err := notifier.Notify(ctx, alerts...); err != nil {
 		return err
 	}
 	return nil
