@@ -20,7 +20,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"text/template"
+
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 
 	"github.com/grafana/alerting/receivers"
 
@@ -132,12 +133,11 @@ func (c *Config) validate() error {
 			return fmt.Errorf("opsGenieConfig responder %v has to have at least one of id, username or name specified", r)
 		}
 
-		if strings.Contains(r.Type, "{{") {
-			_, err := template.New("").Parse(r.Type)
-			if err != nil {
-				return fmt.Errorf("opsGenieConfig responder %v type is not a valid template: %w", r, err)
-			}
-		} else {
+		isTemplated, err := amcommoncfg.ContainsTemplating(r.Type)
+		if err != nil {
+			return fmt.Errorf("opsGenieConfig responder %v type contains invalid template syntax: %w", r, err)
+		}
+		if !isTemplated {
 			r.Type = strings.ToLower(r.Type)
 			if !opsgenieTypeMatcher.MatchString(r.Type) {
 				return fmt.Errorf("opsGenieConfig responder %v type does not match valid options %s", r, opsgenieValidTypesRe)
