@@ -17,6 +17,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -24,15 +25,17 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
+	commoncfg "github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/require"
 
-	httpcfg "github.com/grafana/alerting/http/v0mimir"
-
+	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	"github.com/prometheus/alertmanager/notify"
+	"github.com/prometheus/alertmanager/notify/msteamsv2"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
 
+	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
 )
 
@@ -182,6 +185,68 @@ func TestMSTeamsV2Templating(t *testing.T) {
 			require.Equal(t, tc.retry, ok)
 		})
 	}
+}
+
+func TestMSTeamsV2PayloadParity(t *testing.T) {
+	payloads := make(chan []byte, 2)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		payloads <- body
+	}))
+	t.Cleanup(srv.Close)
+	u, err := url.Parse(srv.URL)
+	require.NoError(t, err)
+
+	const title = `Alert: {{ .Status }}`
+	const text = "First line\nSecond line"
+	tmpl := test.CreateTmpl(t)
+	local, err := New(&Config{
+		WebhookURL: &receivers.SecretURL{URL: u},
+		HTTPConfig: &httpcfg.HTTPClientConfig{},
+		Title:      title,
+		Text:       text,
+	}, tmpl, log.NewNopLogger())
+	require.NoError(t, err)
+	fork, err := msteamsv2.New(&msteamsv2.MSTeamsV2Config{
+		WebhookURL: &amcommoncfg.SecretURL{URL: u},
+		HTTPConfig: &commoncfg.HTTPClientConfig{},
+		Title:      title,
+		Text:       text,
+	}, tmpl, slog.New(slog.DiscardHandler))
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(notify.WithGroupKey(t.Context(), "1"), 5*time.Second)
+	defer cancel()
+	alert := &types.Alert{Alert: model.Alert{StartsAt: time.Now()}}
+	_, err = local.Notify(ctx, alert)
+	require.NoError(t, err)
+	_, err = fork.Notify(ctx, alert)
+	require.NoError(t, err)
+	require.Len(t, payloads, 2)
+	localPayload, forkPayload := <-payloads, <-payloads
+	require.JSONEq(t, string(forkPayload), string(localPayload))
+
+	var message struct {
+		Attachments []struct {
+			Content struct {
+				Body []struct {
+					Wrap   bool   `json:"wrap"`
+					Weight string `json:"weight"`
+				} `json:"body"`
+			} `json:"content"`
+		} `json:"attachments"`
+	}
+	require.NoError(t, json.Unmarshal(localPayload, &message))
+	require.Len(t, message.Attachments, 1)
+	blocks := message.Attachments[0].Content.Body
+	require.Len(t, blocks, 2)
+	require.Equal(t, "Bolder", blocks[0].Weight)
+	require.True(t, blocks[0].Wrap)
+	require.True(t, blocks[1].Wrap)
 }
 
 func TestMSTeamsV2RedactedURL(t *testing.T) {
