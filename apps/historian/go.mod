@@ -1,6 +1,6 @@
 module github.com/grafana/alerting/apps/historian
 
-go 1.26.4
+go 1.26.11
 
 require (
 	github.com/go-jose/go-jose/v4 v4.1.9
@@ -28,7 +28,19 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/Masterminds/sprig/v3 v3.3.0 // indirect
 	github.com/alecthomas/units v0.0.0-20240927000941-0f3dac36c52b // indirect
-	github.com/aws/aws-sdk-go v1.55.5 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.37.0 // indirect
+	github.com/aws/aws-sdk-go-v2/config v1.30.1 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.18.1 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.0 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.0 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.0 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.26.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.31.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.35.0 // indirect
+	github.com/aws/smithy-go v1.22.5 // indirect
 	github.com/benbjohnson/clock v1.3.5 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20250403215159-8d39553ac7cf // indirect
@@ -79,10 +91,8 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/jaegertracing/jaeger-idl v0.6.0 // indirect
-	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.20.2 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
@@ -101,9 +111,9 @@ require (
 	github.com/prometheus/alertmanager v0.32.1 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.68.1 // indirect
-	github.com/prometheus/common/sigv4 v0.1.0 // indirect
 	github.com/prometheus/otlptranslator v1.0.0 // indirect
 	github.com/prometheus/procfs v0.20.1 // indirect
+	github.com/prometheus/sigv4 v0.2.1 // indirect
 	github.com/puzpuzpuz/xsync/v2 v2.5.1 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
@@ -171,4 +181,4 @@ require (
 )
 
 // Use our fork of the upstream Alertmanager.
-replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.25.1-0.20261112195459-68554880cf21
+replace github.com/prometheus/alertmanager => github.com/grafana/prometheus-alertmanager v0.25.1-0.20261119163730-5b378e13e6a9
