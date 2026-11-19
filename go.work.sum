@@ -499,6 +499,7 @@ github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.34 h1:ZK5jHhnrioRkUNOc+
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.34 h1:SZwFm17ZUNNg5Np0ioo/gq8Mn6u9w19Mri8DnJ15Jf0=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.3 h1:eAh2A4b5IzM/lum78bZ590jy36+d/aFLgKF/4Vd1xPE=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.15 h1:dM9/92u2F1JbDaGooxTq18wmmFzbJRfXfVfy96/1CXM=
+github.com/aws/aws-sdk-go-v2/service/sns v1.35.0 h1:5/RoSyuSK0m7JaCL9dE0srXVRwsKUQyBobd0WBcR1RU=
 github.com/aws/aws-sdk-go-v2/service/sns v1.35.0/go.mod h1:hBuVN2n4PF8FXQsjl9FLiwPr5d4vrYBuoZ0ugwoFtfc=
 github.com/aws/aws-sdk-go-v2/service/sso v1.25.2 h1:pdgODsAhGo4dvzC3JAG5Ce0PX8kWXrTZGx+jxADD+5E=
 github.com/aws/aws-sdk-go-v2/service/ssooidc v1.30.0 h1:90uX0veLKcdHVfvxhkWUQSCi5VabtwMLFutYiRke4oo=
@@ -955,6 +956,8 @@ github.com/prometheus/common v0.67.4/go.mod h1:gP0fq6YjjNCLssJCQp0yk4M8W6ikLURwk
 github.com/prometheus/common v0.67.5/go.mod h1:SjE/0MzDEEAyrdr5Gqc6G+sXI67maCxzaT3A2+HqjUw=
 github.com/prometheus/common/assets v0.2.0 h1:0P5OrzoHrYBOSM1OigWL3mY8ZvV2N4zIE/5AahrSrfM=
 github.com/prometheus/common/assets v0.2.0/go.mod h1:D17UVUE12bHbim7HzwUvtqm6gwBEaDQ0F+hIGbFbccI=
+github.com/prometheus/common/sigv4 v0.1.0 h1:qoVebwtwwEhS85Czm2dSROY5fTo2PAPEVdDeppTwGX4=
+github.com/prometheus/common/sigv4 v0.1.0/go.mod h1:2Jkxxk9yYvCkE5G1sQT7GuEXm57JrvHu9k5YwTjsNtI=
 github.com/prometheus/exporter-toolkit v0.15.1 h1:XrGGr/qWl8Gd+pqJqTkNLww9eG8vR/CoRk0FubOKfLE=
 github.com/prometheus/exporter-toolkit v0.15.1/go.mod h1:P/NR9qFRGbCFgpklyhix9F6v6fFr/VQB/CVsrMDGKo4=
 github.com/protocolbuffers/txtpbfmt v0.0.0-20251124094003-fcb97cc64c7b h1:fPVI9E6QNFYI0Ph3XpKUDrcAvbCifHvqYJcntFLPog8=
