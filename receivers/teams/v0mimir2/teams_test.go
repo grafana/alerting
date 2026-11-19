@@ -21,19 +21,19 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/go-kit/log"
-	commoncfg "github.com/prometheus/common/config"
-	"github.com/prometheus/common/model"
-	"github.com/stretchr/testify/require"
-
 	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/msteamsv2"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
+	commoncfg "github.com/prometheus/common/config"
+	"github.com/prometheus/common/model"
+	"github.com/stretchr/testify/require"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
@@ -188,14 +188,17 @@ func TestMSTeamsV2Templating(t *testing.T) {
 }
 
 func TestMSTeamsV2PayloadParity(t *testing.T) {
-	payloads := make(chan []byte, 2)
+	var mu sync.Mutex
+	var payloads [][]byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		payloads <- body
+		mu.Lock()
+		payloads = append(payloads, body)
+		mu.Unlock()
 	}))
 	t.Cleanup(srv.Close)
 	u, err := url.Parse(srv.URL)
@@ -226,8 +229,10 @@ func TestMSTeamsV2PayloadParity(t *testing.T) {
 	require.NoError(t, err)
 	_, err = fork.Notify(ctx, alert)
 	require.NoError(t, err)
+	// Wait for all handlers to finish before reading the captured payloads.
+	srv.Close()
 	require.Len(t, payloads, 2)
-	localPayload, forkPayload := <-payloads, <-payloads
+	localPayload, forkPayload := payloads[0], payloads[1]
 	require.JSONEq(t, string(forkPayload), string(localPayload))
 
 	var message struct {
