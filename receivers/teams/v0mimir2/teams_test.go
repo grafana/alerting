@@ -26,14 +26,15 @@ import (
 	"time"
 
 	"github.com/go-kit/log"
+	commoncfg "github.com/prometheus/common/config"
+	"github.com/prometheus/common/model"
+	"github.com/stretchr/testify/require"
+
 	amcommoncfg "github.com/prometheus/alertmanager/config/common"
 	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/msteamsv2"
 	"github.com/prometheus/alertmanager/notify/test"
 	"github.com/prometheus/alertmanager/types"
-	commoncfg "github.com/prometheus/common/config"
-	"github.com/prometheus/common/model"
-	"github.com/stretchr/testify/require"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
