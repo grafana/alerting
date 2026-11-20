@@ -8,6 +8,7 @@ import (
 	"github.com/grafana/alerting/definition/compat"
 	"github.com/grafana/alerting/notify/notifytest"
 	jira_v0mimir1 "github.com/grafana/alerting/receivers/jira/v0mimir1"
+	victorops_v0mimir1 "github.com/grafana/alerting/receivers/victorops/v0mimir1"
 )
 
 func TestRoundTrip_DefinitionToUpstreamToDefinition(t *testing.T) {
@@ -18,6 +19,17 @@ func TestRoundTrip_DefinitionToUpstreamToDefinition(t *testing.T) {
 	roundTripped := compat.UpstreamReceiverToDefinitionReceiver(upstream)
 
 	require.Equal(t, original, roundTripped)
+}
+
+func TestVictorOpsCompatPreservesScalarAPIKey(t *testing.T) {
+	cfg := victorops_v0mimir1.GetFullValidConfig()
+	original := compat.Receiver{VictorOpsConfigs: []*victorops_v0mimir1.Config{&cfg}}
+
+	upstream := compat.DefinitionReceiverToUpstreamReceiver(original)
+	require.Len(t, upstream.VictorOpsConfigs, 1)
+	require.Equal(t, string(cfg.APIKey), string(upstream.VictorOpsConfigs[0].APIKey))
+	require.Empty(t, upstream.VictorOpsConfigs[0].APIKeyFile)
+	require.Equal(t, original, compat.UpstreamReceiverToDefinitionReceiver(upstream))
 }
 
 func TestJiraCompatPreservesFieldConfig(t *testing.T) {
