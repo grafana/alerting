@@ -16,7 +16,9 @@ package v0mimir1
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
+	"github.com/prometheus/alertmanager/config"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 
@@ -60,6 +62,41 @@ token: ''
 	}
 }
 
+func TestPushoverFormattingForkParity(t *testing.T) {
+	const credentials = "user_key: 'user key'\ntoken: 'pushover token'\n"
+	for _, formatting := range []string{"", "html: true\n", "monospace: true\n", "html: true\nmonospace: true\n"} {
+		t.Run(formatting, func(t *testing.T) {
+			input := []byte(credentials + formatting)
+			var fork config.PushoverConfig
+			var local Config
+			forkErr := yaml.UnmarshalStrict(input, &fork)
+			localErr := yaml.UnmarshalStrict(input, &local)
+			if formatting == "html: true\nmonospace: true\n" {
+				const expected = "at most one of monospace & html must be configured"
+				require.EqualError(t, forkErr, expected)
+				require.EqualError(t, localErr, expected)
+				return
+			}
+			require.NoError(t, forkErr)
+			require.NoError(t, localErr)
+			require.Equal(t, fork.HTML, local.HTML)
+			require.Equal(t, fork.Monospace, local.Monospace)
+
+			// Compare the formatting keys only. The local config has its own wire types.
+			for _, cfg := range []any{fork, local} {
+				encoded, err := yaml.Marshal(cfg)
+				require.NoError(t, err)
+				var fields map[string]any
+				require.NoError(t, yaml.Unmarshal(encoded, &fields))
+				require.Equal(t, fork.HTML, fields["html"] == true)
+				require.Equal(t, fork.Monospace, fields["monospace"] == true)
+				require.Equal(t, fork.HTML, fields["html"] != nil)
+				require.Equal(t, fork.Monospace, fields["monospace"] != nil)
+			}
+		})
+	}
+}
+
 func TestValidate(t *testing.T) {
 	t.Run("FullValidConfigForTesting is valid", func(t *testing.T) {
 		var cfg Config
@@ -85,6 +122,11 @@ func TestValidate(t *testing.T) {
 			name:        "Missing token",
 			mutate:      func(cfg *Config) { cfg.Token = "" },
 			expectedErr: "missing token in Pushover config",
+		},
+		{
+			name:        "HTML and monospace conflict",
+			mutate:      func(cfg *Config) { cfg.HTML = true },
+			expectedErr: "at most one of monospace & html must be configured",
 		},
 		{
 			name: "Invalid http_config",
@@ -137,6 +179,11 @@ func TestNewConfig(t *testing.T) {
 			name:              "Error if missing token",
 			settings:          `{"user_key": "key"}`,
 			expectedInitError: "missing token in Pushover config",
+		},
+		{
+			name:              "HTML and monospace conflict",
+			settings:          `{"user_key":"key","token":"tok","html":true,"monospace":true}`,
+			expectedInitError: "at most one of monospace & html must be configured",
 		},
 		{
 			name: "Minimal valid configuration",
@@ -199,6 +246,24 @@ func TestNewConfig(t *testing.T) {
 				Retry:          DefaultConfig.Retry,
 				Expire:         DefaultConfig.Expire,
 			},
+		},
+		{
+			name:     "Fractional durations and decrypted credentials",
+			settings: `{"retry":"30.5s","expire":"1m0.25s","ttl":"0.75s"}`,
+			secrets: map[string][]byte{
+				"user_key": []byte("test-user-key"),
+				"token":    []byte("test-token"),
+			},
+			expectedConfig: func() Config {
+				cfg := DefaultConfig
+				cfg.HTTPConfig = &defaultHTTPConfig
+				cfg.UserKey = "test-user-key"
+				cfg.Token = "test-token"
+				cfg.Retry = FractionalDuration(30*time.Second + 500*time.Millisecond)
+				cfg.Expire = FractionalDuration(time.Minute + 250*time.Millisecond)
+				cfg.TTL = FractionalDuration(750 * time.Millisecond)
+				return cfg
+			}(),
 		},
 		{
 			name:     "FullValidConfigForTesting is valid",

@@ -16,12 +16,12 @@ const FullValidConfigForTesting = `{
 	"retry": "30s",
 	"expire": "1h0m0s",
 	"ttl": "1h0m0s",
-	"html": true,
+	"monospace": true,
 	"send_resolved": true
 }`
 
-// GetFullValidConfig returns a fully populated Config struct with all fields
-// set to non-zero values.
+// GetFullValidConfig returns a populated Config. HTML and Monospace cannot
+// both be true.
 func GetFullValidConfig() Config {
 	cfg := DefaultConfig
 	cfg.UserKey = "secret-user-key"
@@ -36,6 +36,6 @@ func GetFullValidConfig() Config {
 	cfg.Retry = FractionalDuration(2 * time.Minute)
 	cfg.Expire = FractionalDuration(2 * time.Hour)
 	cfg.TTL = FractionalDuration(30 * time.Minute)
-	cfg.HTML = true
+	cfg.Monospace = true
 	return cfg
 }

@@ -14,12 +14,16 @@
 package v0mimir1
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/go-kit/log"
-	"github.com/stretchr/testify/require"
-
+	"github.com/prometheus/alertmanager/notify"
 	"github.com/prometheus/alertmanager/notify/test"
+	"github.com/prometheus/alertmanager/types"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	httpcfg "github.com/grafana/alerting/http/v0mimir"
 	"github.com/grafana/alerting/receivers"
@@ -58,4 +62,29 @@ func TestPushoverRedactedURL(t *testing.T) {
 	notifier.apiURL = u.String()
 
 	test.AssertNotifyLeaksNoSecret(ctx, t, notifier, key, token)
+}
+
+func TestPushoverMonospaceParameter(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "1", r.URL.Query().Get("monospace"), `expected monospace parameter to be set to "1"`)
+		assert.NotContains(t, r.URL.Query(), "html")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+
+	notifier, err := New(
+		&Config{
+			UserKey:    "user_key",
+			Token:      "token",
+			Monospace:  true,
+			HTTPConfig: &httpcfg.HTTPClientConfig{},
+		},
+		test.CreateTmpl(t),
+		log.NewNopLogger(),
+	)
+	require.NoError(t, err)
+	notifier.apiURL = server.URL
+
+	_, err = notifier.Notify(notify.WithGroupKey(t.Context(), "1"), &types.Alert{})
+	require.NoError(t, err)
 }

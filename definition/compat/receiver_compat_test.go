@@ -1,13 +1,16 @@
 package compat_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 
 	"github.com/grafana/alerting/definition/compat"
 	"github.com/grafana/alerting/notify/notifytest"
 	jira_v0mimir1 "github.com/grafana/alerting/receivers/jira/v0mimir1"
+	pushover_v0mimir1 "github.com/grafana/alerting/receivers/pushover/v0mimir1"
 )
 
 func TestRoundTrip_DefinitionToUpstreamToDefinition(t *testing.T) {
@@ -18,6 +21,28 @@ func TestRoundTrip_DefinitionToUpstreamToDefinition(t *testing.T) {
 	roundTripped := compat.UpstreamReceiverToDefinitionReceiver(upstream)
 
 	require.Equal(t, original, roundTripped)
+}
+
+func TestPushoverCompatPreservesFormattingAndRedactsCredentials(t *testing.T) {
+	original := pushover_v0mimir1.GetFullValidConfig()
+	upstream := compat.DefinitionReceiverToUpstreamReceiver(compat.Receiver{PushoverConfigs: []*pushover_v0mimir1.Config{&original}})
+	require.Len(t, upstream.PushoverConfigs, 1)
+	cfg := upstream.PushoverConfigs[0]
+	require.True(t, cfg.Monospace)
+	require.False(t, cfg.HTML)
+
+	roundTripped := compat.UpstreamReceiverToDefinitionReceiver(upstream)
+	require.Len(t, roundTripped.PushoverConfigs, 1)
+	require.Equal(t, original, *roundTripped.PushoverConfigs[0])
+
+	for _, config := range []any{cfg, roundTripped.PushoverConfigs[0]} {
+		for _, marshal := range []func(any) ([]byte, error){json.Marshal, yaml.Marshal} {
+			encoded, err := marshal(config)
+			require.NoError(t, err)
+			require.NotContains(t, string(encoded), string(original.UserKey))
+			require.NotContains(t, string(encoded), string(original.Token))
+		}
+	}
 }
 
 func TestJiraCompatPreservesFieldConfig(t *testing.T) {

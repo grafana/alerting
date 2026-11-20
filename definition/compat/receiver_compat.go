@@ -310,6 +310,7 @@ func UpstreamReceiverToDefinitionReceiver(r config.Receiver) Receiver {
 			Expire:         pushover_v0mimir1.FractionalDuration(c.Expire),
 			TTL:            pushover_v0mimir1.FractionalDuration(c.TTL),
 			HTML:           c.HTML,
+			Monospace:      c.Monospace,
 		})
 	}
 
@@ -557,8 +558,8 @@ func DefinitionReceiverToUpstreamReceiver(r Receiver) config.Receiver {
 		cfg := &config.PushoverConfig{
 			NotifierConfig: amcommoncfg.NotifierConfig(c.NotifierConfig),
 			HTTPConfig:     c.HTTPConfig.ToCommonHTTPClientConfig(),
-			UserKey:        config.Secret(c.UserKey),
-			Token:          config.Secret(c.Token),
+			UserKey:        commonconfig.Secret(c.UserKey),
+			Token:          commonconfig.Secret(c.Token),
 			Title:          c.Title,
 			Message:        c.Message,
 			URL:            c.URL,
@@ -567,6 +568,7 @@ func DefinitionReceiverToUpstreamReceiver(r Receiver) config.Receiver {
 			Sound:          c.Sound,
 			Priority:       c.Priority,
 			HTML:           c.HTML,
+			Monospace:      c.Monospace,
 		}
 		setConfigDuration(&cfg.Retry, c.Retry)
 		setConfigDuration(&cfg.Expire, c.Expire)

@@ -76,7 +76,8 @@ type Config struct {
 	Retry      FractionalDuration        `yaml:"retry,omitempty" json:"retry,omitempty"`
 	Expire     FractionalDuration        `yaml:"expire,omitempty" json:"expire,omitempty"`
 	TTL        FractionalDuration        `yaml:"ttl,omitempty" json:"ttl,omitempty"`
-	HTML       bool                      `yaml:"html" json:"html,omitempty"`
+	HTML       bool                      `yaml:"html,omitempty" json:"html,omitempty"`
+	Monospace  bool                      `yaml:"monospace,omitempty" json:"monospace,omitempty"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
@@ -130,6 +131,9 @@ func (c *Config) validate() error {
 	}
 	if c.Token == "" {
 		return errors.New("missing token in Pushover config")
+	}
+	if c.HTML && c.Monospace {
+		return errors.New("at most one of monospace & html must be configured")
 	}
 	return nil
 }
@@ -236,6 +240,12 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			Description:  "Enables HTML formatting of the message.",
 			Element:      schema.ElementTypeCheckbox,
 			PropertyName: "html",
+		},
+		{
+			Label:        "Monospace",
+			Description:  "Displays the message in a monospace font. Cannot be used with HTML formatting.",
+			Element:      schema.ElementTypeCheckbox,
+			PropertyName: "monospace",
 		},
 		httpcfg.V0HttpConfigOption(),
 	},
