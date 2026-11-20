@@ -44,6 +44,19 @@ routing_key: ''
 	})
 }
 
+func TestVictorOpsAPIKeyFileIsNotSupported(t *testing.T) {
+	var cfg Config
+	err := yaml.UnmarshalStrict([]byte("routing_key: team\napi_key_file: key.txt\n"), &cfg)
+	require.ErrorContains(t, err, "field api_key_file not found")
+
+	_, err = NewConfig(json.RawMessage(`{
+		"api_url": "https://example.com",
+		"routing_key": "team",
+		"api_key_file": "key.txt"
+	}`), receiversTesting.DecryptForTesting(nil))
+	require.ErrorContains(t, err, "missing api_key in VictorOps config")
+}
+
 func TestVictorOpsCustomFieldsValidation(t *testing.T) {
 	in := `
 routing_key: 'test'
