@@ -271,3 +271,17 @@ func TestNewConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestNewConfigMonospace(t *testing.T) {
+	settings := json.RawMessage(`{
+		"user_key": "test-user-key",
+		"token": "test-token",
+		"html": false,
+		"monospace": true
+	}`)
+
+	cfg, err := NewConfig(settings, receiversTesting.DecryptForTesting(nil))
+	require.NoError(t, err)
+	require.False(t, cfg.HTML)
+	require.True(t, cfg.Monospace)
+}
