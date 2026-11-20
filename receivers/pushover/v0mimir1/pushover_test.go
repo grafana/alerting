@@ -15,7 +15,6 @@ package v0mimir1
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/go-kit/log"
@@ -65,12 +64,13 @@ func TestPushoverRedactedURL(t *testing.T) {
 }
 
 func TestPushoverMonospaceParameter(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "1", r.URL.Query().Get("monospace"), `expected monospace parameter to be set to "1"`)
-		assert.NotContains(t, r.URL.Query(), "html")
-		w.WriteHeader(http.StatusOK)
-	}))
-	t.Cleanup(server.Close)
+	_, apiURL, fn := test.GetContextWithCancelingURL(func(w http.ResponseWriter, r *http.Request) {
+		if !assert.NoError(t, r.ParseForm()) {
+			return
+		}
+		assert.Equal(t, "1", r.FormValue("monospace"), `expected monospace parameter to be set to "1"`)
+	})
+	defer fn()
 
 	notifier, err := New(
 		&Config{
@@ -83,7 +83,7 @@ func TestPushoverMonospaceParameter(t *testing.T) {
 		log.NewNopLogger(),
 	)
 	require.NoError(t, err)
-	notifier.apiURL = server.URL
+	notifier.apiURL = apiURL.String()
 
 	_, err = notifier.Notify(notify.WithGroupKey(t.Context(), "1"), &types.Alert{})
 	require.NoError(t, err)
