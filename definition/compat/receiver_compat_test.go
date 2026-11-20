@@ -24,24 +24,39 @@ func TestRoundTrip_DefinitionToUpstreamToDefinition(t *testing.T) {
 }
 
 func TestPushoverCompatPreservesFormattingAndRedactsCredentials(t *testing.T) {
-	original := pushover_v0mimir1.GetFullValidConfig()
-	upstream := compat.DefinitionReceiverToUpstreamReceiver(compat.Receiver{PushoverConfigs: []*pushover_v0mimir1.Config{&original}})
-	require.Len(t, upstream.PushoverConfigs, 1)
-	cfg := upstream.PushoverConfigs[0]
-	require.True(t, cfg.Monospace)
-	require.False(t, cfg.HTML)
+	testCases := []struct {
+		name      string
+		html      bool
+		monospace bool
+	}{
+		{name: "HTML", html: true, monospace: false},
+		{name: "monospace", html: false, monospace: true},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			original := pushover_v0mimir1.GetFullValidConfig()
+			original.HTML = tc.html
+			original.Monospace = tc.monospace
 
-	roundTripped := compat.UpstreamReceiverToDefinitionReceiver(upstream)
-	require.Len(t, roundTripped.PushoverConfigs, 1)
-	require.Equal(t, original, *roundTripped.PushoverConfigs[0])
+			upstream := compat.DefinitionReceiverToUpstreamReceiver(compat.Receiver{PushoverConfigs: []*pushover_v0mimir1.Config{&original}})
+			require.Len(t, upstream.PushoverConfigs, 1)
+			cfg := upstream.PushoverConfigs[0]
+			require.Equal(t, tc.html, cfg.HTML)
+			require.Equal(t, tc.monospace, cfg.Monospace)
 
-	for _, config := range []any{cfg, roundTripped.PushoverConfigs[0]} {
-		for _, marshal := range []func(any) ([]byte, error){json.Marshal, yaml.Marshal} {
-			encoded, err := marshal(config)
-			require.NoError(t, err)
-			require.NotContains(t, string(encoded), string(original.UserKey))
-			require.NotContains(t, string(encoded), string(original.Token))
-		}
+			roundTripped := compat.UpstreamReceiverToDefinitionReceiver(upstream)
+			require.Len(t, roundTripped.PushoverConfigs, 1)
+			require.Equal(t, original, *roundTripped.PushoverConfigs[0])
+
+			for _, config := range []any{cfg, roundTripped.PushoverConfigs[0]} {
+				for _, marshal := range []func(any) ([]byte, error){json.Marshal, yaml.Marshal} {
+					encoded, err := marshal(config)
+					require.NoError(t, err)
+					require.NotContains(t, string(encoded), string(original.UserKey))
+					require.NotContains(t, string(encoded), string(original.Token))
+				}
+			}
+		})
 	}
 }
 
