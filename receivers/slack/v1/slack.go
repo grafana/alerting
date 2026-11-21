@@ -230,6 +230,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 			var tmplErr error
 			tmpl, _ := templates.TmplText(ctx, sn.tmpl, alerts, l, &tmplErr)
 			imageFooter := sn.footer(tmpl, l, &tmplErr)
+			imageFooterIcon := sn.footerIcon(tmpl, l, &tmplErr)
 			imageMessage := &slackMessage{
 				Channel:   channelID,
 				Username:  m.Username,
@@ -242,7 +243,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 						Title:      title,
 						Fallback:   text,
 						Footer:     imageFooter,
-						FooterIcon: sn.footerIcon(tmpl),
+						FooterIcon: imageFooterIcon,
 						Ts:         time.Now().Unix(),
 						ImageURL:   image.URL,
 						Text:       text,
@@ -311,6 +312,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 	}
 
 	footer := sn.footer(tmpl, l, &tmplErr)
+	footerIcon := sn.footerIcon(tmpl, l, &tmplErr)
 
 	req := &slackMessage{
 		Channel:   tmpl(sn.settings.Recipient),
@@ -325,7 +327,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 				Title:      title,
 				Fallback:   title,
 				Footer:     footer,
-				FooterIcon: sn.footerIcon(tmpl),
+				FooterIcon: footerIcon,
 				Ts:         time.Now().Unix(),
 				TitleLink:  ruleURL,
 				Text:       tmpl(sn.settings.Text),
@@ -554,15 +556,21 @@ func (sn *Notifier) SendResolved() bool {
 }
 
 // footerIcon returns the URL of the icon displayed next to the footer, templated like the other message fields.
-// It is empty when the icon is disabled, in which case it is omitted from the message.
-func (sn *Notifier) footerIcon(tmpl func(string) string) string {
+// It is empty when the icon is disabled or its template is empty or invalid, in which case it is omitted from the message.
+func (sn *Notifier) footerIcon(tmpl func(string) string, l log.Logger, tmplErr *error) string {
 	if sn.settings.DisableFooterIcon {
 		return ""
 	}
-	if sn.settings.FooterIcon != "" {
-		return tmpl(sn.settings.FooterIcon)
+	if sn.settings.FooterIcon == "" {
+		return footerIconURL
 	}
-	return footerIconURL
+	footerIcon := tmpl(sn.settings.FooterIcon)
+	if *tmplErr != nil {
+		level.Warn(l).Log("msg", "failed to template Slack footer icon", "err", (*tmplErr).Error())
+		// Reset the error as we have logged it.
+		*tmplErr = nil
+	}
+	return footerIcon
 }
 
 func (sn *Notifier) footer(tmpl func(string) string, l log.Logger, tmplErr *error) string {

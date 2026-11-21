@@ -485,6 +485,47 @@ func TestNotify_IncomingWebhook(t *testing.T) {
 				},
 			},
 		},
+	}, {
+		name: "Message is sent without footer icon when its template is invalid",
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            "https://example.com/hooks/xxxx",
+			Token:          "",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          templates.DefaultMessageTitleEmbed,
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+			Color:          templates.DefaultMessageColor,
+			FooterIcon:     "{{ .InvalidField }}",
+		},
+		alerts: []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		}},
+		expectedMessage: &slackMessage{
+			Channel:   "#test",
+			Username:  "Grafana",
+			IconEmoji: ":emoji:",
+			Attachments: []attachment{
+				{
+					Title:      "[FIRING:1]  (val1)",
+					TitleLink:  "http://localhost/alerting/list",
+					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+					Fallback:   "[FIRING:1]  (val1)",
+					Fields:     nil,
+					Footer:     "Grafana v" + appVersion,
+					FooterIcon: "",
+					Color:      "#D63232",
+				},
+			},
+		},
 	}}
 
 	for _, test := range tests {
@@ -1190,7 +1231,7 @@ func TestNotify_PostMessageWithImageURL(t *testing.T) {
 			},
 		},
 		{
-			name: "Custom footer icon is used in the message and the image message",
+			name: "Templated custom footer icon is used in the message and the image message",
 			settings: Config{
 				EndpointURL:    APIURL,
 				URL:            APIURL,
@@ -1205,7 +1246,7 @@ func TestNotify_PostMessageWithImageURL(t *testing.T) {
 				MentionUsers:   nil,
 				MentionGroups:  nil,
 				Color:          templates.DefaultMessageColor,
-				FooterIcon:     "https://internal.example.com/icon.png",
+				FooterIcon:     "{{ .ExternalURL }}/icon.png",
 			},
 			alerts: []*types.Alert{{
 				Alert: model.Alert{
@@ -1225,7 +1266,7 @@ func TestNotify_PostMessageWithImageURL(t *testing.T) {
 						Fallback:   "[FIRING:1]  (val1)",
 						Fields:     nil,
 						Footer:     "Grafana v" + appVersion,
-						FooterIcon: "https://internal.example.com/icon.png",
+						FooterIcon: "http://localhost/icon.png",
 						Color:      "#D63232",
 					},
 				},
@@ -1242,7 +1283,7 @@ func TestNotify_PostMessageWithImageURL(t *testing.T) {
 						Fallback:   "*Labels*: lbl1=val1",
 						Fields:     nil,
 						Footer:     "Grafana v" + appVersion,
-						FooterIcon: "https://internal.example.com/icon.png",
+						FooterIcon: "http://localhost/icon.png",
 						ImageURL:   "http://localhost/test-image",
 						Color:      "#D63232",
 					},
