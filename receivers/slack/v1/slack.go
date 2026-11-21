@@ -242,7 +242,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 						Title:      title,
 						Fallback:   text,
 						Footer:     imageFooter,
-						FooterIcon: sn.footerIcon(),
+						FooterIcon: sn.footerIcon(tmpl),
 						Ts:         time.Now().Unix(),
 						ImageURL:   image.URL,
 						Text:       text,
@@ -325,7 +325,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 				Title:      title,
 				Fallback:   title,
 				Footer:     footer,
-				FooterIcon: sn.footerIcon(),
+				FooterIcon: sn.footerIcon(tmpl),
 				Ts:         time.Now().Unix(),
 				TitleLink:  ruleURL,
 				Text:       tmpl(sn.settings.Text),
@@ -553,14 +553,14 @@ func (sn *Notifier) SendResolved() bool {
 	return !sn.GetDisableResolveMessage()
 }
 
-// footerIcon returns the URL of the icon displayed next to the footer.
+// footerIcon returns the URL of the icon displayed next to the footer, templated like the other message fields.
 // It is empty when the icon is disabled, in which case it is omitted from the message.
-func (sn *Notifier) footerIcon() string {
+func (sn *Notifier) footerIcon(tmpl func(string) string) string {
 	if sn.settings.DisableFooterIcon {
 		return ""
 	}
 	if sn.settings.FooterIcon != "" {
-		return sn.settings.FooterIcon
+		return tmpl(sn.settings.FooterIcon)
 	}
 	return footerIconURL
 }
