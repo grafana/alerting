@@ -32,6 +32,10 @@ type Config struct {
 	MentionGroups  receivers.CommaSeparatedStrings `json:"mentionGroups,omitempty" yaml:"mentionGroups,omitempty"`
 	Color          string                          `json:"color,omitempty" yaml:"color,omitempty"`
 	Footer         string                          `json:"footer,omitempty" yaml:"footer,omitempty"`
+	// FooterIcon overrides the icon shown next to the footer. When empty, the default Grafana icon is used.
+	FooterIcon string `json:"footerIcon,omitempty" yaml:"footerIcon,omitempty"`
+	// DisableFooterIcon removes the footer icon from the message. It takes precedence over FooterIcon.
+	DisableFooterIcon bool `json:"disableFooterIcon,omitempty" yaml:"disableFooterIcon,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
@@ -214,6 +218,19 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			Description:  "Templated footer of the slack message",
 			PropertyName: "footer",
 			Placeholder:  `{{ template "slack.default.footer" . }}`,
+		},
+		{
+			Label:        "Footer icon URL",
+			Element:      schema.ElementTypeInput,
+			InputType:    schema.InputTypeText,
+			Description:  "URL of the icon displayed next to the footer. Defaults to the Grafana icon",
+			PropertyName: "footerIcon",
+		},
+		{
+			Label:        "Disable footer icon",
+			Element:      schema.ElementTypeCheckbox,
+			Description:  "Do not send a footer icon. Useful when the icon cannot be loaded, such as in air-gapped environments",
+			PropertyName: "disableFooterIcon",
 		},
 	},
 })

@@ -14,7 +14,9 @@ const FullValidConfigForTesting = `{
 	"mentionChannel": "channel",
 	"mentionUsers": "test-mentionUsers",
 	"mentionGroups": "test-mentionGroups",
-	"color": "test-color"
+	"color": "test-color",
+	"footerIcon": "http://localhost/footer_icon",
+	"disableFooterIcon": true
 }`
 
 // FullValidSecretsForTesting is a string representation of JSON object that contains all fields that can be overridden from secrets

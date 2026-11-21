@@ -139,7 +139,7 @@ type attachment struct {
 	Fallback   string                `json:"fallback"`
 	Fields     []amConfig.SlackField `json:"fields,omitempty"`
 	Footer     string                `json:"footer"`
-	FooterIcon string                `json:"footer_icon"`
+	FooterIcon string                `json:"footer_icon,omitempty"`
 	Color      string                `json:"color,omitempty"`
 	Ts         int64                 `json:"ts,omitempty"`
 	Pretext    string                `json:"pretext,omitempty"`
@@ -242,7 +242,7 @@ func (sn *Notifier) Notify(ctx context.Context, alerts ...*types.Alert) (bool, e
 						Title:      title,
 						Fallback:   text,
 						Footer:     imageFooter,
-						FooterIcon: footerIconURL,
+						FooterIcon: sn.footerIcon(),
 						Ts:         time.Now().Unix(),
 						ImageURL:   image.URL,
 						Text:       text,
@@ -325,7 +325,7 @@ func (sn *Notifier) createSlackMessage(ctx context.Context, alerts []*types.Aler
 				Title:      title,
 				Fallback:   title,
 				Footer:     footer,
-				FooterIcon: footerIconURL,
+				FooterIcon: sn.footerIcon(),
 				Ts:         time.Now().Unix(),
 				TitleLink:  ruleURL,
 				Text:       tmpl(sn.settings.Text),
@@ -551,6 +551,18 @@ func (sn *Notifier) finalizeUpload(ctx context.Context, fileID, channelID, threa
 
 func (sn *Notifier) SendResolved() bool {
 	return !sn.GetDisableResolveMessage()
+}
+
+// footerIcon returns the URL of the icon displayed next to the footer.
+// It is empty when the icon is disabled, in which case it is omitted from the message.
+func (sn *Notifier) footerIcon() string {
+	if sn.settings.DisableFooterIcon {
+		return ""
+	}
+	if sn.settings.FooterIcon != "" {
+		return sn.settings.FooterIcon
+	}
+	return footerIconURL
 }
 
 func (sn *Notifier) footer(tmpl func(string) string, l log.Logger, tmplErr *error) string {
