@@ -32,7 +32,6 @@ import (
 	line "github.com/grafana/alerting/receivers/line/v1"
 	pushover "github.com/grafana/alerting/receivers/pushover/v1"
 	"github.com/grafana/alerting/receivers/schema"
-	telegram "github.com/grafana/alerting/receivers/telegram/v1"
 	receiversTesting "github.com/grafana/alerting/receivers/testing"
 	threema "github.com/grafana/alerting/receivers/threema/v1"
 	"github.com/grafana/alerting/templates"
@@ -261,16 +260,13 @@ func TestHTTPConfig(t *testing.T) {
 				// Deal with notifiers that have hardcoded API URLs.
 				origLine := line.APIURL
 				origPushover := pushover.APIURL
-				origTelegram := telegram.APIURL
 				origThreema := threema.APIURL
 				line.APIURL = testServer.URL
 				pushover.APIURL = testServer.URL
-				telegram.APIURL = testServer.URL + "/bot%s/%s"
 				threema.APIURL = testServer.URL
 				defer func() {
 					line.APIURL = origLine
 					pushover.APIURL = origPushover
-					telegram.APIURL = origTelegram
 					threema.APIURL = origThreema
 				}()
 
@@ -279,7 +275,7 @@ func TestHTTPConfig(t *testing.T) {
 				// Override common url patterns:
 				urlOverride, err := json.Marshal(map[string]any{
 					"url":            testServer.URL,
-					"api_url":        testServer.URL, // JIRA, SNS, Webex
+					"api_url":        testServer.URL, // JIRA, SNS, Telegram, Webex
 					"kafkaRestProxy": testServer.URL, // Kafka REST Proxy
 					"brokerUrl":      testServer.URL, // MQTT
 					"apiUrl":         testServer.URL, // OpsGenie

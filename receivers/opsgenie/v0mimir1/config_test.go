@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	amopsgenie "github.com/prometheus/alertmanager/notify/opsgenie"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 
@@ -121,6 +122,42 @@ api_url: http://example.com
 			if err != nil {
 				t.Errorf("expected no error, got %v", err)
 			}
+		})
+	}
+}
+
+func TestResponderValidationForkParity(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		input   Responder
+		wantErr string
+	}{
+		{name: "mixed case", input: Responder{ID: "foo", Type: "scheDule"}},
+		{name: "teams", input: Responder{Name: "bar", Type: "teams"}},
+		{name: "template", input: Responder{ID: "foo", Type: "{{/* valid comment */}}team"}},
+		{name: "malformed template", input: Responder{ID: "foo", Type: "{{/* invalid comment }}team"}, wantErr: "type contains invalid template syntax"},
+		{name: "unknown type", input: Responder{ID: "foo", Type: "wrong"}, wantErr: "type does not match valid options"},
+		{name: "missing identity", input: Responder{Type: "schedule"}, wantErr: "has to have at least one of id, username or name specified"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input, err := yaml.Marshal(map[string][]Responder{"responders": {tc.input}})
+			require.NoError(t, err)
+
+			var fork amopsgenie.OpsGenieConfig
+			forkErr := yaml.UnmarshalStrict(input, &fork)
+			var local Config
+			localErr := yaml.UnmarshalStrict(input, &local)
+
+			if tc.wantErr != "" {
+				require.ErrorContains(t, forkErr, tc.wantErr)
+				require.EqualError(t, localErr, forkErr.Error())
+				return
+			}
+			require.NoError(t, forkErr)
+			require.NoError(t, localErr)
+			require.Len(t, fork.Responders, 1)
+			require.Equal(t, tc.input.Type, fork.Responders[0].Type)
+			require.Equal(t, []Responder{tc.input}, local.Responders)
 		})
 	}
 }

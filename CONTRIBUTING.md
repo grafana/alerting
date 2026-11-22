@@ -56,6 +56,18 @@ and keep the notifier implementation semantically intact. Document any deliberat
 deviations. If the notifier does not exist upstream, it belongs in `v1`, where
 the webhook-first policy applies.
 
+Code that has no upstream equivalent is local code, not a copy. Examples are
+`UnmarshalJSON` methods (upstream loads configs from YAML only), `NewConfig`,
+secret decryption, schema definitions and compatibility converters. Upstream
+does not define the behaviour of local code, so "upstream parity" cannot justify
+a behaviour change in it. Keep the behaviour that existed before the change,
+unless the pull request names the change and explains it.
+
+When a sync changes the Go type of a stored field, or adds a custom decoder,
+compare the old and the new code for the JSON inputs that Grafana stores: field
+omitted, `null`, empty value, scalar form and object form. Add tests that pin the
+old results. List each difference in the pull request description.
+
 You are welcome to create draft PRs at any stage of readiness - this can be
 helpful to ask for assistance or to develop an idea. But before a piece of work
 is finished it should:

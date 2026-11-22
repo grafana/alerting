@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,7 @@ const DefaultTelegramParseMode = "HTML"
 var SupportedParseMode = map[string]string{"Markdown": "Markdown", "MarkdownV2": "MarkdownV2", DefaultTelegramParseMode: "HTML", "None": ""}
 
 type Config struct {
+	APIURL                string `json:"api_url,omitempty" yaml:"api_url,omitempty"`
 	BotToken              string `json:"bottoken,omitempty" yaml:"bottoken,omitempty"`
 	ChatID                string `json:"chatid,omitempty" yaml:"chatid,omitempty"`
 	MessageThreadID       string `json:"message_thread_id,omitempty" yaml:"message_thread_id,omitempty"`
@@ -32,10 +34,12 @@ type Config struct {
 	DisableWebPagePreview bool   `json:"disable_web_page_preview,omitempty" yaml:"disable_web_page_preview,omitempty"`
 	ProtectContent        bool   `json:"protect_content,omitempty" yaml:"protect_content,omitempty"`
 	DisableNotifications  bool   `json:"disable_notifications,omitempty" yaml:"disable_notifications,omitempty"`
+	SendMessageAsCaption  bool   `json:"send_message_as_caption,omitempty" yaml:"send_message_as_caption,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
 	raw := struct {
+		APIURL                string                   `json:"api_url,omitempty" yaml:"api_url,omitempty"`
 		BotToken              string                   `json:"bottoken,omitempty" yaml:"bottoken,omitempty"`
 		ChatID                receivers.OptionalNumber `json:"chatid,omitempty" yaml:"chatid,omitempty"`
 		MessageThreadID       receivers.OptionalNumber `json:"message_thread_id,omitempty" yaml:"message_thread_id,omitempty"`
@@ -44,17 +48,20 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 		DisableWebPagePreview bool                     `json:"disable_web_page_preview,omitempty" yaml:"disable_web_page_preview,omitempty"`
 		ProtectContent        bool                     `json:"protect_content,omitempty" yaml:"protect_content,omitempty"`
 		DisableNotifications  bool                     `json:"disable_notifications,omitempty" yaml:"disable_notifications,omitempty"`
+		SendMessageAsCaption  bool                     `json:"send_message_as_caption,omitempty" yaml:"send_message_as_caption,omitempty"`
 	}{}
 	if err := json.Unmarshal(jsonData, &raw); err != nil {
 		return Config{}, fmt.Errorf("failed to unmarshal settings: %w", err)
 	}
 
 	settings := Config{
+		APIURL:                raw.APIURL,
 		Message:               raw.Message,
 		ParseMode:             raw.ParseMode,
 		DisableWebPagePreview: raw.DisableWebPagePreview,
 		ProtectContent:        raw.ProtectContent,
 		DisableNotifications:  raw.DisableNotifications,
+		SendMessageAsCaption:  raw.SendMessageAsCaption,
 	}
 
 	settings.BotToken = decryptFn.Get("bottoken", raw.BotToken)
@@ -65,6 +72,14 @@ func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Confi
 	settings.ChatID = raw.ChatID.String()
 	if settings.ChatID == "" {
 		return settings, errors.New("could not find Chat Id in settings")
+	}
+
+	if settings.APIURL != "" {
+		u, err := url.Parse(settings.APIURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.ForceQuery || u.RawQuery != "" || u.Fragment != "" {
+			return settings, fmt.Errorf("invalid Telegram API URL %q", settings.APIURL)
+		}
+		settings.APIURL = strings.TrimRight(u.String(), "/")
 	}
 
 	if settings.Message == "" {
@@ -111,6 +126,15 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 	Version:   Version,
 	CanCreate: true,
 	Options: []schema.Field{
+		{
+			Label:        "API URL",
+			Element:      schema.ElementTypeInput,
+			InputType:    schema.InputTypeText,
+			Placeholder:  "https://api.telegram.org",
+			Description:  "Telegram Bot API base URL. Leave empty to use the default Telegram API.",
+			PropertyName: "api_url",
+			Protected:    true,
+		},
 		{
 			Label:        "BOT API Token",
 			Element:      schema.ElementTypeInput,
@@ -184,6 +208,12 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			Description:  "Sends the message silently. Users will receive a notification with no sound.",
 			Element:      schema.ElementTypeCheckbox,
 			PropertyName: "disable_notifications",
+		},
+		{
+			Label:        "Send Message as Image Caption",
+			Description:  "Sends a notification with one screenshot and a short message as a single Telegram photo with caption. Longer messages and notifications with multiple screenshots are sent separately.",
+			Element:      schema.ElementTypeCheckbox,
+			PropertyName: "send_message_as_caption",
 		},
 	},
 })
