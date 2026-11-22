@@ -21,6 +21,7 @@ type Config struct {
 	Message         string `json:"message,omitempty" yaml:"message,omitempty"`
 	HideOpenButton  bool   `json:"hide_open_button,omitempty" yaml:"hide_open_button,omitempty"`
 	HideVersionInfo bool   `json:"hide_version_info,omitempty" yaml:"hide_version_info,omitempty"`
+	EnableThreading bool   `json:"enable_threading,omitempty" yaml:"enable_threading,omitempty"`
 }
 
 func NewConfig(jsonData json.RawMessage, decryptFn receivers.DecryptFunc) (Config, error) {
@@ -82,6 +83,12 @@ var Schema = schema.NewIntegrationSchemaVersion(schema.IntegrationSchemaVersion{
 			Description:  "Hide version info",
 			Element:      schema.ElementTypeCheckbox,
 			PropertyName: "hide_version_info",
+		},
+		{
+			Label:        "Enable threading",
+			Description:  "Post the notifications of an alert group in one thread per incident, so reminders and resolved notifications reply to the firing one. Notifications about new alerts of an open incident are posted as new messages. When the group fires again after all of its alerts were resolved, the new incident starts a new thread.",
+			Element:      schema.ElementTypeCheckbox,
+			PropertyName: "enable_threading",
 		},
 	},
 })

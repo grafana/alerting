@@ -128,6 +128,17 @@ func (gcn *Notifier) Notify(ctx context.Context, as ...*types.Alert) (bool, erro
 		u = gcn.settings.URL
 	}
 
+	if gcn.settings.EnableThreading {
+		if reportsNewAlerts(ctx) {
+			level.Debug(l).Log("msg", "posting the notification as a new message because it reports new alerts")
+		} else if threadedURL, err := applyThreading(ctx, u, res, as); err != nil {
+			level.Warn(l).Log("msg", "failed to set up Google Chat threading, sending the notification without a thread", "err", err)
+		} else {
+			u = threadedURL
+			level.Debug(l).Log("msg", "posting the notification in a Google Chat thread", "threadKey", res.Thread.ThreadKey)
+		}
+	}
+
 	body, err := json.Marshal(res)
 	if err != nil {
 		return false, fmt.Errorf("marshal json: %w", err)
@@ -200,9 +211,16 @@ func (gcn *Notifier) buildScreenshotCard(ctx context.Context, alerts []*types.Al
 // Structs used to build a custom Google Hangouts Chat message card.
 // https://developers.google.com/chat/api/guides/message-formats/cards
 type outerStruct struct {
-	PreviewText  string `json:"previewText"`
-	FallbackText string `json:"fallbackText"`
-	Cards        []card `json:"cards"`
+	PreviewText  string  `json:"previewText"`
+	FallbackText string  `json:"fallbackText"`
+	Cards        []card  `json:"cards"`
+	Thread       *thread `json:"thread,omitempty"`
+}
+
+// thread places the message in a Google Chat thread.
+// https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces.messages#thread
+type thread struct {
+	ThreadKey string `json:"threadKey"`
 }
 
 type card struct {
