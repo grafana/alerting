@@ -16,6 +16,7 @@ package v0mimir1
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
@@ -87,6 +88,14 @@ func TestValidate(t *testing.T) {
 			expectedErr: "missing token in Pushover config",
 		},
 		{
+			name: "HTML and monospace conflict",
+			mutate: func(cfg *Config) {
+				cfg.HTML = true
+				cfg.Monospace = true
+			},
+			expectedErr: "at most one of monospace & html must be configured",
+		},
+		{
 			name: "Invalid http_config",
 			mutate: func(cfg *Config) {
 				cfg.HTTPConfig = &httpcfg.HTTPClientConfig{
@@ -137,6 +146,11 @@ func TestNewConfig(t *testing.T) {
 			name:              "Error if missing token",
 			settings:          `{"user_key": "key"}`,
 			expectedInitError: "missing token in Pushover config",
+		},
+		{
+			name:              "HTML and monospace conflict",
+			settings:          `{"user_key":"key","token":"tok","html":true,"monospace":true}`,
+			expectedInitError: "at most one of monospace & html must be configured",
 		},
 		{
 			name: "Minimal valid configuration",
@@ -201,6 +215,24 @@ func TestNewConfig(t *testing.T) {
 			},
 		},
 		{
+			name:     "Fractional durations and decrypted credentials",
+			settings: `{"retry":"30.5s","expire":"1m0.25s","ttl":"0.75s"}`,
+			secrets: map[string][]byte{
+				"user_key": []byte("test-user-key"),
+				"token":    []byte("test-token"),
+			},
+			expectedConfig: func() Config {
+				cfg := DefaultConfig
+				cfg.HTTPConfig = &defaultHTTPConfig
+				cfg.UserKey = "test-user-key"
+				cfg.Token = "test-token"
+				cfg.Retry = FractionalDuration(30*time.Second + 500*time.Millisecond)
+				cfg.Expire = FractionalDuration(time.Minute + 250*time.Millisecond)
+				cfg.TTL = FractionalDuration(750 * time.Millisecond)
+				return cfg
+			}(),
+		},
+		{
 			name:     "FullValidConfigForTesting is valid",
 			settings: FullValidConfigForTesting,
 			expectedConfig: func() Config {
@@ -238,4 +270,18 @@ func TestNewConfig(t *testing.T) {
 			require.Equal(t, c.expectedConfig, actual)
 		})
 	}
+}
+
+func TestNewConfigMonospace(t *testing.T) {
+	settings := json.RawMessage(`{
+		"user_key": "test-user-key",
+		"token": "test-token",
+		"html": false,
+		"monospace": true
+	}`)
+
+	cfg, err := NewConfig(settings, receiversTesting.DecryptForTesting(nil))
+	require.NoError(t, err)
+	require.False(t, cfg.HTML)
+	require.True(t, cfg.Monospace)
 }
