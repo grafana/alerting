@@ -12,4 +12,3 @@ vendor
 .idea
 
 testing/alerting-gen/alerting-gen
-apps/historian/historian-operator
