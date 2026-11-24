@@ -2,10 +2,6 @@
 PATH := $(CURDIR)/.tools/bin:$(PATH)
 SHELL := /usr/bin/env bash
 
-.PHONY: build
-build:
-	$(MAKE) -C apps/historian build
-
 .PHONY: clean
 clean:
 	@# go mod makes the modules read-only, so before deletion we need to make them deleteable
