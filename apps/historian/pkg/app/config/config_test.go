@@ -25,6 +25,7 @@ func TestRuntimeConfig(t *testing.T) {
 				Notification: NotificationConfig{
 					Enabled: false,
 					Loki: LokiConfig{
+						InjectUser: true,
 						LokiConfig: lokiclient.LokiConfig{
 							ReadPathURL:    nil,
 							MaxQueryLength: 721 * time.Hour,
@@ -41,11 +42,27 @@ func TestRuntimeConfig(t *testing.T) {
 				Notification: NotificationConfig{
 					Enabled: true,
 					Loki: LokiConfig{
+						InjectUser: true,
 						LokiConfig: lokiclient.LokiConfig{
 							ReadPathURL:    nil,
 							MaxQueryLength: 721 * time.Hour,
 							MaxQuerySize:   65536,
 						},
+					},
+				},
+			},
+		},
+		{
+			name: "with inject user disabled",
+			args: []string{"--alerting.historian.notification.loki.inject-user=false"},
+			expected: RuntimeConfig{
+				Notification: NotificationConfig{
+					Loki: LokiConfig{
+						LokiConfig: lokiclient.LokiConfig{
+							MaxQueryLength: 721 * time.Hour,
+							MaxQuerySize:   65536,
+						},
+						InjectUser: false,
 					},
 				},
 			},
@@ -62,6 +79,7 @@ func TestRuntimeConfig(t *testing.T) {
 				Notification: NotificationConfig{
 					Enabled: false,
 					Loki: LokiConfig{
+						InjectUser: true,
 						LokiConfig: lokiclient.LokiConfig{
 							ReadPathURL:       lokiURL,
 							BasicAuthUser:     "foo",
