@@ -21,6 +21,11 @@ const (
 type LokiConfig struct {
 	lokiclient.LokiConfig
 	Transport http.RoundTripper
+	// InjectUser sends the stack ID of the caller's namespace to Loki as the
+	// basic auth username, for gateways that tell tenants apart by it. It wraps
+	// Transport, and keeps the configured password. It is off unless set, but
+	// the flag below defaults to on.
+	InjectUser bool
 }
 
 type NotificationConfig struct {
@@ -75,6 +80,9 @@ func (n *NotificationConfig) AddFlagsWithPrefix(prefix string, flags *pflag.Flag
 	flags.StringVar(&n.SigningKeysURL, prefix+".rbac.signing-keys-url", "", "JWKS URL used to verify the access/ID tokens forwarded on notification requests when running standalone (the historian operator). Leave empty when running in-process, where the caller identity is already present in the request context")
 	flags.StringSliceVar(&n.AllowedAudiences, prefix+".rbac.allowed-audiences", nil, "Comma-separated list of audiences the forwarded access token must carry (typically the historian API audience). Empty disables audience validation")
 	addLokiFlags(&n.Loki.LokiConfig, prefix+".loki", flags)
+	// Deployments configured through flags have always sent the stack ID, so the
+	// flag defaults to on. The field is off unless a host sets it.
+	flags.BoolVar(&n.Loki.InjectUser, prefix+".loki.inject-user", true, "Send the stack ID of the caller's namespace to Loki as the basic auth username, for gateways that tell tenants apart by it. Requests fail when the namespace is not a stack")
 }
 
 func (r *RuntimeConfig) AddFlagsWithPrefix(prefix string, flags *pflag.FlagSet) {
