@@ -51,7 +51,6 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: &outerStruct{
-				PreviewText:  "[FIRING:1]  (val1)",
 				FallbackText: "[FIRING:1]  (val1)",
 				Cards: []card{
 					{
@@ -115,7 +114,6 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: &outerStruct{
-				PreviewText:  "[FIRING:2]  ",
 				FallbackText: "[FIRING:2]  ",
 				Cards: []card{
 					{
@@ -174,7 +172,6 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: &outerStruct{
-				PreviewText:  "[FIRING:1]  (val1)",
 				FallbackText: "[FIRING:1]  (val1)",
 				Cards: []card{
 					{
@@ -233,7 +230,6 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: &outerStruct{
-				PreviewText:  "Alerts firing: 1",
 				FallbackText: "Alerts firing: 1",
 				Cards: []card{
 					{
@@ -292,7 +288,6 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: &outerStruct{
-				PreviewText:  "[FIRING:1]  (val1)",
 				FallbackText: "[FIRING:1]  (val1)",
 				Cards: []card{
 					{
@@ -351,7 +346,6 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: &outerStruct{
-				PreviewText:  "[FIRING:1]  (val1)",
 				FallbackText: "[FIRING:1]  (val1)",
 				Cards: []card{
 					{
@@ -406,7 +400,6 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: &outerStruct{
-				PreviewText:  "[FIRING:1]  (val1)",
 				FallbackText: "[FIRING:1]  (val1)",
 				Cards: []card{
 					{
@@ -454,7 +447,6 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: &outerStruct{
-				PreviewText:  "[FIRING:1]  (val1)",
 				FallbackText: "[FIRING:1]  (val1)",
 				Cards: []card{
 					{
@@ -503,7 +495,6 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: &outerStruct{
-				PreviewText:  "[FIRING:1]  (val1)",
 				FallbackText: "[FIRING:1]  (val1)",
 				Cards: []card{
 					{
@@ -551,7 +542,6 @@ func TestNotify(t *testing.T) {
 				},
 			},
 			expMsg: &outerStruct{
-				PreviewText:  "[FIRING:1]  (val1)",
 				FallbackText: "[FIRING:1]  (val1)",
 				Cards: []card{
 					{
@@ -613,6 +603,8 @@ func TestNotify(t *testing.T) {
 			require.NoError(t, err)
 
 			require.JSONEq(t, string(expBody), webhookSender.Webhook.Body)
+			// Google Chat renders previewText as message text above the card, duplicating the title.
+			require.NotContains(t, webhookSender.Webhook.Body, "previewText")
 		})
 	}
 }
