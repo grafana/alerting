@@ -198,6 +198,171 @@ func TestNotify_IncomingWebhook(t *testing.T) {
 			},
 		},
 	}, {
+		name: "Message is sent with custom footer icon",
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            "https://example.com/hooks/xxxx",
+			Token:          "",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          templates.DefaultMessageTitleEmbed,
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+			Color:          templates.DefaultMessageColor,
+			FooterIcon:     "https://internal.example.com/icon.png",
+		},
+		alerts: []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		}},
+		expectedMessage: &slackMessage{
+			Channel:   "#test",
+			Username:  "Grafana",
+			IconEmoji: ":emoji:",
+			Attachments: []attachment{
+				{
+					Title:      "[FIRING:1]  (val1)",
+					TitleLink:  "http://localhost/alerting/list",
+					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+					Fallback:   "[FIRING:1]  (val1)",
+					Fields:     nil,
+					Footer:     "Grafana v" + appVersion,
+					FooterIcon: "https://internal.example.com/icon.png",
+					Color:      "#D63232",
+				},
+			},
+		},
+	}, {
+		name: "Message is sent with templated custom footer icon",
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            "https://example.com/hooks/xxxx",
+			Token:          "",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          templates.DefaultMessageTitleEmbed,
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+			Color:          templates.DefaultMessageColor,
+			FooterIcon:     "{{ .ExternalURL }}/icon.png",
+		},
+		alerts: []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		}},
+		expectedMessage: &slackMessage{
+			Channel:   "#test",
+			Username:  "Grafana",
+			IconEmoji: ":emoji:",
+			Attachments: []attachment{
+				{
+					Title:      "[FIRING:1]  (val1)",
+					TitleLink:  "http://localhost/alerting/list",
+					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+					Fallback:   "[FIRING:1]  (val1)",
+					Fields:     nil,
+					Footer:     "Grafana v" + appVersion,
+					FooterIcon: "http://localhost/icon.png",
+					Color:      "#D63232",
+				},
+			},
+		},
+	}, {
+		name: "Message is sent without footer icon when it is disabled",
+		settings: Config{
+			EndpointURL:       APIURL,
+			URL:               "https://example.com/hooks/xxxx",
+			Token:             "",
+			Recipient:         "#test",
+			Text:              templates.DefaultMessageEmbed,
+			Title:             templates.DefaultMessageTitleEmbed,
+			Username:          "Grafana",
+			IconEmoji:         ":emoji:",
+			IconURL:           "",
+			MentionChannel:    "",
+			MentionUsers:      nil,
+			MentionGroups:     nil,
+			Color:             templates.DefaultMessageColor,
+			DisableFooterIcon: true,
+		},
+		alerts: []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		}},
+		expectedMessage: &slackMessage{
+			Channel:   "#test",
+			Username:  "Grafana",
+			IconEmoji: ":emoji:",
+			Attachments: []attachment{
+				{
+					Title:      "[FIRING:1]  (val1)",
+					TitleLink:  "http://localhost/alerting/list",
+					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+					Fallback:   "[FIRING:1]  (val1)",
+					Fields:     nil,
+					Footer:     "Grafana v" + appVersion,
+					FooterIcon: "",
+					Color:      "#D63232",
+				},
+			},
+		},
+	}, {
+		name: "Disabling the footer icon takes precedence over a custom footer icon",
+		settings: Config{
+			EndpointURL:       APIURL,
+			URL:               "https://example.com/hooks/xxxx",
+			Token:             "",
+			Recipient:         "#test",
+			Text:              templates.DefaultMessageEmbed,
+			Title:             templates.DefaultMessageTitleEmbed,
+			Username:          "Grafana",
+			IconEmoji:         ":emoji:",
+			IconURL:           "",
+			MentionChannel:    "",
+			MentionUsers:      nil,
+			MentionGroups:     nil,
+			Color:             templates.DefaultMessageColor,
+			FooterIcon:        "https://internal.example.com/icon.png",
+			DisableFooterIcon: true,
+		},
+		alerts: []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		}},
+		expectedMessage: &slackMessage{
+			Channel:   "#test",
+			Username:  "Grafana",
+			IconEmoji: ":emoji:",
+			Attachments: []attachment{
+				{
+					Title:      "[FIRING:1]  (val1)",
+					TitleLink:  "http://localhost/alerting/list",
+					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+					Fallback:   "[FIRING:1]  (val1)",
+					Fields:     nil,
+					Footer:     "Grafana v" + appVersion,
+					FooterIcon: "",
+					Color:      "#D63232",
+				},
+			},
+		},
+	}, {
 		name: "Message is sent with footer under limit (not truncated)",
 		settings: Config{
 			EndpointURL:    APIURL,
@@ -320,6 +485,47 @@ func TestNotify_IncomingWebhook(t *testing.T) {
 				},
 			},
 		},
+	}, {
+		name: "Message is sent without footer icon when its template is invalid",
+		settings: Config{
+			EndpointURL:    APIURL,
+			URL:            "https://example.com/hooks/xxxx",
+			Token:          "",
+			Recipient:      "#test",
+			Text:           templates.DefaultMessageEmbed,
+			Title:          templates.DefaultMessageTitleEmbed,
+			Username:       "Grafana",
+			IconEmoji:      ":emoji:",
+			IconURL:        "",
+			MentionChannel: "",
+			MentionUsers:   nil,
+			MentionGroups:  nil,
+			Color:          templates.DefaultMessageColor,
+			FooterIcon:     "{{ .InvalidField }}",
+		},
+		alerts: []*types.Alert{{
+			Alert: model.Alert{
+				Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1"},
+				Annotations: model.LabelSet{"ann1": "annv1"},
+			},
+		}},
+		expectedMessage: &slackMessage{
+			Channel:   "#test",
+			Username:  "Grafana",
+			IconEmoji: ":emoji:",
+			Attachments: []attachment{
+				{
+					Title:      "[FIRING:1]  (val1)",
+					TitleLink:  "http://localhost/alerting/list",
+					Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\n",
+					Fallback:   "[FIRING:1]  (val1)",
+					Fields:     nil,
+					Footer:     "Grafana v" + appVersion,
+					FooterIcon: "",
+					Color:      "#D63232",
+				},
+			},
+		},
 	}}
 
 	for _, test := range tests {
@@ -359,6 +565,7 @@ func TestNotify_IncomingWebhook(t *testing.T) {
 					test.expectedMessage.Attachments[i].Ts = v.Ts
 				}
 				assert.Equal(t, *test.expectedMessage, message)
+				assertFooterIconOmittedIfEmpty(t, b, test.expectedMessage)
 			}
 		})
 	}
@@ -963,6 +1170,126 @@ func TestNotify_PostMessageWithImageURL(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "Footer icon is omitted from the message and the image message when it is disabled",
+			settings: Config{
+				EndpointURL:       APIURL,
+				URL:               APIURL,
+				Token:             "1234",
+				Recipient:         "#test",
+				Text:              templates.DefaultMessageEmbed,
+				Title:             templates.DefaultMessageTitleEmbed,
+				Username:          "Grafana",
+				IconEmoji:         ":emoji:",
+				IconURL:           "",
+				MentionChannel:    "",
+				MentionUsers:      nil,
+				MentionGroups:     nil,
+				Color:             templates.DefaultMessageColor,
+				DisableFooterIcon: true,
+			},
+			alerts: []*types.Alert{{
+				Alert: model.Alert{
+					Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1", "__grafana_autogenerated__": "true", "__grafana_receiver__": "slack", "__grafana_route_settings_hash__": "1234"},
+					Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", "__alertImageToken__": "image-on-disk", "__alert_image_url__": "http://localhost/test-image"},
+				},
+			}},
+			expectedMessage: &slackMessage{
+				Channel:   "#test",
+				Username:  "Grafana",
+				IconEmoji: ":emoji:",
+				Attachments: []attachment{
+					{
+						Title:      "[FIRING:1]  (val1)",
+						TitleLink:  "http://localhost/alerting/list",
+						Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+						Fallback:   "[FIRING:1]  (val1)",
+						Fields:     nil,
+						Footer:     "Grafana v" + appVersion,
+						FooterIcon: "",
+						Color:      "#D63232",
+					},
+				},
+			},
+			expectedImageMessage: &slackMessage{
+				Channel:   "C123ABC456",
+				Username:  "Grafana",
+				IconEmoji: ":emoji:",
+				Attachments: []attachment{
+					{
+						Title:      "*Firing*: alert1",
+						TitleLink:  "http://localhost/alerting/list",
+						Text:       "*Labels*: lbl1=val1",
+						Fallback:   "*Labels*: lbl1=val1",
+						Fields:     nil,
+						Footer:     "Grafana v" + appVersion,
+						FooterIcon: "",
+						ImageURL:   "http://localhost/test-image",
+						Color:      "#D63232",
+					},
+				},
+			},
+		},
+		{
+			name: "Templated custom footer icon is used in the message and the image message",
+			settings: Config{
+				EndpointURL:    APIURL,
+				URL:            APIURL,
+				Token:          "1234",
+				Recipient:      "#test",
+				Text:           templates.DefaultMessageEmbed,
+				Title:          templates.DefaultMessageTitleEmbed,
+				Username:       "Grafana",
+				IconEmoji:      ":emoji:",
+				IconURL:        "",
+				MentionChannel: "",
+				MentionUsers:   nil,
+				MentionGroups:  nil,
+				Color:          templates.DefaultMessageColor,
+				FooterIcon:     "{{ .ExternalURL }}/icon.png",
+			},
+			alerts: []*types.Alert{{
+				Alert: model.Alert{
+					Labels:      model.LabelSet{"alertname": "alert1", "lbl1": "val1", "__grafana_autogenerated__": "true", "__grafana_receiver__": "slack", "__grafana_route_settings_hash__": "1234"},
+					Annotations: model.LabelSet{"ann1": "annv1", "__dashboardUid__": "abcd", "__panelId__": "efgh", "__alertImageToken__": "image-on-disk", "__alert_image_url__": "http://localhost/test-image"},
+				},
+			}},
+			expectedMessage: &slackMessage{
+				Channel:   "#test",
+				Username:  "Grafana",
+				IconEmoji: ":emoji:",
+				Attachments: []attachment{
+					{
+						Title:      "[FIRING:1]  (val1)",
+						TitleLink:  "http://localhost/alerting/list",
+						Text:       "**Firing**\n\nValue: [no value]\nLabels:\n - alertname = alert1\n - lbl1 = val1\nAnnotations:\n - ann1 = annv1\nSilence: http://localhost/alerting/silence/new?alertmanager=grafana&matcher=alertname%3Dalert1&matcher=lbl1%3Dval1\nDashboard: http://localhost/d/abcd\nPanel: http://localhost/d/abcd?viewPanel=efgh\n",
+						Fallback:   "[FIRING:1]  (val1)",
+						Fields:     nil,
+						Footer:     "Grafana v" + appVersion,
+						FooterIcon: "http://localhost/icon.png",
+						Color:      "#D63232",
+					},
+				},
+			},
+			expectedImageMessage: &slackMessage{
+				Channel:   "C123ABC456",
+				Username:  "Grafana",
+				IconEmoji: ":emoji:",
+				Attachments: []attachment{
+					{
+						Title:      "*Firing*: alert1",
+						TitleLink:  "http://localhost/alerting/list",
+						Text:       "*Labels*: lbl1=val1",
+						Fallback:   "*Labels*: lbl1=val1",
+						Fields:     nil,
+						Footer:     "Grafana v" + appVersion,
+						FooterIcon: "http://localhost/icon.png",
+						ImageURL:   "http://localhost/test-image",
+						Color:      "#D63232",
+					},
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -999,6 +1326,7 @@ func TestNotify_PostMessageWithImageURL(t *testing.T) {
 				require.NoError(t, json.Unmarshal(b, &message))
 				message.Attachments[0].Ts = 0
 				assert.Equal(t, *test.expectedMessage, message)
+				assertFooterIconOmittedIfEmpty(t, b, test.expectedMessage)
 
 				// Check that the image is attached in a separate message.
 				r = recorder.messageRequest[1]
@@ -1012,8 +1340,18 @@ func TestNotify_PostMessageWithImageURL(t *testing.T) {
 				message.ThreadTs = ""
 				message.Attachments[0].Ts = 0
 				assert.Equal(t, *test.expectedImageMessage, message)
+				assertFooterIconOmittedIfEmpty(t, b, test.expectedImageMessage)
 			}
 		})
+	}
+}
+
+// assertFooterIconOmittedIfEmpty checks the raw request body. Decoding the body into a slackMessage cannot tell
+// a missing footer_icon key from an empty string, so this guards the omitempty tag on the attachment.
+func assertFooterIconOmittedIfEmpty(t *testing.T, body []byte, expected *slackMessage) {
+	t.Helper()
+	if len(expected.Attachments) > 0 && expected.Attachments[0].FooterIcon == "" {
+		assert.NotContains(t, string(body), "footer_icon")
 	}
 }
 

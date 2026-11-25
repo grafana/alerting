@@ -4,6 +4,7 @@
 
 - [FEATURE] Add an opt-in Telegram setting to send a single screenshot and short message as a photo with caption.
 - [FEATURE] Telegram: allow configuring a custom Bot API base URL for local or proxied Telegram API servers.
+- [FEATURE] Slack: allow overriding the footer icon URL with a templated `footerIcon` or omitting it (`disableFooterIcon`), for example when the default Grafana icon cannot be loaded in air-gapped environments.
 - [ENHANCEMENT] `TimedClient` records requests failed due to context cancellation with `status_code="canceled"` instead of `"error"`. Other request errors, including deadline exceeded, remain `"error"`.
 - [ENHANCEMENT] Reuse webhook HTTP connections with configurable per-client connection-pool limits and response-drain size (25 connections per host and 64 KiB by default).
 
