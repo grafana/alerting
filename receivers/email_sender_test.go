@@ -2,10 +2,13 @@ package receivers
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/go-kit/log"
 
 	"github.com/grafana/alerting/templates/email"
 
@@ -29,7 +32,7 @@ func TestBuildEmailMessage(t *testing.T) {
 			ContentTypes: []string{"text/html", "text/plain"},
 			ExternalURL:  externalURL,
 			SentBy:       sentBy,
-		})
+		}, log.NewNopLogger())
 		ds, ok := s.(*defaultEmailSender)
 		require.True(t, ok)
 
@@ -48,7 +51,7 @@ func TestBuildEmailMessage(t *testing.T) {
 			ContentTypes: []string{"application/json"},
 			ExternalURL:  externalURL,
 			SentBy:       sentBy,
-		})
+		}, log.NewNopLogger())
 		ds, ok := s.(*defaultEmailSender)
 		require.True(t, ok)
 
@@ -104,7 +107,7 @@ func TestCreateDialer(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			s := NewEmailSender(test.cfg)
+			s := NewEmailSender(test.cfg, log.NewNopLogger())
 			ds, ok := s.(*defaultEmailSender)
 			require.True(t, ok)
 
@@ -187,7 +190,7 @@ func TestBuildEmail(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			s := NewEmailSender(tc.cfg)
+			s := NewEmailSender(tc.cfg, log.NewNopLogger())
 			ds, ok := s.(*defaultEmailSender)
 			require.True(t, ok)
 
@@ -317,6 +320,13 @@ func TestSend(t *testing.T) {
 			require.ElementsMatch(t, tc.expectedSent, ms.sentTo)
 		})
 	}
+}
+
+func TestNewEmailSenderDisabled(t *testing.T) {
+	sender := NewEmailSender(EmailSenderConfig{Disabled: true}, log.NewNopLogger())
+	_, isDefault := sender.(*defaultEmailSender)
+	require.False(t, isDefault)
+	require.NoError(t, sender.SendEmail(context.Background(), &SendEmailSettings{To: []string{"a@example.com"}}))
 }
 
 func makeMsg(single bool, addrs ...string) *Message {

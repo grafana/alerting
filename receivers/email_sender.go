@@ -12,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+
 	"github.com/grafana/alerting/templates/email"
 
 	gomail "gopkg.in/mail.v2"
@@ -37,6 +40,8 @@ type EmailSenderConfig struct {
 	// If both UseBCC and SingleEmail are true, UseBCC is ignored
 	// and recipients are placed in the TO field.
 	UseBCC bool
+	// Disabled makes NewEmailSender return a sender that skips sending.
+	Disabled bool
 }
 
 type defaultEmailSender struct {
@@ -45,13 +50,28 @@ type defaultEmailSender struct {
 }
 
 // NewEmailSender takes a configuration and returns a new EmailSender.
-func NewEmailSender(cfg EmailSenderConfig) EmailSender {
+func NewEmailSender(cfg EmailSenderConfig, logger log.Logger) EmailSender {
+	if cfg.Disabled {
+		level.Debug(logger).Log("msg", "Email sending is disabled, using a noop sender")
+		return noopEmailSender{logger: logger}
+	}
 	return &defaultEmailSender{
 		cfg: cfg,
 		dialFn: func(s *defaultEmailSender) (gomail.SendCloser, error) {
 			return s.dial()
 		},
 	}
+}
+
+// noopEmailSender skips sending.
+type noopEmailSender struct {
+	logger log.Logger
+}
+
+// SendEmail implements the EmailSender interface.
+func (s noopEmailSender) SendEmail(context.Context, *SendEmailSettings) error {
+	level.Warn(s.logger).Log("msg", "Email sending is disabled, skipping email")
+	return nil
 }
 
 // Message representats an email message.
