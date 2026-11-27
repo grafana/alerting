@@ -17,8 +17,8 @@ import (
 	gomail "gopkg.in/mail.v2"
 )
 
-// ErrEmailDisabled is returned when email sending is disabled.
-var ErrEmailDisabled = errors.New("SMTP is disabled in the Grafana [smtp] settings")
+// ErrEmailDisabled is returned when email sending is disabled for the tenant.
+var ErrEmailDisabled = errors.New("email sending is disabled for this tenant")
 
 type EmailSenderConfig struct {
 	AuthPassword   string
