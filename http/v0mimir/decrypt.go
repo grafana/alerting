@@ -3,6 +3,7 @@ package v0mimir
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	commoncfg "github.com/prometheus/common/config"
 
@@ -49,9 +50,18 @@ func DecryptHTTPConfig(prefix string, cfg *HTTPClientConfig, decrypt receivers.D
 		cfg.OAuth2.TLSConfig.Key = commoncfg.Secret(secret)
 	}
 	for name, header := range cfg.HTTPHeaders {
-		secrets, err := decryptSecretList(decrypt, p(prefix, "http_headers", name))
+		secretPath := p(prefix, "http_headers", name, "secrets")
+		secrets, err := decryptSecretList(decrypt, secretPath.String())
 		if err != nil {
 			return nil, err
+		}
+		if secrets == nil {
+			// Older clients stored the whole secret list at the header path before
+			// the schema exposed `secrets` as a nested secure field.
+			secrets, err = decryptSecretList(decrypt, strings.Join(p(prefix, "http_headers", name), "."))
+			if err != nil {
+				return nil, err
+			}
 		}
 		if secrets != nil {
 			header.Secrets = secrets
@@ -69,8 +79,8 @@ func DecryptHTTPConfig(prefix string, cfg *HTTPClientConfig, decrypt receivers.D
 	return cfg, nil
 }
 
-func decryptSecretList(decryptFn receivers.DecryptFunc, key schema.IntegrationFieldPath) ([]commoncfg.Secret, error) {
-	secret, ok := decryptFn.GetPath(key)
+func decryptSecretList(decryptFn receivers.DecryptFunc, key string) ([]commoncfg.Secret, error) {
+	secret, ok := decryptFn(key, "")
 	if !ok {
 		return nil, nil
 	}
@@ -83,7 +93,15 @@ func decryptSecretList(decryptFn receivers.DecryptFunc, key schema.IntegrationFi
 
 func decryptProxyHeader(decryptFn receivers.DecryptFunc, prefix schema.IntegrationFieldPath, header ProxyHeader) error {
 	for name := range header {
-		secrets, err := decryptSecretList(decryptFn, prefix.With(name))
+		key := prefix.With(name)
+		secrets, err := decryptSecretList(decryptFn, key.String())
+		if err != nil {
+			return err
+		}
+		if secrets == nil && key.String() != strings.Join(key, ".") {
+			// Proxy header secrets were previously stored without path escaping.
+			secrets, err = decryptSecretList(decryptFn, strings.Join(key, "."))
+		}
 		if err != nil {
 			return err
 		}

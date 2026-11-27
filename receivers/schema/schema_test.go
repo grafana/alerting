@@ -103,6 +103,30 @@ func TestIntegrationSchemaVersionGetSecretFieldsPaths(t *testing.T) {
 				{"test", "child", "secured2"},
 			},
 		},
+		{
+			name: "secure fields in object map values",
+			version: IntegrationSchemaVersion{
+				Options: []Field{
+					{
+						PropertyName: "http_config",
+						Element:      ElementTypeSubform,
+						SubformOptions: []Field{
+							{
+								PropertyName: "http_headers",
+								Element:      ElementTypeKeyValueObjectMap,
+								SubformOptions: []Field{
+									{PropertyName: "values", Element: ElementStringArray},
+									{PropertyName: "secrets", Element: ElementStringArray, Secure: true},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []IntegrationFieldPath{
+				{"http_config", "http_headers", "*", "secrets"},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -131,6 +155,14 @@ func TestIntegrationSchemaVersionIsSecureField(t *testing.T) {
 			{
 				PropertyName: "test2",
 				Secure:       true,
+			},
+			{
+				PropertyName: "headers",
+				Element:      ElementTypeKeyValueObjectMap,
+				SubformOptions: []Field{
+					{PropertyName: "values"},
+					{PropertyName: "secrets", Secure: true},
+				},
 			},
 		},
 	}
@@ -176,6 +208,26 @@ func TestIntegrationSchemaVersionIsSecureField(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "secure field in object map value",
+			path:     IntegrationFieldPath{"headers", "X-Custom", "secrets"},
+			expected: true,
+		},
+		{
+			name:     "secure field in object map value with escaped key",
+			path:     ParseIntegrationPath("headers.X%2ECustom.secrets"),
+			expected: true,
+		},
+		{
+			name:     "non-secure field in object map value",
+			path:     IntegrationFieldPath{"headers", "X-Custom", "values"},
+			expected: false,
+		},
+		{
+			name:     "map key without a field",
+			path:     IntegrationFieldPath{"headers", "X-Custom"},
+			expected: false,
+		},
+		{
 			name:     "upper case path",
 			path:     IntegrationFieldPath{"TEST2"},
 			expected: true,
@@ -187,6 +239,13 @@ func TestIntegrationSchemaVersionIsSecureField(t *testing.T) {
 			assert.Equal(t, testCase.expected, v.IsSecureField(testCase.path))
 		})
 	}
+}
+
+func TestIntegrationFieldPathEscapesPathSeparators(t *testing.T) {
+	path := IntegrationFieldPath{"http_config", "http_headers", "X.Request%2ETrace", "secrets"}
+
+	require.Equal(t, "http_config.http_headers.X%2ERequest%252ETrace.secrets", path.String())
+	require.Equal(t, path, ParseIntegrationPath(path.String()))
 }
 
 func TestIntegrationSchemaVersionGetField(t *testing.T) {

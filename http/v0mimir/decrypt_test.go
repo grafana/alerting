@@ -1,6 +1,7 @@
 package v0mimir
 
 import (
+	"strings"
 	"testing"
 
 	commoncfg "github.com/prometheus/common/config"
@@ -146,7 +147,7 @@ func TestDecryptHTTPConfig(t *testing.T) {
 				},
 			},
 			secrets: map[string][]byte{
-				"http_config.http_headers.X-Custom": []byte(`["s1","s2"]`),
+				"http_config.http_headers.X-Custom.secrets": []byte(`["s1","s2"]`),
 			},
 			expectedCfg: &HTTPClientConfig{
 				HTTPHeaders: Headers{
@@ -165,9 +166,47 @@ func TestDecryptHTTPConfig(t *testing.T) {
 				},
 			},
 			secrets: map[string][]byte{
-				"http_config.http_headers.X-Bad": []byte(`not-json`),
+				"http_config.http_headers.X-Bad.secrets": []byte(`not-json`),
 			},
-			expectedErr: "invalid http_config.http_headers.X-Bad",
+			expectedErr: "invalid http_config.http_headers.X-Bad.secrets",
+		},
+		{
+			name: "HTTP headers secrets from legacy path",
+			cfg: &HTTPClientConfig{
+				HTTPHeaders: Headers{
+					"X-Custom": Header{Values: []string{"val"}},
+				},
+			},
+			secrets: map[string][]byte{
+				"http_config.http_headers.X-Custom": []byte(`["legacy-secret"]`),
+			},
+			expectedCfg: &HTTPClientConfig{
+				HTTPHeaders: Headers{
+					"X-Custom": Header{
+						Values:  []string{"val"},
+						Secrets: []commoncfg.Secret{"legacy-secret"},
+					},
+				},
+			},
+		},
+		{
+			name: "HTTP header names with dots in secure paths",
+			cfg: &HTTPClientConfig{
+				HTTPHeaders: Headers{
+					"X-Request.Trace": Header{Values: []string{"trace-id"}},
+				},
+			},
+			secrets: map[string][]byte{
+				"http_config.http_headers.X-Request%2ETrace.secrets": []byte(`["header-secret"]`),
+			},
+			expectedCfg: &HTTPClientConfig{
+				HTTPHeaders: Headers{
+					"X-Request.Trace": Header{
+						Values:  []string{"trace-id"},
+						Secrets: []commoncfg.Secret{"header-secret"},
+					},
+				},
+			},
 		},
 		{
 			name: "Proxy connect header secrets",
@@ -228,5 +267,46 @@ func TestDecryptHTTPConfig(t *testing.T) {
 			require.NoError(t, err)
 			require.Equal(t, c.expectedCfg, actual)
 		})
+	}
+}
+
+func TestDecryptHTTPConfigLegacyHeaderNames(t *testing.T) {
+	for _, name := range []string{"X-Request.Trace", "X-Percent%Header", "X-Literal%2EHeader"} {
+		for _, prefix := range []string{"http_config.http_headers", "http_config.proxy_connect_header", "http_config.oauth2.proxy_connect_header"} {
+			for _, encoded := range []bool{false, true} {
+				mode := "legacy"
+				if encoded {
+					mode = "encoded takes precedence"
+				}
+				t.Run(prefix+"/"+name+"/"+mode, func(t *testing.T) {
+					cfg := &HTTPClientConfig{
+						HTTPHeaders: Headers{name: Header{Values: []string{"value"}}},
+						ProxyConfig: ProxyConfig{ProxyConnectHeader: ProxyHeader{name: []commoncfg.Secret{"old"}}},
+						OAuth2:      &OAuth2{ProxyConfig: ProxyConfig{ProxyConnectHeader: ProxyHeader{name: []commoncfg.Secret{"old"}}}},
+					}
+					secrets := map[string][]byte{prefix + "." + name: []byte(`["legacy-secret"]`)}
+					expected := []commoncfg.Secret{"legacy-secret"}
+					if encoded {
+						key := prefix + "." + strings.NewReplacer("%", "%25", ".", "%2E").Replace(name)
+						if prefix == "http_config.http_headers" {
+							key += ".secrets"
+						}
+						secrets[key] = []byte(`["new-secret"]`)
+						expected = []commoncfg.Secret{"new-secret"}
+					}
+					actual, err := DecryptHTTPConfig("http_config", cfg, receiversTesting.DecryptForTesting(secrets))
+					require.NoError(t, err)
+					switch prefix {
+					case "http_config.http_headers":
+						require.Equal(t, expected, actual.HTTPHeaders[name].Secrets)
+						require.Equal(t, []string{"value"}, actual.HTTPHeaders[name].Values)
+					case "http_config.proxy_connect_header":
+						require.Equal(t, expected, actual.ProxyConnectHeader[name])
+					case "http_config.oauth2.proxy_connect_header":
+						require.Equal(t, expected, actual.OAuth2.ProxyConnectHeader[name])
+					}
+				})
+			}
+		}
 	}
 }
