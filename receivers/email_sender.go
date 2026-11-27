@@ -69,8 +69,8 @@ type noopEmailSender struct {
 }
 
 // SendEmail implements the EmailSender interface.
-func (s noopEmailSender) SendEmail(_ context.Context, cmd *SendEmailSettings) error {
-	level.Warn(s.logger).Log("msg", "Email sending is disabled, skipping email", "recipients", len(cmd.To))
+func (s noopEmailSender) SendEmail(context.Context, *SendEmailSettings) error {
+	level.Warn(s.logger).Log("msg", "Email sending is disabled, skipping email")
 	return nil
 }
 
