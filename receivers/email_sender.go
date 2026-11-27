@@ -12,6 +12,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
+
 	"github.com/grafana/alerting/templates/email"
 
 	gomail "gopkg.in/mail.v2"
@@ -47,9 +50,10 @@ type defaultEmailSender struct {
 }
 
 // NewEmailSender takes a configuration and returns a new EmailSender.
-func NewEmailSender(cfg EmailSenderConfig) EmailSender {
+func NewEmailSender(cfg EmailSenderConfig, logger log.Logger) EmailSender {
 	if cfg.Disabled {
-		return noopEmailSender{}
+		level.Debug(logger).Log("msg", "Email sending is disabled, using a noop sender")
+		return noopEmailSender{logger: logger}
 	}
 	return &defaultEmailSender{
 		cfg: cfg,
@@ -60,10 +64,13 @@ func NewEmailSender(cfg EmailSenderConfig) EmailSender {
 }
 
 // noopEmailSender skips sending.
-type noopEmailSender struct{}
+type noopEmailSender struct {
+	logger log.Logger
+}
 
 // SendEmail implements the EmailSender interface.
-func (noopEmailSender) SendEmail(context.Context, *SendEmailSettings) error {
+func (s noopEmailSender) SendEmail(_ context.Context, cmd *SendEmailSettings) error {
+	level.Warn(s.logger).Log("msg", "Email sending is disabled, skipping email", "recipients", len(cmd.To))
 	return nil
 }
 
