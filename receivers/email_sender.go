@@ -17,9 +17,6 @@ import (
 	gomail "gopkg.in/mail.v2"
 )
 
-// ErrEmailDisabled is returned when email sending is disabled for the tenant.
-var ErrEmailDisabled = errors.New("email sending is disabled for this tenant")
-
 type EmailSenderConfig struct {
 	AuthPassword   string
 	AuthUser       string
@@ -40,7 +37,7 @@ type EmailSenderConfig struct {
 	// If both UseBCC and SingleEmail are true, UseBCC is ignored
 	// and recipients are placed in the TO field.
 	UseBCC bool
-	// Disabled blocks email sending when set.
+	// Disabled makes NewEmailSender return a sender that skips sending.
 	Disabled bool
 }
 
@@ -51,12 +48,23 @@ type defaultEmailSender struct {
 
 // NewEmailSender takes a configuration and returns a new EmailSender.
 func NewEmailSender(cfg EmailSenderConfig) EmailSender {
+	if cfg.Disabled {
+		return noopEmailSender{}
+	}
 	return &defaultEmailSender{
 		cfg: cfg,
 		dialFn: func(s *defaultEmailSender) (gomail.SendCloser, error) {
 			return s.dial()
 		},
 	}
+}
+
+// noopEmailSender skips sending.
+type noopEmailSender struct{}
+
+// SendEmail implements the EmailSender interface.
+func (noopEmailSender) SendEmail(context.Context, *SendEmailSettings) error {
+	return nil
 }
 
 // Message representats an email message.
@@ -73,10 +81,6 @@ type Message struct {
 
 // SendEmail implements the EmailSender interface.
 func (s *defaultEmailSender) SendEmail(_ context.Context, cmd *SendEmailSettings) error {
-	if s.cfg.Disabled {
-		return ErrEmailDisabled
-	}
-
 	message, err := s.buildEmailMessage(cmd)
 	if err != nil {
 		return err

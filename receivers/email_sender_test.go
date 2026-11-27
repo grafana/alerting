@@ -320,17 +320,11 @@ func TestSend(t *testing.T) {
 	}
 }
 
-func TestSendEmailDisabled(t *testing.T) {
-	ds := &defaultEmailSender{
-		cfg: EmailSenderConfig{Disabled: true},
-		dialFn: func(_ *defaultEmailSender) (gomail.SendCloser, error) {
-			t.Fatal("dial must not be called when disabled")
-			return nil, nil
-		},
-	}
-
-	err := ds.SendEmail(context.Background(), &SendEmailSettings{Template: "ng_alert_notification"})
-	require.ErrorIs(t, err, ErrEmailDisabled)
+func TestNewEmailSenderDisabled(t *testing.T) {
+	sender := NewEmailSender(EmailSenderConfig{Disabled: true})
+	_, isDefault := sender.(*defaultEmailSender)
+	require.False(t, isDefault)
+	require.NoError(t, sender.SendEmail(context.Background(), &SendEmailSettings{To: []string{"a@example.com"}}))
 }
 
 func makeMsg(single bool, addrs ...string) *Message {
