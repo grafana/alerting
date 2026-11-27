@@ -17,6 +17,9 @@ import (
 	gomail "gopkg.in/mail.v2"
 )
 
+// ErrEmailDisabled is returned when email sending is disabled.
+var ErrEmailDisabled = errors.New("SMTP is disabled in the Grafana [smtp] settings")
+
 type EmailSenderConfig struct {
 	AuthPassword   string
 	AuthUser       string
@@ -37,6 +40,8 @@ type EmailSenderConfig struct {
 	// If both UseBCC and SingleEmail are true, UseBCC is ignored
 	// and recipients are placed in the TO field.
 	UseBCC bool
+	// Disabled blocks email sending when set.
+	Disabled bool
 }
 
 type defaultEmailSender struct {
@@ -68,6 +73,10 @@ type Message struct {
 
 // SendEmail implements the EmailSender interface.
 func (s *defaultEmailSender) SendEmail(_ context.Context, cmd *SendEmailSettings) error {
+	if s.cfg.Disabled {
+		return ErrEmailDisabled
+	}
+
 	message, err := s.buildEmailMessage(cmd)
 	if err != nil {
 		return err

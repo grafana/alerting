@@ -2,6 +2,7 @@ package receivers
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -317,6 +318,19 @@ func TestSend(t *testing.T) {
 			require.ElementsMatch(t, tc.expectedSent, ms.sentTo)
 		})
 	}
+}
+
+func TestSendEmailDisabled(t *testing.T) {
+	ds := &defaultEmailSender{
+		cfg: EmailSenderConfig{Disabled: true},
+		dialFn: func(_ *defaultEmailSender) (gomail.SendCloser, error) {
+			t.Fatal("dial must not be called when disabled")
+			return nil, nil
+		},
+	}
+
+	err := ds.SendEmail(context.Background(), &SendEmailSettings{Template: "ng_alert_notification"})
+	require.ErrorIs(t, err, ErrEmailDisabled)
 }
 
 func makeMsg(single bool, addrs ...string) *Message {
